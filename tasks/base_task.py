@@ -1,15 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-tasks/base_task.py — الكلاس الأب الموحد لجميع مهام البوت (BaseTask & TaskResult)
-═══════════════════════════════════════════════════════════════════════════════════
-يوفر بنية تحتية صلبة ومرنة لكل مهام اللعبة:
-  1. كائن نتيجة موحد (TaskResult) لتوحيد مخرجات المهام وسجلات الأخطاء.
-  2. استخراج فوري صفر استهلاك للشبكة (0-Network) لبيانات الحساب:
-     - رقم المملكة (kingdom_id)
-     - كمية طاقة اللورد / الصحة (stamina / health)
-     - الذهب والموارد ومستوى القلعة ودرع السلام
-  3. استعلام آمن ومحاكاة بشرية (safe_query) بإدراج Jitter زمني عشوائي.
-  4. فحص قبلي مشروط (can_run) وتغليف آمن مانع للأخطاء (safe_execute).
+python tools/test_base_task.py --email beetoo2@hotmail.com --fn is_shielded
 """
 
 from __future__ import annotations
@@ -74,31 +65,6 @@ class TaskResult:
     def __repr__(self) -> str:
         status = "SKIPPED" if self.skipped else ("OK" if self.success else "FAILED")
         return f"<TaskResult [{status}]: {self.message}>"
-
-
-class AwaitableInt(int):
-    """
-    عدد صحيح يدعم الاستخدام المباشر (Synchronous) والانتظار غير المتزامن (Asynchronous)
-    لضمان التوافق التام مع الخصائص (Properties) والدوال غير المتزامنة (Coroutines).
-    """
-
-    def __await__(self):
-        async def _coro():
-            return int(self)
-        return _coro().__await__()
-
-
-class AwaitableSet(set):
-    """
-    مجموعة (Set) تدعم الاستخدام المباشر والانتظار غير المتزامن (Awaitable)
-    لضمان التوافق مع الكود المتزامن وغير المتزامن.
-    """
-
-    def __await__(self):
-        async def _coro():
-            return set(self)
-        return _coro().__await__()
-
 
 # ═════════════════════════════════════════════════════════════════════════
 # جداول حزم وصناديق الموارد الرسمية للعبة (عادية وآمنة مرتبة تنازلياً)
@@ -408,28 +374,15 @@ class BaseTask(ABC):
         return {}
 
     @property
-    def shield_remaining_seconds(self) -> int:
-        """الوقت المتبقي لدرع الحماية بالثواني."""
-        lord = self.get_ctrl("lordInfoCtrl")
-        base = lord.get("base", {}) if isinstance(lord, dict) else {}
-        return int(base.get("shieldTime", 0))
+    def is_shielded(self) -> bool:
+        """مؤشر درع السلام الرسمي من خريطة المملكة."""
+        km = self.get_ctrl("kingdomMapCtrl")
+        return bool(km.get("isSafe", False)) if isinstance(km, dict) else False
 
     @property
-    def available_marches(self) -> int:
-        """عدد طوابير الجيوش الشاغرة الجاهزة للمسير (تفويض لـ get_available_marches_count مع دعم بيئات المحاكاة القديمة)."""
-        init_data = self.init_data
-        has_modern_state = any(k in init_data for k in ("technologyCtrl", "vipCtrl", "local_queues")) or (
-            self.conn and hasattr(self.conn, "memory_engine") and getattr(self.conn.memory_engine, "local_queues_synced", False)
-        )
-        if has_modern_state or not (isinstance(self.get_ctrl("queueCtrl"), dict) and "queues" in self.get_ctrl("queueCtrl")):
-            return self.get_available_marches_count()
-
-        # التوافق مع بيئات المحاكاة القديمة التي توفر queueCtrl فقط بدون متحكمات أبحاث أو local_queues
-        queue_ctrl = self.get_ctrl("queueCtrl")
-        queues = queue_ctrl.get("queues", []) if isinstance(queue_ctrl, dict) else []
-        active = sum(1 for q in queues if isinstance(q, dict) and q.get("type") == 1)
-        cfg_max = max(2, int(self.config.get("max_marches", 2)))
-        return AwaitableInt(max(0, cfg_max - active))
+    def shield_remaining_seconds(self) -> int:
+        """مؤشر ثواني الدرع المتبقية أو حالة الأمان (توافق خلفي وبساطة مطلقة)."""
+        return 1 if self.is_shielded else 0
 
     # ═════════════════════════════════════════════════════════════════════════
     # دوال إدارة والتعامل مع طوابير ومسيرات الجيوش في الذاكرة الحية (0-Network)
@@ -529,7 +482,7 @@ class BaseTask(ABC):
         """
         conn = getattr(self, "conn", None)
         if conn is None:
-            return AwaitableInt(0)
+            return 0
 
         # إرسال استعلام المزامنة في الخلفية عند طلب force_sync
         if force_sync and getattr(conn, "is_connected", False) and hasattr(conn, "query"):
@@ -579,7 +532,7 @@ class BaseTask(ABC):
                 if isinstance(qc_queues, list):
                     active = sum(1 for q in qc_queues if isinstance(q, dict) and q.get("type") == 1)
 
-        return AwaitableInt(active)
+        return active
 
     def get_other_marches_count(self) -> int:
         """
@@ -588,11 +541,11 @@ class BaseTask(ABC):
         """
         conn = getattr(self, "conn", None)
         if conn is None:
-            return AwaitableInt(0)
+            return 0
 
         other_queues = self._read_live_other_queues(conn)
         if not other_queues:
-            return AwaitableInt(0)
+            return 0
 
         my_uid = str(getattr(self, "uid", "") or "").strip()
         active_statuses = (0, 1, 2, 3, 4, 7)
@@ -623,7 +576,7 @@ class BaseTask(ABC):
                 seen_ids.add(qid)
             count += 1
 
-        return AwaitableInt(count)
+        return count
 
     def get_max_marches_capacity(self) -> int:
         """
@@ -720,7 +673,7 @@ class BaseTask(ABC):
                 except (ValueError, TypeError):
                     pass
 
-        return AwaitableInt(capacity)
+        return capacity
 
     def get_available_marches_count(self) -> int:
         """
@@ -730,7 +683,12 @@ class BaseTask(ABC):
         """
         max_cap = self.get_max_marches_capacity()
         active = self.get_active_marches_count()
-        return AwaitableInt(max(0, int(max_cap) - int(active)))
+        return max(0, int(max_cap) - int(active))
+
+    @property
+    def available_marches(self) -> int:
+        """عدد الفيالق الشاغرة المتاحة للإرسال خارج القلعة حالياً."""
+        return self.get_available_marches_count()
 
     def get_active_gather_resource_types(self, force_sync: bool = False) -> Set[int]:
         """
@@ -741,7 +699,7 @@ class BaseTask(ABC):
         """
         conn = getattr(self, "conn", None)
         if conn is None:
-            return AwaitableSet()
+            return set()
 
         if force_sync and getattr(conn, "is_connected", False) and hasattr(conn, "query"):
             try:
@@ -752,7 +710,7 @@ class BaseTask(ABC):
 
         queues = self._read_live_local_queues(conn)
         if not queues:
-            return AwaitableSet()
+            return set()
 
         my_uid = str(getattr(self, "uid", "") or "").strip()
         active: Set[int] = set()
@@ -803,7 +761,7 @@ class BaseTask(ABC):
                 except (ValueError, TypeError):
                     pass
 
-        return AwaitableSet(active)
+        return active
 
     def is_ruins_march_active(self, force_sync: bool = False) -> bool:
         """

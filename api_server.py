@@ -366,6 +366,17 @@ class BuildingConfigModel(BaseModel):
     max_castle_level: Optional[int] = 130
     target_buildings: Optional[Dict[str, bool]] = None
 
+class ArenaConfigModel(BaseModel):
+    enabled: bool = False
+    arena_type: Literal["kingdom", "global"] = "kingdom"
+    auto_claim_rewards: bool = True
+
+    @field_validator("arena_type", mode="before")
+    @classmethod
+    def normalize_arena_type(cls, v: Any) -> str:
+        val = str(v or "kingdom").lower().strip()
+        return val if val in ("kingdom", "global") else "kingdom"
+
 class CastleConfigModel(BaseModel):
     fountain: Optional[FountainConfig] = None
     train: Optional[TrainConfig] = None
@@ -382,6 +393,8 @@ class CastleConfigModel(BaseModel):
     forge_equipment: Optional[ForgeEquipmentConfig] = None
     building: Optional[BuildingConfigModel] = None
     command_hall: Optional[SimpleToggleConfig] = None
+    arena: Optional[ArenaConfigModel] = None
+    hero_trial: Optional[SimpleToggleConfig] = None
     daily_quest: Optional[SimpleToggleConfig] = None
 
     @model_validator(mode="before")

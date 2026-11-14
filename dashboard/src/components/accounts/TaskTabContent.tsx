@@ -750,6 +750,8 @@ function TaskTabContentInner({
     const dailyQuestDraft = (currentDraft as any)?.daily_quest
     const buildingDraft = (currentDraft as any)?.building
     const commandHallDraft = (currentDraft as any)?.command_hall
+    const arenaDraft = (currentDraft as any)?.arena
+    const heroTrialDraft = (currentDraft as any)?.hero_trial
     isSavingRef.current = true
     setSaveStatus('saving')
     try {
@@ -769,6 +771,8 @@ function TaskTabContentInner({
         daily_quest: dailyQuestDraft,
         building: buildingDraft,
         command_hall: commandHallDraft,
+        arena: arenaDraft,
+        hero_trial: heroTrialDraft,
       } as any)
       lastSavedConfigRef.current = JSON.parse(JSON.stringify(currentDraft))
       setSavedConfig(JSON.parse(JSON.stringify(currentDraft)))
@@ -1000,6 +1004,8 @@ function TaskTabContentInner({
     const dailyQuestConfig = (draftConfig as any)?.daily_quest
     const buildingConfig = (draftConfig as any)?.building
     const commandHallConfig = (draftConfig as any)?.command_hall
+    const arenaConfig = (draftConfig as any)?.arena
+    const heroTrialConfig = (draftConfig as any)?.hero_trial
     const payloadToSave = {
       ...(fountainConfig !== undefined ? { fountain: fountainConfig } : {}),
       ...(trainConfig !== undefined ? { train: trainConfig } : {}),
@@ -1016,6 +1022,8 @@ function TaskTabContentInner({
       ...(dailyQuestConfig !== undefined ? { daily_quest: dailyQuestConfig } : {}),
       ...(buildingConfig !== undefined ? { building: buildingConfig } : {}),
       ...(commandHallConfig !== undefined ? { command_hall: commandHallConfig } : {}),
+      ...(arenaConfig !== undefined ? { arena: arenaConfig } : {}),
+      ...(heroTrialConfig !== undefined ? { hero_trial: heroTrialConfig } : {}),
     }
     try {
       if (isBatchMode) {
@@ -1587,6 +1595,8 @@ function TaskTabContentInner({
     const dt = (cfg as any).daily_train || { enabled: false }
     const dq = (cfg as any).daily_quest || { enabled: true }
     const ch = (cfg as any).command_hall || { enabled: false }
+    const ar = (cfg as any).arena || { enabled: false, arena_type: 'kingdom', auto_claim_rewards: true }
+    const ht = (cfg as any).hero_trial || { enabled: false }
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {/* قافلة الغنيمة */}
@@ -2432,6 +2442,74 @@ function TaskTabContentInner({
           description={t('tasks.command_hall.desc')}
           enabled={Boolean(ch.enabled)}
           onToggle={toggle('command_hall' as any)}
+          comingSoon={false}
+        />
+
+        {/* تحدي الحلبة (Arena Challenge) */}
+        <TaskRow
+          id="arena"
+          emoji="🏟️"
+          img="/images/daily/icon_build_121.png"
+          label={t('tasks.arena.title', 'تحدي الحلبة')}
+          description={t('tasks.arena.desc', 'خوض 3 تحديات يومية ضد أضعف الخصوم واستلام جوائز الترتيب التراكمية')}
+          enabled={Boolean(ar.enabled)}
+          onToggle={toggle('arena' as any)}
+          comingSoon={false}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                {t('tasks.arena.typeLabel', 'نوع الحلبة:')}
+              </span>
+              <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '2px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <button
+                  type="button"
+                  onClick={() => update('arena' as any, { arena_type: 'kingdom' }, 150)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: ar.arena_type !== 'global' ? 600 : 400,
+                    background: ar.arena_type !== 'global' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                    border: ar.arena_type !== 'global' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid transparent',
+                    color: ar.arena_type !== 'global' ? '#60a5fa' : '#94a3b8',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {t('tasks.arena.kingdom', 'حلبة المملكة (يومياً)')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => update('arena' as any, { arena_type: 'global' }, 150)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: ar.arena_type === 'global' ? 600 : 400,
+                    background: ar.arena_type === 'global' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                    border: ar.arena_type === 'global' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid transparent',
+                    color: ar.arena_type === 'global' ? '#60a5fa' : '#94a3b8',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {t('tasks.arena.global', 'حلبة العالم (الأحد تلقائياً)')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </TaskRow>
+
+        {/* كفاءة الجندي (Hero Trial - مهمة النشاط اليومي رقم 25) */}
+        <TaskRow
+          id="hero_trial"
+          emoji="⚔️"
+          img="/images/daily/hero_trial.png"
+          label={t('tasks.hero_trial.title', 'كفاءة الجندي')}
+          description={t('tasks.hero_trial.desc', 'المشاركة في تحدي كفاءة الجندي لمرة واحدة بالحد الأدنى لكسب 20 نقطة نشاط')}
+          enabled={Boolean(ht.enabled)}
+          onToggle={toggle('hero_trial' as any)}
           comingSoon={false}
         />
 

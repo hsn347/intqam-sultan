@@ -534,6 +534,17 @@
     "command_hall": {
       "title": "Komuta Görevleri",
       "desc": "Günlük komuta merkezi görevlerini yürüt ve ödülleri düzenli topla"
+    },
+    "arena": {
+      "title": "Arena Meydan Okuması",
+      "desc": "En zayıf rakiplere karşı günde 3 meydan okuma yap ve biriken sıralama ödüllerini topla",
+      "typeLabel": "Arena Türü:",
+      "kingdom": "Krallık Arenası (Günlük)",
+      "global": "Dünya Arenası (Pazar Otomatik)"
+    },
+    "hero_trial": {
+      "title": "Asker Yeterliliği",
+      "desc": "20 günlük aktivite puanı kazanmak için minimum askerle Asker Yeterliliği mücadelesine bir kez katılın"
     }
   },
   "resources": {

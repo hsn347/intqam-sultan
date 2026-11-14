@@ -23,6 +23,8 @@ from tasks.war_medal import WarMedalTask
 from tasks.daily_train import DailyTrainTask
 from tasks.building import BuildingTask
 from tasks.command_hall import CommandHallTask
+from tasks.arena import ArenaTask
+from tasks.hero_trial import HeroTrialTask
 from tasks.daily_quest import DailyQuestTask
 
 __all__ = [
@@ -47,5 +49,7 @@ __all__ = [
     "AllianceTask",
     "WarMedalTask",
     "CommandHallTask",
+    "ArenaTask",
+    "HeroTrialTask",
     "DailyQuestTask",
 ]

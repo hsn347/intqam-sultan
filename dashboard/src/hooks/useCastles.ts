@@ -83,6 +83,8 @@ export function mergeCastleConfig(fcConfig: Record<string, unknown>): CastleConf
     daily_train:        { ...(def.daily_train || { enabled: false }), ...((fc.daily_train as Record<string, unknown>) || {}) },
     daily_quest:        { ...(def.daily_quest || { enabled: true }), ...((fc.daily_quest as Record<string, unknown>) || {}) },
     command_hall:       { ...(def.command_hall || { enabled: false }), ...((fc.command_hall as Record<string, unknown>) || {}) },
+    arena:              { ...(def.arena || { enabled: false, arena_type: 'kingdom', auto_claim_rewards: true }), ...((fc.arena as Record<string, unknown>) || {}) },
+    hero_trial:         { ...(def.hero_trial || { enabled: false }), ...((fc.hero_trial as Record<string, unknown>) || {}) },
     stamina:            { ...def.stamina,            ...((fc.stamina            as Record<string, unknown>) || {}) },
     skills:             { ...def.skills,             ...((fc.skills             as Record<string, unknown>) || {}), target_skills: (fc.skills as Record<string, unknown>)?.target_skills as string[] || def.skills.target_skills },
     hero_draw:          { ...def.hero_draw,          ...((fc.hero_draw          as Record<string, unknown>) || {}) },

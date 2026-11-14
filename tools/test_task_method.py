@@ -39,6 +39,24 @@ import sys
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+# ضبط إخراج التيرمنال لـ UTF-8 على ويندوز
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+# تحديد مسارات المشروع بدقة
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+WORKSPACE_DIR = os.path.dirname(CURRENT_DIR) if os.path.basename(CURRENT_DIR) == "tools" else CURRENT_DIR
+DOCS_DIR = os.path.join(WORKSPACE_DIR, "docs")
+DB_PATH = os.path.join(WORKSPACE_DIR, "database", "castles.db")
+
+if WORKSPACE_DIR not in sys.path:
+    sys.path.insert(0, WORKSPACE_DIR)
+
 # استيراد المهام الأساسية
 import tasks
 from tasks.base_task import BaseTask, TaskResult
@@ -54,7 +72,7 @@ def get_registered_tasks() -> Dict[str, type]:
     for attr in dir(tasks):
         cls = getattr(tasks, attr)
         if isinstance(cls, type) and issubclass(cls, BaseTask) and cls is not BaseTask:
-            # ربط باسم المهمة البرمجي (مثل: alliance) واسم الفئة (مثل: AllianceTask)
+            # ربط باسم المهمة البرمجي (مثل: command_hall) واسم الفئة (مثل: CommandHallTask)
             task_name = getattr(cls, "name", "").lower()
             if task_name:
                 task_map[task_name] = cls
@@ -65,9 +83,8 @@ def get_registered_tasks() -> Dict[str, type]:
 def get_default_email() -> str:
     """استرجاع أول بريد حساب نشط من قاعدة البيانات كافتراضي"""
     try:
-        db_path = os.path.join(os.path.dirname(__file__), "database", "castles.db")
-        if os.path.exists(db_path):
-            conn = sqlite3.connect(db_path)
+        if os.path.exists(DB_PATH):
+            conn = sqlite3.connect(DB_PATH)
             cur = conn.cursor()
             cur.execute("SELECT email FROM castle_states WHERE is_active = 1 LIMIT 1")
             row = cur.fetchone()
@@ -88,19 +105,33 @@ class OfflineMockConnection:
     def __init__(self, init_data: Dict[str, Any], email: str = "offline@bot.com"):
         self.init_data = init_data
         self.email = email
-        uid = str(init_data.get("lord", {}).get("uid") or "31596828")
-        kid = int(init_data.get("lord", {}).get("kid") or 614)
-        self.creds = type("MockCreds", (), {"uid": uid, "kingdom_id": kid, "server_name": "OfflineServer"})()
+        self.is_connected = True
+        lord = self.init_data.get("lordInfoCtrl", {}) or self.init_data.get("lord", {})
+        base = lord.get("base", {}) if isinstance(lord, dict) else {}
+        uid = str(base.get("uid") or lord.get("uid") or "31596828")
+        kid = int(base.get("lastKid") or lord.get("kid") or 614)
+        self.creds = type("MockCreds", (), {
+            "uid": uid,
+            "kingdom_id": kid,
+            "server_name": "OfflineServer",
+            "user_id": uid,
+        })()
+        self.local_queues = self.init_data.get("local_queues", [])
+        self.other_local_queues = self.init_data.get("other_local_queues", [])
 
     def get_ctrl(self, name: str) -> Dict[str, Any]:
-        return self.init_data.get(name, {})
+        val = self.init_data.get(name, {})
+        return val if isinstance(val, dict) else {}
+
+    async def query(self, cmd: str, subcmd: str, data: Optional[Dict[str, Any]] = None, timeout: float = 5.0) -> Dict[str, Any]:
+        return await self.safe_query(cmd, subcmd, data)
 
     async def safe_query(self, cmd: str, subcmd: str, data: Optional[Dict[str, Any]] = None, **kwargs) -> Dict[str, Any]:
         print(f"      📡 [Offline Mock Query] إرسال محاكى: CMD={cmd}, SubCMD={subcmd}, Data={data}")
         return {"err": 0, "data": {}}
 
     async def close(self):
-        pass
+        self.is_connected = False
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -113,6 +144,7 @@ async def run_method_tests(
     email: Optional[str] = None,
     offline: bool = False,
     memory_file: str = "docs/lucifer_live_memory.json",
+    run_full_task: bool = False,
 ):
     print("\n" + "═" * 78)
     print(f" 🧪 أداة فحص واختبار دوال مهام البوت (Task Method Test Runner)")
@@ -143,23 +175,36 @@ async def run_method_tests(
     target_email = email or get_default_email()
 
     if offline:
-        print(f"⚡ نمط الفحص المحلي (Offline Mode): جلب الذاكرة من {memory_file}...")
-        if not os.path.exists(memory_file):
-            # محاولة ملفات بديلة
-            for alt in ["docs/sample_live_memory.json", "scratch/init_LUCIFER.json"]:
-                if os.path.exists(alt):
-                    memory_file = alt
-                    break
+        print(f"⚡ نمط الفحص المحلي (Offline Mode): جلب الذاكرة...")
+        resolved_mem = None
+        test_paths = [
+            memory_file,
+            os.path.join(WORKSPACE_DIR, memory_file),
+            os.path.join(DOCS_DIR, os.path.basename(memory_file)),
+        ]
+        if target_email:
+            name_prefix = target_email.split("@")[0].lower()
+            test_paths.append(os.path.join(DOCS_DIR, f"{name_prefix}_live_memory.json"))
+        test_paths.extend([
+            os.path.join(DOCS_DIR, "lucifer_live_memory.json"),
+            os.path.join(DOCS_DIR, "beetoo1_live_memory.json"),
+            os.path.join(DOCS_DIR, "beetoo3_live_memory.json"),
+            os.path.join(DOCS_DIR, "sample_live_memory.json"),
+        ])
+        for p in test_paths:
+            if p and os.path.exists(p):
+                resolved_mem = p
+                break
 
-        if not os.path.exists(memory_file):
-            print(f"❌ تعذر العثور على ملف ذاكرة حية محلي ({memory_file})!")
+        if not resolved_mem:
+            print(f"❌ تعذر العثور على أي ملف ذاكرة حية محلي ({memory_file})!")
             return
 
-        with open(memory_file, "r", encoding="utf-8") as f:
+        with open(resolved_mem, "r", encoding="utf-8") as f:
             live_data = json.load(f)
 
         conn = OfflineMockConnection(live_data, email=target_email)
-        print(f"✓ تم تحميل الذاكرة الحية المحلية بنجاح ({len(live_data)} متحكم).")
+        print(f"✓ تم تحميل الذاكرة الحية المحلية من ({os.path.basename(resolved_mem)}) بنجاح ({len(live_data)} متحكم).")
     else:
         print(f"🌐 الاتصال الحي بالحساب: {target_email}...")
         from bot_manager import CastleBot
@@ -170,6 +215,7 @@ async def run_method_tests(
         if c_data and c_data.get("password"):
             bot.password = c_data["password"]
 
+        bot.is_running = True  # إلزامي لتمكين اتصال البوابة
         ok = await bot.connect()
         if not ok or not bot.conn:
             print(f"❌ فشل الاتصال بالبوابة لحساب: {target_email}")
@@ -184,16 +230,22 @@ async def run_method_tests(
 
     def task_logger(msg: str):
         task_logs.append(msg)
+        print(f"   [LOG] {msg}")
 
     # تكوين افتراضي مفعل للمهمة
     cfg = {"enabled": True}
     if bot and bot.config:
-        t_name = getattr(task_cls, "name", "alliance")
+        t_name = getattr(task_cls, "name", "command_hall")
         cfg = bot.config.get("tasks", {}).get(t_name) or bot.config.get(t_name) or {"enabled": True}
+        cfg["enabled"] = True
 
     task_instance = task_cls(conn, task_logger, cfg)
 
-    # إذا لم يُحدد أي اسم دالة، نعرض الدوال المتوفرة في الكلاس للمطور
+    # إذا طُلب تشغيل المهمة كاملة عبر --run أو عبر تمرير run_full_task
+    if run_full_task and not method_names:
+        method_names = ["safe_execute"]
+
+    # إذا لم يُحدد أي اسم دالة ولم يُطلب --run، نعرض الدوال المتوفرة في الكلاس
     if not method_names:
         print("\n📋 الدوال العامة المتاحة للاختبار في هذه المهمة:")
         methods = [
@@ -205,8 +257,12 @@ async def run_method_tests(
             prefix = "async def" if is_async else "def"
             doc = (getattr(task_instance, m).__doc__ or "").strip().split("\n")[0]
             print(f"   • {prefix} {m}() - {doc}")
-        print("\n💡 للاختبار، مرر اسم الدالة بعد اسم المهمة، مثال:")
-        print(f"   python test_task_method.py --task {task_name_or_cls} {methods[0] if methods else 'run'}\n")
+        print("\n💡 لتشغيل المهمة بالكامل (Full Task Run):")
+        print(f"   python tools/test_task_method.py --task {task_name_or_cls} run")
+        print(f"   أو:")
+        print(f"   python tools/test_task_method.py --task {task_name_or_cls} safe_execute")
+        print(f"   أو مباشرة:")
+        print(f"   python tools/test_task_method.py {task_name_or_cls} --run\n")
         if bot and bot.conn:
             await bot.conn.close()
         return
@@ -316,6 +372,12 @@ def main():
         help="وضع الفحص المحلي دون أي اتصال شبكي (يستخدم ملف الذاكرة docs/lucifer_live_memory.json)",
     )
     parser.add_argument(
+        "-r", "--run",
+        dest="run",
+        action="store_true",
+        help="تشغيل دورة المهمة الكاملة فوراً (safe_execute)",
+    )
+    parser.add_argument(
         "-m", "--memory-file",
         dest="memory_file",
         default="docs/lucifer_live_memory.json",
@@ -333,8 +395,8 @@ def main():
         if pos_args:
             task_name = pos_args.pop(0)
         else:
-            # مهمة افتراضية alliance
-            task_name = "alliance"
+            # مهمة افتراضية command_hall
+            task_name = "command_hall"
 
     methods.extend(pos_args)
 
@@ -345,6 +407,7 @@ def main():
             email=args.email,
             offline=args.offline,
             memory_file=args.memory_file,
+            run_full_task=args.run,
         )
     )
 

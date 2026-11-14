@@ -538,6 +538,17 @@
     "command_hall": {
       "title": "Command Quest",
       "desc": "Execute daily command hall quests and claim rewards periodically"
+    },
+    "arena": {
+      "title": "Arena Challenge",
+      "desc": "Execute 3 daily challenges against weakest rivals and claim accumulated ranking rewards",
+      "typeLabel": "Arena Type:",
+      "kingdom": "Kingdom Arena (Daily)",
+      "global": "Global Arena (Sunday Auto)"
+    },
+    "hero_trial": {
+      "title": "Soldier Trial",
+      "desc": "Participate in the Soldier Trial once with minimal troops to earn 20 daily activity points"
     }
   },
   "resources": {

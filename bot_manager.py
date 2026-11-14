@@ -62,6 +62,8 @@ from tasks import (
     DailyTrainTask,
     BuildingTask,
     CommandHallTask,
+    ArenaTask,
+    HeroTrialTask,
     DailyQuestTask,
 )
 
@@ -86,6 +88,8 @@ REGISTERED_TASKS = [
     TreasureTask,
     TrainTask,
     CommandHallTask,
+    ArenaTask,
+    HeroTrialTask,
     DailyQuestTask,
 ]
 
@@ -187,6 +191,14 @@ DEFAULT_BOT_CONFIG: Dict[str, Any] = {
         "command_hall": {                     # قاعة القيادة: مهام القيادة بالنشاط اليومي
             "enabled": False,
         },
+        "arena": {                            # تحدي الحلبة: مهام النشاط اليومي واستلام الجوائز التراكمية
+            "enabled": False,
+            "arena_type": "kingdom",          # "kingdom" (حلبة المملكة) أو "global" (حلبة العالم)
+            "auto_claim_rewards": True,       # استلام جوائز الترتيب التراكمية تلقائياً
+        },
+        "hero_trial": {                       # كفاءة الجندي: مهمة النشاط اليومي رقم 25 (20 نقطة)
+            "enabled": False,
+        },
         "daily_quest": {                      # استلام صناديق النشاط اليومي (إلزامية وتلقائية)
             "enabled": True,
         },
@@ -279,12 +291,12 @@ class CastleBot:
                 tasks_cfg.update(saved_cfg["tasks"])
 
             # إعدادات المهام المباشرة في جذر config هي صاحبة الأولوية المطلقة (تعديلات المستخدم في الواجهة)
-            for t_name in ("fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "command_hall", "daily_quest"):
+            for t_name in ("fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "command_hall", "arena", "hero_trial", "daily_quest"):
                 if t_name in saved_cfg:
                     tasks_cfg[t_name] = saved_cfg[t_name]
 
             for k, v in saved_cfg.items():
-                if k not in ("tasks", "fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "command_hall", "daily_quest"):
+                if k not in ("tasks", "fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "command_hall", "arena", "hero_trial", "daily_quest"):
                     self.config[k] = v
         except Exception:
             pass
@@ -463,6 +475,7 @@ class CastleBot:
 
         # فتح اتصال البوابة غير المتزامن بـ asyncio
         self.conn = GameConnection(self.account, creds)
+        self.conn.notify_log_callback = self.log
         if not self.is_running or self._stop_event.is_set() or self._async_stop.is_set():
             if self.conn:
                 await self.conn.close()

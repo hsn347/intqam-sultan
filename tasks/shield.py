@@ -118,54 +118,6 @@ class ShieldTask(BaseTask):
             return self.config["tasks"]["shield"]
         return self.config
 
-    def is_shield_active(self, shield_info: Optional[Dict[str, Any]] = None) -> Tuple[bool, str, int]:
-        """
-        التحقق الشامل مما إذا كان هناك درع سلام نشط حالياً لحماية القلعة:
-          1. مؤقت الجلسة النشط (shield_expire_ts): إذا تم تفعيل درع مسبقاً في هذه الجلسة وما زال وقته سارياً.
-          2. مؤشر الأمان في الخريطة (kingdomMapCtrl.isSafe): يرسله خادم اللعبة في الذاكرة الحية (0-Network)
-             ويحدد بشكل قاطع ما إذا كانت القلعة تحت الحماية (True) أو مكشوفة (False).
-          3. حقل shieldTime في بيانات اللورد (lordInfoCtrl.base.shieldTime).
-
-        Returns:
-            (is_active: bool, reason_str: str, remaining_seconds: int)
-        """
-        now = time.time()
-
-        # 1. فحص مؤقت الجلسة الداخلي
-        expire_ts = getattr(self.conn, "shield_expire_ts", 0)
-        if expire_ts > now + 60:
-            rem = int(expire_ts - now)
-            hours = rem // 3600
-            mins = (rem % 3600) // 60
-            return True, f"درع سلام نشط ومسجل في الجلسة (متبقي: {hours} س و {mins} د)", rem
-        elif 0 < expire_ts <= now:
-            self.conn.shield_expire_ts = 0
-
-        # 2. فحص بيانات الذاكرة الحية (0-Network Direct Read)
-        km = self.get_ctrl("kingdomMapCtrl")
-        is_safe = km.get("isSafe", False) if isinstance(km, dict) else False
-
-        if is_safe:
-            # التحقق من حقل shieldTime إن وُجد
-            lord_base = self.get_ctrl("lordInfoCtrl").get("base", {})
-            st = int(lord_base.get("shieldTime", 0) or 0)
-            rem = 0
-            if st > now:
-                rem = int(st - now)
-            elif st > 100:
-                rem = st
-            else:
-                default_dur = (shield_info or {}).get("seconds", 8 * 3600)
-                rem = max(3600, default_dur)
-
-            self.conn.shield_expire_ts = now + rem
-            hours = rem // 3600
-            mins = (rem % 3600) // 60
-            time_str = f" (متبقي تقريبياً: {hours} س و {mins} د)" if (hours > 0 or mins > 0) else ""
-            return True, f"القلعة محمية بالفعل بدرع سلام نشط (isSafe=True){time_str}", rem
-
-        return False, "لا يوجد درع سلام نشط (القلعة مكشوفة)", 0
-
     def _record_shield_activation(self, shield_info: Dict[str, Any]):
         """تسجيل تفعيل الدرع بنجاح في كائن الاتصال والذاكرة الحية لتفادي إعادة التفعيل وتحديث مؤقت الحماية."""
         now = time.time()
@@ -192,9 +144,9 @@ class ShieldTask(BaseTask):
         shield_info = SHIELD_TYPES.get(dur_key, SHIELD_TYPES["8h"])
 
         # فحص مباشر في الذاكرة الحية: هل القلعة محمية بالفعل؟
-        is_active, reason, remaining_sec = self.is_shield_active(shield_info)
+        is_active = self.is_shielded
         if is_active:
-            return False, f"القلعة محمية بالفعل ({reason})"
+            return False, f"القلعة محمية بالفعل"
 
         return True, ""
 
@@ -208,12 +160,12 @@ class ShieldTask(BaseTask):
         self.log(f"🛡️ بدء مهمة الدرع التلقائي [{shield_info['name']}] (الشراء بالذهب: {allow_gold})")
 
         # 0. التحقق الاستباقي: هل القلعة محمية بالفعل بدرع سلام نشط؟
-        is_active, reason, remaining_sec = self.is_shield_active(shield_info)
+        is_active = self.is_shielded
         if is_active:
-            self.log(f"🛡️ {reason} — تم تخطي المهمة بنجاح لتوفير الدروع وعدم إهدارها.")
+            self.log(f"🛡️  — تم تخطي المهمة بنجاح لتوفير الدروع وعدم إهدارها.")
             return TaskResult.ok(
-                f"🛡️ القلعة محمية بالفعل بدرع سلام نشط: {reason}",
-                data={"shield_active": True, "remaining_seconds": remaining_sec}
+                f"🛡️ القلعة محمية بالفعل بدرع سلام نشط",
+                data={"shield_active": True}
             )
 
         target_item_id = shield_info["bag_item_id"]
@@ -337,66 +289,3 @@ class ShieldTask(BaseTask):
 # ════════════════════════════════════════════════════════════════════
 #  التشغيل المباشر كملف مستقل (CLI Standalone Execution)
 # ════════════════════════════════════════════════════════════════════
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Revenge of Sultans Peace Shield Task — مهمة درع السلام التلقائي")
-    parser.add_argument("--email", "-e", help="البريد الإلكتروني للحساب")
-    parser.add_argument("--duration", "-d", default="8h", choices=["8h", "24h", "3d", "8", "24", "72"],
-                        help="مدة الدرع: 8h (8 ساعات) أو 24h (24 ساعة) أو 3d (3 أيام) [افتراضي: 8h]")
-    parser.add_argument("--allow-gold", "-g", action="store_true",
-                        help="السماح بالشراء بالذهب في حال عدم توفر الدرع المجاني في الحقيبة")
-    args = parser.parse_args()
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="[%(asctime)s][%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S"
-    )
-
-    from core.session_manager import SessionManager
-    from core.game_client import async_login
-
-    async def _main():
-        sm = SessionManager()
-        accounts = sm.load()
-        if not accounts:
-            print("❌ لا توجد حسابات مسجلة في session_cache.json!")
-            return
-
-        target_email = args.email or next(iter(accounts.keys()))
-        acc = accounts.get(target_email)
-        if not acc:
-            print(f"❌ الحساب {target_email} غير موجود!")
-            return
-
-        print(f"🔐 جاري تسجيل الدخول للحساب {target_email}...")
-        creds = await async_login(acc)
-        if not creds:
-            print("❌ فشل تسجيل الدخول!")
-            return
-
-        conn = GameConnection(acc, creds)
-        if not await conn.connect():
-            print("❌ فشل الاتصال بالبوابة!")
-            return
-
-        try:
-            await asyncio.wait_for(conn.controllers_ready.wait(), timeout=12.0)
-        except asyncio.TimeoutError:
-            print("⚠️ انتهاء مهلة انتظار بيانات البوابة!")
-
-        task_cfg = {
-            "enabled": True,
-            "duration": args.duration,
-            "allow_gold": args.allow_gold,
-        }
-
-        task = ShieldTask(conn, print, task_cfg)
-        result = await task.safe_execute()
-
-        print(f"\n📊 النتيجة النهائية: {result.message} | تفاصيل: {result.data} | الزمن: {result.execution_time:.2f} ثانية")
-        await conn.close()
-
-    asyncio.run(_main())

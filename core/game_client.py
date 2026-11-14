@@ -27,7 +27,7 @@ import time
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from Crypto.Cipher import DES
 
 from core.live_memory import LiveMemoryEngine
@@ -1212,6 +1212,8 @@ class GameConnection:
         self.spy_mode: bool = False
         self.is_other_device: bool = False
         self.controllers_ready: asyncio.Event = asyncio.Event()
+        self.notify_log_callback: Optional[Callable[[str], None]] = None
+        self._seen_unhandled_notifies: Set[str] = set()
 
     @property
     def local_queues(self) -> list:
@@ -1243,6 +1245,57 @@ class GameConnection:
     @property
     def is_connected(self) -> bool:
         return self._alive and self._writer is not None
+
+    def _log_notification(self, report: Dict[str, Any]) -> None:
+        """
+        طباعة وتوثيق وصول الإشعارات اللحظية في التيرمنال مع فحص الدمج في الذاكرة الحية.
+        """
+        if not report or not report.get("is_notification"):
+            return
+
+        from core.live_memory import ALLOWED_CONTROLLERS
+
+        # 1. استخراج اسم ومعرف الإشعار
+        notify_name = report.get("notify_id") or report.get("cmd") or "إشعار غير مسمى"
+
+        # 2. استخراج المتحكمات المتأثرة وفحص هل تنتمي للمتحكمات المعتمدة (الـ 26)
+        all_targets = list(dict.fromkeys(
+            (report.get("notify_controllers") or []) +
+            (report.get("merged_controllers") or []) +
+            (report.get("updated_keys") or [])
+        ))
+        allowed_targets = [t for t in all_targets if t in ALLOWED_CONTROLLERS]
+
+        log_fn = self.notify_log_callback or (lambda msg: log.info(f"[{getattr(self.account, 'email', 'Client')}] {msg}"))
+
+        # حالة أ: الإشعار يخص متحكماً من المتحكمات المعتمدة
+        if allowed_targets:
+            ctrls_str = ", ".join(allowed_targets)
+            new_val = report.get("new_value_summary") or "تم استلام وتحديث البيانات"
+            is_ok = report.get("verify_success", False)
+            v_status = "ناجح 100%" if is_ok else "فاشل"
+            v_detail = report.get("verify_detail", "")
+            v_icon = "✅" if is_ok else "❌"
+
+            msg = (
+                f"\n🔔 [إشعار وارد: {notify_name}]\n"
+                f"   📦 المتحكم المتأثر: {ctrls_str}\n"
+                f"   🔄 القيمة المستحدثة: {new_val}\n"
+                f"   {v_icon} التحقق من الدمج في الذاكرة الحية: {v_status} ({v_detail})"
+            )
+            try:
+                log_fn(msg)
+            except Exception:
+                pass
+
+        # حالة ب: الإشعار خارج قائمة المتحكمات المعتمدة
+        else:
+            if notify_name not in self._seen_unhandled_notifies:
+                self._seen_unhandled_notifies.add(notify_name)
+                try:
+                    log_fn(f"ℹ️ [إشعار غير مخصص لأول مرة]: {notify_name}")
+                except Exception:
+                    pass
 
     async def _try_open_and_handshake(self, ip: str, port: int) -> bool:
         """محاولة فتح الاتصال وإجراء مصافحة HMAC مع عنوان بوابة محدد"""
@@ -1369,7 +1422,9 @@ class GameConnection:
                             log.info(f"👁️ [SPY RECV] cmd={cmd_s}/{sub_s} sess={sess_id} keys={list(parsed.keys())}")
 
                         # معالجة وتحديث الذاكرة الحية عبر محرك الذاكرة الموحد (LiveMemoryEngine)
-                        self.memory_engine.ingest_packet(parsed)
+                        init_data, report = self.memory_engine.ingest_packet_with_report(parsed)
+                        if report.get("is_notification"):
+                            self._log_notification(report)
 
                         # إشعار اكتمال تحميل المتحكمات الأساسية
                         if sess_id == 0 or cmd_s in ('1000', 'onemt_1000'):

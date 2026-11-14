@@ -86,6 +86,11 @@ export interface BaseTaskConfig {
 }
 export type SimpleToggleConfig = BaseTaskConfig
 
+export interface ArenaConfig extends BaseTaskConfig {
+  arena_type: 'kingdom' | 'global'
+  auto_claim_rewards: boolean
+}
+
 export type EquipmentCategory = 'weapon' | 'clothes' | 'helmet' | 'trousers' | 'shoes' | 'ring'
 
 export interface TrainLevels {
@@ -140,6 +145,8 @@ export interface CastleConfig {
   daily_train?: BaseTaskConfig
   daily_quest?: BaseTaskConfig
   command_hall?: SimpleToggleConfig
+  arena?: ArenaConfig
+  hero_trial?: SimpleToggleConfig
   stamina: BaseTaskConfig & { gold_buys: number }
   skills: BaseTaskConfig & { target_skills: string[] }
   hero_draw: BaseTaskConfig
@@ -212,6 +219,8 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
   forge_equipment: { enabled: false, category: 'weapon' },
   daily_quest: { enabled: true },
   command_hall: { enabled: false },
+  arena: { enabled: false, arena_type: 'kingdom', auto_claim_rewards: true },
+  hero_trial: { enabled: false },
   stamina: { enabled: false, gold_buys: 0 },
   skills: { enabled: false, target_skills: [] },
   hero_draw: { enabled: false },

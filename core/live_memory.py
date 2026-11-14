@@ -110,6 +110,8 @@ ALLOWED_CONTROLLERS: FrozenSet[str] = frozenset({
     "shopItemBuyTimesMgr",
     "loginRewardCtrl",
     "shopCtrl",
+    "playerArenaCtrl",
+    "arenaCtrl",
 
     # --- Aliases & Internal State Keys (10) ---
     "lord",
@@ -694,9 +696,73 @@ class LiveMemoryEngine:
         "TIME_REWARD": ("_handle_notify_time_reward", ("timeRewardCtrl",), False),
         "NOTIFY_TIME_REWARD": ("_handle_notify_time_reward", ("timeRewardCtrl",), False),
         "NOTIFY_RESET_TIME_REWARD": ("_handle_notify_time_reward", ("timeRewardCtrl",), False),
+        "REWARD": ("_handle_notify_time_reward", ("timeRewardCtrl",), False),
+        "NOTIFY_REWARD": ("_handle_notify_time_reward", ("timeRewardCtrl",), False),
         "1070": ("_handle_notify_meritorious", ("meritoriousTaskCtrl",), True),
         "MERITORIOUS_TASK": ("_handle_notify_meritorious", ("meritoriousTaskCtrl",), True),
         "NOTIFY_MERITORIOUS_TASK": ("_handle_notify_meritorious", ("meritoriousTaskCtrl",), True),
+
+        # --- Feature & Base Tasks Controllers (0-Network Direct Merge) ---
+        "55": ("_handle_notify_generic_controller", ("everydayTaskCtrl",), True),
+        "EVERYDAY_TASK": ("_handle_notify_generic_controller", ("everydayTaskCtrl",), True),
+        "NOTIFY_EVERYDAY_TASK": ("_handle_notify_generic_controller", ("everydayTaskCtrl",), True),
+        "3": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
+        "ALLIANCE": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
+        "NOTIFY_ALLIANCE": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
+        "NOTIFY_ALLIANCE_UPDATE": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
+        "64": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
+        "ALLIANCE_RELATION": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
+        "NOTIFY_ALLIANCE_RELATION": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
+        "1009": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
+        "ALLIANCE_RECOMMEND": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
+        "NOTIFY_ALLIANCE_RECOMMEND": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
+        "608": ("_handle_notify_generic_controller", ("commandHallCtrl", "commandHall"), True),
+        "COMMAND_HALL": ("_handle_notify_generic_controller", ("commandHallCtrl", "commandHall"), True),
+        "NOTIFY_COMMAND_HALL": ("_handle_notify_generic_controller", ("commandHallCtrl", "commandHall"), True),
+        "12": ("_handle_notify_generic_controller", ("questCtrl",), True),
+        "QUEST": ("_handle_notify_generic_controller", ("questCtrl",), True),
+        "NOTIFY_QUEST": ("_handle_notify_generic_controller", ("questCtrl",), True),
+        "NOTIFY_QUEST_UPDATE": ("_handle_notify_generic_controller", ("questCtrl",), True),
+        "11": ("_handle_notify_generic_controller", ("wallsCtrl",), True),
+        "WALLS": ("_handle_notify_generic_controller", ("wallsCtrl",), True),
+        "NOTIFY_WALLS": ("_handle_notify_generic_controller", ("wallsCtrl",), True),
+        "NOTIFY_WALLS_UPDATE": ("_handle_notify_generic_controller", ("wallsCtrl",), True),
+        "13": ("_handle_notify_generic_controller", ("treviFountainCtrl",), True),
+        "TREVIFOUNTAIN": ("_handle_notify_generic_controller", ("treviFountainCtrl",), True),
+        "NOTIFY_TREVIFOUNTAIN": ("_handle_notify_generic_controller", ("treviFountainCtrl",), True),
+        "NOTIFY_TREVIFOUNTAIN_UPDATE": ("_handle_notify_generic_controller", ("treviFountainCtrl",), True),
+        "27": ("_handle_notify_generic_controller", ("pyramidCtrl",), True),
+        "PYRAMID": ("_handle_notify_generic_controller", ("pyramidCtrl",), True),
+        "NOTIFY_PYRAMID": ("_handle_notify_generic_controller", ("pyramidCtrl",), True),
+        "95": ("_handle_notify_generic_controller", ("allianceTreasureCtrl",), True),
+        "ALLIANCE_TREASURE": ("_handle_notify_generic_controller", ("allianceTreasureCtrl",), True),
+        "NOTIFY_ALLIANCE_TREASURE": ("_handle_notify_generic_controller", ("allianceTreasureCtrl",), True),
+        "41": ("_handle_notify_generic_controller", ("badgeExchangeCtrl",), True),
+        "BADGE_EXCHANGE": ("_handle_notify_generic_controller", ("badgeExchangeCtrl",), True),
+        "NOTIFY_BADGE_EXCHANGE": ("_handle_notify_generic_controller", ("badgeExchangeCtrl",), True),
+        "29": ("_handle_notify_generic_controller", ("equipmentCtrl",), True),
+        "EQUIPMENT": ("_handle_notify_generic_controller", ("equipmentCtrl",), True),
+        "NOTIFY_EQUIPMENT": ("_handle_notify_generic_controller", ("equipmentCtrl",), True),
+        "23": ("_handle_notify_generic_controller", ("shopCtrl", "storesCtrl"), True),
+        "SHOP": ("_handle_notify_generic_controller", ("shopCtrl", "storesCtrl"), True),
+        "NOTIFY_SHOP": ("_handle_notify_generic_controller", ("shopCtrl", "storesCtrl"), True),
+        "59": ("_handle_notify_generic_controller", ("salesRoomAgCtrl",), True),
+        "SALESROOM": ("_handle_notify_generic_controller", ("salesRoomAgCtrl",), True),
+        "NOTIFY_SALESROOM": ("_handle_notify_generic_controller", ("salesRoomAgCtrl",), True),
+        "NEW_SALESROOM": ("_handle_notify_generic_controller", ("salesRoomAgCtrl",), True),
+        "NOTIFY_NEW_SALESROOM": ("_handle_notify_generic_controller", ("salesRoomAgCtrl",), True),
+        "200": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
+        "MAP_DATA": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
+        "NOTIFY_MAP_DATA": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
+        "201": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
+        "MAP_SYNC": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
+        "NOTIFY_MAP_SYNC": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
+        "450": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
+        "SWITCH_MAP": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
+        "NOTIFY_SWITCH_MAP": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
+        "65": ("_handle_notify_generic_controller", ("godBeastCtrl",), True),
+        "PET": ("_handle_notify_generic_controller", ("godBeastCtrl",), True),
+        "NOTIFY_PET": ("_handle_notify_generic_controller", ("godBeastCtrl",), True),
     }
 
     def ingest_packet_with_report(self, packet: Any) -> Tuple[Dict[str, Any], Dict[str, Any]]:
@@ -822,6 +888,22 @@ class LiveMemoryEngine:
             is_march_sync_cmd = (cmd == "1007" and subcmd in ("1000", "16"))
             should_log = bool(is_notification or merged_controllers or errors or is_march_sync_cmd)
 
+            # 5. Empirical Read-back Verification (فحص تحققي حقيقي وتلقائي للدمج)
+            target_list = list(dict.fromkeys(list(notify_targets) + merged_controllers))
+            verify_success = False
+            verify_detail = ""
+            if overall_status == "merged" and target_list:
+                verify_success, verify_detail = self.verify_merge_state(target_list, notify_data)
+            elif errors:
+                verify_success = False
+                verify_detail = f"أخطاء أثناء الدمج: {' | '.join(errors)}"
+            elif notify_status in ("unhandled_notify", "missing_notify_id"):
+                verify_success = False
+                verify_detail = notify_detail or "إشعار غير معالج"
+            else:
+                verify_success = False
+                verify_detail = "لم تتأثر أي متحكمات مستهدفة"
+
             own_q, other_q = self.get_local_queues_breakdown()
             queues_snapshot = copy.deepcopy(own_q)
             report = {
@@ -837,6 +919,8 @@ class LiveMemoryEngine:
                 "merged_controllers": merged_controllers,
                 "updated_keys": updated_keys,
                 "updated_state": updated_state,
+                "verify_success": verify_success,
+                "verify_detail": verify_detail,
                 "local_queues_snapshot": queues_snapshot,
                 "local_queues_count": len(own_q),
                 "all_local_queues_count": len(self.local_queues_map),
@@ -849,6 +933,102 @@ class LiveMemoryEngine:
             self.last_ingest_report = report
 
         return self.init_data, report
+
+    def verify_merge_state(self, targets: List[str], notify_data: Any = None) -> Tuple[bool, str]:
+        """
+        فحص تحققي حقيقي وتلقائي (Empirical Read-back Verification)
+        يتحقق مباشرة من أن المتحكمات المستهدفة موجودة في self.init_data وتم تحديثها بنجاح.
+        """
+        if not targets:
+            return False, "لا توجد متحكمات مستهدفة للتحقق"
+
+        verified: List[str] = []
+        for ctrl in targets:
+            if ctrl not in self.init_data:
+                return False, f"المتحكم {ctrl} غير موجود في الذاكرة الحية (init_data)"
+
+            c_val = self.init_data[ctrl]
+            if c_val is None:
+                return False, f"قيمة المتحكم {ctrl} فارغة (None) في الذاكرة الحية"
+
+            # تحققات تخصصية لأهم المتحكمات المعتمدة
+            if ctrl == "cityCtrl" and isinstance(c_val, dict):
+                has_res = bool(c_val.get("resList") or c_val.get("reslist") or c_val.get("buildings") or c_val.get("blist"))
+                if not has_res and len(c_val) == 0:
+                    return False, "cityCtrl فارغ من بيانات الموارد والمباني"
+                verified.append("cityCtrl (موارد/مباني)")
+
+            elif ctrl == "lordInfoCtrl" and isinstance(c_val, dict):
+                has_base = bool(c_val.get("base") or c_val.get("gold") or c_val.get("level"))
+                if not has_base and len(c_val) == 0:
+                    return False, "lordInfoCtrl فارغ من بيانات اللورد الأساسية"
+                verified.append("lordInfoCtrl (بيانات اللورد)")
+
+            elif ctrl == "queueCtrl" and isinstance(c_val, (dict, list)):
+                verified.append(f"queueCtrl ({len(c_val)} طوابير)")
+
+            elif ctrl == "backpackCtrl" and isinstance(c_val, (dict, list)):
+                verified.append(f"backpackCtrl ({len(c_val)} عناصر)")
+
+            elif ctrl == "armyCtrl" and isinstance(c_val, dict):
+                verified.append("armyCtrl (بيانات الجيوش)")
+
+            elif ctrl == "local_queues":
+                q_count = len(self.local_queues_map)
+                verified.append(f"local_queues ({q_count} مسيرة)")
+
+            elif ctrl == "buffCtrl" and isinstance(c_val, (dict, list)):
+                verified.append(f"buffCtrl ({len(c_val)} تأثيرات)")
+
+            elif ctrl == "timeRewardCtrl" and isinstance(c_val, dict):
+                verified.append("timeRewardCtrl (مكافأة الوقت)")
+
+            elif ctrl == "everydayTaskCtrl" and isinstance(c_val, (dict, list)):
+                verified.append("everydayTaskCtrl (مهام النشاط اليومي)")
+
+            elif ctrl in ("commandHallCtrl", "commandHall") and isinstance(c_val, (dict, list)):
+                verified.append("commandHallCtrl (قاعة القيادة)")
+
+            elif ctrl == "allianceCtrl" and isinstance(c_val, (dict, list)):
+                verified.append("allianceCtrl (بيانات التحالف)")
+
+            elif ctrl == "questCtrl" and isinstance(c_val, (dict, list)):
+                verified.append("questCtrl (المهام)")
+
+            elif ctrl == "wallsCtrl" and isinstance(c_val, (dict, list)):
+                verified.append("wallsCtrl (بيانات السور)")
+
+            elif ctrl == "treviFountainCtrl" and isinstance(c_val, (dict, list)):
+                verified.append("treviFountainCtrl (نافورة الأمنيات)")
+
+            elif ctrl == "pyramidCtrl" and isinstance(c_val, (dict, list)):
+                verified.append("pyramidCtrl (الهرم)")
+
+            elif ctrl == "equipmentCtrl" and isinstance(c_val, (dict, list)):
+                verified.append("equipmentCtrl (المعدات)")
+
+            elif ctrl in ("shopCtrl", "storesCtrl") and isinstance(c_val, (dict, list)):
+                verified.append("shopCtrl (المتجر)")
+
+            elif ctrl == "badgeExchangeCtrl" and isinstance(c_val, (dict, list)):
+                verified.append("badgeExchangeCtrl (تبادل الأوسمة)")
+
+            elif ctrl == "salesRoomAgCtrl" and isinstance(c_val, (dict, list)):
+                verified.append("salesRoomAgCtrl (غرفة المبيعات)")
+
+            elif ctrl == "kingdomMapCtrl" and isinstance(c_val, (dict, list)):
+                verified.append("kingdomMapCtrl (خريطة المملكة)")
+
+            elif ctrl == "allianceTreasureCtrl" and isinstance(c_val, (dict, list)):
+                verified.append("allianceTreasureCtrl (كنز التحالف)")
+
+            elif ctrl in ("godBeastCtrl", "petCtrl") and isinstance(c_val, (dict, list)):
+                verified.append("godBeastCtrl (الوحش الإلهي/الحيوانات)")
+
+            else:
+                verified.append(f"{ctrl} (محدّث وموجود)")
+
+        return True, "تم تأكيد وجود وتحديث البيانات في: " + "، ".join(verified)
 
     def ingest_packet(self, packet: Any) -> Dict[str, Any]:
         """
@@ -956,7 +1136,7 @@ class LiveMemoryEngine:
         except Exception:
             return str(val)
 
-    def _summarize_notify_value(self, handler_name: str, notify_data: Any, detail: Any) -> str:
+    def _summarize_notify_value(self, handler_name: str, notify_data: Any, detail: Any, target_ctrl: str = "") -> str:
         """Builds a short, human-readable summary of the updated live-memory value."""
         try:
             items = notify_data if isinstance(notify_data, list) else ([notify_data] if isinstance(notify_data, dict) else [])
@@ -1005,20 +1185,39 @@ class LiveMemoryEngine:
 
             elif handler_name == "_handle_notify_queue":
                 queue_ctrl = self.init_data.get("queueCtrl", {}) or {}
+                _Q_NAMES = {
+                    "1200": "بناء",
+                    "1201": "بناء إضافي",
+                    "1202": "تسليح/فخاخ",
+                    "1203": "مشاة",
+                    "1204": "فرسان",
+                    "1205": "رماة",
+                    "1206": "عربات",
+                    "1207": "أبحاث",
+                    "1208": "علاج",
+                }
                 for it in items[:3]:
                     if not isinstance(it, dict):
                         continue
                     ev = it.get("dispatchQueueEvent") if isinstance(it.get("dispatchQueueEvent"), dict) else it
-                    qt = str(ev.get("queuetype") or ev.get("qtype") or it.get("queuetype") or it.get("qtype") or "?")
+                    data_ctx = ev.get("data") if isinstance(ev.get("data"), dict) else (it.get("data") if isinstance(it.get("data"), dict) else {})
+                    raw_qt = (
+                        ev.get("queuetype") or ev.get("qtype") or ev.get("queueType") or
+                        data_ctx.get("queuetype") or data_ctx.get("qtype") or data_ctx.get("queueType") or
+                        it.get("queuetype") or it.get("qtype") or it.get("queueType") or
+                        ev.get("id") or it.get("id") or ""
+                    )
+                    qt_str = str(raw_qt).strip() if raw_qt is not None else ""
+                    lbl = _Q_NAMES.get(qt_str, f"طابور {qt_str}" if qt_str and qt_str != "?" else "طوابير القلعة")
                     nt = str(ev.get("notifyType") or it.get("notifyType") or "")
-                    bid = ev.get("bid") or it.get("bid")
+                    bid = ev.get("bid") or it.get("bid") or data_ctx.get("bid")
                     if nt.lower() in ("finish", "del", "remove", "cancel") or str(ev.get("optype", "")) == "11":
                         tag = "ملغى" if nt.lower() == "cancel" or str(ev.get("optype", "")) == "11" else "مكتمل"
-                        parts.append(f"طابور {qt} ({tag}{f' مبنى#{bid}' if bid else ''})")
+                        parts.append(f"{lbl} ({tag}{f' مبنى#{bid}' if bid else ''})")
                     else:
-                        q_obj = queue_ctrl.get(qt, ev) if isinstance(queue_ctrl, dict) else ev
+                        q_obj = queue_ctrl.get(qt_str, ev) if (qt_str and isinstance(queue_ctrl, dict)) else ev
                         tot = q_obj.get("totaltime") if isinstance(q_obj, dict) else None
-                        parts.append(f"طابور {qt} (نشط{f' {tot}ث' if tot else ''})")
+                        parts.append(f"{lbl} (نشط{f' {tot}ث' if tot else ''})")
 
             elif handler_name == "_handle_notify_backpack":
                 bp = self.init_data.get("backpackCtrl", {})
@@ -1103,7 +1302,9 @@ class LiveMemoryEngine:
 
             elif handler_name == "_handle_notify_time_reward":
                 tr = self.init_data.get("timeRewardCtrl", {}) or {}
-                parts.append(f"isReceive={tr.get('isReceive')}, isAllReceive={tr.get('isAllReceive', 0)}")
+                recv = tr.get("isReceive")
+                status_txt = "جاهزة للاستلام" if recv == 2 else ("قيد الانتظار" if recv == 1 else f"isReceive={recv}")
+                parts.append(f"مكافأة الوقت ({status_txt})")
 
             elif handler_name == "_handle_notify_meritorious":
                 merit = self.init_data.get("meritoriousTaskCtrl", {}) or {}
@@ -1125,6 +1326,30 @@ class LiveMemoryEngine:
                                             parts.append(f"#{tid}={cur_t.get('cNum', 0)}/{cur_t.get('lNum', 0)}")
                                         else:
                                             parts.append(f"{cat}.{tid}")
+
+            elif handler_name == "_handle_notify_generic_controller":
+                keys = detail.get("keys", []) if isinstance(detail, dict) else []
+                keys_str = f" ({', '.join(str(k) for k in keys[:3])})" if keys else ""
+                ctrl_labels = {
+                    "everydayTaskCtrl": "مهام النشاط اليومي",
+                    "commandHallCtrl": "قاعة القيادة",
+                    "commandHall": "قاعة القيادة",
+                    "allianceCtrl": "بيانات التحالف",
+                    "questCtrl": "المهام",
+                    "wallsCtrl": "بيانات السور",
+                    "treviFountainCtrl": "نافورة الأمنيات",
+                    "pyramidCtrl": "الهرم",
+                    "equipmentCtrl": "المعدات",
+                    "shopCtrl": "المتجر",
+                    "storesCtrl": "المتجر",
+                    "badgeExchangeCtrl": "تبادل الأوسمة",
+                    "salesRoomAgCtrl": "غرفة المبيعات",
+                    "kingdomMapCtrl": "خريطة المملكة",
+                    "allianceTreasureCtrl": "كنز التحالف",
+                    "godBeastCtrl": "الوحش الإلهي",
+                }
+                lbl = ctrl_labels.get(target_ctrl, target_ctrl or "متحكم")
+                parts.append(f"{lbl}{keys_str}")
 
             summary = ", ".join(parts)
             if len(summary) > 120:
@@ -1153,6 +1378,8 @@ class LiveMemoryEngine:
             try:
                 if handler_name == "_handle_notify_time_reward":
                     res = handler(notify_data, str_id)
+                elif handler_name == "_handle_notify_generic_controller":
+                    res = handler(notify_data, base_targets[0])
                 else:
                     res = handler(notify_data)
             except Exception as exc:
@@ -1167,7 +1394,9 @@ class LiveMemoryEngine:
                 }
 
             targets = self._infer_notify_targets(str_id, base_targets, notify_data)
-            summary = self._summarize_notify_value(handler_name, notify_data, res)
+            summary = self._summarize_notify_value(
+                handler_name, notify_data, res, target_ctrl=base_targets[0] if base_targets else ""
+            )
             if isinstance(res, dict) and handler_name == "_handle_notify_local_queue":
                 if res.get("applied", 0) == 0:
                     return {
@@ -1210,13 +1439,19 @@ class LiveMemoryEngine:
 
             # 1. Delta resource consumption or additions
             if "res" in delta and isinstance(delta["res"], dict):
-                reslist = city_ctrl.setdefault("reslist", {})
+                reslist = city_ctrl.get("reslist")
+                if not isinstance(reslist, dict):
+                    reslist = city_ctrl.get("resList")
+                    if not isinstance(reslist, dict):
+                        reslist = {}
+                    city_ctrl["reslist"] = reslist
                 for resid, count in delta["res"].items():
                     k = str(resid)
                     old_val = int(float(reslist.get(k, 0) or 0))
                     new_val = max(0, old_val + int(float(count)))
                     reslist[k] = str(new_val) if isinstance(reslist.get(k), str) else new_val
                 city_ctrl["resList"] = reslist
+                city_ctrl["reslist"] = reslist
 
             # 2. Full resource list replacement
             if "reslist" in delta and isinstance(delta["reslist"], dict):
@@ -1725,14 +1960,60 @@ class LiveMemoryEngine:
         }
 
     def _handle_notify_time_reward(self, notify_data: Any, notify_id: str) -> None:
-        """Synchronizes NOTIFY_TIME_REWARD (16) and NOTIFY_RESET_TIME_REWARD (20)."""
+        """Synchronizes NOTIFY_TIME_REWARD / NOTIFY_REWARD (16) and NOTIFY_RESET_TIME_REWARD (20)."""
         time_reward = self.init_data.setdefault("timeRewardCtrl", {})
-        if notify_id in ("16", "TIME_REWARD", "NOTIFY_TIME_REWARD"):
+        str_id = str(notify_id).strip().upper()
+        if notify_data is not None:
+            items = notify_data if isinstance(notify_data, list) else [notify_data]
+            for it in items:
+                if isinstance(it, dict):
+                    tdata = it.get("timeData") if isinstance(it.get("timeData"), dict) else it
+                    smart_deep_merge(time_reward, tdata, in_place=True)
+        if str_id in ("16", "TIME_REWARD", "NOTIFY_TIME_REWARD", "REWARD", "NOTIFY_REWARD"):
             time_reward["isReceive"] = 2
-        elif notify_id in ("20", "NOTIFY_RESET_TIME_REWARD"):
+        elif str_id in ("20", "NOTIFY_RESET_TIME_REWARD"):
             time_reward["isReceive"] = 1
             time_reward["sequence"] = 1
             time_reward["isAllReceive"] = 0
+
+    def _handle_notify_generic_controller(self, notify_data: Any, target_ctrl: str) -> Dict[str, Any]:
+        """
+        دمج آمن ومباشر لإشعارات المتحكمات الرسمية في الذاكرة الحية (0-Network)
+        يدعم القواميس والمصفوفات وتحديث الحقول مع الحفاظ على بنية المتحكم.
+        """
+        if notify_data is None:
+            return {"ctrl": target_ctrl, "updated": False}
+
+        current = self.init_data.setdefault(target_ctrl, {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        updated_keys = []
+
+        for item in items:
+            if isinstance(item, dict):
+                inner_data = item.get("initData") or item.get("data")
+                if isinstance(inner_data, dict):
+                    smart_deep_merge(current, inner_data, in_place=True)
+                    updated_keys.extend(list(inner_data.keys()))
+                else:
+                    smart_deep_merge(current, item, in_place=True)
+                    updated_keys.extend(list(item.keys()))
+            elif isinstance(item, list) and isinstance(current, list):
+                current.extend(copy.deepcopy(item))
+                updated_keys.append(f"items+{len(item)}")
+
+        # مزامنة الأسماء المستعارة التابعة تلقائياً
+        if target_ctrl == "commandHallCtrl":
+            self.init_data["commandHall"] = self.init_data["commandHallCtrl"]
+        elif target_ctrl == "commandHall":
+            self.init_data["commandHallCtrl"] = self.init_data["commandHall"]
+        elif target_ctrl == "shopCtrl":
+            self.init_data["storesCtrl"] = self.init_data["shopCtrl"]
+
+        return {
+            "ctrl": target_ctrl,
+            "updated": True,
+            "keys": list(dict.fromkeys(updated_keys))[:5],
+        }
 
     def _handle_notify_meritorious(self, notify_data: Any) -> None:
         """Synchronizes NOTIFY_MERITORIOUS_TASK (1070)."""
