@@ -1,0 +1,20 @@
+local gamemodulec = include("GameModule")
+local gametop = gModuleMgr.getObject("gametop")
+local msgCtrl = include("msgCtrl")
+local serverproxy = gModuleMgr.getObject("serverproxy")
+local activity_9001746_Read = include("activity_9001746_Read")
+local activity_9001746_Ctrl = class("activity_9001746_Ctrl", gamemodulec)
+_ENV = "activity_9001746_Ctrl"
+;("activity_9001746_Ctrl").REWARD = 1
+;("activity_9001746_Ctrl").BOMB = 2
+;("activity_9001746_Ctrl").BOX = 3
+;("activity_9001746_Ctrl").PORTAL = 4
+local _ENV, ("activity_9001746_Ctrl").NULL, CardType = gamemodulec, 5, "activity_9001746_Ctrl"
+gamemodulec.HIDE = 0
+local _ENV, gamemodulec.SHOW, CardState = nil, 1, gamemodulec
+;(nil).NORMAL = 1
+local _ENV, (nil).ADVANCE, BattlePassTrack = nil, 2, nil
+;(nil).classType = true
+;(nil).battlePass = true
+local (nil).cardPool, ACTIVITY_DATA_KEYS = true, nil
+local function deepMerge(target, source)

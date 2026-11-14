@@ -1,0 +1,8 @@
+require("fgui.gcomponent.FootballSpirit.Com_getWay")
+require("fgui.gcomponent.FootballSpirit.Com_bar")
+require("fgui.gcomponent.FootballSpirit.Com_elfSingle")
+require("fgui.gcomponent.FootballSpirit.Com_award")
+require("fgui.gcomponent.FootballSpirit.Button_lasheng")
+require("fgui.gcomponent.FootballSpirit.Btn_rank")
+require("fgui.gcomponent.FootballSpirit.Com_rankSingle")
+require("fgui.gcomponent.FootballSpirit.Btn_boot")

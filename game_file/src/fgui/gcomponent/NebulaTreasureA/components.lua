@@ -1,0 +1,5 @@
+require("fgui.gcomponent.NebulaTreasureA.Com_rewardSingle")
+require("fgui.gcomponent.NebulaTreasureA.Com_Box")
+require("fgui.gcomponent.NebulaTreasureA.Com_Nebula")
+require("fgui.gcomponent.NebulaTreasureA.Com_itemNum")
+require("fgui.gcomponent.NebulaTreasureA.Com_List")

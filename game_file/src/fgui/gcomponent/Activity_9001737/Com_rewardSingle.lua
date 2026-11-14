@@ -1,0 +1,21 @@
+local baseComponent = require("fgui.base.baseComponent")
+local Com_rewardSingle = fgui.extension_class(fgui.GComponent, baseComponent)
+fgui.register_extension("ui://Activity_9001737/Com_rewardSingle", Com_rewardSingle)
+function Com_rewardSingle:onInit()
+	self.fields.List:setItemRenderer(handler(self, self.itemRenderer_List))
+	self.fields.List:fixPos()
+end
+function Com_rewardSingle:onShow()
+end
+function Com_rewardSingle:initData(cfg)
+	_UPVALUE0_ = nil
+	;(nil).rank = cfg.rank
+	self.fields.Com_rankBase:initRankBaseData(nil)
+	self.rewards = cfg.reward
+	self.fields.List:setNumItems(#self.rewards)
+	self.fields.List:setScrollEnable(#self.rewards > 6)
+end
+function Com_rewardSingle:itemRenderer_List(index, obj)
+	obj:initData(self.rewards[index + 1].id, self.rewards[index + 1].count)
+end
+return Com_rewardSingle

@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).id = 801
+;(nil).type = 1
+;(nil).mapType = 27
+;(nil).x = 1
+;(nil).y = 8
+_ENV, (nil)[801], (nil).size = nil, nil, 5
+;(nil).id = 802
+;(nil).type = 2
+;(nil).mapType = 27
+;(nil).x = 4
+;(nil).y = 3
+_ENV, (nil)[802], (nil).size = nil, nil, 2
+;(nil).id = 803
+;(nil).type = 2
+;(nil).mapType = 27
+;(nil).x = 7
+;(nil).y = 7
+_ENV, (nil)[803], (nil).size = nil, nil, 2
+;(nil).id = 804
+;(nil).type = 2
+;(nil).mapType = 27
+;(nil).x = 7
+;(nil).y = 13
+_ENV, (nil)[804], (nil).size = nil, nil, 2
+;(nil).id = 805
+;(nil).type = 2
+;(nil).mapType = 27
+;(nil).x = 4
+;(nil).y = 17
+;(nil)[805], (nil).size = nil, 2
+local data
+return data

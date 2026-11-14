@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+_ENV, (nil)[1], (nil).itemID = nil, nil, 400201
+;(nil).index = 2
+_ENV, (nil)[2], (nil).itemID = nil, nil, 401601
+;(nil).index = 3
+_ENV, (nil)[3], (nil).itemID = nil, nil, 402801
+;(nil).index = 4
+_ENV, (nil)[4], (nil).itemID = nil, nil, 400301
+;(nil).index = 5
+_ENV, (nil)[5], (nil).itemID = nil, nil, 400302
+;(nil).index = 6
+_ENV, (nil)[6], (nil).itemID = nil, nil, 402501
+;(nil).index = 7
+_ENV, (nil)[7], (nil).itemID = nil, nil, 402502
+;(nil).index = 8
+_ENV, (nil)[8], (nil).itemID = nil, nil, 400401
+;(nil).index = 9
+_ENV, (nil)[9], (nil).itemID = nil, nil, 400402
+;(nil).index = 10
+_ENV, (nil)[10], (nil).itemID = nil, nil, 401501
+;(nil).index = 11
+_ENV, (nil)[11], (nil).itemID = nil, nil, 402701
+;(nil).index = 12
+_ENV, (nil)[12], (nil).itemID = nil, nil, 402702
+;(nil).index = 13
+_ENV, (nil)[13], (nil).itemID = nil, nil, 402601
+;(nil).index = 14
+_ENV, (nil)[14], (nil).itemID = nil, nil, 402602
+;(nil).index = 15
+;(nil)[15], (nil).itemID = nil, 402802
+local data
+return data

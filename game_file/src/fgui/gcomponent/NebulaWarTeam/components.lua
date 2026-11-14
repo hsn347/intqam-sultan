@@ -1,0 +1,7 @@
+require("fgui.gcomponent.NebulaWarTeam.Com_teamSingle")
+require("fgui.gcomponent.NebulaWarTeam.Com_playerSingle")
+require("fgui.gcomponent.NebulaWarTeam.Com_beInviteSingle")
+require("fgui.gcomponent.NebulaWarTeam.Com_teamInfo")
+require("fgui.gcomponent.NebulaWarTeam.Com_castleLv")
+require("fgui.gcomponent.NebulaWarTeam.Com_teamBase")
+require("fgui.gcomponent.NebulaWarTeam.Com_superTeam")

@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).gharry_lv = 1
+;(nil).quality = 0
+;(nil).name = "common_text_2383"
+;(nil).image = ""
+_ENV, (nil)[1], (nil).time = nil, nil, 2100
+;(nil).index = 2
+;(nil).gharry_lv = 2
+;(nil).quality = 1
+;(nil).name = "common_text_2384"
+;(nil).image = ""
+_ENV, (nil)[2], (nil).time = nil, nil, 1800
+;(nil).index = 3
+;(nil).gharry_lv = 3
+;(nil).quality = 2
+;(nil).name = "common_text_2385"
+;(nil).image = ""
+_ENV, (nil)[3], (nil).time = nil, nil, 1500
+;(nil).index = 4
+;(nil).gharry_lv = 4
+;(nil).quality = 3
+;(nil).name = "common_text_2386"
+;(nil).image = ""
+_ENV, (nil)[4], (nil).time = nil, nil, 1200
+;(nil).index = 5
+;(nil).gharry_lv = 5
+;(nil).quality = 4
+;(nil).name = "common_text_2387"
+;(nil).image = ""
+;(nil)[5], (nil).time = nil, 300
+local data
+return data

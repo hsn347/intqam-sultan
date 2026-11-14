@@ -1,0 +1,8 @@
+require("fgui.gcomponent.ArtisanHouse.Com_artisanRewardSingle")
+require("fgui.gcomponent.ArtisanHouse.Com_artisanBlessLightMain")
+require("fgui.gcomponent.ArtisanHouse.Com_artisanBuffPreview")
+require("fgui.gcomponent.ArtisanHouse.Com_artisanTimeTip")
+require("fgui.gcomponent.ArtisanHouse.Com_artisanRewardPreview")
+require("fgui.gcomponent.ArtisanHouse.Com_aritisanLevelReward")
+require("fgui.gcomponent.ArtisanHouse.Com_ListBg")
+require("fgui.gcomponent.ArtisanHouse.Com_artisanBuffTip")

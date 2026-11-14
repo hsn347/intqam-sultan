@@ -1,0 +1,8 @@
+require("fgui.gcomponent.BulletGame.Com_Surface")
+require("fgui.gcomponent.BulletGame.Com_Bullet")
+require("fgui.gcomponent.BulletGame.Com_Enemy")
+require("fgui.gcomponent.BulletGame.Com_Player")
+require("fgui.gcomponent.BulletGame.Com_Box")
+require("fgui.gcomponent.BulletGame.Com_Special")
+require("fgui.gcomponent.BulletGame.Com_Line")
+require("fgui.gcomponent.BulletGame.Com_Input1")

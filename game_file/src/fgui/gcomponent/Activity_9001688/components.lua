@@ -1,0 +1,5 @@
+require("fgui.gcomponent.Activity_9001688.Com_taskList")
+require("fgui.gcomponent.Activity_9001688.Com_main_single")
+require("fgui.gcomponent.Activity_9001688.Com_listStage")
+require("fgui.gcomponent.Activity_9001688.Com_signSingle")
+require("fgui.gcomponent.Activity_9001688.Com_rewardSingle")

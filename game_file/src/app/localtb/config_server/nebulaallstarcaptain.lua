@@ -1,0 +1,35 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).camp = 1
+;(nil).kid = 0
+_ENV, (nil)[1], (nil).uid = nil, nil, 0
+;(nil).index = 2
+;(nil).camp = 2
+;(nil).kid = 0
+_ENV, (nil)[2], (nil).uid = nil, nil, 0
+;(nil).index = 3
+;(nil).camp = 3
+;(nil).kid = 0
+_ENV, (nil)[3], (nil).uid = nil, nil, 0
+;(nil).index = 4
+;(nil).camp = 4
+;(nil).kid = 0
+_ENV, (nil)[4], (nil).uid = nil, nil, 0
+;(nil).index = 5
+;(nil).camp = 5
+;(nil).kid = 0
+_ENV, (nil)[5], (nil).uid = nil, nil, 0
+;(nil).index = 6
+;(nil).camp = 6
+;(nil).kid = 0
+_ENV, (nil)[6], (nil).uid = nil, nil, 0
+;(nil).index = 7
+;(nil).camp = 7
+;(nil).kid = 0
+_ENV, (nil)[7], (nil).uid = nil, nil, 0
+;(nil).index = 8
+;(nil).camp = 8
+;(nil).kid = 0
+;(nil)[8], (nil).uid = nil, 0
+local data
+return data

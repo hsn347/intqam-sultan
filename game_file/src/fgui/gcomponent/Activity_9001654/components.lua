@@ -1,0 +1,5 @@
+require("fgui.gcomponent.Activity_9001654.Com_rewardCol")
+require("fgui.gcomponent.Activity_9001654.Com_itemSingle")
+require("fgui.gcomponent.Activity_9001654.Com_usmThree")
+require("fgui.gcomponent.Activity_9001654.Com_luckList")
+require("fgui.gcomponent.Activity_9001654.Com_luckSingle")

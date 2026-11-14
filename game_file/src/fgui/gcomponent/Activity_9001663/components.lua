@@ -1,0 +1,8 @@
+require("fgui.gcomponent.Activity_9001663.Com_bubbleSingle")
+require("fgui.gcomponent.Activity_9001663.Btn_bubble")
+require("fgui.gcomponent.Activity_9001663.Btn_needSingle")
+require("fgui.gcomponent.Activity_9001663.Com_item_add")
+require("fgui.gcomponent.Activity_9001663.Com_minePost")
+require("fgui.gcomponent.Activity_9001663.Com_postSingle")
+require("fgui.gcomponent.Activity_9001663.Com_ShareSingle")
+require("fgui.gcomponent.Activity_9001663.Com_exchange")

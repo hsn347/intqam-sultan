@@ -1,0 +1,6 @@
+require("fgui.gcomponent.Activity_9001737.Com_campSingle")
+require("fgui.gcomponent.Activity_9001737.Com_donateSingle")
+require("fgui.gcomponent.Activity_9001737.Com_mineInfo")
+require("fgui.gcomponent.Activity_9001737.Com_rankSingle")
+require("fgui.gcomponent.Activity_9001737.Com_rewardSingle")
+require("fgui.gcomponent.Activity_9001737.Com_notice")

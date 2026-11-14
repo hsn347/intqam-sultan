@@ -1,0 +1,35 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).aim = 1
+;(nil).rarity = 2
+_ENV, (nil)[1], (nil).addition = nil, nil, 5
+;(nil).index = 2
+;(nil).aim = 1
+;(nil).rarity = 3
+_ENV, (nil)[2], (nil).addition = nil, nil, 8
+;(nil).index = 3
+;(nil).aim = 1
+;(nil).rarity = 4
+_ENV, (nil)[3], (nil).addition = nil, nil, 10
+;(nil).index = 4
+;(nil).aim = 1
+;(nil).rarity = 5
+_ENV, (nil)[4], (nil).addition = nil, nil, 12
+;(nil).index = 5
+;(nil).aim = 2
+;(nil).rarity = 2
+_ENV, (nil)[5], (nil).addition = nil, nil, 30
+;(nil).index = 6
+;(nil).aim = 2
+;(nil).rarity = 3
+_ENV, (nil)[6], (nil).addition = nil, nil, 60
+;(nil).index = 7
+;(nil).aim = 2
+;(nil).rarity = 4
+_ENV, (nil)[7], (nil).addition = nil, nil, 90
+;(nil).index = 8
+;(nil).aim = 2
+;(nil).rarity = 5
+;(nil)[8], (nil).addition = nil, 120
+local data
+return data

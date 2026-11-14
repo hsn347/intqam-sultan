@@ -1,0 +1,7 @@
+require("fgui.gcomponent.MagicLampActivity.Com_list")
+require("fgui.gcomponent.MagicLampActivity.Com_list3")
+require("fgui.gcomponent.MagicLampActivity.Com_Stage")
+require("fgui.gcomponent.MagicLampActivity.Com_accuSingle")
+require("fgui.gcomponent.MagicLampActivity.Com_itemMask")
+require("fgui.gcomponent.MagicLampActivity.Com_icon")
+require("fgui.gcomponent.MagicLampActivity.Com_list2")

@@ -1,0 +1,7 @@
+require("fgui.gcomponent.Activity_9001660.list_popbox")
+require("fgui.gcomponent.Activity_9001660.Com_itemSingle")
+require("fgui.gcomponent.Activity_9001660.list_textsingle")
+require("fgui.gcomponent.Activity_9001660.Button_attack")
+require("fgui.gcomponent.Activity_9001660.Com_topInform")
+require("fgui.gcomponent.Activity_9001660.Act_title")
+require("fgui.gcomponent.Activity_9001660.Com_monsterInfo")

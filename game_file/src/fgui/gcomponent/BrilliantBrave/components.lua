@@ -1,0 +1,8 @@
+require("fgui.gcomponent.BrilliantBrave.Com_warframeSingle")
+require("fgui.gcomponent.BrilliantBrave.ExchangeSingle")
+require("fgui.gcomponent.BrilliantBrave.WarframeBagItemSingle")
+require("fgui.gcomponent.BrilliantBrave.processStudySingle")
+require("fgui.gcomponent.BrilliantBrave.processSingle")
+require("fgui.gcomponent.BrilliantBrave.List_text")
+require("fgui.gcomponent.BrilliantBrave.Com_detailTop")
+require("fgui.gcomponent.BrilliantBrave.processStudyItem")

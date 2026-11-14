@@ -1,0 +1,6 @@
+require("fgui.gcomponent.Activity_9001656.Com_9001656_prepare")
+require("fgui.gcomponent.Activity_9001656.Com_9001656_reward")
+require("fgui.gcomponent.Activity_9001656.Com_9001656_rewardSingle")
+require("fgui.gcomponent.Activity_9001656.Com_9001656_celebrationItem")
+require("fgui.gcomponent.Activity_9001656.Com_9001656_BuffItem")
+require("fgui.gcomponent.Activity_9001656.Com_9001656_BuffSingle")

@@ -1,0 +1,7 @@
+require("fgui.gcomponent.BuildViewCommon.buildInfoSingle")
+require("fgui.gcomponent.BuildViewCommon.ProgressBar_war")
+require("fgui.gcomponent.BuildViewCommon.buildCreateSingle")
+require("fgui.gcomponent.BuildViewCommon.Button_wiseTutor")
+require("fgui.gcomponent.BuildViewCommon.StatueBrave_sprite")
+require("fgui.gcomponent.BuildViewCommon.buildCreateScrollSingle")
+require("fgui.gcomponent.BuildViewCommon.Com_cityUnlockItem")

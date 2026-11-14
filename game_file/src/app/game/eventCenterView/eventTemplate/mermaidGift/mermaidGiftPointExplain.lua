@@ -1,0 +1,43 @@
+local mermaidGiftCtrl = SoraDGetCtrl("mermaidGiftCtrl")
+local mermaidGiftRead = include("mermaidGiftRead")
+local mermaidGiftPointExplain = class("mermaidGiftPointExplain", function(target)
+	return target or SoraDCreateTouchPanel("mermaidGiftPointExplain")
+end)
+function mermaidGiftPointExplain:ctor()
+	self.popBox = SoraDGetExtendChildFromCCSByName(self, "CCS_commonPopBox")
+	self.popBox:setTitleName(i18n("Mermaid_title_07"))
+	self.singleNode = SoraDGetChildByName(self, "Node_Single")
+	self.scroll = SoraDGetChildByName(self, "ScrollView")
+	self.scroll = include("commonAutoScrollList").new(self.scroll)
+	self.scroll:setSingleCreate(handler(self, self.createSingle))
+	self.scroll:setSingleRefresh(handler(self, self.refreshSingle))
+	self.textPoint = SoraDGetChildByName(self, "text_point")
+	self.textCoin = SoraDGetChildByName(self, "text_coin")
+	self.textPoint:setString(i18n("Mermaid_title_08"))
+	self.textCoin:setString(i18n("luckyFlip_title_11"))
+	local itemList = mermaidGiftRead.getRechargeList()
+	self.scroll:updateScrollView(cc.size(522, 40), itemList, 1)
+	local parent = SoraDGetChildByName(self, "Top_Node_title")
+	local effect_normal = SoraDCreatAnimation("Node_Effect_rydkz01", nil, true)
+	effect_normal:setPosition(cc.p(parent:getContentSize().width / 2, parent:getContentSize().height / 2))
+	effect_normal:addTo(parent)
+	effect_normal:setLocalZOrder(-1)
+end
+function mermaidGiftPointExplain:createSingle()
+	local single = self.singleNode:clone()
+	return single
+end
+function mermaidGiftPointExplain:refreshSingle(parent, data)
+	local bg = SoraDGetChildByName(parent, "Image_bg")
+	bg:setVisible(parent:getTag() % 2 ~= 0)
+	local textCoin = SoraDGetChildByName(parent, "Text_Coin")
+	local textPoint = SoraDGetChildByName(parent, "Text_Point")
+	local strPrice = paymentManager.judgePrice(nil, data.price)
+	textCoin:setString(strPrice)
+	textPoint:setString(string.formatnumberthousands(data.points))
+end
+function mermaidGiftPointExplain:createSingleLabel()
+	local single = ccui.Text:create("", "", 22)
+	return single
+end
+return mermaidGiftPointExplain

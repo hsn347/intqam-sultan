@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).skillId = 1
+;(nil).skillIcon = "icon_9001703_gongjili.png"
+;(nil).skillName = "balloon_hunter_036"
+_ENV, (nil)[1], (nil).skillDes = nil, nil, "balloon_hunter_030"
+;(nil).index = 2
+;(nil).skillId = 2
+;(nil).skillIcon = "icon_9001703_gongsu.png"
+;(nil).skillName = "balloon_hunter_037"
+_ENV, (nil)[2], (nil).skillDes = nil, nil, "balloon_hunter_031"
+;(nil).index = 3
+;(nil).skillId = 3
+;(nil).skillIcon = "icon_9001703_baoji.png"
+;(nil).skillName = "balloon_hunter_038"
+_ENV, (nil)[3], (nil).skillDes = nil, nil, "balloon_hunter_032"
+;(nil).index = 4
+;(nil).skillId = 4
+;(nil).skillIcon = "icon_9001703_shuliang.png"
+;(nil).skillName = "balloon_hunter_039"
+_ENV, (nil)[4], (nil).skillDes = nil, nil, "balloon_hunter_033"
+;(nil).index = 5
+;(nil).skillId = 5
+;(nil).skillIcon = "icon_9001703_lianfa.png"
+;(nil).skillName = "balloon_hunter_040"
+_ENV, (nil)[5], (nil).skillDes = nil, nil, "balloon_hunter_034"
+;(nil).index = 6
+;(nil).skillId = 6
+;(nil).skillIcon = "icon_9001703_chuantou.png"
+;(nil).skillName = "balloon_hunter_041"
+;(nil)[6], (nil).skillDes = nil, "balloon_hunter_035"
+local data
+return data

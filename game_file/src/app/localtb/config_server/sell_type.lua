@@ -1,0 +1,30 @@
+_ENV, _ENV = nil, nil
+_UPVALUE1_, (nil).Index = nil, 30001
+;(nil).Saletype, (nil)[1] = nil, 1
+;(nil).Price = 99.99
+_ENV, (nil)[30001], (nil).packagetype = nil, nil, 1
+_UPVALUE1_, (nil).Index = nil, 30002
+;(nil).Saletype, (nil)[1] = nil, 2
+;(nil).Price = 99.99
+_ENV, (nil)[30002], (nil).packagetype = nil, nil, 1
+_UPVALUE1_, (nil).Index = nil, 30003
+;(nil).Saletype, (nil)[1] = nil, 3
+;(nil).Price = 99.99
+_ENV, (nil)[30003], (nil).packagetype = nil, nil, 1
+_UPVALUE2_, (nil).Index = nil, 30004
+;(nil).Saletype, (nil)[1] = nil, 4
+;(nil).Saletype, (nil)[2] = nil, 5
+;(nil).Price = 99.99
+_ENV, (nil)[30004], (nil).packagetype = nil, nil, 2
+_UPVALUE2_, (nil).Index = nil, 30005
+;(nil).Saletype, (nil)[1] = nil, 4
+;(nil).Saletype, (nil)[2] = nil, 6
+;(nil).Price = 99.99
+_ENV, (nil)[30005], (nil).packagetype = nil, nil, 2
+_UPVALUE2_, (nil).Index = nil, 30006
+;(nil).Saletype, (nil)[1] = nil, 4
+;(nil).Saletype, (nil)[2] = nil, 7
+;(nil).Price = 99.99
+;(nil)[30006], (nil).packagetype = nil, 2
+local data
+return data

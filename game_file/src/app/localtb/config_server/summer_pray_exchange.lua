@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).Index = 1
+_UPVALUE2_, (nil).classType = nil, 1
+_UPVALUE6_, (nil).praytime, (nil)[1] = nil, nil, 1
+_UPVALUE6_, (nil).praytime, (nil)[2] = nil, nil, 9999
+_ENV, (nil)[1], (nil).dropitem, (nil)[1] = nil, nil, nil, 829401
+_ENV, (nil)[1], (nil).dropitem, (nil)[2] = nil, nil, nil, 1
+_ENV, (nil)[1], (nil).dropitem, (nil)[3] = nil, nil, nil, 1000
+_ENV, (nil)[1], (nil).dropitem, (nil)[4] = nil, nil, nil, 829501
+_ENV, (nil)[1], (nil).dropitem, (nil)[5] = nil, nil, nil, 1
+_ENV, (nil)[1], (nil).dropitem, (nil)[6] = nil, nil, nil, 0
+;(nil).Index = 2
+_UPVALUE2_, (nil).classType = nil, 2
+_UPVALUE6_, (nil).praytime, (nil)[1] = nil, nil, 1
+_UPVALUE6_, (nil).praytime, (nil)[2] = nil, nil, 9999
+_ENV, (nil)[2], (nil).dropitem, (nil)[1] = nil, nil, nil, 865801
+_ENV, (nil)[2], (nil).dropitem, (nil)[2] = nil, nil, nil, 3
+_ENV, (nil)[2], (nil).dropitem, (nil)[3] = nil, nil, nil, 0
+_ENV, (nil)[2], (nil).dropitem, (nil)[4] = nil, nil, nil, 743701
+_ENV, (nil)[2], (nil).dropitem, (nil)[5] = nil, nil, nil, 1
+_ENV, (nil)[2], (nil).dropitem, (nil)[6] = nil, nil, nil, 1000
+;(nil).Index = 3
+_UPVALUE2_, (nil).classType = nil, 3
+_UPVALUE6_, (nil).praytime, (nil)[1] = nil, nil, 1
+_UPVALUE6_, (nil).praytime, (nil)[2] = nil, nil, 9999
+;(nil)[3], (nil).dropitem, (nil)[1] = nil, nil, 865801
+;(nil)[3], (nil).dropitem, (nil)[2] = nil, nil, 3
+;(nil)[3], (nil).dropitem, (nil)[3] = nil, nil, 0
+;(nil)[3], (nil).dropitem, (nil)[4] = nil, nil, 743701
+;(nil)[3], (nil).dropitem, (nil)[5] = nil, nil, 1
+;(nil)[3], (nil).dropitem, (nil)[6] = nil, nil, 1000
+local data
+return data

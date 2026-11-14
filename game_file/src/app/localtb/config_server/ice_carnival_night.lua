@@ -1,0 +1,29 @@
+_ENV, _ENV = nil, nil
+;(nil).Index = 1
+_UPVALUE10_, (nil).type = nil, 1
+;(nil).reward, (nil)[1] = nil, 716401
+;(nil).reward, (nil)[2] = nil, 1
+;(nil).reward, (nil)[3] = nil, 500602
+;(nil).reward, (nil)[4] = nil, 8
+;(nil).reward, (nil)[5] = nil, 110510
+;(nil).reward, (nil)[6] = nil, 5
+;(nil).reward, (nil)[7] = nil, 299201
+;(nil).reward, (nil)[8] = nil, 15
+;(nil).reward, (nil)[9] = nil, 842601
+;(nil).reward, (nil)[10] = nil, 1
+_ENV, (nil)[1], (nil).picture = nil, nil, "icon_pickingrate_addition_01.png"
+;(nil).Index = 2
+_UPVALUE10_, (nil).type = nil, 2
+;(nil).reward, (nil)[1] = nil, 716401
+;(nil).reward, (nil)[2] = nil, 5
+;(nil).reward, (nil)[3] = nil, 500602
+;(nil).reward, (nil)[4] = nil, 40
+;(nil).reward, (nil)[5] = nil, 110510
+;(nil).reward, (nil)[6] = nil, 25
+;(nil).reward, (nil)[7] = nil, 299201
+;(nil).reward, (nil)[8] = nil, 75
+;(nil).reward, (nil)[9] = nil, 842601
+;(nil).reward, (nil)[10] = nil, 5
+;(nil)[2], (nil).picture = nil, "icon_pickingrate_addition_01.png"
+local data
+return data

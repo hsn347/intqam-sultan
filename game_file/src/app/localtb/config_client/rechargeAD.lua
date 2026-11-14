@@ -1,0 +1,35 @@
+_ENV, _ENV = nil, nil
+;(nil).className = "bagView"
+_ENV, (nil)[1], (nil).menuID = nil, nil, 1
+;(nil).className = "bagShopView"
+_ENV, (nil)[2], (nil).menuID = nil, nil, 1
+;(nil).className = "bagItemsView"
+_ENV, (nil)[3], (nil).menuID = nil, nil, 1
+;(nil).className = "mailView"
+_ENV, (nil)[4], (nil).menuID = nil, nil, 2
+;(nil).className = "mailTitlePageView"
+_ENV, (nil)[5], (nil).menuID = nil, nil, 2
+;(nil).className = "mailListView"
+_ENV, (nil)[6], (nil).menuID = nil, nil, 2
+;(nil).className = "mailItemDetailView"
+_ENV, (nil)[7], (nil).menuID = nil, nil, 2
+;(nil).className = "mailWriteMailView"
+_ENV, (nil)[8], (nil).menuID = nil, nil, 2
+;(nil).className = "mailScrollView"
+_ENV, (nil)[9], (nil).menuID = nil, nil, 2
+;(nil).className = "allianceMainView"
+_ENV, (nil)[10], (nil).menuID = nil, nil, 3
+;(nil).className = "allianceMainScroll"
+_ENV, (nil)[11], (nil).menuID = nil, nil, 3
+;(nil).className = "questView"
+_ENV, (nil)[12], (nil).menuID = nil, nil, 4
+;(nil).className = "commonSpeedUpByItemBox"
+_ENV, (nil)[13], (nil).menuID = nil, nil, 0
+;(nil).className = "resurgenceTreeView"
+_ENV, (nil)[14], (nil).menuID = nil, nil, 11
+;(nil).className = "commonItemBuyScroll"
+_ENV, (nil)[15], (nil).menuID = nil, nil, 0
+;(nil).className = "lifeSpringsView"
+;(nil)[16], (nil).menuID = nil, 16
+local RECHARGEAD
+return RECHARGEAD

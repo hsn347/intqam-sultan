@@ -1,0 +1,5 @@
+require("fgui.gcomponent.Activity_9001691.Com_9001691_rewardSingle")
+require("fgui.gcomponent.Activity_9001691.Com_9001691_celebrationItem")
+require("fgui.gcomponent.Activity_9001691.Com_9001691_game")
+require("fgui.gcomponent.Activity_9001691.Com_9001691_detail")
+require("fgui.gcomponent.Activity_9001691.Com_9001691_rankSingle")

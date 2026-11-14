@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 4207000
+_ENV, (nil)[4207000], (nil).taskDes = nil, nil, "king_road_name_01"
+;(nil).index = 4207100
+_ENV, (nil)[4207100], (nil).taskDes = nil, nil, "king_road_name_08"
+;(nil).index = 4207200
+_ENV, (nil)[4207200], (nil).taskDes = nil, nil, "spice_name_07"
+;(nil).index = 4207300
+_ENV, (nil)[4207300], (nil).taskDes = nil, nil, "spice_name_02"
+;(nil).index = 4207400
+_ENV, (nil)[4207400], (nil).taskDes = nil, nil, "spice_name_03"
+;(nil).index = 4207500
+_ENV, (nil)[4207500], (nil).taskDes = nil, nil, "spice_name_04"
+;(nil).index = 4207600
+_ENV, (nil)[4207600], (nil).taskDes = nil, nil, "spice_name_01"
+;(nil).index = 4207700
+_ENV, (nil)[4207700], (nil).taskDes = nil, nil, "alliance_hunt_btn_02"
+;(nil).index = 4207800
+_ENV, (nil)[4207800], (nil).taskDes = nil, nil, "task_name_02"
+;(nil).index = 4207900
+_ENV, (nil)[4207900], (nil).taskDes = nil, nil, "spice_name_08"
+;(nil).index = 4208000
+_ENV, (nil)[4208000], (nil).taskDes = nil, nil, "spice_name_09"
+;(nil).index = 4208100
+_ENV, (nil)[4208100], (nil).taskDes = nil, nil, "spice_name_10"
+;(nil).index = 4208200
+_ENV, (nil)[4208200], (nil).taskDes = nil, nil, "task_name_03"
+;(nil).index = 4208300
+_ENV, (nil)[4208300], (nil).taskDes = nil, nil, "buildDes_name_114"
+;(nil).index = 4208400
+;(nil)[4208400], (nil).taskDes = nil, "task_name_04"
+local data
+return data

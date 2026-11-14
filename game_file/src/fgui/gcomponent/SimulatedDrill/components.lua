@@ -1,0 +1,6 @@
+require("fgui.gcomponent.SimulatedDrill.Com_roomSeat")
+require("fgui.gcomponent.SimulatedDrill.Com_roomSingle")
+require("fgui.gcomponent.SimulatedDrill.Com_warInfo")
+require("fgui.gcomponent.SimulatedDrill.Com_resultSingle")
+require("fgui.gcomponent.SimulatedDrill.Com_playerSingle")
+require("fgui.gcomponent.SimulatedDrill.Com_warTip")

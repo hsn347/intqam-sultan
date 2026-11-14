@@ -1,0 +1,34 @@
+_ENV, _ENV = nil, nil
+;(nil).Index = 1
+;(nil).classType = 1
+;(nil).RechargeID = 19787
+;(nil).rewardType = 1
+;(nil).Price = 0.99
+;(nil).OriginalPrice = 2197.26
+_UPVALUE2_, (nil).Gold = nil, 200
+_ENV, (nil)[1], (nil).Rewards, (nil)[1] = nil, nil, nil, 206801
+_ENV, (nil)[1], (nil).Rewards, (nil)[2] = nil, nil, nil, 20
+;(nil).Index = 2
+;(nil).classType = 2
+;(nil).RechargeID = 19788
+;(nil).rewardType = 1
+;(nil).Price = 4.99
+;(nil).OriginalPrice = 4497.65
+_UPVALUE4_, (nil).Gold = nil, 800
+_ENV, (nil)[2], (nil).Rewards, (nil)[1] = nil, nil, nil, 501901
+_ENV, (nil)[2], (nil).Rewards, (nil)[2] = nil, nil, nil, 1
+_ENV, (nil)[2], (nil).Rewards, (nil)[3] = nil, nil, nil, 206801
+_ENV, (nil)[2], (nil).Rewards, (nil)[4] = nil, nil, nil, 40
+;(nil).Index = 3
+;(nil).classType = 3
+;(nil).RechargeID = 19789
+;(nil).rewardType = 1
+;(nil).Price = 19.99
+;(nil).OriginalPrice = 12173.94
+_UPVALUE4_, (nil).Gold = nil, 3800
+;(nil)[3], (nil).Rewards, (nil)[1] = nil, nil, 501901
+;(nil)[3], (nil).Rewards, (nil)[2] = nil, nil, 3
+;(nil)[3], (nil).Rewards, (nil)[3] = nil, nil, 206801
+;(nil)[3], (nil).Rewards, (nil)[4] = nil, nil, 140
+local data
+return data

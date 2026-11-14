@@ -1,0 +1,6 @@
+require("fgui.gcomponent.Activity_9001642.Com_stageReward")
+require("fgui.gcomponent.Activity_9001642.Com_rewardSingle")
+require("fgui.gcomponent.Activity_9001642.Com_joinReward")
+require("fgui.gcomponent.Activity_9001642.Com_reward")
+require("fgui.gcomponent.Activity_9001642.Harm_list")
+require("fgui.gcomponent.Activity_9001642.Com_rankSingle")

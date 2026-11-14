@@ -1,0 +1,30 @@
+_ENV, _ENV = nil, nil
+;(nil).Index = 1
+;(nil).price = 0.99
+_ENV, (nil)[1], (nil).points = nil, nil, 10
+;(nil).Index = 2
+;(nil).price = 1.99
+_ENV, (nil)[2], (nil).points = nil, nil, 20
+;(nil).Index = 3
+;(nil).price = 2.99
+_ENV, (nil)[3], (nil).points = nil, nil, 30
+;(nil).Index = 4
+;(nil).price = 3.99
+_ENV, (nil)[4], (nil).points = nil, nil, 40
+;(nil).Index = 5
+;(nil).price = 4.99
+_ENV, (nil)[5], (nil).points = nil, nil, 50
+;(nil).Index = 6
+;(nil).price = 9.99
+_ENV, (nil)[6], (nil).points = nil, nil, 100
+;(nil).Index = 7
+;(nil).price = 19.99
+_ENV, (nil)[7], (nil).points = nil, nil, 200
+;(nil).Index = 8
+;(nil).price = 49.99
+_ENV, (nil)[8], (nil).points = nil, nil, 600
+;(nil).Index = 9
+;(nil).price = 99.99
+;(nil)[9], (nil).points = nil, 1250
+local data
+return data

@@ -1,0 +1,8 @@
+require("fgui.gcomponent.Activity_9001630.Com_9001630_list")
+require("fgui.gcomponent.Activity_9001630.Btn_9001630_box")
+require("fgui.gcomponent.Activity_9001630.Com_9001630_icon")
+require("fgui.gcomponent.Activity_9001630.Activity_9001630_single_base")
+require("fgui.gcomponent.Activity_9001630.Activity_9001630_single")
+require("fgui.gcomponent.Activity_9001630.Activity_9001630_single2")
+require("fgui.gcomponent.Activity_9001630.Activity_9001630_record")
+require("fgui.gcomponent.Activity_9001630.Button_9001630_award")

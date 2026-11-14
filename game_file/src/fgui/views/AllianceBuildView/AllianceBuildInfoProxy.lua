@@ -1,0 +1,21 @@
+local baseProxy = require("fgui.base.baseProxy")
+local AllianceBuildInfoProxy = class("AllianceBuildInfoProxy", baseProxy)
+function AllianceBuildInfoProxy:onRegisterEvent()
+	print("=======AllianceBuildInfoProxy:onRegisterEvent")
+	SoraDAddMessage(self, "MESSAGE_ALLIANCE_BUILD_INFOLIST_UPDATE", handler(self, self.updateScroll))
+	SoraDAddMessage(self, "MESSAGE_ALLIANCE_BUILD_INFOLIST_ADD", handler(self, self.updateScroll))
+	SoraDAddMessage(self, "MESSAGE_ALLIANCE_BUILD_INFOLIST_DEL", handler(self, self.updateScroll))
+	SoraDAddMessage(self, "MESSAGE_ALLIANCE_BUILD_INFOLIST_REFRESH", function(...)
+		self.view:onMsgAllianceBuildInfoListRefresh(...)
+	end)
+	SoraDAddMessage(self, "MESSAGE_MAINSCEN_GOTO_FOREG_BACK_GROUD", function(...)
+		self.view:removeFromParent()
+	end)
+	SoraDAddMessage(self, "MESSAGE_ALLIANCE_BUILD_INFOLIST_DEMOLISH", function(...)
+		self.view:onMsgAllianceBuildInfoListDemolish(...)
+	end)
+end
+function AllianceBuildInfoProxy:updateScroll(...)
+	self.view:updateScroll(...)
+end
+return AllianceBuildInfoProxy

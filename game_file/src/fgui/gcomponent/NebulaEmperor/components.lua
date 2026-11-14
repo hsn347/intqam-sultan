@@ -1,0 +1,5 @@
+require("fgui.gcomponent.NebulaEmperor.Com_MapArro")
+require("fgui.gcomponent.NebulaEmperor.Com_rankBase")
+require("fgui.gcomponent.NebulaEmperor.Com_donateSkill")
+require("fgui.gcomponent.NebulaEmperor.Com_boxList")
+require("fgui.gcomponent.NebulaEmperor.Effect_season")

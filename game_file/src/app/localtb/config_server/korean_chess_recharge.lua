@@ -1,0 +1,29 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).giftId = 19808
+;(nil).gifttype = 1
+;(nil).extraData = 3
+;(nil).price = 0.99
+;(nil).originalPrice = 99.38
+;(nil).discount = 10039
+_UPVALUE4_, (nil).gold = nil, 200
+;(nil).gift, (nil)[1] = nil, 874501
+;(nil).gift, (nil)[2] = nil, 2
+;(nil).gift, (nil)[3] = nil, 110510
+;(nil).gift, (nil)[4] = nil, 10
+_ENV, (nil)[1], (nil).picture = nil, nil, ""
+;(nil).index = 2
+;(nil).giftId = 19809
+;(nil).gifttype = 2
+;(nil).extraData = 1
+;(nil).price = 4.99
+;(nil).originalPrice = 447.44
+;(nil).discount = 8967
+_UPVALUE4_, (nil).gold = nil, 800
+;(nil).gift, (nil)[1] = nil, 501901
+;(nil).gift, (nil)[2] = nil, 1
+;(nil).gift, (nil)[3] = nil, 110510
+;(nil).gift, (nil)[4] = nil, 30
+;(nil)[2], (nil).picture = nil, ""
+local data
+return data

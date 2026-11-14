@@ -1,0 +1,15 @@
+local baseProxy = require("fgui.base.baseProxy")
+local AlliancePetReduceTimeProxy = class("AlliancePetReduceTimeProxy", baseProxy)
+function AlliancePetReduceTimeProxy:onRegisterEvent()
+	print("=======AlliancePetReduceTimeProxy:onRegisterEvent")
+	SoraDAddMessage(self, "MESSAGE_ALLIACNE_PET_REQ_INFO_BACK", function(target, data)
+		self.view:onMsgReqInfoBack(target, data)
+	end)
+	SoraDAddMessage(self, "MESSAGE_ALLIACNE_PET_DONATE_BACK", function(target, data)
+		self.view:onMsgReqDonateBack(target, data)
+	end)
+	SoraDAddMessage(self, "MESSAGE_ALLIACNE_PET_DONATE_LIST_BACK", function(target, data)
+		self.view:onMsgReqDonateListBack(target, data)
+	end)
+end
+return AlliancePetReduceTimeProxy

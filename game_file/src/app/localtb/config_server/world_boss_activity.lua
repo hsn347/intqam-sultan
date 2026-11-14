@@ -1,0 +1,37 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+_UPVALUE15_, (nil).group = nil, 1
+_ENV, (nil)[1], (nil).npc, (nil)[1] = nil, nil, nil, 3106
+_ENV, (nil)[1], (nil).npc, (nil)[2] = nil, nil, nil, 3107
+_ENV, (nil)[1], (nil).npc, (nil)[3] = nil, nil, nil, 3108
+_ENV, (nil)[1], (nil).npc, (nil)[4] = nil, nil, nil, 3109
+_ENV, (nil)[1], (nil).npc, (nil)[5] = nil, nil, nil, 3110
+_ENV, (nil)[1], (nil).npc, (nil)[6] = nil, nil, nil, 3111
+_ENV, (nil)[1], (nil).npc, (nil)[7] = nil, nil, nil, 3112
+_ENV, (nil)[1], (nil).npc, (nil)[8] = nil, nil, nil, 3113
+_ENV, (nil)[1], (nil).npc, (nil)[9] = nil, nil, nil, 3114
+_ENV, (nil)[1], (nil).npc, (nil)[10] = nil, nil, nil, 3115
+_ENV, (nil)[1], (nil).npc, (nil)[11] = nil, nil, nil, 3116
+_ENV, (nil)[1], (nil).npc, (nil)[12] = nil, nil, nil, 3117
+_ENV, (nil)[1], (nil).npc, (nil)[13] = nil, nil, nil, 3118
+_ENV, (nil)[1], (nil).npc, (nil)[14] = nil, nil, nil, 3119
+_ENV, (nil)[1], (nil).npc, (nil)[15] = nil, nil, nil, 3120
+;(nil).index = 2
+_UPVALUE15_, (nil).group = nil, 2
+;(nil)[2], (nil).npc, (nil)[1] = nil, nil, 3128
+;(nil)[2], (nil).npc, (nil)[2] = nil, nil, 3129
+;(nil)[2], (nil).npc, (nil)[3] = nil, nil, 3130
+;(nil)[2], (nil).npc, (nil)[4] = nil, nil, 3131
+;(nil)[2], (nil).npc, (nil)[5] = nil, nil, 3132
+;(nil)[2], (nil).npc, (nil)[6] = nil, nil, 3133
+;(nil)[2], (nil).npc, (nil)[7] = nil, nil, 3134
+;(nil)[2], (nil).npc, (nil)[8] = nil, nil, 3135
+;(nil)[2], (nil).npc, (nil)[9] = nil, nil, 3136
+;(nil)[2], (nil).npc, (nil)[10] = nil, nil, 3137
+;(nil)[2], (nil).npc, (nil)[11] = nil, nil, 3138
+;(nil)[2], (nil).npc, (nil)[12] = nil, nil, 3139
+;(nil)[2], (nil).npc, (nil)[13] = nil, nil, 3140
+;(nil)[2], (nil).npc, (nil)[14] = nil, nil, 3141
+;(nil)[2], (nil).npc, (nil)[15] = nil, nil, 3142
+local data
+return data

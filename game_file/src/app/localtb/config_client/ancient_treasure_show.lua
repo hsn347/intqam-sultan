@@ -1,0 +1,30 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).box = "icon_sgjz_box_start.png"
+;(nil).name = "AncienTreasure_btn_01"
+_UPVALUE5_, (nil).describe = nil, "AncienTreasure_text_06"
+_ENV, (nil)[1], (nil).reward, (nil)[1] = nil, nil, nil, 822002
+_ENV, (nil)[1], (nil).reward, (nil)[2] = nil, nil, nil, 822101
+_ENV, (nil)[1], (nil).reward, (nil)[3] = nil, nil, nil, 822201
+_ENV, (nil)[1], (nil).reward, (nil)[4] = nil, nil, nil, 822301
+_ENV, (nil)[1], (nil).reward, (nil)[5] = nil, nil, nil, 822401
+;(nil).index = 2
+;(nil).box = "icon_sgjz_box_ascertain.png"
+;(nil).name = "AncienTreasure_btn_02"
+_UPVALUE5_, (nil).describe = nil, "AncienTreasure_text_07"
+_ENV, (nil)[2], (nil).reward, (nil)[1] = nil, nil, nil, 822502
+_ENV, (nil)[2], (nil).reward, (nil)[2] = nil, nil, nil, 822601
+_ENV, (nil)[2], (nil).reward, (nil)[3] = nil, nil, nil, 822701
+_ENV, (nil)[2], (nil).reward, (nil)[4] = nil, nil, nil, 822801
+_ENV, (nil)[2], (nil).reward, (nil)[5] = nil, nil, nil, 822901
+;(nil).index = 3
+;(nil).box = "icon_sgjz_box_excavate.png"
+;(nil).name = "AncienTreasure_btn_03"
+_UPVALUE5_, (nil).describe = nil, "AncienTreasure_text_08"
+;(nil)[3], (nil).reward, (nil)[1] = nil, nil, 823002
+;(nil)[3], (nil).reward, (nil)[2] = nil, nil, 823101
+;(nil)[3], (nil).reward, (nil)[3] = nil, nil, 823201
+;(nil)[3], (nil).reward, (nil)[4] = nil, nil, 823301
+;(nil)[3], (nil).reward, (nil)[5] = nil, nil, 823401
+local data
+return data

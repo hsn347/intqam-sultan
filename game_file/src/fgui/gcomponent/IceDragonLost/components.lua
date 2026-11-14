@@ -1,0 +1,5 @@
+require("fgui.gcomponent.IceDragonLost.Com_item_ice")
+require("fgui.gcomponent.IceDragonLost.Com_recordSingle")
+require("fgui.gcomponent.IceDragonLost.Com_IceDragonLost_Task")
+require("fgui.gcomponent.IceDragonLost.Com_itemLab")
+require("fgui.gcomponent.IceDragonLost.Btn_rewardPre")

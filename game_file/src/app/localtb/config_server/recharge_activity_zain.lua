@@ -1,0 +1,34 @@
+_ENV, _ENV = nil, nil
+_UPVALUE23_, (nil).index = nil, 1
+;(nil)[1], (nil).items, (nil)[1] = nil, nil, 1001
+;(nil)[1], (nil).items, (nil)[2] = nil, nil, 100
+;(nil)[1], (nil).items, (nil)[3] = nil, nil, 500501
+;(nil)[1], (nil).items, (nil)[4] = nil, nil, 1
+;(nil)[1], (nil).items, (nil)[5] = nil, nil, 600204
+;(nil)[1], (nil).items, (nil)[6] = nil, nil, 1
+;(nil)[1], (nil).items, (nil)[7] = nil, nil, 501802
+;(nil)[1], (nil).items, (nil)[8] = nil, nil, 5
+;(nil)[1], (nil).items, (nil)[9] = nil, nil, 600103
+;(nil)[1], (nil).items, (nil)[10] = nil, nil, 2
+;(nil)[1], (nil).items, (nil)[11] = nil, nil, 500601
+;(nil)[1], (nil).items, (nil)[12] = nil, nil, 10
+;(nil)[1], (nil).items, (nil)[13] = nil, nil, 500602
+;(nil)[1], (nil).items, (nil)[14] = nil, nil, 2
+;(nil)[1], (nil).items, (nil)[15] = nil, nil, 501101
+;(nil)[1], (nil).items, (nil)[16] = nil, nil, 10
+;(nil)[1], (nil).items, (nil)[17] = nil, nil, 501102
+;(nil)[1], (nil).items, (nil)[18] = nil, nil, 2
+;(nil)[1], (nil).items, (nil)[19] = nil, nil, 500801
+;(nil)[1], (nil).items, (nil)[20] = nil, nil, 10
+;(nil)[1], (nil).items, (nil)[21] = nil, nil, 500802
+;(nil)[1], (nil).items, (nil)[22] = nil, nil, 2
+;(nil)[1], (nil).items, (nil)[23] = nil, nil, 500901
+;(nil)[1], (nil).items, (nil)[24] = nil, nil, 10
+;(nil)[1], (nil).items, (nil)[25] = nil, nil, 500902
+;(nil)[1], (nil).items, (nil)[26] = nil, nil, 2
+;(nil)[1], (nil).items, (nil)[27] = nil, nil, 100304
+;(nil)[1], (nil).items, (nil)[28] = nil, nil, 2
+;(nil)[1], (nil).items, (nil)[29] = nil, nil, 100204
+;(nil)[1], (nil).items, (nil)[30] = nil, nil, 2
+local data
+return data

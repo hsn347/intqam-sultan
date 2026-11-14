@@ -1,0 +1,35 @@
+_ENV, _ENV = nil, nil
+;(nil).id = 1
+_UPVALUE3_, (nil).day = nil, 3
+_UPVALUE3_, (nil).package, (nil)[1] = nil, nil, 7280340
+_UPVALUE3_, (nil).package, (nil)[2] = nil, nil, 7280341
+_UPVALUE3_, (nil).package, (nil)[3] = nil, nil, 7280342
+_ENV, (nil)[1], (nil).weight, (nil)[1] = nil, nil, nil, 400
+_ENV, (nil)[1], (nil).weight, (nil)[2] = nil, nil, nil, 300
+_ENV, (nil)[1], (nil).weight, (nil)[3] = nil, nil, nil, 300
+;(nil).id = 2
+_UPVALUE3_, (nil).day = nil, 7
+_UPVALUE3_, (nil).package, (nil)[1] = nil, nil, 7280343
+_UPVALUE3_, (nil).package, (nil)[2] = nil, nil, 7280344
+_UPVALUE3_, (nil).package, (nil)[3] = nil, nil, 7280345
+_ENV, (nil)[2], (nil).weight, (nil)[1] = nil, nil, nil, 300
+_ENV, (nil)[2], (nil).weight, (nil)[2] = nil, nil, nil, 350
+_ENV, (nil)[2], (nil).weight, (nil)[3] = nil, nil, nil, 350
+;(nil).id = 3
+_UPVALUE3_, (nil).day = nil, 15
+_UPVALUE3_, (nil).package, (nil)[1] = nil, nil, 7280346
+_UPVALUE3_, (nil).package, (nil)[2] = nil, nil, 7280347
+_UPVALUE3_, (nil).package, (nil)[3] = nil, nil, 7280348
+_ENV, (nil)[3], (nil).weight, (nil)[1] = nil, nil, nil, 300
+_ENV, (nil)[3], (nil).weight, (nil)[2] = nil, nil, nil, 350
+_ENV, (nil)[3], (nil).weight, (nil)[3] = nil, nil, nil, 350
+;(nil).id = 4
+_UPVALUE3_, (nil).day = nil, 30
+_UPVALUE3_, (nil).package, (nil)[1] = nil, nil, 7280349
+_UPVALUE3_, (nil).package, (nil)[2] = nil, nil, 7280350
+_UPVALUE3_, (nil).package, (nil)[3] = nil, nil, 7280351
+;(nil)[4], (nil).weight, (nil)[1] = nil, nil, 350
+;(nil)[4], (nil).weight, (nil)[2] = nil, nil, 350
+;(nil)[4], (nil).weight, (nil)[3] = nil, nil, 300
+local data
+return data

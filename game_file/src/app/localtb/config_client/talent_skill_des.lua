@@ -1,0 +1,31 @@
+_ENV, _ENV = nil, nil
+;(nil).id = 1
+;(nil).name = "talSkill_name_01"
+;(nil).des = "talSkill_des_01"
+_ENV, (nil)[1], (nil).icon = nil, nil, "icon_talentskill_01.png"
+;(nil).id = 2
+;(nil).name = "talSkill_name_02"
+;(nil).des = "talSkill_des_02"
+_ENV, (nil)[2], (nil).icon = nil, nil, "icon_talentskill_02.png"
+;(nil).id = 3
+;(nil).name = "talSkill_name_03"
+;(nil).des = "talSkill_des_03"
+_ENV, (nil)[3], (nil).icon = nil, nil, "icon_talentskill_03.png"
+;(nil).id = 4
+;(nil).name = "talSkill_name_04"
+;(nil).des = "talSkill_des_04"
+_ENV, (nil)[4], (nil).icon = nil, nil, "icon_talentskill_04.png"
+;(nil).id = 5
+;(nil).name = "talSkill_name_05"
+;(nil).des = "talSkill_des_05"
+_ENV, (nil)[5], (nil).icon = nil, nil, "icon_talentskill_05.png"
+;(nil).id = 6
+;(nil).name = "talSkill_name_06"
+;(nil).des = "talSkill_des_06"
+_ENV, (nil)[6], (nil).icon = nil, nil, "icon_talentskill_06.png"
+;(nil).id = 7
+;(nil).name = "talSkill_name_08"
+;(nil).des = "talSkill_des_08"
+;(nil)[7], (nil).icon = nil, "icon_talentskill_08.png"
+local data
+return data

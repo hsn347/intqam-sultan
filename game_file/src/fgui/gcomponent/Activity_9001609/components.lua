@@ -1,0 +1,6 @@
+require("fgui.gcomponent.Activity_9001609.Com_Activity_9001609")
+require("fgui.gcomponent.Activity_9001609.Com_backPlayer")
+require("fgui.gcomponent.Activity_9001609.Com_copy")
+require("fgui.gcomponent.Activity_9001609.Com_backerSingle")
+require("fgui.gcomponent.Activity_9001609.Com_backReward")
+require("fgui.gcomponent.Activity_9001609.Btn_target")

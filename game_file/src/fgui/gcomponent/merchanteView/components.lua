@@ -1,0 +1,5 @@
+require("fgui.gcomponent.merchanteView.Btn_buy")
+require("fgui.gcomponent.merchanteView.Btn_refresh")
+require("fgui.gcomponent.merchanteView.Com_merchanteSingle")
+require("fgui.gcomponent.merchanteView.Com_super")
+require("fgui.gcomponent.merchanteView.merchanteSingle")

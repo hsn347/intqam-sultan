@@ -1,0 +1,6 @@
+require("fgui.gcomponent.Activity_9001735.Com_pass")
+require("fgui.gcomponent.Activity_9001735.Btn_boot")
+require("fgui.gcomponent.Activity_9001735.Com_passSingle")
+require("fgui.gcomponent.Activity_9001735.Com_rankSingle")
+require("fgui.gcomponent.Activity_9001735.Com_rewardSingle")
+require("fgui.gcomponent.Activity_9001735.Com_giftSingle")

@@ -1,0 +1,7 @@
+require("fgui.gcomponent.ExchangeShopNew.ExchangeShopSingle")
+require("fgui.gcomponent.ExchangeShopNew.ExchangeItemOwn")
+require("fgui.gcomponent.ExchangeShopNew.ExchangeEventSingle")
+require("fgui.gcomponent.ExchangeShopNew.ComEventInfo")
+require("fgui.gcomponent.ExchangeShopNew.ButtonToShop")
+require("fgui.gcomponent.ExchangeShopNew.ActExchangeSingle")
+require("fgui.gcomponent.ExchangeShopNew.ExchangeRuneSingle")

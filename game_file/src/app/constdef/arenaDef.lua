@@ -1,0 +1,14 @@
+_ENV = nil
+;(nil).ARENA_LOCAL = 1
+;(nil).AREAN_GLOBAL = 2
+;(nil).RAIDER_LOST_ARK = 3
+_ENV, gArenaBattleType, (nil).STAR_ENERGY_CUBE = nil, nil, 4
+;(nil)[1] = "localArena"
+_ENV, gArenaBattleStrType, (nil)[2] = nil, nil, "globalArena"
+;(nil).haveAttackChange = 1
+;(nil).underAttackAndWin = 2
+;(nil).rankFall = 3
+gArenaTipEnum, (nil).haveReward = nil, 4
+ARENA_GLOBAL_QUEUE_KEY = "ARENA_GLOBAL_QUEUE_KEY"
+ARENA_LOCAL_REWARD_KEY = "ARENA_LOCAL_REWARD_KEY"
+ARENA_GLOBAL_REWARD_KEY = "ARENA_GLOBAL_REWARD_KEY"

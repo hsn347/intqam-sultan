@@ -1,0 +1,35 @@
+_UPVALUE8_, _ENV = nil, nil
+_UPVALUE8_, (nil).vertices, (nil)[1] = nil, nil, 320
+_UPVALUE8_, (nil).vertices, (nil)[2] = nil, nil, 0
+_UPVALUE8_, (nil).vertices, (nil)[3] = nil, nil, 320
+_UPVALUE8_, (nil).vertices, (nil)[4] = nil, nil, 640
+_UPVALUE8_, (nil).vertices, (nil)[5] = nil, nil, -320
+_UPVALUE8_, (nil).vertices, (nil)[6] = nil, nil, 640
+_UPVALUE8_, (nil).vertices, (nil)[7] = nil, nil, -320
+_UPVALUE8_, (nil).vertices, (nil)[8] = nil, nil, 0
+_UPVALUE6_, (nil).uv, (nil)[1] = nil, nil, 0
+_UPVALUE6_, (nil).uv, (nil)[2] = nil, nil, 0
+_UPVALUE6_, (nil).uv, (nil)[3] = nil, nil, 0
+_UPVALUE6_, (nil).uv, (nil)[4] = nil, nil, 1
+_UPVALUE6_, (nil).uv, (nil)[5] = nil, nil, 1
+_UPVALUE6_, (nil).uv, (nil)[6] = nil, nil, 1
+_UPVALUE6_, (nil).uv, (nil)[7] = nil, nil, 1
+_UPVALUE6_, (nil).uv, (nil)[8] = nil, nil, 0
+_UPVALUE2_, _ENV, (nil).triangles, (nil)[1] = 0, nil, nil, 0
+_UPVALUE2_, _ENV, (nil).triangles, (nil)[2] = 0, nil, nil, 1
+_UPVALUE2_, _ENV, (nil).triangles, (nil)[3] = 0, nil, nil, 2
+_UPVALUE2_, _ENV, (nil).triangles, (nil)[4] = 0, nil, nil, 0
+_UPVALUE2_, _ENV, (nil).triangles, (nil)[5] = 0, nil, nil, 2
+_UPVALUE2_, _ENV, (nil).triangles, (nil)[6] = 0, nil, nil, 3
+_UPVALUE2_, (nil).center, (0)[1] = 0, 0, 0
+_UPVALUE2_, (nil).center, (0)[2] = 0, 0, 320
+_UPVALUE2_, (nil).anchorPoint, (0)[1] = 0, 0, 0
+_UPVALUE2_, (nil).anchorPoint, (0)[2] = 0, 0, 1
+_UPVALUE2_, (nil).size, (0)[1] = 0, 0, 640
+_UPVALUE2_, (nil).size, (0)[2] = 0, 0, 640
+_UPVALUE2_, (nil).minPos, (0)[1] = 0, 0, -320
+_UPVALUE2_, (nil).minPos, (0)[2] = 0, 0, 0
+;(nil).bounds, (nil).maxPos, (0)[1] = nil, 0, 320
+;(nil).bounds, (nil).maxPos, (0)[2] = nil, 0, 640
+local mesh
+return mesh

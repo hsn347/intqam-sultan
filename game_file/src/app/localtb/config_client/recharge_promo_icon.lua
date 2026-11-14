@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).id = 1
+_ENV, (nil)[1], (nil).icon = nil, nil, "icon_discounts.png"
+;(nil).id = 2
+_ENV, (nil)[2], (nil).icon = nil, nil, "icon_hot_sale.png"
+;(nil).id = 3
+_ENV, (nil)[3], (nil).icon = nil, nil, "icon_reduced_moonth.png"
+;(nil).id = 4
+_ENV, (nil)[4], (nil).icon = nil, nil, "icon_reduced_off.png"
+;(nil).id = 5
+_ENV, (nil)[5], (nil).icon = nil, nil, "icon_reduced_off_green.png"
+;(nil).id = 6
+_ENV, (nil)[6], (nil).icon = nil, nil, "icon_reduced_off_red.png"
+;(nil).id = 7
+_ENV, (nil)[7], (nil).icon = nil, nil, "icon_reduced_season.png"
+;(nil).id = 8
+_ENV, (nil)[8], (nil).icon = nil, nil, "icon_reduced_weekly.png"
+;(nil).id = 9
+_ENV, (nil)[9], (nil).icon = nil, nil, "icon_special_offer.png"
+;(nil).id = 10
+_ENV, (nil)[10], (nil).icon = nil, nil, "icon_must_buy.png"
+;(nil).id = 11
+_ENV, (nil)[11], (nil).icon = nil, nil, "icon_recommend.png"
+;(nil).id = 12
+_ENV, (nil)[12], (nil).icon = nil, nil, "icon_recharge_featured.png"
+;(nil).id = 13
+_ENV, (nil)[13], (nil).icon = nil, nil, "icon_recharge_limit.png"
+;(nil).id = 14
+_ENV, (nil)[14], (nil).icon = nil, nil, "icon_recharge_surprise.png"
+;(nil).id = 15
+;(nil)[15], (nil).icon = nil, "icon_recharge_unmiss.png"
+local data
+return data

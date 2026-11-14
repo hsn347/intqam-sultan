@@ -1,0 +1,36 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).type = 1
+_UPVALUE1_, (nil).score = nil, 200
+;(nil).num = 30
+_ENV, (nil)[1], (nil).des, (nil)[1] = nil, nil, nil, "hegemon_text_65"
+;(nil).index = 2
+;(nil).type = 2
+_UPVALUE1_, (nil).score = nil, 100
+;(nil).num = 30
+_ENV, (nil)[2], (nil).des, (nil)[1] = nil, nil, nil, "hegemon_text_66"
+;(nil).index = 3
+;(nil).type = 3
+_UPVALUE1_, (nil).score = nil, 1
+;(nil).count = 100000
+;(nil).level = 10
+_ENV, (nil)[3], (nil).des, (nil)[1] = nil, nil, nil, "hegemon_text_67"
+;(nil).index = 4
+;(nil).type = 3
+_UPVALUE1_, (nil).score = nil, 5
+;(nil).count = 100000
+;(nil).level = 11
+_ENV, (nil)[4], (nil).des, (nil)[1] = nil, nil, nil, "hegemon_text_67"
+;(nil).index = 5
+;(nil).type = 3
+_UPVALUE1_, (nil).score = nil, 10
+;(nil).count = 100000
+;(nil).level = 12
+_ENV, (nil)[5], (nil).des, (nil)[1] = nil, nil, nil, "hegemon_text_67"
+;(nil).index = 6
+;(nil).type = 3
+_UPVALUE1_, (nil).score = nil, 12
+;(nil).count = 100000
+;(nil)[6], (nil).des, (nil)[1] = nil, nil, "hegemon_text_68"
+local data
+return data

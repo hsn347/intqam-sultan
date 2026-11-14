@@ -1,0 +1,7 @@
+require("fgui.gcomponent.Activity_9001643.Com_list")
+require("fgui.gcomponent.Activity_9001643.Com_chapter")
+require("fgui.gcomponent.Activity_9001643.Com_task")
+require("fgui.gcomponent.Activity_9001643.Btn_heroSelect")
+require("fgui.gcomponent.Activity_9001643.Com_avatar")
+require("fgui.gcomponent.Activity_9001643.Com_main")
+require("fgui.gcomponent.Activity_9001643.Com_listTask")

@@ -1,0 +1,18 @@
+local baseProxy = require("fgui.base.baseProxy")
+local Activity_9001157_MainProxy = class("Activity_9001157_MainProxy", baseProxy)
+function Activity_9001157_MainProxy:onRegisterEvent()
+	print("=======Activity_9001157_MainProxy:onRegisterEvent")
+	SoraDAddMessage(self, "MESSAGE_OUTSTANDINGS_INIT_BACK", function(target, data)
+		SoraDCloseLoading(self.view)
+		self.view:initScroll()
+		self.view:initRankScroll()
+	end)
+	SoraDAddMessage(self, "MESSAGE_OUTSTANDINGS_REFRESH_BACK", function(target, data)
+		self.view:initScroll()
+		self.view:initRankScroll()
+	end)
+	SoraDAddMessage(self, "MESSAGE_OUTSTANDINGS_RECEIVI_REWARD_BACK", function(target, data)
+		self.view:initScroll()
+	end)
+end
+return Activity_9001157_MainProxy

@@ -1,0 +1,15 @@
+_ENV = nil
+;(nil).ONE = 1
+;(nil).TWO = 2
+;(nil).THREE = 3
+;(nil).FOUR = 4
+;(nil).FIVE = 5
+;(nil).SIX = 6
+_ENV, gTrialArea, (nil).SEVEN = nil, nil, 7
+;(nil).OPEN_AUTO_TRIAL = 1
+;(nil).STOP_AUTO_TRIAL = 2
+;(nil).ATTACK_STAGE_SUCCESS = 3
+;(nil).ATTACK_STAGE_FAILED = 4
+;(nil).TRIAL_SUCCESS = 5
+;(nil).TRIAL_FAILED = 6
+gTrialLogType, (nil).QUIT_TRIAL = nil, 7

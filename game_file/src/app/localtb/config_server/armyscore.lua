@@ -1,0 +1,31 @@
+_ENV, _ENV = nil, nil
+;(nil).id = 1
+_ENV, (nil)[1], (nil).killingScore = nil, nil, 0.001
+;(nil).id = 2
+_ENV, (nil)[2], (nil).killingScore = nil, nil, 0.002
+;(nil).id = 3
+_ENV, (nil)[3], (nil).killingScore = nil, nil, 0.003
+;(nil).id = 4
+_ENV, (nil)[4], (nil).killingScore = nil, nil, 0.004
+;(nil).id = 5
+_ENV, (nil)[5], (nil).killingScore = nil, nil, 0.005
+;(nil).id = 6
+_ENV, (nil)[6], (nil).killingScore = nil, nil, 0.006
+;(nil).id = 7
+_ENV, (nil)[7], (nil).killingScore = nil, nil, 0.007
+;(nil).id = 8
+_ENV, (nil)[8], (nil).killingScore = nil, nil, 0.008
+;(nil).id = 9
+_ENV, (nil)[9], (nil).killingScore = nil, nil, 0.009
+;(nil).id = 10
+_ENV, (nil)[10], (nil).killingScore = nil, nil, 0.01
+;(nil).id = 11
+_ENV, (nil)[11], (nil).killingScore = nil, nil, 0.011
+;(nil).id = 12
+_ENV, (nil)[12], (nil).killingScore = nil, nil, 0.012
+;(nil).id = 13
+_ENV, (nil)[13], (nil).killingScore = nil, nil, 0.013
+;(nil).id = 14
+;(nil)[14], (nil).killingScore = nil, 0.014
+local data
+return data

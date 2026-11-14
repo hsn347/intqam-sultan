@@ -1,0 +1,5 @@
+require("fgui.gcomponent.pyramidBattleView.Com_storeSingle")
+require("fgui.gcomponent.pyramidBattleView.Com_scoreSingle")
+require("fgui.gcomponent.pyramidBattleView.Com_tipSingle")
+require("fgui.gcomponent.pyramidBattleView.Com_battle")
+require("fgui.gcomponent.pyramidBattleView.Com_NC_ProgressBar")

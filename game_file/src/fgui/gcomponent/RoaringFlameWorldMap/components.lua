@@ -1,0 +1,7 @@
+require("fgui.gcomponent.RoaringFlameWorldMap.roaringFlameUIBottom")
+require("fgui.gcomponent.RoaringFlameWorldMap.worldMapFaceToDistance")
+require("fgui.gcomponent.RoaringFlameWorldMap.roaringFlameWarInfo")
+require("fgui.gcomponent.RoaringFlameWorldMap.Com_monsterInfo_main")
+require("fgui.gcomponent.RoaringFlameWorldMap.roaringFlameTroops")
+require("fgui.gcomponent.RoaringFlameWorldMap.Com_imageBuild")
+require("fgui.gcomponent.RoaringFlameWorldMap.Com_warInfosingle")

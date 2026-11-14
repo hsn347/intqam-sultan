@@ -1,0 +1,6 @@
+require("fgui.gcomponent.NebulaWonderland.Com_rewardSingle")
+require("fgui.gcomponent.NebulaWonderland.Com_mileage")
+require("fgui.gcomponent.NebulaWonderland.com_planet")
+require("fgui.gcomponent.NebulaWonderland.Com_line")
+require("fgui.gcomponent.NebulaWonderland.Com_lineSub")
+require("fgui.gcomponent.NebulaWonderland.Com_mile")

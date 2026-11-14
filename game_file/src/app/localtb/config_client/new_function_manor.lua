@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).name = "buildDes_name_201"
+;(nil).describe = "buildDes_describe_201"
+;(nil).level = 1
+_ENV, (nil)[1], (nil).icon = nil, nil, "quest_building_201.png"
+;(nil).index = 2
+;(nil).name = "buildDes_name_202"
+;(nil).describe = "buildDes_describe_202"
+;(nil).level = 1
+_ENV, (nil)[2], (nil).icon = nil, nil, "quest_building_202.png"
+;(nil).index = 3
+;(nil).name = "buildDes_name_203"
+;(nil).describe = "buildDes_describe_203"
+;(nil).level = 10
+_ENV, (nil)[3], (nil).icon = nil, nil, "quest_building_203.png"
+;(nil).index = 4
+;(nil).name = "buildDes_name_204"
+;(nil).describe = "buildDes_describe_204"
+;(nil).level = 15
+_ENV, (nil)[4], (nil).icon = nil, nil, "quest_building_204.png"
+;(nil).index = 5
+;(nil).name = "buildDes_name_205"
+;(nil).describe = "buildDes_describe_205"
+;(nil).level = 2
+_ENV, (nil)[5], (nil).icon = nil, nil, "quest_building_205.png"
+;(nil).index = 6
+;(nil).name = "buildDes_name_206"
+;(nil).describe = "buildDes_describe_206"
+;(nil).level = 1
+;(nil)[6], (nil).icon = nil, "quest_building_206.png"
+local data
+return data

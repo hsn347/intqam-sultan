@@ -1,0 +1,29 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+_UPVALUE1_, (nil).integral = nil, 100
+_ENV, (nil)[1], (nil).qeustID, (nil)[1] = nil, nil, nil, 4210295
+;(nil).index = 2
+_UPVALUE1_, (nil).integral = nil, 50
+_ENV, (nil)[2], (nil).qeustID, (nil)[1] = nil, nil, nil, 4210288
+;(nil).index = 3
+_UPVALUE2_, (nil).integral = nil, 24
+_ENV, (nil)[3], (nil).qeustID, (nil)[1] = nil, nil, nil, 4210298
+_ENV, (nil)[3], (nil).qeustID, (nil)[2] = nil, nil, nil, 4210299
+;(nil).index = 4
+_UPVALUE4_, (nil).integral = nil, 16
+_ENV, (nil)[4], (nil).qeustID, (nil)[1] = nil, nil, nil, 4210296
+_ENV, (nil)[4], (nil).qeustID, (nil)[2] = nil, nil, nil, 4210297
+_ENV, (nil)[4], (nil).qeustID, (nil)[3] = nil, nil, nil, 4210300
+_ENV, (nil)[4], (nil).qeustID, (nil)[4] = nil, nil, nil, 4210301
+;(nil).index = 5
+_UPVALUE2_, (nil).integral = nil, 15
+_ENV, (nil)[5], (nil).qeustID, (nil)[1] = nil, nil, nil, 4210291
+_ENV, (nil)[5], (nil).qeustID, (nil)[2] = nil, nil, nil, 4210292
+;(nil).index = 6
+_UPVALUE4_, (nil).integral = nil, 10
+;(nil)[6], (nil).qeustID, (nil)[1] = nil, nil, 4210289
+;(nil)[6], (nil).qeustID, (nil)[2] = nil, nil, 4210290
+;(nil)[6], (nil).qeustID, (nil)[3] = nil, nil, 4210293
+;(nil)[6], (nil).qeustID, (nil)[4] = nil, nil, 4210294
+local data
+return data

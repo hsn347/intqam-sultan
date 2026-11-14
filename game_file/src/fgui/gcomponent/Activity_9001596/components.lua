@@ -1,0 +1,5 @@
+require("fgui.gcomponent.Activity_9001596.Com_partInfo")
+require("fgui.gcomponent.Activity_9001596.Com_getWay")
+require("fgui.gcomponent.Activity_9001596.Btn_part")
+require("fgui.gcomponent.Activity_9001596.Com_partGain")
+require("fgui.gcomponent.Activity_9001596.Btn_item")

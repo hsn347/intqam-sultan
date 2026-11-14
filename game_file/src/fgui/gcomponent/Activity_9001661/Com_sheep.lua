@@ -1,0 +1,82 @@
+local activity_9001661_Ctrl = SoraDGetCtrl("activity_9001661_Ctrl")
+local baseComponent = require("fgui.base.baseComponent")
+local Com_sheep = fgui.extension_class(fgui.GComponent, baseComponent)
+fgui.register_extension("ui://Activity_9001661/Com_sheep", Com_sheep)
+function Com_sheep:onInit()
+	self.transitions.t0:setTimeScale(0.2)
+end
+function Com_sheep:onShow()
+end
+function Com_sheep:initData()
+	local num = 1
+	local isCanReceive = activity_9001661_Ctrl:checkCanReceive()
+	if isCanReceive then
+		num = 3
+	else
+		local time = serviceFunctions.getTomorrowZeroHourUTC() - serviceFunctions.systemTime()
+		if time <= 28800 then
+			num = 3
+		elseif time <= 57600 then
+			num = 2
+		end
+	end
+	self.controllers.c1:setSelectedIndex(math.max(0, math.min(num - 1, 3)))
+	self:playMovie()
+end
+function Com_sheep:playMovie()
+	self.transitions.t0:setHook("wsf_0", function()
+		local framesNpc = display.newFrames("ppxy_yd_ws_%.2d.png", 1, 12)
+		local animationNpc = display.newAnimation(framesNpc, 1.0 / #framesNpc)
+		self.fields.n0:setFlip(1)
+		self.fields.n0:setAnimation(animationNpc)
+	end)
+	self.transitions.t0:setHook("wnf_0", function()
+		local framesNpc = display.newFrames("ppxy_yd_wn_%.2d.png", 1, 12)
+		local animationNpc = display.newAnimation(framesNpc, 1.0 / #framesNpc)
+		self.fields.n0:setFlip(1)
+		self.fields.n0:setAnimation(animationNpc)
+	end)
+	self.transitions.t0:setHook("ws_0", function()
+		local framesNpc = display.newFrames("ppxy_yd_ws_%.2d.png", 1, 12)
+		local animationNpc = display.newAnimation(framesNpc, 1.0 / #framesNpc)
+		self.fields.n0:setFlip(0)
+		self.fields.n0:setAnimation(animationNpc)
+	end)
+	self.transitions.t0:setHook("wn_0", function()
+		local framesNpc = display.newFrames("ppxy_yd_wn_%.2d.png", 1, 12)
+		local animationNpc = display.newAnimation(framesNpc, 1.0 / #framesNpc)
+		self.fields.n0:setFlip(0)
+		self.fields.n0:setAnimation(animationNpc)
+	end)
+	self.transitions.t0:setHook("wsf_1", function()
+		local framesNpc = display.newFrames("ppxy_yd_ws_%.2d.png", 1, 12)
+		local animationNpc = display.newAnimation(framesNpc, 1.0 / #framesNpc)
+		self.fields.n1:setFlip(1)
+		self.fields.n1:setAnimation(animationNpc)
+	end)
+	self.transitions.t0:setHook("wsff_1", function()
+		local framesNpc = display.newFrames("ppxy_yd_ws_%.2d.png", 1, 12)
+		local animationNpc = display.newAnimation(framesNpc, 1.0 / #framesNpc)
+		self.fields.n1:setFlip(1)
+		self.fields.n1:setAnimation(animationNpc)
+	end)
+	self.transitions.t0:setHook("wn_1", function()
+		local framesNpc = display.newFrames("ppxy_yd_wn_%.2d.png", 1, 12)
+		local animationNpc = display.newAnimation(framesNpc, 1.0 / #framesNpc)
+		self.fields.n1:setFlip(0)
+		self.fields.n1:setAnimation(animationNpc)
+	end)
+	self.transitions.t0:setHook("w_2", function()
+		local framesNpc = display.newFrames("ppxy_yd_w_%.2d.png", 1, 12)
+		local animationNpc = display.newAnimation(framesNpc, 1.0 / #framesNpc)
+		self.fields.n2:setFlip(0)
+		self.fields.n2:setAnimation(animationNpc)
+	end)
+	self.transitions.t0:setHook("wf_2", function()
+		local framesNpc = display.newFrames("ppxy_yd_w_%.2d.png", 1, 12)
+		local animationNpc = display.newAnimation(framesNpc, 1.0 / #framesNpc)
+		self.fields.n2:setFlip(1)
+		self.fields.n2:setAnimation(animationNpc)
+	end)
+end
+return Com_sheep

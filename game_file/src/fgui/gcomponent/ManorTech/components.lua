@@ -1,0 +1,6 @@
+require("fgui.gcomponent.ManorTech.Com_conditionItem")
+require("fgui.gcomponent.ManorTech.Com_groupAttr")
+require("fgui.gcomponent.ManorTech.Com_studying")
+require("fgui.gcomponent.ManorTech.Com_techTop")
+require("fgui.gcomponent.ManorTech.techSingle")
+require("fgui.gcomponent.ManorTech.Com_techMap")

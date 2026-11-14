@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).Index = 1
+;(nil).type = 1
+;(nil).name = "flames_dunes_text119"
+_UPVALUE6_, (nil).activity_bg = nil, "frame_9001674_activity_01.png"
+_ENV, (nil)[1], (nil).rewards, (nil)[1] = nil, nil, nil, 873001
+_ENV, (nil)[1], (nil).rewards, (nil)[2] = nil, nil, nil, 1
+_ENV, (nil)[1], (nil).rewards, (nil)[3] = nil, nil, nil, 313101
+_ENV, (nil)[1], (nil).rewards, (nil)[4] = nil, nil, nil, 1
+_ENV, (nil)[1], (nil).rewards, (nil)[5] = nil, nil, nil, 1701
+_ENV, (nil)[1], (nil).rewards, (nil)[6] = nil, nil, nil, 1
+;(nil).Index = 2
+;(nil).type = 2
+;(nil).name = "flames_dunes_text130"
+_UPVALUE6_, (nil).activity_bg = nil, "frame_9001674_activity_03.png"
+_ENV, (nil)[2], (nil).rewards, (nil)[1] = nil, nil, nil, 873101
+_ENV, (nil)[2], (nil).rewards, (nil)[2] = nil, nil, nil, 1
+_ENV, (nil)[2], (nil).rewards, (nil)[3] = nil, nil, nil, 716401
+_ENV, (nil)[2], (nil).rewards, (nil)[4] = nil, nil, nil, 1
+_ENV, (nil)[2], (nil).rewards, (nil)[5] = nil, nil, nil, 722901
+_ENV, (nil)[2], (nil).rewards, (nil)[6] = nil, nil, nil, 1
+;(nil).Index = 3
+;(nil).type = 3
+;(nil).name = "flames_dunes_text131"
+_UPVALUE6_, (nil).activity_bg = nil, "frame_9001674_activity_02.png"
+;(nil)[3], (nil).rewards, (nil)[1] = nil, nil, 862301
+;(nil)[3], (nil).rewards, (nil)[2] = nil, nil, 1
+;(nil)[3], (nil).rewards, (nil)[3] = nil, nil, 103002
+;(nil)[3], (nil).rewards, (nil)[4] = nil, nil, 1
+;(nil)[3], (nil).rewards, (nil)[5] = nil, nil, 716401
+;(nil)[3], (nil).rewards, (nil)[6] = nil, nil, 1
+local data
+return data

@@ -1,0 +1,7 @@
+require("fgui.gcomponent.DesertSecretTreasure.Com_itemSingle")
+require("fgui.gcomponent.DesertSecretTreasure.Com_rewardCol")
+require("fgui.gcomponent.DesertSecretTreasure.Com_itemSingle70")
+require("fgui.gcomponent.DesertSecretTreasure.Com_cumuReward")
+require("fgui.gcomponent.DesertSecretTreasure.Com_luckList")
+require("fgui.gcomponent.DesertSecretTreasure.Com_luckSingle")
+require("fgui.gcomponent.DesertSecretTreasure.Com_usmThree")

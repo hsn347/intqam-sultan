@@ -1,0 +1,31 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).giftType = 1
+;(nil).grantNum = 2
+;(nil).grantTime = 20
+;(nil).duration = 19800
+;(nil).giftName = "Bubble_island_rebuild_text_43"
+_ENV, (nil)[1], (nil).giftIcon = nil, nil, "icon_9001670_gift1.png"
+;(nil).index = 2
+;(nil).giftType = 2
+;(nil).grantNum = 1
+;(nil).grantTime = 40
+;(nil).duration = 19800
+;(nil).giftName = "Bubble_island_rebuild_text_44"
+_ENV, (nil)[2], (nil).giftIcon = nil, nil, "icon_9001670_gift2.png"
+;(nil).index = 3
+;(nil).giftType = 3
+;(nil).grantNum = 1
+;(nil).grantTime = 60
+;(nil).duration = 19800
+;(nil).giftName = "Bubble_island_rebuild_text_45"
+_ENV, (nil)[3], (nil).giftIcon = nil, nil, "icon_9001670_gift3.png"
+;(nil).index = 4
+;(nil).giftType = 4
+;(nil).grantNum = 1
+;(nil).grantTime = 100
+;(nil).duration = 19800
+;(nil).giftName = "Bubble_island_rebuild_text_46"
+;(nil)[4], (nil).giftIcon = nil, "icon_9001670_gift4.png"
+local data
+return data

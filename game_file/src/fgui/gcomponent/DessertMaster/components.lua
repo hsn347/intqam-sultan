@@ -1,0 +1,5 @@
+require("fgui.gcomponent.DessertMaster.DessertMasterSpoonSingle")
+require("fgui.gcomponent.DessertMaster.DessertMasterPreviewSub")
+require("fgui.gcomponent.DessertMaster.DessertMasterPreviewSingle")
+require("fgui.gcomponent.DessertMaster.DessertMasterPoolSingle")
+require("fgui.gcomponent.DessertMaster.DessertMasterActivitySingle")

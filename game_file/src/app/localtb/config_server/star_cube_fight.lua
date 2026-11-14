@@ -1,0 +1,30 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).type = 1
+_UPVALUE3_, (nil).probability = nil, 1000
+_UPVALUE3_, (nil).winaward, (nil)[1] = nil, nil, 1407564
+_UPVALUE3_, (nil).winaward, (nil)[2] = nil, nil, 1
+_UPVALUE3_, (nil).winaward, (nil)[3] = nil, nil, 1000
+_ENV, (nil)[1], (nil).fallaward, (nil)[1] = nil, nil, nil, 1407567
+_ENV, (nil)[1], (nil).fallaward, (nil)[2] = nil, nil, nil, 1
+_ENV, (nil)[1], (nil).fallaward, (nil)[3] = nil, nil, nil, 1000
+;(nil).index = 2
+;(nil).type = 2
+_UPVALUE3_, (nil).probability = nil, 700
+_UPVALUE3_, (nil).winaward, (nil)[1] = nil, nil, 1407565
+_UPVALUE3_, (nil).winaward, (nil)[2] = nil, nil, 1
+_UPVALUE3_, (nil).winaward, (nil)[3] = nil, nil, 1000
+_ENV, (nil)[2], (nil).fallaward, (nil)[1] = nil, nil, nil, 1407568
+_ENV, (nil)[2], (nil).fallaward, (nil)[2] = nil, nil, nil, 1
+_ENV, (nil)[2], (nil).fallaward, (nil)[3] = nil, nil, nil, 1000
+;(nil).index = 3
+;(nil).type = 3
+_UPVALUE3_, (nil).probability = nil, 300
+_UPVALUE3_, (nil).winaward, (nil)[1] = nil, nil, 1407566
+_UPVALUE3_, (nil).winaward, (nil)[2] = nil, nil, 1
+_UPVALUE3_, (nil).winaward, (nil)[3] = nil, nil, 1000
+;(nil)[3], (nil).fallaward, (nil)[1] = nil, nil, 1407569
+;(nil)[3], (nil).fallaward, (nil)[2] = nil, nil, 1
+;(nil)[3], (nil).fallaward, (nil)[3] = nil, nil, 1000
+local data
+return data

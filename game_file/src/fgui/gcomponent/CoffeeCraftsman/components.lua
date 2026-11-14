@@ -1,0 +1,7 @@
+require("fgui.gcomponent.CoffeeCraftsman.CoffeeCraftsmanActivitySingle")
+require("fgui.gcomponent.CoffeeCraftsman.CoffeeCraftsmanSpoonSingle")
+require("fgui.gcomponent.CoffeeCraftsman.CoffeeCraftsmanPreviewSingle")
+require("fgui.gcomponent.CoffeeCraftsman.CoffeeCraftsmanPreviewSub")
+require("fgui.gcomponent.CoffeeCraftsman.Com_coffee")
+require("fgui.gcomponent.CoffeeCraftsman.CoffeeCraftsmanPoolSingle")
+require("fgui.gcomponent.CoffeeCraftsman.Button_coffeePool")

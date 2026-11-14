@@ -1,0 +1,30 @@
+_ENV, _UPVALUE4_, _ENV = nil, nil, nil
+;(nil).attr = "vec4"
+_ENV, (nil).name = nil, "_Texture_SB_ST"
+;(nil).x = 1
+;(nil).y = 1
+;(nil).z = 0
+_ENV, (nil).value, (nil).w = nil, nil, 0
+;(nil).attr = "float"
+;(nil).name = "_Control"
+_ENV, (nil).value = nil, 1
+;(nil).attr = "texture"
+;(nil).name = "_Mask"
+;(nil).value = "3DTexture/activityEvent/Tex_SBjs_001.png"
+_UPVALUE4_, (nil).hasMipmap = nil, false
+_ENV, (nil).texParam, (nil)[1] = nil, nil, gl.LINEAR
+_ENV, (nil).texParam, (nil)[2] = nil, nil, gl.LINEAR
+_ENV, (nil).texParam, (nil)[3] = nil, nil, gl.REPEAT
+_ENV, (nil).texParam, (nil)[4] = nil, nil, gl.REPEAT
+;(nil).attr = "vec4"
+_ENV, (nil).name = gl.LINEAR, "_Mask_ST"
+gl.LINEAR.x = 1
+gl.LINEAR.y = 1
+gl.LINEAR.z = 0
+;(nil).value, gl.LINEAR.w = gl.LINEAR, 0
+;(nil).param, (nil)[1] = nil, nil
+;(nil).param, (nil)[2] = nil, nil
+;(nil).param, (nil)[3] = nil, nil
+;(nil).param, (nil)[4] = nil, nil
+local data
+return data

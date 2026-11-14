@@ -1,0 +1,5 @@
+require("fgui.gcomponent.AllianceMobilizationView.allianceMobSingle")
+require("fgui.gcomponent.AllianceMobilizationView.Button_refresh")
+require("fgui.gcomponent.AllianceMobilizationView.Button_iconLevel")
+require("fgui.gcomponent.AllianceMobilizationView.allianceMobRankSingle")
+require("fgui.gcomponent.AllianceMobilizationView.allianceMobAwardSingle")

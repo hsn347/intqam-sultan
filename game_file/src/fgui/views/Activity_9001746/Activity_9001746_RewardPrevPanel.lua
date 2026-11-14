@@ -1,0 +1,5 @@
+local activity_9001746_Read = include("activity_9001746_Read")
+local activity_9001746_Ctrl = SoraDGetCtrl("activity_9001746_Ctrl")
+local baseFguiPanel = require("fgui.base.baseFguiPanel")
+local Activity_9001746_RewardPrevPanel = class("Activity_9001746_RewardPrevPanel", baseFguiPanel)
+function Activity_9001746_RewardPrevPanel:collectUniqueRewards(cfgList, fieldName)

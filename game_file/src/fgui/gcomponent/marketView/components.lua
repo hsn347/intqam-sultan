@@ -1,0 +1,8 @@
+require("fgui.gcomponent.marketView.Com_tradeSingle")
+require("fgui.gcomponent.marketView.tradeBoardRecordsSingle")
+require("fgui.gcomponent.marketView.tradeBoardMoneySingle")
+require("fgui.gcomponent.marketView.Com_nextTurn")
+require("fgui.gcomponent.marketView.Btn_menuRes")
+require("fgui.gcomponent.marketView.Com_newTradeSingle")
+require("fgui.gcomponent.marketView.Com_tradeSelfSingle")
+require("fgui.gcomponent.marketView.marketResSingle")

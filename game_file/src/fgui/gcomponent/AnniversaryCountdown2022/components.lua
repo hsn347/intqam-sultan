@@ -1,0 +1,7 @@
+require("fgui.gcomponent.AnniversaryCountdown2022.Com_countdown")
+require("fgui.gcomponent.AnniversaryCountdown2022.Com_sign")
+require("fgui.gcomponent.AnniversaryCountdown2022.Com_giftBag")
+require("fgui.gcomponent.AnniversaryCountdown2022.Com_anniv2022Calendar")
+require("fgui.gcomponent.AnniversaryCountdown2022.Com_ActivityItem")
+require("fgui.gcomponent.AnniversaryCountdown2022.Com_mileageSign")
+require("fgui.gcomponent.AnniversaryCountdown2022.Button_planetSign")

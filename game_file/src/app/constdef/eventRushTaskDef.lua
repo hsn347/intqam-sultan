@@ -1,0 +1,17 @@
+_ENV = nil
+;(nil).fullStrengthRush = "9001115"
+;(nil).buildRush = "9001116"
+;(nil).developmentRush = "9001117"
+_ENV, gEventRushActivityID, (nil).trainRush = nil, nil, "9001118"
+;(nil)[gEventRushActivityID.fullStrengthRush] = 1
+;(nil)[gEventRushActivityID.developmentRush] = 2
+;(nil)[gEventRushActivityID.developmentRush] = 3
+_ENV, gEventRushTaskType, (nil)[gEventRushActivityID.trainRush] = nil, nil, 4
+;(nil).TASK_STATUS_DOING = 1
+;(nil).TASK_STATUS_COMPLETE = 2
+_ENV, gEventRushTaskStatus, (nil).TASK_STATUS_COMPLETE_DONE = nil, nil, 3
+;(nil).LOGIN_DAY = 1
+;(nil).ATTACK_MONSTER_TIMES = 2
+;(nil).TRAIN_SOLDIER = 3
+;(nil).ATTACK_MOMSTER_PALACT = 4
+gSunsetConditionType, (nil).USE_GOLD = nil, 5

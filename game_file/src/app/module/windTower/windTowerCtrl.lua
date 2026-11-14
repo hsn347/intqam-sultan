@@ -1,0 +1,7 @@
+local gamemodulec = include("GameModule")
+local gametop = gModuleMgr.getObject("gametop")
+local windTowerCtrl = class("windTowerCtrl", gamemodulec)
+local msgCtrl = include("msgCtrl")
+local serverproxy = gModuleMgr.getObject("serverproxy")
+local windTowerDef = include("windTowerDef")
+function windTowerCtrl:addSurveydRuins(msg, info)

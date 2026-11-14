@@ -1,0 +1,35 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+_UPVALUE2_, (nil).time = nil, 1
+_ENV, (nil)[1], (nil).cost, (nil)[1] = nil, nil, nil, 718601
+_ENV, (nil)[1], (nil).cost, (nil)[2] = nil, nil, nil, 5
+;(nil).index = 2
+_UPVALUE2_, (nil).time = nil, 2
+_ENV, (nil)[2], (nil).cost, (nil)[1] = nil, nil, nil, 718601
+_ENV, (nil)[2], (nil).cost, (nil)[2] = nil, nil, nil, 10
+;(nil).index = 3
+_UPVALUE2_, (nil).time = nil, 3
+_ENV, (nil)[3], (nil).cost, (nil)[1] = nil, nil, nil, 718601
+_ENV, (nil)[3], (nil).cost, (nil)[2] = nil, nil, nil, 16
+;(nil).index = 4
+_UPVALUE2_, (nil).time = nil, 4
+_ENV, (nil)[4], (nil).cost, (nil)[1] = nil, nil, nil, 718601
+_ENV, (nil)[4], (nil).cost, (nil)[2] = nil, nil, nil, 24
+;(nil).index = 5
+_UPVALUE2_, (nil).time = nil, 5
+_ENV, (nil)[5], (nil).cost, (nil)[1] = nil, nil, nil, 718601
+_ENV, (nil)[5], (nil).cost, (nil)[2] = nil, nil, nil, 36
+;(nil).index = 6
+_UPVALUE2_, (nil).time = nil, 6
+_ENV, (nil)[6], (nil).cost, (nil)[1] = nil, nil, nil, 718601
+_ENV, (nil)[6], (nil).cost, (nil)[2] = nil, nil, nil, 50
+;(nil).index = 7
+_UPVALUE2_, (nil).time = nil, 7
+_ENV, (nil)[7], (nil).cost, (nil)[1] = nil, nil, nil, 718601
+_ENV, (nil)[7], (nil).cost, (nil)[2] = nil, nil, nil, 66
+;(nil).index = 8
+_UPVALUE2_, (nil).time = nil, 8
+;(nil)[8], (nil).cost, (nil)[1] = nil, nil, 718601
+;(nil)[8], (nil).cost, (nil)[2] = nil, nil, 86
+local data
+return data

@@ -1,0 +1,709 @@
+import React, { useState, useMemo, useEffect, useCallback, useDeferredValue } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Search, Play, Square, Plus, Clock, SlidersHorizontal, Users, Lock, ShieldAlert, AlertTriangle, Copy, CheckCheck, Sparkles, Loader2 } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { clsx } from 'clsx'
+import { Layout } from '../components/layout/Layout'
+import { CastleCard } from '../components/accounts/CastleCard'
+import { TaskTabContent } from '../components/accounts/TaskTabContent'
+import { AddCastleModal } from '../components/accounts/AddCastleModal'
+import { EditCastleModal } from '../components/accounts/EditCastleModal'
+import { ConfirmStopModal } from '../components/accounts/ConfirmStopModal'
+import { ConfirmDeleteCastleModal } from '../components/accounts/ConfirmDeleteCastleModal'
+import { ConfirmPresetModal } from '../components/accounts/ConfirmPresetModal'
+import { useAuth } from '../hooks/useAuth'
+import { useCastles, useUpdateBotState, useBotControl, useStopUserBots, useDeleteCastle, useBatchUpdateCastleConfigs } from '../hooks/useCastles'
+import { Castle, CastleConfig, FIXED_PRESET_CONFIG } from '../types'
+import toast from 'react-hot-toast'
+
+export function AccountsPage() {
+  const { t } = useTranslation()
+  const { user } = useAuth()
+  const uid = user?.uid ?? ''
+
+  const [search, setSearch] = useState('')
+  const deferredSearch = useDeferredValue(search)
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [editingCastle, setEditingCastle] = useState<Castle | null>(null)
+  const [deletingTarget, setDeletingTarget] = useState<{ id: string; wasActive?: boolean } | null>(null)
+  const [showBatchSettings, setShowBatchSettings] = useState(false)
+  const [hasOpenedBatch, setHasOpenedBatch] = useState(false)
+  const [showTargetAndTemplate, setShowTargetAndTemplate] = useState(false)
+  const [showStopAllModal, setShowStopAllModal] = useState(false)
+  const [showBatchPresetModal, setShowBatchPresetModal] = useState(false)
+  const [expandedCastleId, setExpandedCastleId] = useState<string | null>(null)
+
+  const { data, isLoading } = useCastles(uid)
+  const updateBot    = useUpdateBotState(uid)  // للـ fallback وتحديث Firebase فقط
+  const botControl   = useBotControl(uid)       // يشغّل/يوقف عبر api_server.py
+  const stopAllBots  = useStopUserBots(uid)     // إيقاف موحد لكافة القلاع بطلب واحد
+  const deleteCastle = useDeleteCastle(uid)
+  const batchUpdate  = useBatchUpdateCastleConfigs(uid)
+
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([])
+  const [batchTemplateCastleId, setBatchTemplateCastleId] = useState<string>('')
+  const [hasInitializedBatch, setHasInitializedBatch] = useState(false)
+
+  const allCastles = data?.pages.flatMap(p => p.items) ?? []
+
+  // Filter castles by search query (using deferredSearch for 60fps responsive typing)
+  const filtered = useMemo(() => {
+    const q = deferredSearch.trim().toLowerCase()
+    if (!q) return allCastles
+    return allCastles.filter(c => {
+      const emailPrefix = (c.email || '').split('@')[0].toLowerCase()
+      return (
+        c.castle_info.lord_name.toLowerCase().includes(q) ||
+        emailPrefix.includes(q) ||
+        c.email.toLowerCase().includes(q) ||
+        c.castle_info.alliance_name?.toLowerCase().includes(q) ||
+        c.castle_id.toLowerCase().includes(q)
+      )
+    })
+  }, [allCastles, deferredSearch])
+
+  // Partition into pending vs active
+  const pendingCastles = useMemo(() =>
+    filtered.filter(c => (!c.is_active || c.bot_status.state === 'pending') && c.bot_status.state !== 'error' && c.bot_status.conn_state !== 'error'),
+    [filtered]
+  )
+
+  const activeCastles = useMemo(() =>
+    filtered.filter(c => (c.is_active && c.bot_status.state !== 'pending') || c.bot_status.state === 'error' || c.bot_status.conn_state === 'error'),
+    [filtered]
+  )
+
+  // فحص هل الحساب يعمل بالفعل (سواء في جولة نشطة أو بانتظار الدورة التالية أو إعادة الاتصال)
+  const isCastleRunning = (c: Castle): boolean => {
+    const s = c.bot_status?.state
+    const cs = c.bot_status?.conn_state
+    if (s === 'error' || cs === 'error') return false
+    return s === 'running' || s === 'waiting' || cs === 'connected' || cs === 'waiting' || cs === 'reconnecting'
+  }
+
+  const runningCastles = useMemo(() => activeCastles.filter(isCastleRunning), [activeCastles])
+  const idleCastles = useMemo(() => activeCastles.filter(c => !isCastleRunning(c)), [activeCastles])
+
+  const runningCount = runningCastles.length
+  const idleCount = idleCastles.length
+  const maxAllowed = user?.subscription?.max_castles_allowed ?? 1
+  const currentCount = user?.subscription?.current_castles_count ?? activeCastles.length
+
+  const isSuperAdmin = user?.role === 'admin' || user?.email?.trim().toLowerCase() === 'ibraboths@gmail.com'
+  const isPendingApproval = !isSuperAdmin && user?.subscription?.status === 'pending_approval'
+  const isBanned = !isSuperAdmin && Boolean(user?.is_banned)
+  const isExpired = !isSuperAdmin && !isPendingApproval && (
+    user?.subscription?.status === 'expired' ||
+    (user?.subscription?.expires_at ? new Date(user.subscription.expires_at).getTime() < Date.now() : false)
+  )
+
+
+  const handleStopAll = () => {
+    setShowStopAllModal(true)
+  }
+
+  const handleConfirmStopAll = () => {
+    stopAllBots.mutate(undefined, {
+      onSuccess: () => {
+        toast.success(t('accounts.commandSentStop'))
+        setShowStopAllModal(false)
+      },
+      onError: () => {
+        toast.error(t('common.error'))
+        setShowStopAllModal(false)
+      },
+    })
+  }
+
+  const handleToggleExpand = useCallback((castleId?: string) => {
+    if (castleId) {
+      setExpandedCastleId(prev => prev === castleId ? null : castleId)
+    }
+  }, [])
+
+  const handleDelete = useCallback((id: string, wasActive?: boolean) => {
+    setDeletingTarget({ id, wasActive })
+  }, [])
+
+  const handleConfirmDelete = () => {
+    if (!deletingTarget) return
+    deleteCastle.mutate({ castleId: deletingTarget.id, wasActive: deletingTarget.wasActive }, {
+      onSuccess: () => {
+        toast.success(t('accounts.deleteSuccess'))
+        if (expandedCastleId === deletingTarget.id) {
+          setExpandedCastleId(null)
+        }
+        setDeletingTarget(null)
+      },
+      onError: () => {
+        toast.error(t('common.error'))
+        setDeletingTarget(null)
+      },
+    })
+  }
+
+  // مزامنة الحسابات النشطة وتعيين أول قلعة كقالب افتراضي تلقائياً مع أول تحميل
+  useEffect(() => {
+    if (!hasInitializedBatch && activeCastles.length > 0) {
+      setSelectedBatchIds(activeCastles.map(c => c.id))
+      setBatchTemplateCastleId(activeCastles[0].id)
+      setHasInitializedBatch(true)
+    }
+  }, [activeCastles, hasInitializedBatch])
+
+  // القلعة المعتمدة كقالب للإعدادات الجماعية
+  const templateCastle = useMemo(() => {
+    if (activeCastles.length === 0) return null
+    return activeCastles.find(c => c.id === batchTemplateCastleId) || activeCastles[0]
+  }, [activeCastles, batchTemplateCastleId])
+
+  const templateCastleName = useMemo(() => {
+    if (!templateCastle) return ''
+    const prefix = (templateCastle.email || '').split('@')[0] || t('common.castle', 'قلعة')
+    return (templateCastle.castle_info?.lord_name && !['لورد الإمبراطورية', 'القلعة الملكية', 'قلعة جديدة', 'غير معروف', 'قلعة'].includes(templateCastle.castle_info.lord_name))
+      ? templateCastle.castle_info.lord_name
+      : prefix
+  }, [templateCastle])
+
+  const handleToggleBatchSettings = () => {
+    setShowBatchSettings(prev => {
+      const next = !prev
+      if (next && !hasOpenedBatch) {
+        setHasOpenedBatch(true)
+      }
+      return next
+    })
+  }
+
+  const handleSetAsBatchTemplate = useCallback((castleId: string) => {
+    setBatchTemplateCastleId(castleId)
+    setShowBatchSettings(true)
+    setHasOpenedBatch(true)
+    const target = activeCastles.find(c => c.id === castleId)
+    const name = (target?.castle_info?.lord_name && !['لورد الإمبراطورية', 'القلعة الملكية', 'قلعة جديدة', 'غير معروف', 'قلعة'].includes(target.castle_info.lord_name))
+      ? target.castle_info.lord_name
+      : (target?.email || '').split('@')[0] || t('common.castle', 'قلعة')
+    toast.success(t('accounts.templateLoadedToast', { name }))
+  }, [activeCastles, t])
+
+  const handleApplyAllTemplateSettings = async () => {
+    if (!templateCastle) return
+    if (selectedBatchIds.length === 0) {
+      toast.error(t('accounts.selectAtLeastOneBatch'))
+      return
+    }
+    try {
+      await batchUpdate.mutateAsync({
+        castleIds: selectedBatchIds,
+        config: templateCastle.config,
+      })
+      toast.success(t('accounts.applyAllSuccess', { count: selectedBatchIds.length }))
+    } catch {
+      toast.error(t('common.error'))
+    }
+  }
+
+  const handleConfirmBatchPreset = async () => {
+    if (selectedBatchIds.length === 0) {
+      toast.error(t('accounts.selectAtLeastOneBatch'))
+      return
+    }
+    try {
+      await batchUpdate.mutateAsync({
+        castleIds: selectedBatchIds,
+        config: FIXED_PRESET_CONFIG,
+      })
+      toast.success(t('accounts.fixedPresetSuccess'))
+      setShowBatchPresetModal(false)
+    } catch {
+      toast.error(t('common.error'))
+    }
+  }
+
+  const handleSelectAllBatch = () => {
+    if (selectedBatchIds.length === activeCastles.length) {
+      setSelectedBatchIds([])
+    } else {
+      setSelectedBatchIds(activeCastles.map(c => c.id))
+    }
+  }
+
+  const handleToggleBatchCastle = (castleId: string) => {
+    setSelectedBatchIds(prev =>
+      prev.includes(castleId) ? prev.filter(id => id !== castleId) : [...prev, castleId]
+    )
+  }
+
+  const handleBatchSave = async (changedSections: Partial<CastleConfig>) => {
+    if (selectedBatchIds.length === 0) {
+      toast.error(t('accounts.selectAtLeastOneBatch'))
+      throw new Error('No castles selected')
+    }
+    await batchUpdate.mutateAsync({
+      castleIds: selectedBatchIds,
+      config: changedSections,
+    })
+    // تبقى الحسابات المستهدفة هي جميع الحسابات النشطة بشكل افتراضي
+    setSelectedBatchIds(activeCastles.map(c => c.id))
+  }
+
+  return (
+    <Layout title={t('accounts.title')}>
+      <div className="space-y-4">
+        {/* Page header */}
+        <div className="flex sm:flex-row flex-col sm:justify-between sm:items-center gap-3">
+          <div className="flex justify-between items-center">
+            <h1 className="font-bold text-white text-xl sm:text-2xl">{t('accounts.title')}</h1>
+            {/* Quick status pill on mobile */}
+            <div className="sm:hidden flex items-center gap-1.5 bg-white/5 px-2.5 py-1 border border-white/10 rounded-full text-xs">
+              <span className={clsx('rounded-full w-2 h-2', runningCount > 0 ? 'bg-emerald-500' : 'bg-gray-500')} />
+              <span className="font-medium text-gray-300">{activeCastles.length} {t('accounts.accountUnit')}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setAddModalOpen(true)}
+              className="flex justify-center items-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl font-bold text-sm active:scale-[0.98] transition-all btn-primary"
+              id="add-account-btn"
+            >
+              <Plus size={16} />
+              <span>{t('accounts.addAccount')}</span>
+            </button>
+
+            <button
+              onClick={handleStopAll}
+              disabled={stopAllBots.isPending || runningCount === 0}
+              className={clsx(
+                'flex justify-center items-center gap-1.5 px-3 py-2 rounded-xl font-semibold text-xs sm:text-sm active:scale-[0.98] transition-all',
+                stopAllBots.isPending
+                  ? 'btn-stopping-all bg-slate-100 dark:bg-gray-800 border border-slate-300 dark:border-gray-700 text-slate-700 dark:text-gray-400 cursor-not-allowed'
+                  : 'btn-secondary disabled:opacity-50'
+              )}
+            >
+              {stopAllBots.isPending ? (
+                <>
+                  <Loader2 size={13} className="text-slate-500 dark:text-gray-300 animate-spin" />
+                  <span>{t('status.stopping', 'جاري الإيقاف...')}</span>
+                </>
+              ) : (
+                <>
+                  <Square size={13} />
+                  <span>{t('accounts.stopAll')}</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+
+
+        {/* Banner if banned or expired */}
+        {isBanned && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3.5 bg-rose-500/15 shadow-xs p-3.5 sm:p-4 border border-rose-500/40 rounded-2xl text-rose-950 dark:text-rose-100 account-banner-banned"
+          >
+            <div className="flex justify-center items-center bg-rose-500/20 border border-rose-500/40 rounded-xl w-9 h-9 text-rose-400 banner-icon-box shrink-0">
+              <ShieldAlert size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold text-rose-950 dark:text-rose-100 text-sm banner-title">{t('dashboard.bannedTitle')}</span>
+                <span className="py-0.5 text-[10px] badge badge-red">{t('dashboard.bannedBadge')}</span>
+              </div>
+              <p className="mt-0.5 text-rose-800 dark:text-rose-300/90 text-xs banner-desc">{t('accounts.bannedBanner')}</p>
+            </div>
+          </motion.div>
+        )}
+
+        {!isBanned && isExpired && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3.5 bg-rose-500/15 shadow-xs p-3.5 sm:p-4 border border-rose-500/35 rounded-2xl text-rose-950 dark:text-rose-100 account-banner-expired"
+          >
+            <div className="flex justify-center items-center bg-rose-500/20 border border-rose-500/40 rounded-xl w-9 h-9 text-rose-400 banner-icon-box shrink-0">
+              <AlertTriangle size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold text-rose-950 dark:text-rose-100 text-sm banner-title">{t('dashboard.expiredTitle')}</span>
+                <span className="py-0.5 text-[10px] badge badge-red">{t('status.expired')}</span>
+              </div>
+              <p className="mt-0.5 text-rose-800 dark:text-rose-300/90 text-xs banner-desc">{t('accounts.expiredBanner')}</p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Batch Settings Accordion Header */}
+        {activeCastles.length > 0 && (
+          <div className="bg-primary-950/20 shadow-lg border border-primary-500/25 rounded-2xl w-full overflow-hidden batch-settings-card glass-card">
+            {/* Clickable Header Bar: clicking anywhere on this header bar toggles the batch settings open/closed */}
+            <div
+              onClick={handleToggleBatchSettings}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggleBatchSettings() } }}
+              className={clsx(
+                'flex justify-between items-center px-3.5 sm:px-5 py-2 sm:py-2.5 w-full cursor-pointer select-none batch-settings-header',
+                showBatchSettings
+                  ? 'bg-primary-900/30 border-b border-white/10'
+                  : 'hover:bg-primary-900/25 active:bg-primary-900/40'
+              )}
+            >
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="flex justify-center items-center bg-primary-500/20 shadow-sm border border-primary-500/30 rounded-lg w-7 sm:w-8 h-7 sm:h-8 text-primary-400 batch-icon-pod shrink-0">
+                  <SlidersHorizontal size={15} />
+                </div>
+                <div className="text-start">
+                  <span className="font-bold text-white text-xs sm:text-sm batch-title">{t('accounts.batchSettings')}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-primary-500/15 hover:bg-primary-500/25 px-2.5 sm:px-3 py-1 sm:py-1.5 border border-primary-500/30 rounded-lg font-semibold text-primary-400 text-xs batch-toggle-pill shrink-0">
+                <span className="hidden sm:inline">{showBatchSettings ? t('accounts.closeSettings') : t('accounts.openTaskList')}</span>
+                <span className="font-bold text-xs">{showBatchSettings ? '▲' : '▼'}</span>
+              </div>
+            </div>
+
+            {hasOpenedBatch && (
+              <div
+                className={clsx(
+                  'space-y-4 bg-slate-50/70 dark:bg-black/20 p-3.5 sm:p-5 w-full batch-settings-body',
+                  showBatchSettings ? 'block' : 'hidden'
+                )}
+              >
+                {/* Collapsible Dropdown: Target Accounts & Template Copy (مكون منسدل يغلق ويكون مغلق افتراضياً) */}
+                <div
+                  className={clsx(
+                    'border rounded-xl overflow-hidden transition-colors batch-control-box',
+                    showTargetAndTemplate
+                      ? 'bg-white dark:bg-white/[0.04] border-primary-500/40 shadow-sm'
+                      : 'bg-white/80 dark:bg-white/[0.02] border-gray-200 dark:border-white/8 hover:border-gray-300 dark:hover:border-white/15'
+                  )}
+                >
+                  {/* Collapsible Header */}
+                  <div
+                    onClick={() => setShowTargetAndTemplate(s => !s)}
+                    className="flex justify-between items-center p-3 sm:p-3.5 cursor-pointer select-none"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex justify-center items-center bg-primary-500/20 border border-primary-500/30 rounded-lg w-7 h-7 text-primary-400 shrink-0">
+                        <Users size={15} />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        <span className="font-semibold text-slate-800 dark:text-white text-xs sm:text-sm">
+                          {t('accounts.targetAccountsAndTemplate', 'الحسابات المستهدفة وقالب الإعدادات')}
+                        </span>
+                        <span className="bg-primary-500/15 px-2 py-0.5 border border-primary-500/30 rounded-full font-medium text-[11px] text-primary-600 dark:text-primary-300">
+                          {selectedBatchIds.length} {t('common.of', 'من')} {activeCastles.length} {t('accounts.accountUnit')}
+                        </span>
+                        {templateCastle && (
+                          <span className="bg-amber-500/15 px-2 py-0.5 border border-amber-500/30 rounded-full max-w-[150px] sm:max-w-xs font-medium text-[11px] text-amber-700 dark:text-amber-300 truncate">
+                            {t('accounts.template', 'قالب')}: {templateCastleName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={clsx(
+                        'flex justify-center items-center rounded-md w-6 h-6 text-xs transition-transform duration-150',
+                        showTargetAndTemplate ? 'bg-primary-500/20 text-primary-600 dark:text-primary-300 rotate-180' : 'text-gray-400'
+                      )}>
+                        ▼
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Collapsible Body */}
+                  {showTargetAndTemplate && (
+                    <div className="space-y-4 p-3.5 sm:p-4 pt-3 border-gray-200 dark:border-white/8 border-t">
+                      {/* 1. الحسابات المستهدفة */}
+                      <div className="space-y-2.5">
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-slate-700 dark:text-gray-300 text-xs">
+                            {t('accounts.selectTargetAccounts', 'الحسابات المستهدفة بالتعديل')}:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleSelectAllBatch()
+                            }}
+                            className="font-medium text-primary-600 hover:text-primary-700 dark:hover:text-primary-300 dark:text-primary-400 text-xs underline transition-colors cursor-pointer batch-select-all"
+                          >
+                            {selectedBatchIds.length === activeCastles.length ? t('accounts.deselectAll') : t('accounts.selectAll')}
+                          </button>
+                        </div>
+
+                        {/* Badges / Checkboxes for individual active castles */}
+                        <div className="flex flex-wrap gap-2 pt-1 max-h-48 overflow-y-auto">
+                          {activeCastles.map(c => {
+                            const isSelected = selectedBatchIds.includes(c.id)
+                            const prefix = (c.email || '').split('@')[0] || t('common.castle', 'قلعة')
+                            const name = (c.castle_info?.lord_name && !['لورد الإمبراطورية', 'القلعة الملكية', 'قلعة جديدة', 'غير معروف', 'قلعة'].includes(c.castle_info.lord_name))
+                              ? c.castle_info.lord_name
+                              : prefix
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => handleToggleBatchCastle(c.id)}
+                                className={clsx(
+                                  'flex items-center gap-1.5 px-2.5 py-1 border rounded-lg font-medium text-[11px] transition-all duration-150 cursor-pointer batch-castle-chip',
+                                  isSelected
+                                    ? 'chip-selected bg-primary-600/25 border-primary-500/60 text-slate-900 dark:text-white shadow-sm'
+                                    : 'chip-unselected bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/10 text-slate-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-white/20 hover:text-slate-900 dark:hover:text-gray-300'
+                                )}
+                              >
+                                <span
+                                  className={clsx(
+                                    'flex justify-center items-center border rounded w-3.5 h-3.5 font-bold text-[10px] transition-colors chip-checkbox',
+                                    isSelected
+                                      ? 'bg-primary-500 border-primary-400 text-white'
+                                      : 'border-gray-400 dark:border-gray-600 bg-transparent text-transparent'
+                                  )}
+                                >
+                                  ✓
+                                </span>
+                                <span className="font-semibold text-slate-800 dark:text-white chip-name">
+                                  {name}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Divider */}
+                      <div className="bg-gray-200 dark:bg-white/8 w-full h-px" />
+
+                      {/* 2. قالب النسخ والأزرار السريعة */}
+                      <div className="space-y-3">
+                        <div className="flex sm:flex-row flex-col sm:justify-between sm:items-center gap-3">
+                          <div className="flex flex-1 items-center gap-2">
+                            <label className="text-slate-600 dark:text-gray-400 text-xs shrink-0">
+                              {t('accounts.copyFromCastle')}:
+                            </label>
+                            <select
+                              value={templateCastle?.id || ''}
+                              onChange={(e) => setBatchTemplateCastleId(e.target.value)}
+                              className="flex-1 !px-3 !py-1.5 rounded-lg text-xs sm:text-sm cursor-pointer input-field"
+                            >
+                              {activeCastles.map(c => {
+                                const prefix = (c.email || '').split('@')[0] || t('common.castle', 'قلعة')
+                                const name = (c.castle_info?.lord_name && !['لورد الإمبراطورية', 'القلعة الملكية', 'قلعة جديدة', 'غير معروف', 'قلعة'].includes(c.castle_info.lord_name))
+                                  ? c.castle_info.lord_name
+                                  : prefix
+                                return (
+                                  <option key={c.id} value={c.id}>
+                                    {name} — ({c.email})
+                                  </option>
+                                )
+                              })}
+                            </select>
+                          </div>
+
+                          <div className="flex items-center self-end sm:self-auto gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setShowBatchPresetModal(true)}
+                              disabled={batchUpdate.isPending || selectedBatchIds.length === 0}
+                              className="flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 disabled:opacity-50 shadow-sm px-3 py-1.5 border border-amber-500/40 rounded-lg font-bold text-amber-900 dark:text-amber-300 text-xs whitespace-nowrap active:scale-95 transition-all cursor-pointer"
+                              title={t('accounts.fixedPresetTooltip')}
+                            >
+                              <Sparkles size={14} className="text-amber-700 dark:text-amber-400" />
+                              <span>{t('accounts.fixedPreset')}</span>
+                            </button>
+
+                            {templateCastle && (
+                              <button
+                                type="button"
+                                onClick={handleApplyAllTemplateSettings}
+                                disabled={batchUpdate.isPending || selectedBatchIds.length === 0}
+                                className="flex items-center gap-1.5 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 shadow-sm px-3 py-1.5 rounded-lg font-bold text-white text-xs active:scale-95 transition-all cursor-pointer"
+                                title={t('accounts.applyAllFromTemplate')}
+                              >
+                                <CheckCheck size={14} />
+                                <span>{t('accounts.applyAllFromTemplate')}</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Task Settings: OPEN AUTOMATICALLY (مفتوحة تلقائياً) */}
+                {templateCastle && (
+                  <div className="w-full">
+                    <TaskTabContent
+                      castle={templateCastle}
+                      userId={uid}
+                      isBatchMode={true}
+                      batchTargetCount={selectedBatchIds.length}
+                      onBatchSave={handleBatchSave}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Search input (matching reference UI Image 4 & 5) */}
+        <div className="p-2.5 sm:p-3 glass-card">
+          <div className="relative flex items-center">
+            <Search size={16} className="top-1/2 z-10 absolute text-gray-400 -translate-y-1/2 pointer-events-none start-3.5" />
+            <input
+              id="castle-search"
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={t('accounts.searchPlaceholder')}
+              className="!ps-10 w-full text-sm sm:text-base input-field"
+              style={{ paddingInlineStart: '2.6rem' }}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="top-1/2 absolute bg-white/10 hover:bg-white/15 px-2 py-1 rounded-md text-gray-400 hover:text-white text-xs transition-colors -translate-y-1/2 cursor-pointer end-3"
+                title={t('accounts.clearSearch')}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Castles list */}
+        {isLoading && allCastles.length === 0 ? (
+          <div className="py-20 text-gray-500 text-center">{t('common.loading')}</div>
+        ) : allCastles.length === 0 ? (
+          <div className="space-y-4 p-8 py-16 text-center glass-card">
+            <span className="text-5xl">🏰</span>
+            <h2 className="font-bold text-white text-lg">{t('accounts.noAccounts')}</h2>
+            <p className="mx-auto max-w-sm text-gray-500 text-sm">
+              {t('accounts.noAccountsDesc')}
+            </p>
+            <button
+              onClick={() => setAddModalOpen(true)}
+              className="inline-flex gap-2 btn-primary"
+            >
+              <Plus size={16} />
+              <span>{t('accounts.addFirstCastle')}</span>
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* ─── Section 1: Registration Queue (طابور التسجيل) ─── */}
+            {pendingCastles.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 font-semibold text-yellow-500 text-sm">
+                  <Clock size={16} />
+                  <span>{t('accounts.regQueue')} ({pendingCastles.length})</span>
+                </div>
+                <div className="space-y-3">
+                  {pendingCastles.map((castle, idx) => (
+                    <CastleCard
+                      key={castle.id}
+                      castle={castle}
+                      userId={uid}
+                      index={idx}
+                      isPending
+                      isExpanded={expandedCastleId === castle.id}
+                      onToggleExpand={handleToggleExpand}
+                      onDelete={handleDelete}
+                      onEdit={setEditingCastle}
+                      isStopAllPending={stopAllBots.isPending}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ─── Section 2: Active Castles (نشط) ─── */}
+            {activeCastles.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 font-semibold text-emerald-500 text-sm">
+                  <span className="bg-emerald-500 rounded-full w-2.5 h-2.5" />
+                  <span>{t('accounts.active')} ({activeCastles.length})</span>
+                </div>
+                <div className="space-y-3">
+                  {activeCastles.map((castle, idx) => (
+                    <CastleCard
+                      key={castle.id}
+                      castle={castle}
+                      userId={uid}
+                      index={idx}
+                      isExpanded={expandedCastleId === castle.id}
+                      onToggleExpand={handleToggleExpand}
+                      onDelete={handleDelete}
+                      onEdit={setEditingCastle}
+                      onSetBatchTemplate={handleSetAsBatchTemplate}
+                      isStopAllPending={stopAllBots.isPending}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {filtered.length === 0 && search && (
+              <div className="py-12 text-gray-500 text-center">
+                {t('accounts.noMatchingAccounts', { query: search })}
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {/* Add Castle Modal */}
+      <AddCastleModal
+        isOpen={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        userId={uid}
+      />
+
+      {/* Edit Castle Credentials Modal */}
+      <EditCastleModal
+        isOpen={!!editingCastle}
+        castle={editingCastle}
+        onClose={() => setEditingCastle(null)}
+        userId={uid}
+      />
+
+      {/* Confirm Stop All Modal */}
+      <ConfirmStopModal
+        isOpen={showStopAllModal}
+        onClose={() => !stopAllBots.isPending && setShowStopAllModal(false)}
+        onConfirm={handleConfirmStopAll}
+        isAll={true}
+        count={runningCount}
+        isPending={stopAllBots.isPending}
+      />
+
+      {/* Confirm Batch Preset Modal */}
+      <ConfirmPresetModal
+        isOpen={showBatchPresetModal}
+        onClose={() => setShowBatchPresetModal(false)}
+        onConfirm={handleConfirmBatchPreset}
+        isBatch={true}
+        count={selectedBatchIds.length}
+        isPending={batchUpdate.isPending}
+      />
+
+      {/* Confirm Delete Castle Modal */}
+      <ConfirmDeleteCastleModal
+        isOpen={!!deletingTarget}
+        onClose={() => setDeletingTarget(null)}
+        onConfirm={handleConfirmDelete}
+        isPending={deleteCastle.isPending}
+      />
+    </Layout>
+  )
+}

@@ -1,0 +1,93 @@
+_ENV = nil
+;(nil).IS_DEBUG_SERVER = false
+;(nil).MAX_ARMY = 1000000000
+;(nil).BUILD_DEMOLISH_TIME_COEFFICIENT = 0.5
+;(nil).UNIT_ARMY_CURE_TIME = 0.05
+;(nil).UNIT_ARMY_CURE_COSTRES = 0.5
+;(nil).CANCEL_ARMYTRAIN_BACKRES_RATE = 0.5
+;(nil).CANCEL_BUILD_UPGRADE_BACKRES_RATE = 0.5
+;(nil).CANCEL_ARMY_CURE_BACKRES_RATE = 0.5
+;(nil).OPEN_BUILD_CHARGE_QUEUE_GOLD = 250
+;(nil).OPEN_BUILD_CHARGE_QUEUE_TIME = 172800
+;(nil).INITIATIVE_SKILL_TRAP_ADD_COUNT = 100
+;(nil).INITIATIVE_SKILL_RES_ADD_HOURE = 1
+;(nil).DEFAULT_EXP_ARMY_COUNT = 1000
+;(nil).DEFAULT_EXP_ARMY_QUEUE = 1
+;(nil).RES_MAX_EVERYDAY = 500000000
+;(nil).RES_MAX_TOTAL = 2000000000
+;(nil).RES_MAX_TOTAL_IN_LEGEND = 5000000000
+;(nil).MAX_GOLD_COUNT = 99999999
+;(nil).BUILD_FREE_SPEEDUP_TIME = 300
+;(nil).TIME_SYNC_INTERVAL = 60
+;(nil).ARMY_COST_FOOD_INTERVAL = 5
+;(nil).ALLIANCE_CREATE_ALLIANCE_GOLD = 200
+;(nil).ALLIANCE_INIT_MEMBER_LIMIT = 50
+;(nil).ALLIANCE_APPLY_LIMIT = 200
+;(nil).ALLIANCE_INVITE_LIMIT = 200
+;(nil).ALLIANCE_NOTICEINVITEGOLD = 200
+;(nil).ALLIANCE_LEADER_LOGOUT_DAY_TO_SECOND = 604800
+_ENV, (nil).ALLIANCE_REPLACE_LEADER_GOLD = nil, 1000
+;(nil).max = 200
+_ENV, (nil).ALLIANCE_MANIFESTO_LENGTH, (nil).min = nil, nil, 1
+;(nil).max = 200
+_ENV, (nil).ALLIANCE_ANNOUNCEMENT_LENGTH, (nil).min = nil, nil, 1
+;(nil).max = 200
+;(nil).ALLIANCE_MESSAGE_LENGTH, (nil).min = nil, 1
+;(nil).ALLIANCE_MODIFY_ALLIANCE_FLAG_GOLD = 1000
+;(nil).ALLIANCE_MODIFY_ALLIANCE_NAME_GOLD = 500
+_ENV, (nil).ALLIANCE_MODIFY_ALLIANCE_ABBT_GOLD = nil, 200
+;(nil).max = 20
+_ENV, (nil).ALLIANCE_NAME_LENGTH, (nil).min = nil, nil, 3
+;(nil).max = 3
+_ENV, (nil).ALLIANCE_ABBR_LENGTH, (nil).min = nil, nil, 3
+;(nil).max = 10
+;(nil).ALLIANCE_RANK_NAME_LENGTH, (nil).min = nil, 3
+;(nil).ALLIANCE_LOG_MAX_COUNT = 100
+;(nil).ALLIANCE_BATTLE_RECORD_COUNT = 200
+;(nil).ALLINCE_MESSAGE_MAX_COUNT = 200
+;(nil).ALLIANCE_DONATE_NEE_JOIN_ALLIANCE_TIME = 14400
+;(nil).ALLIANCE_PROSPERITY_DONATE_NEE_JOIN_ALLIANCE_TIME = 14400
+;(nil).ALLIANCE_DONATE_CD_TIME = 14400
+;(nil).ALLIANCE_DONATE_CD_TIME_EVERYTIME = 720
+;(nil).ALLIANCE_MIDDLE_DONATE_OPEN_RATE = 0.35
+;(nil).ALLIANCE_SENIOR_DONATE_OPEN_RATE = 0.1
+;(nil).ALLIANCE_ARMY_PEOPLE_COUNT = 3
+;(nil).ALLIACNE_MSG_GET_COUNT = 20
+;(nil).ALLIANCE_MODIFY_FLAG_COST_GOLD = 1000
+;(nil).ALLIANCE_FIRST_JOIN_SEND_GOLD = 200
+;(nil).ALLIANCE_BATTLE_RECORD_GET_COUNT = 20
+;(nil).ALLIANE_STORE_RECORD_MAXSIZE = 20
+;(nil).LORD_RESET_SKILL_POINT = 1000
+;(nil).SNATCH_CALCULATE_TIME = 1800
+;(nil).SNATCH_MAX_ROUNDINDEX = 4
+;(nil).SNATCH_PLAYER_BUYCOUNT_RECORD = "SNATCH_PLAYER_BUYCOUNT_RECORD_%d"
+;(nil).HEARTBEAT_INV = 20
+;(nil).HEARTBEAT_TIMEOUT_TIMES = 3
+;(nil).HEARTBEAT_LOG_TIME = 30
+;(nil).HEARTBEAT_SEND_LOG_MAX_OFFSET = 50
+;(nil).GAME_LOGIN_TIME_OUT = IsArClient and 60 or 30
+;(nil).network_test_host = "www.apple.com"
+;(nil).SWITCH_CHECK_TIME = 4
+CONST_VALUE, _ENV, gConstValue, (nil).OFFICIAL_TEAM_ID = nil, nil, nil, 999999999999
+local _ENV, DEFAULT_VALUE
+_ENV = nil
+;(nil).__index = function(t, k)
+	local key = k
+	local default = DEFAULT_VALUE[k] or 0
+	local constantRead = include("constantRead")
+	local value = constantRead.getConstValue(key, default)
+	rawset(t, k, value)
+	return value
+end
+setmetatable(CONST_VALUE, nil)
+CONST_ARRAY, _ENV = setmetatable, setmetatable
+_ENV = nil
+;(nil).__index = function(t, k)
+	local key = k
+	local _ENV, default
+	local constantRead = include("constantRead")
+	local value = constantRead.getConstValueArray(key, default)
+	rawset(t, k, value)
+	return value
+end
+setmetatable(CONST_ARRAY, nil)

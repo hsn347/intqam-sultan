@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 4105100
+_ENV, (nil)[4105100], (nil).taskDes = nil, nil, "king_road_name_01"
+;(nil).index = 4105200
+_ENV, (nil)[4105200], (nil).taskDes = nil, nil, "king_road_name_02"
+;(nil).index = 4105300
+_ENV, (nil)[4105300], (nil).taskDes = nil, nil, "task_name_05"
+;(nil).index = 4105400
+_ENV, (nil)[4105400], (nil).taskDes = nil, nil, "king_road_14"
+;(nil).index = 4105500
+_ENV, (nil)[4105500], (nil).taskDes = nil, nil, "limitactivities_sectiontitle_03"
+;(nil).index = 4105600
+_ENV, (nil)[4105600], (nil).taskDes = nil, nil, "common_text_193"
+;(nil).index = 4105700
+_ENV, (nil)[4105700], (nil).taskDes = nil, nil, "king_road_15"
+;(nil).index = 4105800
+_ENV, (nil)[4105800], (nil).taskDes = nil, nil, "common_text_2275"
+;(nil).index = 4105900
+_ENV, (nil)[4105900], (nil).taskDes = nil, nil, "spice_name_06"
+;(nil).index = 4106000
+_ENV, (nil)[4106000], (nil).taskDes = nil, nil, "king_road_name_07"
+;(nil).index = 4106100
+_ENV, (nil)[4106100], (nil).taskDes = nil, nil, "king_road_name_08"
+;(nil).index = 4106200
+_ENV, (nil)[4106200], (nil).taskDes = nil, nil, "task_name_06"
+;(nil).index = 4106300
+_ENV, (nil)[4106300], (nil).taskDes = nil, nil, "king_road_name_10"
+;(nil).index = 4106400
+_ENV, (nil)[4106400], (nil).taskDes = nil, nil, "spice_name_08"
+;(nil).index = 4106500
+;(nil)[4106500], (nil).taskDes = nil, "king_road_name_12"
+local data
+return data

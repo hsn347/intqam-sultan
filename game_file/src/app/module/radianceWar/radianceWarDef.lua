@@ -1,0 +1,37 @@
+local _ENV, _ENV, radianceWarDef
+;(nil).NONE = 0
+;(nil).MATCH = 1
+;(nil).RESULT = 2
+;(nil).BATTLE = 3
+_ENV, radianceWarDef.RADIANCE_WAR_STATE, (nil).FINISH = nil, nil, 4
+;(nil).EAST = 1
+;(nil).WEST = 2
+;(nil).SOUTH = 3
+_ENV, radianceWarDef.gMapCorner, (nil).NORTH = nil, nil, 4
+;(nil).DAILY = 1
+_ENV, radianceWarDef.TASK_TYPE, (nil).SEASON = nil, nil, 2
+;(nil).REWARD_VIEW_TYPE_PERSONAL = 1
+;(nil).REWARD_VIEW_TYPE_ALLIANCE = 2
+radianceWarDef.REWARD_VIEW_TYPE, (nil).REWARD_VIEW_TYPE_WINNER = nil, 3
+_UPVALUE3_, radianceWarDef.RADIANCE_QUARRY = nil, 510601
+radianceWarDef.RADIANCE_PERCENT, (nil)[1] = nil, 100
+radianceWarDef.RADIANCE_PERCENT, (nil)[2] = nil, 200
+radianceWarDef.RADIANCE_PERCENT, (nil)[3] = nil, 400
+_ENV, radianceWarDef.RADIANCE_WAR_PALACE_ID = nil, 100000
+;(nil)[104561] = true
+;(nil)[104562] = true
+;(nil)[104563] = true
+;(nil)[104564] = true
+;(nil)[104565] = true
+;(nil)[104620] = true
+;(nil)[104621] = true
+;(nil)[104676] = true
+;(nil)[104677] = true
+;(nil)[104732] = true
+;(nil)[104733] = true
+;(nil)[104788] = true
+;(nil)[104789] = true
+;(nil)[104790] = true
+;(nil)[104791] = true
+radianceWarDef.RADIANCE_WAR_PALACE_BEACON_ID, (nil)[104792] = nil, true
+return radianceWarDef

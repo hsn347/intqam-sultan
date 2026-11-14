@@ -1,0 +1,20 @@
+MildGuideConfig, _ENV = nil, nil
+_ENV = nil
+;(nil).IndexMove = 1
+;(nil).BuildMove = 2
+;(nil).BuildTip = 3
+;(nil).Build = 4
+;(nil).UnlockPlot = 5
+;(nil).Technology = 6
+;(nil).KillMonster = 7
+;(nil).WharfGetPrize = 8
+;(nil).StudySkill = 9
+;(nil).StudyArmy = 10
+;(nil).ActivateVip = 11
+;(nil).UnlockPet = 12
+;(nil).ActivateBuilder = 13
+;(nil).JoinAlliance = 14
+;(nil).PanelShow = 15
+;(nil).CollectInstance = 16
+MildGuideConfig.PileModel, (nil).CameraMove = nil, 17
+return MildGuideConfig

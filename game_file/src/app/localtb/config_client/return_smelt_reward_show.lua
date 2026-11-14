@@ -1,0 +1,35 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+_ENV, (nil)[1], (nil).reward2, _ENV, (nil).reward1, _ENV, (nil).round = nil, nil, nil, nil, nil, nil, 1
+;(nil).index = 2
+_UPVALUE2_, (nil).round = nil, 2
+_UPVALUE2_, (nil).reward1, (nil)[1] = nil, nil, 841501
+_UPVALUE2_, (nil).reward1, (nil)[2] = nil, nil, 1
+_ENV, (nil)[2], (nil).reward2, (nil)[1] = nil, nil, nil, 839001
+_ENV, (nil)[2], (nil).reward2, (nil)[2] = nil, nil, nil, 1000
+;(nil).index = 3
+_UPVALUE2_, (nil).round = nil, 3
+_UPVALUE2_, (nil).reward1, (nil)[1] = nil, nil, 841501
+_UPVALUE2_, (nil).reward1, (nil)[2] = nil, nil, 1
+_ENV, (nil)[3], (nil).reward2, (nil)[1] = nil, nil, nil, 841601
+_ENV, (nil)[3], (nil).reward2, (nil)[2] = nil, nil, nil, 4
+;(nil).index = 4
+_UPVALUE2_, (nil).round = nil, 4
+_UPVALUE2_, (nil).reward1, (nil)[1] = nil, nil, 722901
+_UPVALUE2_, (nil).reward1, (nil)[2] = nil, nil, 10
+_ENV, (nil)[4], (nil).reward2, (nil)[1] = nil, nil, nil, 839001
+_ENV, (nil)[4], (nil).reward2, (nil)[2] = nil, nil, nil, 2000
+;(nil).index = 5
+_UPVALUE2_, (nil).round = nil, 5
+_UPVALUE2_, (nil).reward1, (nil)[1] = nil, nil, 722901
+_UPVALUE2_, (nil).reward1, (nil)[2] = nil, nil, 20
+_ENV, (nil)[5], (nil).reward2, (nil)[1] = nil, nil, nil, 839001
+_ENV, (nil)[5], (nil).reward2, (nil)[2] = nil, nil, nil, 5000
+;(nil).index = 6
+_UPVALUE2_, (nil).round = nil, 6
+_UPVALUE2_, (nil).reward1, (nil)[1] = nil, nil, 722901
+_UPVALUE2_, (nil).reward1, (nil)[2] = nil, nil, 40
+;(nil)[6], (nil).reward2, (nil)[1] = nil, nil, 839001
+;(nil)[6], (nil).reward2, (nil)[2] = nil, nil, 10000
+local data
+return data

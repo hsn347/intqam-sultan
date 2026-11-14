@@ -1,0 +1,7 @@
+require("fgui.gcomponent.Activity_9001061.kingsOrderRankSingle")
+require("fgui.gcomponent.Activity_9001061.kingsOrderStageNode")
+require("fgui.gcomponent.Activity_9001061.kingsOrderScoreSingle")
+require("fgui.gcomponent.Activity_9001061.kingsOrderStageRewardNode")
+require("fgui.gcomponent.Activity_9001061.Com_Rank")
+require("fgui.gcomponent.Activity_9001061.Com_Score")
+require("fgui.gcomponent.Activity_9001061.Com_curRankSingle")

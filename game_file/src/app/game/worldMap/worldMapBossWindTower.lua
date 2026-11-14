@@ -1,0 +1,20 @@
+local worldMapBoss = include("worldMapBoss")
+local worldMapBossWindTower = class("worldMapBossWindTower", worldMapBoss)
+function worldMapBossWindTower:ctor()
+	worldMapBossWindTower.super.ctor(self)
+	self.windTowerBg = display.newSpriteNoChild("#Map_build_windTowerBoss.png")
+	self.windTowerBg:setScale(1.5)
+	self.windTowerBg:setPosition(cc.p(self.centerPoint.x - 100, self.centerPoint.y + 40))
+	self:addChild(self.windTowerBg, -3)
+	self.effect = SoraDCreatAnimation("Node_Effect_bft01", nil, true)
+	self.effect:setPosition(cc.p(self.centerPoint.x - 100, self.centerPoint.y + 40))
+	self.effect:setScale(1.5)
+	self:addChild(self.effect)
+	self.bossImg:setScale(1.0)
+	self.bossImg:setPosition(cc.p(self.centerPoint.x - 0, self.centerPoint.y - 93))
+end
+function worldMapBossWindTower:setBatchNodeGroupID(groupID)
+	worldMapBossWindTower.super.setBatchNodeGroupID(self, groupID)
+	self.windTowerBg:setGroupID(groupID)
+end
+return worldMapBossWindTower

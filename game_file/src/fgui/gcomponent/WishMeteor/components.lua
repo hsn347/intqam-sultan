@@ -1,0 +1,5 @@
+require("fgui.gcomponent.WishMeteor.Com_ChooseList")
+require("fgui.gcomponent.WishMeteor.Com_item")
+require("fgui.gcomponent.WishMeteor.Com_Star")
+require("fgui.gcomponent.WishMeteor.Com_itemNum")
+require("fgui.gcomponent.WishMeteor.Button_cost3")

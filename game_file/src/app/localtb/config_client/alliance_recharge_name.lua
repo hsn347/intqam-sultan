@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).ID = 700501101
+_ENV, (nil)[1], (nil).name = nil, nil, "alliance_recharge_name_01"
+;(nil).index = 2
+;(nil).ID = 700501102
+_ENV, (nil)[2], (nil).name = nil, nil, "alliance_recharge_name_05"
+;(nil).index = 3
+;(nil).ID = 700501103
+_ENV, (nil)[3], (nil).name = nil, nil, "alliance_recharge_name_06"
+;(nil).index = 4
+;(nil).ID = 700501104
+_ENV, (nil)[4], (nil).name = nil, nil, "alliance_recharge_name_07"
+;(nil).index = 5
+;(nil).ID = 700501105
+_ENV, (nil)[5], (nil).name = nil, nil, "alliance_recharge_name_08"
+;(nil).index = 6
+;(nil).ID = 700501106
+_ENV, (nil)[6], (nil).name = nil, nil, "alliance_recharge_name_09"
+;(nil).index = 7
+;(nil).ID = 700501107
+_ENV, (nil)[7], (nil).name = nil, nil, "alliance_recharge_name_10"
+;(nil).index = 8
+;(nil).ID = 700501108
+_ENV, (nil)[8], (nil).name = nil, nil, "alliance_recharge_name_02"
+;(nil).index = 9
+;(nil).ID = 700501109
+_ENV, (nil)[9], (nil).name = nil, nil, "alliance_recharge_name_03"
+;(nil).index = 10
+;(nil).ID = 700501110
+;(nil)[10], (nil).name = nil, "alliance_recharge_name_04"
+local data
+return data

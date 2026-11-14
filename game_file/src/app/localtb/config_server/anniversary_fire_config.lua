@@ -1,0 +1,32 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+_UPVALUE2_, (nil).plan = nil, 1
+_UPVALUE1_, (nil).buff, _ENV, (nil).interval, (nil)[1] = nil, nil, nil, nil, 0
+_UPVALUE1_, (nil).buff, _ENV, (nil).interval, (nil)[2] = nil, nil, nil, nil, 29
+_ENV, (nil)[1], (nil).describe, (nil)[1] = nil, nil, nil, "anniversary_fire_text_08"
+;(nil).index = 2
+_UPVALUE2_, (nil).plan = nil, 2
+_UPVALUE3_, (nil).interval, (nil)[1] = nil, nil, 30
+_UPVALUE3_, (nil).interval, (nil)[2] = nil, nil, 59
+_UPVALUE1_, (nil).buff, (nil)[1] = nil, nil, 1
+_UPVALUE1_, (nil).buff, (nil)[2] = nil, nil, 2
+_UPVALUE1_, (nil).buff, (nil)[3] = nil, nil, 3
+_ENV, (nil)[2], (nil).describe, (nil)[1] = nil, nil, nil, "anniversary_fire_text_09"
+;(nil).index = 3
+_UPVALUE2_, (nil).plan = nil, 3
+_UPVALUE3_, (nil).interval, (nil)[1] = nil, nil, 60
+_UPVALUE3_, (nil).interval, (nil)[2] = nil, nil, 99
+_UPVALUE1_, (nil).buff, (nil)[1] = nil, nil, 4
+_UPVALUE1_, (nil).buff, (nil)[2] = nil, nil, 5
+_UPVALUE1_, (nil).buff, (nil)[3] = nil, nil, 6
+_ENV, (nil)[3], (nil).describe, (nil)[1] = nil, nil, nil, "anniversary_fire_text_10"
+;(nil).index = 4
+_UPVALUE2_, (nil).plan = nil, 4
+_UPVALUE3_, (nil).interval, (nil)[1] = nil, nil, 100
+_UPVALUE3_, (nil).interval, (nil)[2] = nil, nil, 100
+_UPVALUE1_, (nil).buff, (nil)[1] = nil, nil, 7
+_UPVALUE1_, (nil).buff, (nil)[2] = nil, nil, 8
+_UPVALUE1_, (nil).buff, (nil)[3] = nil, nil, 9
+;(nil)[4], (nil).describe, (nil)[1] = nil, nil, "anniversary_fire_text_11"
+local data
+return data

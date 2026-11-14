@@ -1,0 +1,28 @@
+_ENV, _ENV = nil, nil
+;(nil).inder = 1
+_ENV, (nil)[1], (nil).condition, _ENV, (nil).setID = nil, nil, nil, nil, 1
+;(nil).inder = 2
+_UPVALUE2_, (nil).setID = nil, 2
+_ENV, (nil)[2], (nil).condition, (nil)[1] = nil, nil, nil, 2
+_ENV, (nil)[2], (nil).condition, (nil)[2] = nil, nil, nil, 9
+;(nil).inder = 3
+_UPVALUE2_, (nil).setID = nil, 3
+_ENV, (nil)[3], (nil).condition, (nil)[1] = nil, nil, nil, 2
+_ENV, (nil)[3], (nil).condition, (nil)[2] = nil, nil, nil, 13
+;(nil).inder = 4
+_UPVALUE3_, (nil).setID = nil, 4
+_ENV, (nil)[4], (nil).condition, (nil)[1] = nil, nil, nil, 6
+_ENV, (nil)[4], (nil).condition, (nil)[2] = nil, nil, nil, 10
+_ENV, (nil)[4], (nil).condition, (nil)[3] = nil, nil, nil, 1
+;(nil).inder = 5
+_UPVALUE3_, (nil).setID = nil, 5
+_ENV, (nil)[5], (nil).condition, (nil)[1] = nil, nil, nil, 6
+_ENV, (nil)[5], (nil).condition, (nil)[2] = nil, nil, nil, 10
+_ENV, (nil)[5], (nil).condition, (nil)[3] = nil, nil, nil, 2
+;(nil).inder = 6
+_UPVALUE3_, (nil).setID = nil, 6
+;(nil)[6], (nil).condition, (nil)[1] = nil, nil, 6
+;(nil)[6], (nil).condition, (nil)[2] = nil, nil, 10
+;(nil)[6], (nil).condition, (nil)[3] = nil, nil, 3
+local data
+return data

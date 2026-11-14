@@ -1,0 +1,6 @@
+require("fgui.gcomponent.Anniversary2022.ButtonDay2022")
+require("fgui.gcomponent.Anniversary2022.ComAccuDay2022")
+require("fgui.gcomponent.Anniversary2022.Button_gift")
+require("fgui.gcomponent.Anniversary2022.Com_dayAwardSingle")
+require("fgui.gcomponent.Anniversary2022.Com_itemGift")
+require("fgui.gcomponent.Anniversary2022.Com_giftSingle")

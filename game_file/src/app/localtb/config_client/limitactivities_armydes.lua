@@ -1,0 +1,31 @@
+_ENV, _ENV = nil, nil
+;(nil).armyLV = 1
+_ENV, (nil)[1], (nil).armyList = nil, nil, "limitactivities_armyList_01"
+;(nil).armyLV = 2
+_ENV, (nil)[2], (nil).armyList = nil, nil, "limitactivities_armyList_02"
+;(nil).armyLV = 3
+_ENV, (nil)[3], (nil).armyList = nil, nil, "limitactivities_armyList_03"
+;(nil).armyLV = 4
+_ENV, (nil)[4], (nil).armyList = nil, nil, "limitactivities_armyList_04"
+;(nil).armyLV = 5
+_ENV, (nil)[5], (nil).armyList = nil, nil, "limitactivities_armyList_05"
+;(nil).armyLV = 6
+_ENV, (nil)[6], (nil).armyList = nil, nil, "limitactivities_armyList_06"
+;(nil).armyLV = 7
+_ENV, (nil)[7], (nil).armyList = nil, nil, "limitactivities_armyList_07"
+;(nil).armyLV = 8
+_ENV, (nil)[8], (nil).armyList = nil, nil, "limitactivities_armyList_08"
+;(nil).armyLV = 9
+_ENV, (nil)[9], (nil).armyList = nil, nil, "limitactivities_armyList_09"
+;(nil).armyLV = 10
+_ENV, (nil)[10], (nil).armyList = nil, nil, "limitactivities_armyList_10"
+;(nil).armyLV = 11
+_ENV, (nil)[11], (nil).armyList = nil, nil, "limitactivities_armyList_11"
+;(nil).armyLV = 12
+_ENV, (nil)[12], (nil).armyList = nil, nil, "limitactivities_armyList_12"
+;(nil).armyLV = 13
+_ENV, (nil)[13], (nil).armyList = nil, nil, "limitactivities_armyList_13"
+;(nil).armyLV = 14
+;(nil)[14], (nil).armyList = nil, "limitactivities_armyList_14"
+local data
+return data

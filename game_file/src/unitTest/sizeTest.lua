@@ -1,0 +1,15 @@
+print("==============sizeTest begin")
+assert(cc.size(1, 2).width == 1, "size.__index")
+assert(cc.size(1, 2).height == 2, "size.__index")
+local size = cc.size(1, 2)
+size.width = 5
+size.height = 99
+assert(size.width == 5 and size.x == 5, "size.__newindex")
+assert(size.height == 99 and size.y == 99, "size.__newindex")
+assert(cc.size(1, 2) == cc.size(1, 2), "size.__eq")
+assert(cc.size(1, 2) + cc.size(1, 2) == cc.size(2, 4), "size.__add")
+assert(cc.size(1, 2) - cc.size(1, 2) == cc.size(0, 0), "size.__sub")
+assert(cc.size(1, 2) * 2 == cc.size(2, 4), "size.__mul")
+assert(cc.size(1, 2) / 2 == cc.size(0.5, 1), "size.__div")
+assert(tostring(cc.size(1, 2)) == "{1, 2}", "size.__tostring")
+print("==============sizeTest finish")

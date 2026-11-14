@@ -1,0 +1,5 @@
+require("fgui.gcomponent.svipCenterView.exclusiveBirthdayNode")
+require("fgui.gcomponent.svipCenterView.Com_NodeVip")
+require("fgui.gcomponent.svipCenterView.Com_nodeBirthday")
+require("fgui.gcomponent.svipCenterView.Com_nodeWeekly")
+require("fgui.gcomponent.svipCenterView.Com_nodePackage")

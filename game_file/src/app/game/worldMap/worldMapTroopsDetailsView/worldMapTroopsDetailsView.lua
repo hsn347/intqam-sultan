@@ -1,0 +1,28 @@
+local gametop = gModuleMgr.getObject("gametop")
+local WorldMapTroopsDetailsView = class("worldMapTroopsDetailsView", function(target)
+	if target == nil then
+		return SoraDCreateTouchPanel("worldMapTroopsDetailsView")
+	end
+	return target
+end)
+function WorldMapTroopsDetailsView:ctor()
+	self.otherData, _ENV, self.troopsList, _ENV, self.scrollItems, _ENV, self.scaleActTarget = SoraDGetChildByName(self, "Center_Node"), SoraDGetChildByName(self, "Center_Node"), SoraDGetChildByName(self, "Center_Node"), SoraDGetChildByName(self, "Center_Node"), SoraDGetChildByName(self, "Center_Node"), SoraDGetChildByName(self, "Center_Node"), SoraDGetChildByName(self, "Center_Node")
+	self.scroll = SoraDGetChildByName(self, "ScrollView_troops")
+	self.ccs_bg = SoraDGetExtendChildFromCCSByName(self, "CCS_commonPopBox_bg")
+	self.ccs_bg:setTitleName(i18n("common_text_019"))
+	self.labelNotice = SoraDGetChildByName(self, "Center_Text_notice")
+	self.labelNotice:setString(i18n("common_text_3025"))
+	self.labelNotice:setVisible(false)
+	self.nodeArmy = SoraDGetChildByName(self, "Node_army")
+	self.nodeArmy:setVisible(false)
+	self.txtCount = SoraDGetChildByName(self, "Text_armyCount")
+	self.txtTitle = SoraDGetChildByName(self, "Text_armyName")
+	SoraDSetTextWidthHeight(self.txtTitle, cc.size(600, 30))
+	self.Button_back = SoraDGetChildByName(self, "Button_back")
+	self.Button_back:setVisible(false)
+	self.Button_back:setTitleText(i18n("common_text_017"))
+	self.Button_back:addTouchEventListener(handler(self, self.btnBackClick))
+	SoraDAddMessage(self, "MESSAGE_SERVER_WORLD_MAP_REQUEST_OBJECT_INFO", handler(self, self.serverMessage_RequestMapInstaceInfo))
+	SoraDAddMessage(self, "MESSAGE_SERVER_WORLD_MAP_REQBACKQUEUE", handler(self, self.requestInstanceInfo))
+end
+function WorldMapTroopsDetailsView:initData(troopsData, allianceName, otherData)

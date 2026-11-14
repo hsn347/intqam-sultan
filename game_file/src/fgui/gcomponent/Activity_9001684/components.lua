@@ -1,0 +1,5 @@
+require("fgui.gcomponent.Activity_9001684.Com_rankSingle")
+require("fgui.gcomponent.Activity_9001684.Com_rewardSingle")
+require("fgui.gcomponent.Activity_9001684.Com_taskSingle")
+require("fgui.gcomponent.Activity_9001684.Com_dmgSingle")
+require("fgui.gcomponent.Activity_9001684.Com_factorSingle")

@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).Index = 1
+;(nil).type = 1
+;(nil).core1 = 856203
+;(nil).core2 = 856303
+;(nil).core3 = 856403
+;(nil).icon = "icon_xnmf_box_01.png"
+;(nil).name = "star_cube_text_01"
+;(nil).button = "button_xnmf_box_01.png"
+;(nil).core2cost = 400
+_ENV, (nil)[1], (nil).core3cost = nil, nil, 400
+;(nil).Index = 2
+;(nil).type = 2
+;(nil).core1 = 856803
+;(nil).core2 = 856903
+;(nil).core3 = 857003
+;(nil).icon = "icon_xnmf_box_03.png"
+;(nil).name = "star_cube_text_03"
+;(nil).button = "button_xnmf_box_03.png"
+;(nil).core2cost = 100
+_ENV, (nil)[2], (nil).core3cost = nil, nil, 100
+;(nil).Index = 3
+;(nil).type = 3
+;(nil).core1 = 856503
+;(nil).core2 = 856603
+;(nil).core3 = 856703
+;(nil).icon = "icon_xnmf_box_02.png"
+;(nil).name = "star_cube_text_02"
+;(nil).button = "button_xnmf_box_02.png"
+;(nil).core2cost = 200
+;(nil)[3], (nil).core3cost = nil, 200
+local data
+return data

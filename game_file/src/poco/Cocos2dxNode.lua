@@ -1,0 +1,191 @@
+function import_poco(moduleName, currentModuleName)
+	local currentModuleNameParts
+	local moduleFullName = moduleName
+	local offset = 1
+	while true do
+		if string.byte(moduleName, offset) ~= 46 then
+			moduleFullName = string.sub(moduleName, offset)
+			if currentModuleNameParts and 0 < #currentModuleNameParts then
+				moduleFullName = table.concat(currentModuleNameParts, ".") .. "." .. moduleFullName
+			end
+			break
+		end
+		offset = offset + 1
+		if not currentModuleNameParts then
+			if not currentModuleName then
+				local n, v = debug.getlocal(3, 1)
+				currentModuleName = v
+			end
+			currentModuleNameParts = string.split(currentModuleName, ".")
+		end
+		table.remove(currentModuleNameParts, #currentModuleNameParts)
+	end
+	return require(moduleFullName)
+end
+local cc = _G.cc or require("cc")
+local AbstractNode = import_poco(".sdk.AbstractNode")
+local _ENV, Node = ".sdk.AbstractNode", ".sdk.AbstractNode"
+Node.__index = Node
+setmetatable(Node, AbstractNode)
+function Node:new(node, screenWidth, screenHeight)
+	local _ENV, n
+	setmetatable(n, Node)
+	n.node = node
+	n.screenWidth = screenWidth
+	n.screenHeight = screenHeight
+	return n
+end
+function Node:getParent()
+	local parent = self.node:getParent()
+	if parent == nil then
+		return nil
+	end
+	return self:new(parent, self.screenWidth, self.screenHeight)
+end
+function Node:getChildren()
+	local _ENV, children
+	for _, child in ipairs(self.node:getChildren()) do
+		table.insert(children, self:new(child, self.screenWidth, self.screenHeight))
+	end
+	return children
+end
+function Node:getAvailableAttributeNames()
+	_UPVALUE8_ = nil
+	;(nil)[1] = "text"
+	;(nil)[2] = "touchable"
+	;(nil)[3] = "enabled"
+	;(nil)[4] = "tag"
+	;(nil)[5] = "desc"
+	;(nil)[6] = "rotation"
+	;(nil)[7] = "rotation3D"
+	local (nil)[8], ret = "skew", nil
+	for _, name in ipairs(AbstractNode.getAvailableAttributeNames(self)) do
+		table.insert(ret, name)
+	end
+	return ret
+end
+function Node:getAttr(attrName)
+	if attrName == "visible" then
+		local visible = self.node:isVisible()
+		if not visible then
+			return false
+		end
+		local parent = self.node:getParent()
+		while parent do
+			local parentVisible = parent:isVisible()
+			if not parentVisible then
+				return false
+			end
+			parent = parent:getParent()
+		end
+		return true
+	elseif attrName == "name" then
+		local name = self.node:getName()
+		if name == "" then
+			name = self.node:getDescription()
+		end
+		return name
+	elseif attrName == "text" then
+		if self.node.getString then
+			return self.node:getString():match("^%s*(.-)%s*$")
+		elseif self.node.getStringValue then
+			return self.node:getStringValue():match("^%s*(.-)%s*$")
+		elseif self.node.getTitleText then
+			return self.node:getTitleText():match("^%s*(.-)%s*$")
+		end
+		return nil
+	elseif attrName == "type" then
+		local nodeType = tolua.type(self.node)
+		nodeType = nodeType:gsub("^ccui%.", "")
+		nodeType = nodeType:gsub("^cc%.", "")
+		return nodeType
+	elseif attrName == "pos" then
+		local pos = self.node:convertToWorldSpaceAR(cc.p(0, 0))
+		pos.x = pos.x / self.screenWidth
+		pos.y = pos.y / self.screenHeight
+		AbstractNode, pos.y = 1 - pos.y, 1 - pos.y
+		;(1 - pos.y)[1] = pos.x
+		;(1 - pos.y)[2] = pos.y
+		return 1 - pos.y
+	elseif attrName == "size" then
+		local size = self.node:getContentSize()
+		if size ~= nil then
+			size.width = size.width / self.screenWidth
+			AbstractNode, size.height = size.height / self.screenHeight, size.height / self.screenHeight
+			;(size.height / self.screenHeight)[1] = size.width
+			;(size.height / self.screenHeight)[2] = size.height
+			return size.height / self.screenHeight
+		end
+	elseif attrName == "scale" then
+		cc = self.node:getContentSize()
+		self.node:getContentSize()[1] = self.node:getScaleX()
+		self.node:getContentSize()[2] = self.node:getScaleY()
+		self.node:getContentSize()[3] = self.node:getScaleY()
+		self.node:getContentSize()[4] = self.node:getScaleY()
+		return (self.node:getContentSize())
+	elseif attrName == "anchorPoint" then
+		local anchor = self.node:getAnchorPoint()
+		AbstractNode, anchor.y = 1 - anchor.y, 1 - anchor.y
+		;(1 - anchor.y)[1] = anchor.x
+		;(1 - anchor.y)[2] = anchor.y
+		return 1 - anchor.y
+	elseif attrName == "zOrders" then
+		_ENV = self.node:getAnchorPoint()
+		self.node:getAnchorPoint().global = self.node:getGlobalZOrder()
+		local self.node:getAnchorPoint()["local"], zOrders = self.node:getLocalZOrder(), self.node:getAnchorPoint()
+		return zOrders
+	elseif attrName == "touchable" then
+		if self.node.isTouchEnabled then
+			return self.node:isTouchEnabled()
+		end
+		return nil
+	elseif attrName == "tag" then
+		return self.node:getTag()
+	elseif attrName == "enabled" then
+		if self.node.isEnabled then
+			return self.node:isEnabled()
+		end
+		return nil
+	elseif attrName == "desc" then
+		return self.node:getDescription()
+	elseif attrName == "rotation" then
+		local rotationX, rotationY
+		if self.node.getRotationSkewX ~= nil and self.node.getRotationSkewY ~= nil then
+			rotationX, rotationY = self.node:getRotationSkewX(), self.node:getRotationSkewY()
+		end
+		return rotationX or rotationY
+	elseif attrName == "rotation3D" then
+		local rotationX, rotationY
+		if self.node.getRotationSkewX ~= nil and self.node.getRotationSkewY ~= nil then
+			rotationX, rotationY = self.node:getRotationSkewX(), self.node:getRotationSkewY()
+		end
+		if rotationX == rotationY and self.node.getRotation3D then
+			return self.node:getRotation3D()
+		end
+		return nil
+	elseif attrName == "skew" then
+		if self.node.getSkewX and self.node.getSkewY then
+			cc = self.node.getSkewY
+			self.node.getSkewY[1] = self.node:getSkewX()
+			self.node.getSkewY[2] = self.node:getSkewY()
+			self.node.getSkewY[3] = self.node:getSkewY()
+			self.node.getSkewY[4] = self.node:getSkewY()
+			return self.node.getSkewY
+		end
+		return nil
+	end
+	return AbstractNode.getAttr(self, attrName)
+end
+function Node:setAttr(attrName, val)
+	if attrName == "text" then
+		if self.node.setString then
+			self.node:setString(val)
+			return true
+		elseif self.node.setText then
+			self.node:setText(val)
+			return true
+		end
+	end
+	return AbstractNode.setAttr(self, attrName, val)
+end
+return Node

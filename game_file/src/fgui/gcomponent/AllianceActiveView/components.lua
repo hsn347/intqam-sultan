@@ -1,0 +1,5 @@
+require("fgui.gcomponent.AllianceActiveView.allianceActiveStageBox")
+require("fgui.gcomponent.AllianceActiveView.allianceActiveSingle")
+require("fgui.gcomponent.AllianceActiveView.Com_titleBg")
+require("fgui.gcomponent.AllianceActiveView.allianceActiveRankSingle")
+require("fgui.gcomponent.AllianceActiveView.allianceActiveLevelSingle")

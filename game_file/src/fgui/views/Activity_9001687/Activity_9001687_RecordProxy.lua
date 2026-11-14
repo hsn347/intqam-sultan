@@ -1,0 +1,6 @@
+local baseProxy = require("fgui.base.baseProxy")
+local Activity_9001687_RecordProxy = class("Activity_9001687_RecordProxy", baseProxy)
+function Activity_9001687_RecordProxy:onRegisterEvent()
+	print("=======Activity_9001687_RecordProxy:onRegisterEvent")
+end
+return Activity_9001687_RecordProxy

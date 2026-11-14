@@ -1,0 +1,35 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).type = 1
+_UPVALUE2_, (nil).buffType = nil, 1
+;(nil).attribute, (nil)[1] = nil, 7
+;(nil).attribute, (nil)[2] = nil, 200
+;(nil).buffCost = 250000
+;(nil).buffTime = 43200
+_ENV, (nil)[1], (nil).buffCD = nil, nil, 43800
+;(nil).index = 2
+;(nil).type = 2
+_UPVALUE2_, (nil).buffType = nil, 1
+;(nil).attribute, (nil)[1] = nil, 11
+;(nil).attribute, (nil)[2] = nil, 100
+;(nil).buffCost = 250000
+;(nil).buffTime = 43200
+_ENV, (nil)[2], (nil).buffCD = nil, nil, 43800
+;(nil).index = 3
+;(nil).type = 3
+_UPVALUE2_, (nil).buffType = nil, 1
+;(nil).attribute, (nil)[1] = nil, 18
+;(nil).attribute, (nil)[2] = nil, 50
+;(nil).buffCost = 250000
+;(nil).buffTime = 43200
+_ENV, (nil)[3], (nil).buffCD = nil, nil, 43800
+;(nil).index = 4
+;(nil).type = 4
+_UPVALUE2_, (nil).buffType = nil, 1
+;(nil).attribute, (nil)[1] = nil, 13
+;(nil).attribute, (nil)[2] = nil, 50
+;(nil).buffCost = 250000
+;(nil).buffTime = 43200
+;(nil)[4], (nil).buffCD = nil, 43800
+local data
+return data

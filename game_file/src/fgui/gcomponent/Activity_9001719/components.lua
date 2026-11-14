@@ -1,0 +1,6 @@
+require("fgui.gcomponent.Activity_9001719.Com_Task")
+require("fgui.gcomponent.Activity_9001719.Com_passSingle")
+require("fgui.gcomponent.Activity_9001719.Com_itemSingle")
+require("fgui.gcomponent.Activity_9001719.Com_rankSingle")
+require("fgui.gcomponent.Activity_9001719.Com_rewardSingle")
+require("fgui.gcomponent.Activity_9001719.Com_npc")

@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).rechargeID = 19907
+;(nil).rechargeType = 1
+;(nil).rechargePrice = 4.99
+_UPVALUE2_, (nil).originalPrice = nil, 355.95
+;(nil).discount, (nil)[1] = nil, 1
+;(nil).discount, (nil)[2] = nil, 7133
+_UPVALUE4_, (nil).gold = nil, 800
+_UPVALUE1_, (nil).reward, (nil)[1] = nil, nil, 501901
+_UPVALUE1_, (nil).reward, (nil)[2] = nil, nil, 1
+_UPVALUE1_, (nil).reward, (nil)[3] = nil, nil, 110510
+_UPVALUE1_, (nil).reward, (nil)[4] = nil, nil, 20
+_ENV, (nil)[1], (nil).rechargeName, (nil)[1] = nil, nil, nil, "snow_competition_text_01"
+;(nil).index = 2
+;(nil).rechargeID = 19908
+;(nil).rechargeType = 2
+;(nil).rechargePrice = 4.99
+_UPVALUE2_, (nil).originalPrice = nil, 624.17
+;(nil).discount, (nil)[1] = nil, 1
+;(nil).discount, (nil)[2] = nil, 12508
+_UPVALUE8_, (nil).gold = nil, 800
+_UPVALUE1_, (nil).reward, (nil)[1] = nil, nil, 501901
+_UPVALUE1_, (nil).reward, (nil)[2] = nil, nil, 1
+_UPVALUE1_, (nil).reward, (nil)[3] = nil, nil, 877202
+_UPVALUE1_, (nil).reward, (nil)[4] = nil, nil, 6
+_UPVALUE1_, (nil).reward, (nil)[5] = nil, nil, 300302
+_UPVALUE1_, (nil).reward, (nil)[6] = nil, nil, 30
+_UPVALUE1_, (nil).reward, (nil)[7] = nil, nil, 110510
+_UPVALUE1_, (nil).reward, (nil)[8] = nil, nil, 20
+;(nil)[2], (nil).rechargeName, (nil)[1] = nil, nil, "spcial_office_name_01"
+local data
+return data

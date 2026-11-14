@@ -1,0 +1,5 @@
+require("fgui.gcomponent.Skyrocket.Label_GetItem")
+require("fgui.gcomponent.Skyrocket.Button_Box")
+require("fgui.gcomponent.Skyrocket.Com_userRankSingle")
+require("fgui.gcomponent.Skyrocket.Lab_gain")
+require("fgui.gcomponent.Skyrocket.Com_progressBar")

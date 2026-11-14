@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+_ENV, (nil)[1], (nil).flag = nil, nil, 1
+;(nil).index = 2
+_ENV, (nil)[2], (nil).flag = nil, nil, 2
+;(nil).index = 3
+_ENV, (nil)[3], (nil).flag = nil, nil, 3
+;(nil).index = 4
+_ENV, (nil)[4], (nil).flag = nil, nil, 4
+;(nil).index = 5
+_ENV, (nil)[5], (nil).flag = nil, nil, 5
+;(nil).index = 6
+_ENV, (nil)[6], (nil).flag = nil, nil, 6
+;(nil).index = 7
+_ENV, (nil)[7], (nil).flag = nil, nil, 7
+;(nil).index = 8
+_ENV, (nil)[8], (nil).flag = nil, nil, 8
+;(nil).index = 9
+_ENV, (nil)[9], (nil).flag = nil, nil, 9
+;(nil).index = 10
+_ENV, (nil)[10], (nil).flag = nil, nil, 10
+;(nil).index = 11
+_ENV, (nil)[11], (nil).flag = nil, nil, 11
+;(nil).index = 12
+_ENV, (nil)[12], (nil).flag = nil, nil, 12
+;(nil).index = 13
+_ENV, (nil)[13], (nil).flag = nil, nil, 13
+;(nil).index = 14
+_ENV, (nil)[14], (nil).flag = nil, nil, 14
+;(nil).index = 15
+;(nil)[15], (nil).flag = nil, 15
+local data
+return data

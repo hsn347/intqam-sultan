@@ -1,0 +1,36 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).taskID = 4506801
+_ENV, (nil)[1], (nil).taskType = nil, nil, 1
+;(nil).index = 2
+;(nil).taskID = 4506802
+_ENV, (nil)[2], (nil).taskType = nil, nil, 1
+;(nil).index = 3
+;(nil).taskID = 4506803
+_ENV, (nil)[3], (nil).taskType = nil, nil, 1
+;(nil).index = 4
+;(nil).taskID = 4506804
+_ENV, (nil)[4], (nil).taskType = nil, nil, 1
+;(nil).index = 5
+;(nil).taskID = 4506805
+_ENV, (nil)[5], (nil).taskType = nil, nil, 1
+;(nil).index = 6
+;(nil).taskID = 4506806
+_ENV, (nil)[6], (nil).taskType = nil, nil, 1
+;(nil).index = 7
+;(nil).taskID = 4506807
+_ENV, (nil)[7], (nil).taskType = nil, nil, 2
+;(nil).index = 8
+;(nil).taskID = 4506901
+_ENV, (nil)[8], (nil).taskType = nil, nil, 2
+;(nil).index = 9
+;(nil).taskID = 4506902
+_ENV, (nil)[9], (nil).taskType = nil, nil, 2
+;(nil).index = 10
+;(nil).taskID = 4506903
+_ENV, (nil)[10], (nil).taskType = nil, nil, 2
+;(nil).index = 11
+;(nil).taskID = 4506904
+;(nil)[11], (nil).taskType = nil, 2
+local data
+return data

@@ -1,0 +1,6 @@
+require("fgui.gcomponent.troopFlagView.Com_troopSingle")
+require("fgui.gcomponent.troopFlagView.Com_troopGroup")
+require("fgui.gcomponent.troopFlagView.Btn_troop")
+require("fgui.gcomponent.troopFlagView.Com_promoteQueue")
+require("fgui.gcomponent.troopFlagView.Com_armySingle")
+require("fgui.gcomponent.troopFlagView.Com_troopKind")

@@ -1,0 +1,7 @@
+require("fgui.gcomponent.NebulaCelebration.NebulaCelebrationMainTaskSingle")
+require("fgui.gcomponent.NebulaCelebration.NebulaCelebrationMainRewardSingle")
+require("fgui.gcomponent.NebulaCelebration.NebulaCelebrationMainReward")
+require("fgui.gcomponent.NebulaCelebration.NebulaCelebrationMainTask")
+require("fgui.gcomponent.NebulaCelebration.Com_celebrationItem")
+require("fgui.gcomponent.NebulaCelebration.Progress_exp")
+require("fgui.gcomponent.NebulaCelebration.Com_levelLock1")

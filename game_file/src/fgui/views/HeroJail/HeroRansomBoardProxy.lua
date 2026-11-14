@@ -1,0 +1,17 @@
+local baseProxy = require("fgui.base.baseProxy")
+local HeroRansomBoardProxy = class("HeroRansomBoardProxy", baseProxy)
+function HeroRansomBoardProxy:onRegisterEvent()
+	print("=======HeroRansomBoardProxy:onRegisterEvent")
+	SoraDAddMessage(self, "MESSAGE_SERVER_HEROJAIN_SETRANSOMSUCCESS", function(target, redata)
+		SoraDShowMsgTip(i18n("hero_text_89"))
+		self.view:removeFromParent()
+	end)
+	SoraDAddMessage(self, "MESSAGE_SERVER_HEROJAIN_REWARDSUCCESS", function(target, redata)
+		SoraDShowMsgTip(i18n("hero_text_55"))
+		self.view:removeFromParent()
+	end)
+	SoraDAddMessage(self, "MESSAGE_SERVER_HEROJAIN_SERVERNORMALFAIL", function(...)
+		SoraDCloseLoading(self.view)
+	end)
+end
+return HeroRansomBoardProxy

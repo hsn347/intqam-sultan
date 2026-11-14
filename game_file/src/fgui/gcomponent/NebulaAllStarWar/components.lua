@@ -1,0 +1,6 @@
+require("fgui.gcomponent.NebulaAllStarWar.Com_shopSingle")
+require("fgui.gcomponent.NebulaAllStarWar.Com_pre")
+require("fgui.gcomponent.NebulaAllStarWar.Com_guess")
+require("fgui.gcomponent.NebulaAllStarWar.Com_own")
+require("fgui.gcomponent.NebulaAllStarWar.Com_giftRecord")
+require("fgui.gcomponent.NebulaAllStarWar.Com_giftRankSingle")

@@ -1,0 +1,114 @@
+
+========================================================
+  >>> #1 session=496 cmd=1005 subcmd=2 [SEND]
+========================================================
+{
+  "cmd": "1005",
+  "subcmd": "2",
+  "data": {
+    "isget": false,
+    "armycount": "30",
+    "bid": "118",
+    "mode": "0",
+    "armyid": "401"
+  }
+}
+
+========================================================
+  <<< #1 session=496 cmd=1005 subcmd=2 [RECV]
+========================================================
+{
+  "source": "c",
+  "err": "0",
+  "subcmd": "2",
+  "cmd": "1005",
+  "data": {
+    "bid": "118",
+    "mode": "0",
+    "retdata": {
+      "realAddcount": 0,
+      "lefttime": "540",
+      "sourceCostTime": 540,
+      "totaltime": "540",
+      "queuetype": "1203",
+      "_uniqueid": 179287225011,
+      "costres": [
+        {
+          "resid": 1002,
+          "isreach": true,
+          "rescount": 1800,
+          "curcount": 27476
+        }
+      ],
+      "addCountTakeEffect": false
+    },
+    "armycount": "30",
+    "armyid": "401",
+    "armyInfo": {
+      "flameWarWoundedArmy": {},
+      "atlantisWarArmy": {},
+      "legendWarWoundedArmy": {},
+      "nebulaWarArmy": {},
+      "radianceWarWoundedArmy": {},
+      "simulatedDrillWarWoundedArmy": {},
+      "compileDivineBeast": {},
+      "simulatedDrillWarArmy": {},
+      "woundedArmy": {},
+      "compileArms": {},
+      "compileHero": {},
+      "isJudgeCompileHero": 1,
+      "compileArmy": {},
+      "defCompileInfo": {
+        "1": {
+          "name": "1",
+          "heroList": {},
+          "divineBeastList": {},
+          "armsID": 0
+        }
+      },
+      "totalArmy": {
+        "401": "210"
+      },
+      "activeDefCompile": 1,
+      "nebulaWarWoundedArmy": {},
+      "atlantisWarWoundedArmy": {},
+      "flameWarArmy": {},
+      "trainArmy": {},
+      "radianceWarArmy": {},
+      "lastCalcuTime": 0
+    },
+    "isget": false
+  },
+  "pid": 32202050
+}
+
+========================================================
+  >>> #2 session=498 cmd=1003 subcmd=2 [SEND]
+========================================================
+{
+  "cmd": "1003",
+  "subcmd": "2",
+  "data": {
+    "qtype": "1203",
+    "mode": "1",
+    "count": 1,
+    "decreaseTime": "506"
+  }
+}
+
+========================================================
+  <<< #2 session=498 cmd=1003 subcmd=2 [RECV]
+========================================================
+{
+  "time": 1792872284,
+  "source": "c",
+  "err": "0",
+  "subcmd": "2",
+  "cmd": "1003",
+  "data": {
+    "mode": "1",
+    "qtype": "1203",
+    "decreaseTime": 506
+  },
+  "pid": 32202050
+}

@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).valuekey = "killArmyFc"
+;(nil).valuedes = "remains_text_380"
+;(nil).name = "remains_text_331"
+;(nil).describe = "remains_text_332"
+_ENV, (nil)[1], (nil).icon = nil, nil, "icon_yjzz_touxian_04.png"
+;(nil).index = 2
+;(nil).valuekey = "atkCityWinNum"
+;(nil).valuedes = "common_text_115"
+;(nil).name = "remains_text_324"
+;(nil).describe = "remains_text_325"
+_ENV, (nil)[2], (nil).icon = nil, nil, "icon_yjzz_touxian_02.png"
+;(nil).index = 3
+;(nil).valuekey = "killNpcNum"
+;(nil).valuedes = "common_text_3531"
+;(nil).name = "remains_text_326"
+;(nil).describe = "remains_text_327"
+_ENV, (nil)[3], (nil).icon = nil, nil, "icon_yjzz_touxian_05.png"
+;(nil).index = 4
+;(nil).valuekey = "speedQueueNum"
+;(nil).valuedes = "remains_text_379"
+;(nil).name = "remains_text_328"
+;(nil).describe = "remains_text_329"
+_ENV, (nil)[4], (nil).icon = nil, nil, "icon_yjzz_touxian_03.png"
+;(nil).index = 5
+;(nil).valuekey = "useMoveCityNum"
+;(nil).valuedes = "remains_text_381"
+;(nil).name = "remains_text_334"
+;(nil).describe = "remains_text_335"
+;(nil)[5], (nil).icon = nil, "icon_yjzz_touxian_01.png"
+local data
+return data

@@ -1,0 +1,30 @@
+_ENV, _ENV = nil, nil
+;(nil).Index = 1
+;(nil).groupID = 1
+_UPVALUE4_, (nil).classType = nil, 1
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[1] = nil, nil, 906
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[2] = nil, nil, 150
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[3] = nil, nil, 907
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[4] = nil, nil, 150
+_ENV, (nil)[1], (nil).EffectIcon, (nil)[1] = nil, nil, nil, "icon_GDbuff_06.png"
+_ENV, (nil)[1], (nil).EffectIcon, (nil)[2] = nil, nil, nil, "icon_GDbuff_07.png"
+;(nil).Index = 2
+;(nil).groupID = 1
+_UPVALUE4_, (nil).classType = nil, 2
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[1] = nil, nil, 906
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[2] = nil, nil, 150
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[3] = nil, nil, 907
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[4] = nil, nil, 150
+_ENV, (nil)[2], (nil).EffectIcon, (nil)[1] = nil, nil, nil, "icon_GDbuff_06.png"
+_ENV, (nil)[2], (nil).EffectIcon, (nil)[2] = nil, nil, nil, "icon_GDbuff_07.png"
+;(nil).Index = 3
+;(nil).groupID = 1
+_UPVALUE4_, (nil).classType = nil, 3
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[1] = nil, nil, 906
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[2] = nil, nil, 150
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[3] = nil, nil, 907
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[4] = nil, nil, 150
+;(nil)[3], (nil).EffectIcon, (nil)[1] = nil, nil, "icon_GDbuff_06.png"
+;(nil)[3], (nil).EffectIcon, (nil)[2] = nil, nil, "icon_GDbuff_07.png"
+local data
+return data

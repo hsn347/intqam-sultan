@@ -1,0 +1,7 @@
+require("fgui.gcomponent.Activity_9001678.Com_marketItem")
+require("fgui.gcomponent.Activity_9001678.Btn_priceNoraml")
+require("fgui.gcomponent.Activity_9001678.Com_helpSingle")
+require("fgui.gcomponent.Activity_9001678.Com_ShareSingle")
+require("fgui.gcomponent.Activity_9001678.Com_taskSingle")
+require("fgui.gcomponent.Activity_9001678.Com_giftSingle")
+require("fgui.gcomponent.Activity_9001678.Com_cellPrice")

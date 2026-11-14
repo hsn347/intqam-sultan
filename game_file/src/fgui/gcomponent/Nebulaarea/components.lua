@@ -1,0 +1,6 @@
+require("fgui.gcomponent.Nebulaarea.Com_NebulaTech_Single")
+require("fgui.gcomponent.Nebulaarea.Com_NebulaTech_List1")
+require("fgui.gcomponent.Nebulaarea.Com_NebulaTech_Progress")
+require("fgui.gcomponent.Nebulaarea.Com_NebulaTower_Progress")
+require("fgui.gcomponent.Nebulaarea.Com_NebulaTower_Item")
+require("fgui.gcomponent.Nebulaarea.Com_NebulaTower_List")

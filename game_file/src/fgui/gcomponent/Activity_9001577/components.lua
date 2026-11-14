@@ -1,0 +1,6 @@
+require("fgui.gcomponent.Activity_9001577.Com_9001577_MainItem")
+require("fgui.gcomponent.Activity_9001577.Com_9001577_userRankSingle")
+require("fgui.gcomponent.Activity_9001577.Com_9001577_stageRanks")
+require("fgui.gcomponent.Activity_9001577.Com_9001577_rewardSingle")
+require("fgui.gcomponent.Activity_9001577.Com_9001577_ScoreItem")
+require("fgui.gcomponent.Activity_9001577.Com_9001577_stage")

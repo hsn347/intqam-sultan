@@ -1,0 +1,25 @@
+local baseProxy = require("fgui.base.baseProxy")
+local skillNewActiveViewProxy = class("skillNewActiveViewProxy", baseProxy)
+function skillNewActiveViewProxy:onRegisterEvent()
+	print("=======skillNewActiveViewProxy:onRegisterEvent")
+	SoraDAddMessage(self, "MESSAGE_TRIGGER_SKILLS", handler(self, self.refreshView))
+	SoraDAddMessage(self, "MESSAGE_LORDINFO_UPGRADE_SKILL", handler(self, self.refreshView))
+	SoraDAddMessage(self, "MESSAGE_LORDINFO_UPDATE_SKILL", handler(self, self.refreshView))
+	SoraDAddMessage(self, "MESSAGE_LORDINFO_RESET_SKILL", handler(self, self.refreshView))
+	SoraDAddMessage(self, "MESSAGE_SERVER_SKILL_SET_ACTIVE_BACK", handler(self, self.refreshView))
+	SoraDAddMessage(self, "MESSAGE_LORDVALUE_VIP", handler(self, self.refreshView))
+	SoraDAddMessage(self, "MESSAGE_SERVER_GODEQUIP_SKILL_BACK", handler(self, self.refreshView))
+	SoraDAddMessage(self, "MESSAGE_RUNE_UPDATE", handler(self, self.refreshView))
+	SoraDAddMessage(self, "MESSAGE_REFRESH_COMBINATION", handler(self, self.refreshView))
+	SoraDAddMessage(self, "MESSAGE_REFRESH_TIME_END_FOR_SKILL", handler(self, self.refreshView))
+	SoraDAddMessage(self, "MESSAGE_SERVER_HERO_DRESS_WEAR", handler(self, self.refreshView))
+	SoraDAddMessage(self, "MESSAGE_SERVER_HERO_COMBO_SKILL", handler(self, self.refreshView))
+	SoraDAddMessage(self, "MESSAGE_UI_COMBINATION_SET", handler(self, self.openGroupSet))
+end
+function skillNewActiveViewProxy:refreshView(target, data)
+	self.view:refreshView(target, data)
+end
+function skillNewActiveViewProxy:openGroupSet(target, data)
+	self.view:openGroupSet(target, data)
+end
+return skillNewActiveViewProxy

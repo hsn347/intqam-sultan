@@ -1,0 +1,6 @@
+require("fgui.gcomponent.SanctuaryDivine.Com_stageReward")
+require("fgui.gcomponent.SanctuaryDivine.Com_stage")
+require("fgui.gcomponent.SanctuaryDivine.Com_fbkr_rewardSelect")
+require("fgui.gcomponent.SanctuaryDivine.Com_record")
+require("fgui.gcomponent.SanctuaryDivine.effect_float")
+require("fgui.gcomponent.SanctuaryDivine.Com_cards")

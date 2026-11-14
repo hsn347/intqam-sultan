@@ -1,0 +1,6 @@
+require("fgui.gcomponent.CityInfoView.cityInfoSingle")
+require("fgui.gcomponent.CityInfoView.cityinfoResSingle")
+require("fgui.gcomponent.CityInfoView.Com_buffBar")
+require("fgui.gcomponent.CityInfoView.citybuffSingle")
+require("fgui.gcomponent.CityInfoView.Com_itemUseBuy")
+require("fgui.gcomponent.CityInfoView.Button_buyUse")

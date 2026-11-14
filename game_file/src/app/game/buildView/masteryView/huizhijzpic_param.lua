@@ -1,0 +1,29 @@
+_ENV, _UPVALUE4_, _ENV = nil, nil, nil
+;(nil).attr = "texture"
+;(nil).name = "_main_tex"
+;(nil).value = "3DTexture/masteryDraw/picture.png"
+_UPVALUE4_, (nil).hasMipmap = nil, false
+_ENV, (nil).texParam, (nil)[1] = nil, nil, gl.LINEAR
+_ENV, (nil).texParam, (nil)[2] = nil, nil, gl.LINEAR
+_ENV, (nil).texParam, (nil)[3] = nil, nil, gl.REPEAT
+_ENV, (nil).texParam, (nil)[4] = nil, nil, gl.REPEAT
+;(nil).attr = "texture"
+;(nil).name = "_jianbian"
+;(nil).value = "3DTexture/masteryDraw/gradient.png"
+_UPVALUE4_, (nil).hasMipmap = gl.LINEAR, false
+_ENV, (nil).texParam, gl.LINEAR[1] = gl.LINEAR, gl.LINEAR, gl.LINEAR
+_ENV, (nil).texParam, gl.LINEAR[2] = gl.LINEAR, gl.LINEAR, gl.LINEAR
+_ENV, (nil).texParam, gl.LINEAR[3] = gl.LINEAR, gl.LINEAR, gl.REPEAT
+_ENV, (nil).texParam, gl.LINEAR[4] = gl.LINEAR, gl.LINEAR, gl.REPEAT
+gl.LINEAR.attr = "float"
+gl.LINEAR.name = "_appear"
+_ENV, gl.LINEAR.value = gl.LINEAR, 0.9
+gl.LINEAR.attr = "float"
+gl.LINEAR.name = "_alpha"
+gl.LINEAR.value = 0.3
+;(nil).param, (nil)[1] = nil, nil
+;(nil).param, (nil)[2] = nil, nil
+;(nil).param, (nil)[3] = nil, gl.LINEAR
+;(nil).param, (nil)[4] = nil, gl.LINEAR
+local data
+return data

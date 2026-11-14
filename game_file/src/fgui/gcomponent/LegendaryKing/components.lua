@@ -1,0 +1,5 @@
+require("fgui.gcomponent.LegendaryKing.Com_commander")
+require("fgui.gcomponent.LegendaryKing.Com_addHead")
+require("fgui.gcomponent.LegendaryKing.Com_searchSingle")
+require("fgui.gcomponent.LegendaryKing.ComStage")
+require("fgui.gcomponent.LegendaryKing.ComScore")

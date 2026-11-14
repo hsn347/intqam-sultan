@@ -1,0 +1,6 @@
+require("fgui.gcomponent.Activity_9001639.Com_tip")
+require("fgui.gcomponent.Activity_9001639.Com_cumu")
+require("fgui.gcomponent.Activity_9001639.rechargeGiftSingle")
+require("fgui.gcomponent.Activity_9001639.Com_recordList")
+require("fgui.gcomponent.Activity_9001639.Com_info")
+require("fgui.gcomponent.Activity_9001639.Com_exchangeSingle")

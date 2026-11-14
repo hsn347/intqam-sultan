@@ -1,0 +1,6 @@
+require("fgui.gcomponent.JerseyActivity.Com_box")
+require("fgui.gcomponent.JerseyActivity.Com_Score")
+require("fgui.gcomponent.JerseyActivity.Com_AllianceSingle")
+require("fgui.gcomponent.JerseyActivity.Com_list")
+require("fgui.gcomponent.JerseyActivity.Button_cost")
+require("fgui.gcomponent.JerseyActivity.Com_BosList")

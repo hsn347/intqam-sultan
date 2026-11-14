@@ -1,0 +1,6 @@
+require("fgui.gcomponent.ThirtyDaySign2021.ButtonDay")
+require("fgui.gcomponent.ThirtyDaySign2021.ComAccuDay")
+require("fgui.gcomponent.ThirtyDaySign2021.ButtonBox")
+require("fgui.gcomponent.ThirtyDaySign2021.kuang")
+require("fgui.gcomponent.ThirtyDaySign2021.jiantou")
+require("fgui.gcomponent.ThirtyDaySign2021.jindutiao")

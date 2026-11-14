@@ -1,0 +1,35 @@
+_ENV, _ENV = nil, nil
+;(nil).id = 1
+_UPVALUE1_, (nil).buildID = nil, 9007
+_UPVALUE12_, (nil).targetId, (nil)[1] = nil, nil, 9003
+;(nil).num, (nil)[1] = nil, 2
+;(nil).num, (nil)[2] = nil, 2
+;(nil).num, (nil)[3] = nil, 2
+;(nil).num, (nil)[4] = nil, 2
+;(nil).num, (nil)[5] = nil, 2
+;(nil).num, (nil)[6] = nil, 2
+;(nil).num, (nil)[7] = nil, 2
+;(nil).num, (nil)[8] = nil, 2
+;(nil).num, (nil)[9] = nil, 2
+;(nil).num, (nil)[10] = nil, 2
+;(nil).num, (nil)[11] = nil, 2
+;(nil).num, (nil)[12] = nil, 2
+_ENV, (nil)[1], (nil).move = nil, nil, 240
+;(nil).id = 2
+_UPVALUE1_, (nil).buildID = nil, 9008
+_UPVALUE12_, (nil).targetId, (nil)[1] = nil, nil, 9003
+;(nil).num, (nil)[1] = nil, 2
+;(nil).num, (nil)[2] = nil, 2
+;(nil).num, (nil)[3] = nil, 2
+;(nil).num, (nil)[4] = nil, 2
+;(nil).num, (nil)[5] = nil, 2
+;(nil).num, (nil)[6] = nil, 2
+;(nil).num, (nil)[7] = nil, 2
+;(nil).num, (nil)[8] = nil, 2
+;(nil).num, (nil)[9] = nil, 2
+;(nil).num, (nil)[10] = nil, 2
+;(nil).num, (nil)[11] = nil, 2
+;(nil).num, (nil)[12] = nil, 2
+;(nil)[2], (nil).move = nil, 240
+local data
+return data

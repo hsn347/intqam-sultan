@@ -1,0 +1,31 @@
+_ENV, _ENV = nil, nil
+;(nil).BuildID = 601
+;(nil).name = "hegemon_buildname_01"
+;(nil).icon = "icon_world_hegemon.png"
+_ENV, (nil)[601], (nil).image = nil, nil, "hegemon_palace.png"
+;(nil).BuildID = 602
+;(nil).name = "hegemon_buildname_02"
+;(nil).icon = "icon_world_hegemon.png"
+_ENV, (nil)[602], (nil).image = nil, nil, "hegemon_palace.png"
+;(nil).BuildID = 603
+;(nil).name = "hegemon_buildname_03"
+;(nil).icon = "icon_world_hegemon.png"
+_ENV, (nil)[603], (nil).image = nil, nil, "hegemon_palace.png"
+;(nil).BuildID = 604
+;(nil).name = "hegemon_buildname_04"
+;(nil).icon = "icon_world_hegemon.png"
+_ENV, (nil)[604], (nil).image = nil, nil, "hegemon_palace.png"
+;(nil).BuildID = 605
+;(nil).name = "hegemon_buildname_05"
+;(nil).icon = "icon_world_hegemon.png"
+_ENV, (nil)[605], (nil).image = nil, nil, "hegemon_palace.png"
+;(nil).BuildID = 606
+;(nil).name = "hegemon_buildname_06"
+;(nil).icon = "icon_world_hegemon.png"
+_ENV, (nil)[606], (nil).image = nil, nil, "hegemon_palace.png"
+;(nil).BuildID = 701
+;(nil).name = "legendary_commander_text19"
+;(nil).icon = "icon_world_hegemon.png"
+;(nil)[701], (nil).image = nil, "hegemon_palace.png"
+local data
+return data

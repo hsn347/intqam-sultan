@@ -1,0 +1,30 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).taskType = 1
+_UPVALUE2_, (nil).taskNum = nil, 50
+_UPVALUE2_, (nil).resourceNumSVR, (nil)[1] = nil, nil, 1702
+_UPVALUE2_, (nil).resourceNumSVR, (nil)[2] = nil, nil, 10
+;(nil).resourceNumCLE, (nil)[1] = nil, 1702
+;(nil).resourceNumCLE, (nil)[2] = nil, 10
+;(nil).des = "collect_activity_032"
+_ENV, (nil)[1], (nil).guideId = nil, nil, "id:5"
+;(nil).index = 2
+;(nil).taskType = 2
+_UPVALUE2_, (nil).taskNum = nil, 900
+_UPVALUE2_, (nil).resourceNumSVR, (nil)[1] = nil, nil, 1702
+_UPVALUE2_, (nil).resourceNumSVR, (nil)[2] = nil, nil, 10
+;(nil).resourceNumCLE, (nil)[1] = nil, 1702
+;(nil).resourceNumCLE, (nil)[2] = nil, 10
+;(nil).des = "collect_activity_033"
+_ENV, (nil)[2], (nil).guideId = nil, nil, "id:49"
+;(nil).index = 3
+;(nil).taskType = 3
+_UPVALUE2_, (nil).taskNum = nil, 2500
+_UPVALUE2_, (nil).resourceNumSVR, (nil)[1] = nil, nil, 1702
+_UPVALUE2_, (nil).resourceNumSVR, (nil)[2] = nil, nil, 10
+;(nil).resourceNumCLE, (nil)[1] = nil, 1702
+;(nil).resourceNumCLE, (nil)[2] = nil, 10
+;(nil).des = "collect_activity_034"
+;(nil)[3], (nil).guideId = nil, "id:49"
+local data
+return data

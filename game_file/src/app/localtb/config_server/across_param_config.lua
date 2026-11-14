@@ -1,0 +1,30 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).across_move_lv = 60
+;(nil).across_applydailyTimes = 5
+;(nil).across_applyCoolDown = 3600
+;(nil).across_invitationTimes = 30
+;(nil).across_invitationCD = 3600
+;(nil).across_serverPower_countNum = 150
+;(nil).across_move_cd = 2592000
+;(nil).across_powerset_cd = 0
+;(nil).across_powerParam_01 = 2
+;(nil).across_powerParam_02 = 1
+;(nil).across_powerParam_03 = 10
+;(nil).across_powerParam_04 = 5
+;(nil).across_powerMAX_01 = 10000000
+;(nil).across_powerMAX_02 = 1000000000
+;(nil).across_powerParam_castle = 130
+;(nil).across_serverPower_min = 100000000
+;(nil).across_serverOpenTime_limit = 210
+;(nil).across_consumeScale = 0.04
+;(nil).across_consumeMaxScale = 70
+;(nil).consume_min_num = 55
+;(nil).consume_max_num = 1750
+;(nil).across_powerParam_rank = 30
+;(nil).kingpower_invitation_CD = 60
+;(nil).across_resLimit = 120000000
+;(nil).across_KingPowerNum = 4
+;(nil)[1], (nil).across_KingPowerNum_seed = nil, 4
+local data
+return data

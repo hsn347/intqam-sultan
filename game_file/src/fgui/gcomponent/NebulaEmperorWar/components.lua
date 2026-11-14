@@ -1,0 +1,5 @@
+require("fgui.gcomponent.NebulaEmperorWar.Com_buildOcuppy")
+require("fgui.gcomponent.NebulaEmperorWar.Energy_buildSingle")
+require("fgui.gcomponent.NebulaEmperorWar.Energy_buffSingle")
+require("fgui.gcomponent.NebulaEmperorWar.Energy_buildSingle2")
+require("fgui.gcomponent.NebulaEmperorWar.Com_energy")

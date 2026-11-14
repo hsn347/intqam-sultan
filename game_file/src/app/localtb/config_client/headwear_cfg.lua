@@ -1,0 +1,35 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).img = "icon_king_new.png"
+;(nil).imgWidth = 70
+;(nil).imgHeight = 70
+_UPVALUE2_, (nil).scale = nil, 1.0
+;(nil).offset, (nil)[1] = nil, 0
+;(nil).offset, (nil)[2] = nil, -10
+_ENV, (nil)[1], (nil).resType = nil, nil, 1
+;(nil).index = 2
+;(nil).img = "icon_legendary_01.png"
+;(nil).imgWidth = 82
+;(nil).imgHeight = 68
+_UPVALUE2_, (nil).scale = nil, 0.6
+;(nil).offset, (nil)[1] = nil, 0
+;(nil).offset, (nil)[2] = nil, -10
+_ENV, (nil)[2], (nil).resType = nil, nil, 1
+;(nil).index = 3
+;(nil).img = "icon_bazhuzhizhan_01.png"
+;(nil).imgWidth = 146
+;(nil).imgHeight = 101
+_UPVALUE2_, (nil).scale = nil, 0.5
+;(nil).offset, (nil)[1] = nil, 0
+;(nil).offset, (nil)[2] = nil, -10
+_ENV, (nil)[3], (nil).resType = nil, nil, 1
+;(nil).index = 4
+;(nil).img = "icon_kingstarbattle_01.png"
+;(nil).imgWidth = 82
+;(nil).imgHeight = 68
+_UPVALUE2_, (nil).scale = nil, 0.6
+;(nil).offset, (nil)[1] = nil, 0
+;(nil).offset, (nil)[2] = nil, -10
+;(nil)[4], (nil).resType = nil, 1
+local data
+return data

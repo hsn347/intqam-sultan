@@ -1,0 +1,7 @@
+require("fgui.gcomponent.Activity_9001702.Com_9001702_page1")
+require("fgui.gcomponent.Activity_9001702.Com_9001702_page2")
+require("fgui.gcomponent.Activity_9001702.Com_drawRecord")
+require("fgui.gcomponent.Activity_9001702.Com_sendSingle")
+require("fgui.gcomponent.Activity_9001702.Com_9001702_have")
+require("fgui.gcomponent.Activity_9001702.Com_9001702_drop")
+require("fgui.gcomponent.Activity_9001702.Com_9001702_bg2")

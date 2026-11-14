@@ -1,0 +1,6 @@
+require("fgui.gcomponent.test.QuickActivity")
+require("fgui.gcomponent.test.Com_testCmd")
+require("fgui.gcomponent.test.Com_sheep")
+require("fgui.gcomponent.test.Com_card")
+require("fgui.gcomponent.test.Com_num")
+require("fgui.gcomponent.test.Com_grid")

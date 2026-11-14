@@ -1,0 +1,5 @@
+require("fgui.gcomponent.commonSpeedUpByItemBox.Com_timeSpeed")
+require("fgui.gcomponent.commonSpeedUpByItemBox.Com_selectType")
+require("fgui.gcomponent.commonSpeedUpByItemBox.Com_speedBest")
+require("fgui.gcomponent.commonSpeedUpByItemBox.Com_speedSingle")
+require("fgui.gcomponent.commonSpeedUpByItemBox.Com_gift")

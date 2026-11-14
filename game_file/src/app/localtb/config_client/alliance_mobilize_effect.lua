@@ -1,0 +1,35 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 807201
+_ENV, (nil)[807201], (nil).switch = nil, nil, 1
+;(nil).index = 300103
+_ENV, (nil)[300103], (nil).switch = nil, nil, 1
+;(nil).index = 301901
+_ENV, (nil)[301901], (nil).switch = nil, nil, 1
+;(nil).index = 301101
+_ENV, (nil)[301101], (nil).switch = nil, nil, 1
+;(nil).index = 300702
+_ENV, (nil)[300702], (nil).switch = nil, nil, 1
+;(nil).index = 406201
+_ENV, (nil)[406201], (nil).switch = nil, nil, 1
+;(nil).index = 500704
+_ENV, (nil)[500704], (nil).switch = nil, nil, 1
+;(nil).index = 500904
+_ENV, (nil)[500904], (nil).switch = nil, nil, 1
+;(nil).index = 500804
+_ENV, (nil)[500804], (nil).switch = nil, nil, 1
+;(nil).index = 501104
+_ENV, (nil)[501104], (nil).switch = nil, nil, 1
+;(nil).index = 500604
+_ENV, (nil)[500604], (nil).switch = nil, nil, 1
+;(nil).index = 706502
+_ENV, (nil)[706502], (nil).switch = nil, nil, 1
+;(nil).index = 300703
+_ENV, (nil)[300703], (nil).switch = nil, nil, 1
+;(nil).index = 100106
+_ENV, (nil)[100106], (nil).switch = nil, nil, 1
+;(nil).index = 100107
+_ENV, (nil)[100107], (nil).switch = nil, nil, 1
+;(nil).index = 100108
+;(nil)[100108], (nil).switch = nil, 1
+local data
+return data

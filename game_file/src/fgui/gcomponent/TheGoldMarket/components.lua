@@ -1,0 +1,7 @@
+require("fgui.gcomponent.TheGoldMarket.Com_shelvesSingle")
+require("fgui.gcomponent.TheGoldMarket.Com_rewardSelect")
+require("fgui.gcomponent.TheGoldMarket.Btn_buy")
+require("fgui.gcomponent.TheGoldMarket.Com_score")
+require("fgui.gcomponent.TheGoldMarket.Com_shopSingle")
+require("fgui.gcomponent.TheGoldMarket.Com_scoreNode")
+require("fgui.gcomponent.TheGoldMarket.ProgressBar_task")

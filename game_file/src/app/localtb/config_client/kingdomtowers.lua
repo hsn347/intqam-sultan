@@ -1,0 +1,31 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 11
+;(nil).big = "map_battery_11.png"
+;(nil).towerIcon = "frame_wgzfz_battery_01.png"
+;(nil).icon = "bg_wwzdz_build_04.png"
+;(nil).name = "kingBuild_text_13"
+;(nil).iconLod = "lod_lionOfTower.png"
+_ENV, (nil)[11], (nil).scaleLod = nil, nil, 3
+;(nil).index = 12
+;(nil).big = "map_battery_14.png"
+;(nil).towerIcon = "frame_wgzfz_battery_03.png"
+;(nil).icon = "bg_wwzdz_build_02.png"
+;(nil).name = "king_buildName_01"
+;(nil).iconLod = "lod_crossbowOfTower.png"
+_ENV, (nil)[12], (nil).scaleLod = nil, nil, 3
+;(nil).index = 13
+;(nil).big = "map_battery_13.png"
+;(nil).towerIcon = "frame_wgzfz_battery_02.png"
+;(nil).icon = "bg_wwzdz_build_03.png"
+;(nil).name = "kingBuild_text_12"
+;(nil).iconLod = "lod_egleOfTower.png"
+_ENV, (nil)[13], (nil).scaleLod = nil, nil, 3
+;(nil).index = 14
+;(nil).big = "map_battery_12.png"
+;(nil).towerIcon = "frame_wgzfz_battery_04.png"
+;(nil).icon = "bg_wwzdz_build_01.png"
+;(nil).name = "king_buildName_02"
+;(nil).iconLod = "lod_gunOfTower.png"
+;(nil)[14], (nil).scaleLod = nil, 3
+local data
+return data

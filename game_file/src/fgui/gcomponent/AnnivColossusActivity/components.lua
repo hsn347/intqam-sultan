@@ -1,0 +1,6 @@
+require("fgui.gcomponent.AnnivColossusActivity.ProgressBar2")
+require("fgui.gcomponent.AnnivColossusActivity.ProgressBar1")
+require("fgui.gcomponent.AnnivColossusActivity.Button_use")
+require("fgui.gcomponent.AnnivColossusActivity.AnnivColossusGlobalRewardSingle")
+require("fgui.gcomponent.AnnivColossusActivity.Com_Anniv_box")
+require("fgui.gcomponent.AnnivColossusActivity.Com_main_sp")

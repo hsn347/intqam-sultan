@@ -1,0 +1,29 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).rechargeID = 19457
+;(nil).rewardType = "2"
+;(nil).rechargePrice = 9.99
+;(nil).originalPrice = 1362.27
+_UPVALUE6_, (nil).gold = nil, 1800
+_UPVALUE1_, (nil).reward, (nil)[1] = nil, nil, 501901
+_UPVALUE1_, (nil).reward, (nil)[2] = nil, nil, 2
+_UPVALUE1_, (nil).reward, (nil)[3] = nil, nil, 600204
+_UPVALUE1_, (nil).reward, (nil)[4] = nil, nil, 2
+_UPVALUE1_, (nil).reward, (nil)[5] = nil, nil, 839001
+_UPVALUE1_, (nil).reward, (nil)[6] = nil, nil, 300
+_ENV, (nil)[1], (nil).rechargeName, (nil)[1] = nil, nil, nil, "ramadan_bless_text_08"
+;(nil).index = 2
+;(nil).rechargeID = 19458
+;(nil).rewardType = "3"
+;(nil).rechargePrice = 19.99
+;(nil).originalPrice = 2559.87
+_UPVALUE6_, (nil).gold = nil, 3800
+_UPVALUE1_, (nil).reward, (nil)[1] = nil, nil, 501901
+_UPVALUE1_, (nil).reward, (nil)[2] = nil, nil, 3
+_UPVALUE1_, (nil).reward, (nil)[3] = nil, nil, 600204
+_UPVALUE1_, (nil).reward, (nil)[4] = nil, nil, 4
+_UPVALUE1_, (nil).reward, (nil)[5] = nil, nil, 839001
+_UPVALUE1_, (nil).reward, (nil)[6] = nil, nil, 600
+;(nil)[2], (nil).rechargeName, (nil)[1] = nil, nil, "ramadan_bless_text_10"
+local data
+return data

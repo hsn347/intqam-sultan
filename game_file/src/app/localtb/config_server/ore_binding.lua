@@ -1,0 +1,31 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+_UPVALUE2_, (nil).oretype = nil, 1
+_ENV, (nil)[1], (nil).bindingid, (nil)[1] = nil, nil, nil, 4
+_ENV, (nil)[1], (nil).bindingid, (nil)[2] = nil, nil, nil, 5
+;(nil).index = 2
+_UPVALUE2_, (nil).oretype = nil, 1
+_ENV, (nil)[2], (nil).bindingid, (nil)[1] = nil, nil, nil, 6
+_ENV, (nil)[2], (nil).bindingid, (nil)[2] = nil, nil, nil, 7
+;(nil).index = 3
+_UPVALUE2_, (nil).oretype = nil, 1
+_ENV, (nil)[3], (nil).bindingid, (nil)[1] = nil, nil, nil, 8
+_ENV, (nil)[3], (nil).bindingid, (nil)[2] = nil, nil, nil, 9
+;(nil).index = 4
+_ENV, (nil)[4], (nil).bindingid, _ENV, (nil).oretype = nil, nil, nil, nil, 2
+;(nil).index = 5
+_ENV, (nil)[5], (nil).bindingid, _ENV, (nil).oretype = nil, nil, nil, nil, 2
+;(nil).index = 6
+_ENV, (nil)[6], (nil).bindingid, _ENV, (nil).oretype = nil, nil, nil, nil, 2
+;(nil).index = 7
+_ENV, (nil)[7], (nil).bindingid, _ENV, (nil).oretype = nil, nil, nil, nil, 2
+;(nil).index = 8
+_ENV, (nil)[8], (nil).bindingid, _ENV, (nil).oretype = nil, nil, nil, nil, 2
+;(nil).index = 9
+_ENV, (nil)[9], (nil).bindingid, _ENV, (nil).oretype = nil, nil, nil, nil, 2
+;(nil).index = 10
+_ENV, (nil)[10], (nil).bindingid, _ENV, (nil).oretype = nil, nil, nil, nil, 2
+;(nil).index = 11
+;(nil)[11], (nil).bindingid, _ENV, (nil).oretype = nil, nil, nil, 2
+local data
+return data

@@ -1,0 +1,35 @@
+_ENV, _ENV = nil, nil
+;(nil).id = 1
+;(nil).bossType = 15
+_UPVALUE1_, (nil).type = nil, 1
+_ENV, (nil)[1], (nil).arms, (nil)[1] = nil, nil, nil, 1
+;(nil).id = 2
+;(nil).bossType = 16
+_UPVALUE1_, (nil).type = nil, 1
+_ENV, (nil)[2], (nil).arms, (nil)[1] = nil, nil, nil, 3
+;(nil).id = 3
+;(nil).bossType = 17
+_UPVALUE1_, (nil).type = nil, 2
+_ENV, (nil)[3], (nil).arms, (nil)[1] = nil, nil, nil, 1
+;(nil).id = 4
+;(nil).bossType = 18
+_UPVALUE1_, (nil).type = nil, 2
+_ENV, (nil)[4], (nil).arms, (nil)[1] = nil, nil, nil, 4
+;(nil).id = 5
+;(nil).bossType = 19
+_UPVALUE1_, (nil).type = nil, 3
+_ENV, (nil)[5], (nil).arms, (nil)[1] = nil, nil, nil, 2
+;(nil).id = 6
+;(nil).bossType = 20
+_UPVALUE1_, (nil).type = nil, 3
+_ENV, (nil)[6], (nil).arms, (nil)[1] = nil, nil, nil, 3
+;(nil).id = 7
+;(nil).bossType = 21
+_UPVALUE1_, (nil).type = nil, 4
+_ENV, (nil)[7], (nil).arms, (nil)[1] = nil, nil, nil, 3
+;(nil).id = 8
+;(nil).bossType = 22
+_UPVALUE1_, (nil).type = nil, 4
+;(nil)[8], (nil).arms, (nil)[1] = nil, nil, 4
+local data
+return data

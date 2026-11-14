@@ -1,0 +1,6 @@
+require("fgui.gcomponent.QuestView.com_questList")
+require("fgui.gcomponent.QuestView.Com_questTargetIcon")
+require("fgui.gcomponent.QuestView.Leb_res")
+require("fgui.gcomponent.QuestView.Com_box2")
+require("fgui.gcomponent.QuestView.Com_box")
+require("fgui.gcomponent.QuestView.com_list")

@@ -1,0 +1,5 @@
+require("fgui.gcomponent.LegendOfPegasus.Com_legendOfPegasus_Task")
+require("fgui.gcomponent.LegendOfPegasus.Com_item_ice")
+require("fgui.gcomponent.LegendOfPegasus.Com_recordSingle")
+require("fgui.gcomponent.LegendOfPegasus.Com_itemLab")
+require("fgui.gcomponent.LegendOfPegasus.Btn_rewardPre")

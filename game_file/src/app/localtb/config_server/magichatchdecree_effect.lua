@@ -1,0 +1,30 @@
+_ENV, _ENV = nil, nil
+;(nil).Index = 1
+;(nil).RechargeID = 19787
+_UPVALUE2_, (nil).BuildType = nil, 5
+_UPVALUE2_, (nil).Lv, (nil)[1] = nil, nil, 0
+_UPVALUE2_, (nil).Lv, (nil)[2] = nil, nil, 20
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[1] = nil, nil, 5977
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[2] = nil, nil, 5978
+_ENV, (nil)[1], (nil).EffectIcon, (nil)[1] = nil, nil, nil, "icon_GDbuff_03"
+_ENV, (nil)[1], (nil).EffectIcon, (nil)[2] = nil, nil, nil, "icon_GDbuff_04"
+;(nil).Index = 2
+;(nil).RechargeID = 19788
+_UPVALUE2_, (nil).BuildType = nil, 5
+_UPVALUE2_, (nil).Lv, (nil)[1] = nil, nil, 21
+_UPVALUE2_, (nil).Lv, (nil)[2] = nil, nil, 25
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[1] = nil, nil, 5979
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[2] = nil, nil, 5980
+_ENV, (nil)[2], (nil).EffectIcon, (nil)[1] = nil, nil, nil, "icon_GDbuff_03"
+_ENV, (nil)[2], (nil).EffectIcon, (nil)[2] = nil, nil, nil, "icon_GDbuff_04"
+;(nil).Index = 3
+;(nil).RechargeID = 19789
+_UPVALUE2_, (nil).BuildType = nil, 5
+_UPVALUE2_, (nil).Lv, (nil)[1] = nil, nil, 26
+_UPVALUE2_, (nil).Lv, (nil)[2] = nil, nil, 30
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[1] = nil, nil, 5981
+_UPVALUE2_, (nil).PrivilegeEffect, (nil)[2] = nil, nil, 5982
+;(nil)[3], (nil).EffectIcon, (nil)[1] = nil, nil, "icon_GDbuff_03"
+;(nil)[3], (nil).EffectIcon, (nil)[2] = nil, nil, "icon_GDbuff_04"
+local data
+return data

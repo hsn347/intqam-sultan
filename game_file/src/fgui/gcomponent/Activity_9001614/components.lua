@@ -1,0 +1,6 @@
+require("fgui.gcomponent.Activity_9001614.Com_Activity_9001614")
+require("fgui.gcomponent.Activity_9001614.Btn_target")
+require("fgui.gcomponent.Activity_9001614.Button_recharge")
+require("fgui.gcomponent.Activity_9001614.rechargePage")
+require("fgui.gcomponent.Activity_9001614.Com_listItem")
+require("fgui.gcomponent.Activity_9001614.Com_stage_9001614")

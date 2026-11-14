@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+_UPVALUE2_, (nil).index = nil, 1
+_UPVALUE2_, (nil).NeedItem, (nil)[1] = nil, nil, 862501
+_UPVALUE2_, (nil).NeedItem, (nil)[2] = nil, nil, 10
+;(nil).GetItem, (nil)[1] = nil, 862601
+;(nil).GetItem, (nil)[2] = nil, 5
+_UPVALUE8_, (nil).GetIntegral = nil, 15
+;(nil).IntegralMultiples, (nil)[1] = nil, 1
+;(nil).IntegralMultiples, (nil)[2] = nil, 500
+;(nil).IntegralMultiples, (nil)[3] = nil, 2
+;(nil).IntegralMultiples, (nil)[4] = nil, 400
+;(nil).IntegralMultiples, (nil)[5] = nil, 5
+;(nil).IntegralMultiples, (nil)[6] = nil, 90
+;(nil).IntegralMultiples, (nil)[7] = nil, 10
+;(nil).IntegralMultiples, (nil)[8] = nil, 10
+_ENV, (nil)[1], (nil).SingleMax = nil, nil, 999
+_UPVALUE2_, (nil).index = nil, 2
+_UPVALUE2_, (nil).NeedItem, (nil)[1] = nil, nil, 1001
+_UPVALUE2_, (nil).NeedItem, (nil)[2] = nil, nil, 100
+;(nil).GetItem, (nil)[1] = nil, 862601
+;(nil).GetItem, (nil)[2] = nil, 5
+_UPVALUE8_, (nil).GetIntegral = nil, 15
+;(nil).IntegralMultiples, (nil)[1] = nil, 1
+;(nil).IntegralMultiples, (nil)[2] = nil, 500
+;(nil).IntegralMultiples, (nil)[3] = nil, 2
+;(nil).IntegralMultiples, (nil)[4] = nil, 400
+;(nil).IntegralMultiples, (nil)[5] = nil, 5
+;(nil).IntegralMultiples, (nil)[6] = nil, 90
+;(nil).IntegralMultiples, (nil)[7] = nil, 10
+;(nil).IntegralMultiples, (nil)[8] = nil, 10
+;(nil)[2], (nil).SingleMax = nil, 999
+local data
+return data

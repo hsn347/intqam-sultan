@@ -1,0 +1,29 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+_UPVALUE1_, (nil).buildtype = nil, 1
+;(nil).name, (nil)[1] = nil, "nebula_war_build_0001"
+_UPVALUE1_, (nil).image = nil, "Map_build_nebula_901.png"
+;(nil).describe, (nil)[1] = nil, "nebula_war_text_0088"
+;(nil).icon = "icon_build_nebula_901.png"
+_ENV, (nil)[1], (nil).iconLod = nil, nil, "lod_build_nebula_901.png"
+;(nil).index = 2
+_UPVALUE1_, (nil).buildtype = nil, 2
+;(nil).name, (nil)[1] = nil, "nebula_war_build_0002"
+_UPVALUE1_, (nil).image = nil, "Map_build_nebula_902.png"
+;(nil).describe, (nil)[1] = nil, "nebula_war_text_0091"
+;(nil).icon = "icon_build_nebula_902.png"
+_ENV, (nil)[2], (nil).iconLod = nil, nil, "lod_build_nebula_902.png"
+;(nil).index = 3
+_UPVALUE1_, (nil).buildtype = nil, 3
+;(nil).name, (nil)[1] = nil, "nebula_war_build_0007"
+;(nil).describe, _ENV, (nil).image = nil, nil, "Map_build_nebula_mine01.png"
+;(nil).icon = "icon_build_nebula_mine.png"
+_ENV, (nil)[3], (nil).iconLod = nil, nil, "lod_build_nebula_mine.png"
+;(nil).index = 4
+_UPVALUE1_, (nil).buildtype = nil, 4
+;(nil).name, (nil)[1] = nil, "nebula_war_build_0008"
+;(nil).describe, _ENV, (nil).image = nil, nil, "Map_build_nebula_mine02.png"
+;(nil).icon = "icon_build_nebula_mine.png"
+;(nil)[4], (nil).iconLod = nil, "lod_build_nebula_mine.png"
+local data
+return data

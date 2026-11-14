@@ -1,0 +1,7 @@
+require("fgui.gcomponent.AllianceCreateView.AllianceListSingle")
+require("fgui.gcomponent.AllianceCreateView.Com_content")
+require("fgui.gcomponent.AllianceCreateView.Button_createAlliance")
+require("fgui.gcomponent.AllianceCreateView.btn_chooes")
+require("fgui.gcomponent.AllianceCreateView.Button_join")
+require("fgui.gcomponent.AllianceCreateView.Com_options")
+require("fgui.gcomponent.AllianceCreateView.Com_optionsTick")

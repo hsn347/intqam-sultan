@@ -1,0 +1,11 @@
+_ENV = nil
+;(nil).COLLECT_RES = 1
+;(nil).USE_GOLD = 2
+;(nil).KILL_MONSTER = 3
+;(nil).TRAIN_NORMAL_SOLDIER = 4
+;(nil).TRAIN_ELITE_SOLDIER = 5
+;(nil).BUILD = 6
+;(nil).RESEARCH_TECHNOLOGY = 7
+_ENV, gKingdomLevelExpSource, (nil).BUILD_STAR = nil, nil, 9
+;(nil).LOG_EVENTS = 1
+gKingdomLevelLogType, (nil).LOG_HISTORY = nil, 2

@@ -1,0 +1,31 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).foodType = 1
+;(nil).itemID = 871501
+_ENV, (nil)[1], (nil).weight = nil, nil, 200
+;(nil).index = 2
+;(nil).foodType = 1
+;(nil).itemID = 871601
+_ENV, (nil)[2], (nil).weight = nil, nil, 200
+;(nil).index = 3
+;(nil).foodType = 1
+;(nil).itemID = 871701
+_ENV, (nil)[3], (nil).weight = nil, nil, 200
+;(nil).index = 4
+;(nil).foodType = 1
+;(nil).itemID = 871801
+_ENV, (nil)[4], (nil).weight = nil, nil, 133
+;(nil).index = 5
+;(nil).foodType = 1
+;(nil).itemID = 871901
+_ENV, (nil)[5], (nil).weight = nil, nil, 133
+;(nil).index = 6
+;(nil).foodType = 1
+;(nil).itemID = 872001
+_ENV, (nil)[6], (nil).weight = nil, nil, 133
+;(nil).index = 7
+;(nil).foodType = 2
+;(nil).itemID = 872101
+;(nil)[7], (nil).weight = nil, 1
+local data
+return data

@@ -1,0 +1,36 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+_UPVALUE9_, (nil).classType = nil, 1
+_ENV, (nil)[1], (nil).questId, (nil)[1] = nil, nil, nil, 4214658
+_ENV, (nil)[1], (nil).questId, (nil)[2] = nil, nil, nil, 4214659
+_ENV, (nil)[1], (nil).questId, (nil)[3] = nil, nil, nil, 4214660
+_ENV, (nil)[1], (nil).questId, (nil)[4] = nil, nil, nil, 4214661
+_ENV, (nil)[1], (nil).questId, (nil)[5] = nil, nil, nil, 4214662
+_ENV, (nil)[1], (nil).questId, (nil)[6] = nil, nil, nil, 4214663
+_ENV, (nil)[1], (nil).questId, (nil)[7] = nil, nil, nil, 4214664
+_ENV, (nil)[1], (nil).questId, (nil)[8] = nil, nil, nil, 4214665
+_ENV, (nil)[1], (nil).questId, (nil)[9] = nil, nil, nil, 4214666
+;(nil).index = 2
+_UPVALUE9_, (nil).classType = nil, 2
+_ENV, (nil)[2], (nil).questId, (nil)[1] = nil, nil, nil, 4214658
+_ENV, (nil)[2], (nil).questId, (nil)[2] = nil, nil, nil, 4214659
+_ENV, (nil)[2], (nil).questId, (nil)[3] = nil, nil, nil, 4214660
+_ENV, (nil)[2], (nil).questId, (nil)[4] = nil, nil, nil, 4214661
+_ENV, (nil)[2], (nil).questId, (nil)[5] = nil, nil, nil, 4214662
+_ENV, (nil)[2], (nil).questId, (nil)[6] = nil, nil, nil, 4214663
+_ENV, (nil)[2], (nil).questId, (nil)[7] = nil, nil, nil, 4214664
+_ENV, (nil)[2], (nil).questId, (nil)[8] = nil, nil, nil, 4214665
+_ENV, (nil)[2], (nil).questId, (nil)[9] = nil, nil, nil, 4214666
+;(nil).index = 3
+_UPVALUE9_, (nil).classType = nil, 3
+;(nil)[3], (nil).questId, (nil)[1] = nil, nil, 4214658
+;(nil)[3], (nil).questId, (nil)[2] = nil, nil, 4214659
+;(nil)[3], (nil).questId, (nil)[3] = nil, nil, 4214660
+;(nil)[3], (nil).questId, (nil)[4] = nil, nil, 4214661
+;(nil)[3], (nil).questId, (nil)[5] = nil, nil, 4214662
+;(nil)[3], (nil).questId, (nil)[6] = nil, nil, 4214663
+;(nil)[3], (nil).questId, (nil)[7] = nil, nil, 4214664
+;(nil)[3], (nil).questId, (nil)[8] = nil, nil, 4214665
+;(nil)[3], (nil).questId, (nil)[9] = nil, nil, 4214666
+local data
+return data

@@ -1,0 +1,8 @@
+require("fgui.gcomponent.StarryNightCarnival.Com_itemLevel")
+require("fgui.gcomponent.StarryNightCarnival.Com_levelLock")
+require("fgui.gcomponent.StarryNightCarnival.Com_levelRewardSingle")
+require("fgui.gcomponent.StarryNightCarnival.Com_itemStarry")
+require("fgui.gcomponent.StarryNightCarnival.Progress_score")
+require("fgui.gcomponent.StarryNightCarnival.Button_recharge")
+require("fgui.gcomponent.StarryNightCarnival.Com_bg")
+require("fgui.gcomponent.StarryNightCarnival.Label_pointEffect")

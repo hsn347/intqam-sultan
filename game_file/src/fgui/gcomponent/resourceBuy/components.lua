@@ -1,0 +1,7 @@
+require("fgui.gcomponent.resourceBuy.Com_tab")
+require("fgui.gcomponent.resourceBuy.Com_itemUseBuy")
+require("fgui.gcomponent.resourceBuy.Button_tab")
+require("fgui.gcomponent.resourceBuy.Button_sort")
+require("fgui.gcomponent.resourceBuy.Button_buyUse")
+require("fgui.gcomponent.resourceBuy.Com_PropBuySingle")
+require("fgui.gcomponent.resourceBuy.Com_speedUpRecallSingle")

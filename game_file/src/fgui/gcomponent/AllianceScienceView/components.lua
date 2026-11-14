@@ -1,0 +1,6 @@
+require("fgui.gcomponent.AllianceScienceView.Com_Prosperity")
+require("fgui.gcomponent.AllianceScienceView.Com_Science")
+require("fgui.gcomponent.AllianceScienceView.AllianceScienceMenuSingle")
+require("fgui.gcomponent.AllianceScienceView.AllianceScienceSingle")
+require("fgui.gcomponent.AllianceScienceView.AllianceScienceBtn")
+require("fgui.gcomponent.AllianceScienceView.AllianceProsperityDonateBtn")

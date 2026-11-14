@@ -1,0 +1,35 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+_UPVALUE14_, (nil).classType = nil, 1
+_ENV, (nil)[1], (nil).reward, (nil)[1] = nil, nil, nil, 867701
+_ENV, (nil)[1], (nil).reward, (nil)[2] = nil, nil, nil, 100
+_ENV, (nil)[1], (nil).reward, (nil)[3] = nil, nil, nil, 867401
+_ENV, (nil)[1], (nil).reward, (nil)[4] = nil, nil, nil, 300
+_ENV, (nil)[1], (nil).reward, (nil)[5] = nil, nil, nil, 867601
+_ENV, (nil)[1], (nil).reward, (nil)[6] = nil, nil, nil, 300
+_ENV, (nil)[1], (nil).reward, (nil)[7] = nil, nil, nil, 867501
+_ENV, (nil)[1], (nil).reward, (nil)[8] = nil, nil, nil, 300
+_ENV, (nil)[1], (nil).reward, (nil)[9] = nil, nil, nil, 1001
+_ENV, (nil)[1], (nil).reward, (nil)[10] = nil, nil, nil, 300
+_ENV, (nil)[1], (nil).reward, (nil)[11] = nil, nil, nil, 300403
+_ENV, (nil)[1], (nil).reward, (nil)[12] = nil, nil, nil, 2
+_ENV, (nil)[1], (nil).reward, (nil)[13] = nil, nil, nil, 712801
+_ENV, (nil)[1], (nil).reward, (nil)[14] = nil, nil, nil, 3
+;(nil).index = 2
+_UPVALUE14_, (nil).classType = nil, 2
+;(nil)[2], (nil).reward, (nil)[1] = nil, nil, 867701
+;(nil)[2], (nil).reward, (nil)[2] = nil, nil, 100
+;(nil)[2], (nil).reward, (nil)[3] = nil, nil, 867401
+;(nil)[2], (nil).reward, (nil)[4] = nil, nil, 300
+;(nil)[2], (nil).reward, (nil)[5] = nil, nil, 867601
+;(nil)[2], (nil).reward, (nil)[6] = nil, nil, 300
+;(nil)[2], (nil).reward, (nil)[7] = nil, nil, 867501
+;(nil)[2], (nil).reward, (nil)[8] = nil, nil, 300
+;(nil)[2], (nil).reward, (nil)[9] = nil, nil, 1001
+;(nil)[2], (nil).reward, (nil)[10] = nil, nil, 300
+;(nil)[2], (nil).reward, (nil)[11] = nil, nil, 300403
+;(nil)[2], (nil).reward, (nil)[12] = nil, nil, 2
+;(nil)[2], (nil).reward, (nil)[13] = nil, nil, 712801
+;(nil)[2], (nil).reward, (nil)[14] = nil, nil, 3
+local data
+return data

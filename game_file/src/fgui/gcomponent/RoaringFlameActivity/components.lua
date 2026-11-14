@@ -1,0 +1,7 @@
+require("fgui.gcomponent.RoaringFlameActivity.Com_PhoenixTaskSingle")
+require("fgui.gcomponent.RoaringFlameActivity.Com_TreasureCave_award")
+require("fgui.gcomponent.RoaringFlameActivity.Com_listBox")
+require("fgui.gcomponent.RoaringFlameActivity.Com_zhuanpan")
+require("fgui.gcomponent.RoaringFlameActivity.Com_TreasureCave_player")
+require("fgui.gcomponent.RoaringFlameActivity.Com_listExtra")
+require("fgui.gcomponent.RoaringFlameActivity.Com_listRecord")

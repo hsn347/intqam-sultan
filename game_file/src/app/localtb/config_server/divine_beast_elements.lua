@@ -1,0 +1,31 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).icon = "frame_ssyj_feng.png"
+;(nil).name = "Divine_beast_mark_text_97"
+_ENV, (nil)[1], (nil).value, _ENV, (nil).type = nil, nil, nil, nil, 1
+;(nil).index = 2
+;(nil).icon = "frame_ssyj_huo.png"
+;(nil).name = "Divine_beast_mark_text_98"
+_ENV, (nil)[2], (nil).value, _ENV, (nil).type = nil, nil, nil, nil, 1
+;(nil).index = 3
+;(nil).icon = "frame_ssyj_tu.png"
+;(nil).name = "Divine_beast_mark_text_99"
+_ENV, (nil)[3], (nil).value, _ENV, (nil).type = nil, nil, nil, nil, 1
+;(nil).index = 4
+;(nil).icon = "frame_ssyj_shui.png"
+;(nil).name = "Divine_beast_mark_text_100"
+_ENV, (nil)[4], (nil).value, _ENV, (nil).type = nil, nil, nil, nil, 1
+;(nil).index = 5
+;(nil).icon = "frame_ssyj_suiji.png"
+;(nil).name = "Divine_beast_mark_text_101"
+_UPVALUE8_, (nil).type = nil, 2
+;(nil)[5], (nil).value, (nil)[1] = nil, nil, 1
+;(nil)[5], (nil).value, (nil)[2] = nil, nil, 280
+;(nil)[5], (nil).value, (nil)[3] = nil, nil, 2
+;(nil)[5], (nil).value, (nil)[4] = nil, nil, 160
+;(nil)[5], (nil).value, (nil)[5] = nil, nil, 3
+;(nil)[5], (nil).value, (nil)[6] = nil, nil, 280
+;(nil)[5], (nil).value, (nil)[7] = nil, nil, 4
+;(nil)[5], (nil).value, (nil)[8] = nil, nil, 280
+local data
+return data

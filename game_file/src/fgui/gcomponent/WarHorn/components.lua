@@ -1,0 +1,8 @@
+require("fgui.gcomponent.WarHorn.Com_BuffItem")
+require("fgui.gcomponent.WarHorn.Com_BuffSingle")
+require("fgui.gcomponent.WarHorn.Com_warHornMain")
+require("fgui.gcomponent.WarHorn.Com_AwardItem")
+require("fgui.gcomponent.WarHorn.Com_award")
+require("fgui.gcomponent.WarHorn.Btn_levelLock")
+require("fgui.gcomponent.WarHorn.Progress_score")
+require("fgui.gcomponent.WarHorn.Btn_receiveAll")

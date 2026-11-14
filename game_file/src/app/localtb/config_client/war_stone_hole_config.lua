@@ -1,0 +1,31 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+;(nil).placeClour = 0
+;(nil).name = "gemEnchant_text_11"
+_ENV, (nil)[1], (nil).des = nil, nil, "war_stone_hole_00"
+;(nil).index = 2
+;(nil).placeClour = 1
+;(nil).name = "gemEnchant_text_05"
+_ENV, (nil)[2], (nil).des = nil, nil, "war_stone_hole_01"
+;(nil).index = 3
+;(nil).placeClour = 2
+;(nil).name = "gemEnchant_text_06"
+_ENV, (nil)[3], (nil).des = nil, nil, "war_stone_hole_02"
+;(nil).index = 4
+;(nil).placeClour = 3
+;(nil).name = "gemEnchant_text_07"
+_ENV, (nil)[4], (nil).des = nil, nil, "war_stone_hole_03"
+;(nil).index = 5
+;(nil).placeClour = 4
+;(nil).name = "gemEnchant_text_08"
+_ENV, (nil)[5], (nil).des = nil, nil, "war_stone_hole_04"
+;(nil).index = 6
+;(nil).placeClour = 5
+;(nil).name = "gemEnchant_text_09"
+_ENV, (nil)[6], (nil).des = nil, nil, "war_stone_hole_05"
+;(nil).index = 7
+;(nil).placeClour = 6
+;(nil).name = "gemEnchant_text_10"
+;(nil)[7], (nil).des = nil, "war_stone_hole_06"
+local data
+return data

@@ -1,0 +1,8 @@
+require("fgui.gcomponent.StarsTower.Btn_buy")
+require("fgui.gcomponent.StarsTower.Com_event")
+require("fgui.gcomponent.StarsTower.Com_giftList")
+require("fgui.gcomponent.StarsTower.Com_itemList")
+require("fgui.gcomponent.StarsTower.Com_itemSingle")
+require("fgui.gcomponent.StarsTower.Com_bg")
+require("fgui.gcomponent.StarsTower.Com_list")
+require("fgui.gcomponent.StarsTower.Com_sultan")

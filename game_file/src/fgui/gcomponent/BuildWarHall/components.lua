@@ -1,0 +1,8 @@
+require("fgui.gcomponent.BuildWarHall.Com_WHV_rallySingle")
+require("fgui.gcomponent.BuildWarHall.Com_WHV_single")
+require("fgui.gcomponent.BuildWarHall.Com_WHV_citySingle")
+require("fgui.gcomponent.BuildWarHall.Com_WHV_history")
+require("fgui.gcomponent.BuildWarHall.Com_WHV_ownCounter")
+require("fgui.gcomponent.BuildWarHall.Com_chatpop_buttons")
+require("fgui.gcomponent.BuildWarHall.AllianceWarRallyMember")
+require("fgui.gcomponent.BuildWarHall.Com_AllianceWarView")

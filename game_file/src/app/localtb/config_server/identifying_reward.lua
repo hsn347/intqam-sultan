@@ -1,0 +1,33 @@
+_ENV, _ENV = nil, nil
+;(nil).index = 1
+_UPVALUE8_, (nil).num = nil, 1
+_ENV, (nil)[1], (nil).result, (nil)[1] = nil, nil, nil, 500601
+_ENV, (nil)[1], (nil).result, (nil)[2] = nil, nil, nil, 1
+_ENV, (nil)[1], (nil).result, (nil)[3] = nil, nil, nil, 500901
+_ENV, (nil)[1], (nil).result, (nil)[4] = nil, nil, nil, 1
+_ENV, (nil)[1], (nil).result, (nil)[5] = nil, nil, nil, 100201
+_ENV, (nil)[1], (nil).result, (nil)[6] = nil, nil, nil, 3
+_ENV, (nil)[1], (nil).result, (nil)[7] = nil, nil, nil, 100301
+_ENV, (nil)[1], (nil).result, (nil)[8] = nil, nil, nil, 3
+;(nil).index = 2
+_UPVALUE8_, (nil).num = nil, 2
+_ENV, (nil)[2], (nil).result, (nil)[1] = nil, nil, nil, 500601
+_ENV, (nil)[2], (nil).result, (nil)[2] = nil, nil, nil, 1
+_ENV, (nil)[2], (nil).result, (nil)[3] = nil, nil, nil, 500901
+_ENV, (nil)[2], (nil).result, (nil)[4] = nil, nil, nil, 1
+_ENV, (nil)[2], (nil).result, (nil)[5] = nil, nil, nil, 100201
+_ENV, (nil)[2], (nil).result, (nil)[6] = nil, nil, nil, 3
+_ENV, (nil)[2], (nil).result, (nil)[7] = nil, nil, nil, 100301
+_ENV, (nil)[2], (nil).result, (nil)[8] = nil, nil, nil, 3
+;(nil).index = 3
+_UPVALUE8_, (nil).num = nil, 3
+;(nil)[3], (nil).result, (nil)[1] = nil, nil, 500601
+;(nil)[3], (nil).result, (nil)[2] = nil, nil, 1
+;(nil)[3], (nil).result, (nil)[3] = nil, nil, 500901
+;(nil)[3], (nil).result, (nil)[4] = nil, nil, 1
+;(nil)[3], (nil).result, (nil)[5] = nil, nil, 100201
+;(nil)[3], (nil).result, (nil)[6] = nil, nil, 3
+;(nil)[3], (nil).result, (nil)[7] = nil, nil, 100301
+;(nil)[3], (nil).result, (nil)[8] = nil, nil, 3
+local data
+return data
