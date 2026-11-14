@@ -386,8 +386,12 @@ class CommandHallTask(BaseTask):
 
         return selected
 
-    def _deduct_march_resources_in_memory(self, troops: List[Dict[str, int]], stamina_cost: int = 5) -> None:
-        """خصم القوات والطاقة والطوابير محلياً في الذاكرة الحية (In-Memory State Sync)."""
+    def _deduct_march_resources_in_memory(self, troops: Optional[List[Dict[str, int]]] = None, stamina_cost: int = 5) -> None:
+        """
+        خصم الطاقة وطوابير المسير محلياً في الذاكرة الحية (In-Memory State Sync).
+        ملاحظة: تم إيقاف خصم القوات التخميني (Speculative Deductions) من totalArmy
+        والاعتماد بالكامل على تحديثات السيرفر الفورية (NOTIFY_ARMY / cmd 15) عبر LiveMemoryEngine.
+        """
         # 1. خصم الطاقة
         lord = self.get_ctrl("lordInfoCtrl")
         if isinstance(lord, dict):
@@ -395,19 +399,7 @@ class CommandHallTask(BaseTask):
             if isinstance(base, dict) and "health" in base:
                 base["health"] = max(0, self._safe_int(base["health"]) - stamina_cost)
 
-        # 2. خصم القوات من totalArmy
-        army_ctrl = self.get_ctrl("armyCtrl")
-        if isinstance(army_ctrl, dict):
-            total_army = army_ctrl.get("totalArmy")
-            if isinstance(total_army, dict):
-                for tr in troops:
-                    uid = str(tr.get("id"))
-                    num = self._safe_int(tr.get("num"))
-                    if uid in total_army:
-                        cur = self._safe_int(total_army[uid])
-                        total_army[uid] = max(0, cur - num)
-
-        # 3. خصم طابور مسير
+        # 2. خصم طابور مسير
         queue_ctrl = self.get_ctrl("queueCtrl")
         if isinstance(queue_ctrl, dict):
             queues = queue_ctrl.get("queues")

@@ -20,7 +20,7 @@ import math
 import random
 import sys
 import time
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 if sys.platform == "win32":
     try:
@@ -74,6 +74,30 @@ class TaskResult:
     def __repr__(self) -> str:
         status = "SKIPPED" if self.skipped else ("OK" if self.success else "FAILED")
         return f"<TaskResult [{status}]: {self.message}>"
+
+
+class AwaitableInt(int):
+    """
+    عدد صحيح يدعم الاستخدام المباشر (Synchronous) والانتظار غير المتزامن (Asynchronous)
+    لضمان التوافق التام مع الخصائص (Properties) والدوال غير المتزامنة (Coroutines).
+    """
+
+    def __await__(self):
+        async def _coro():
+            return int(self)
+        return _coro().__await__()
+
+
+class AwaitableSet(set):
+    """
+    مجموعة (Set) تدعم الاستخدام المباشر والانتظار غير المتزامن (Awaitable)
+    لضمان التوافق مع الكود المتزامن وغير المتزامن.
+    """
+
+    def __await__(self):
+        async def _coro():
+            return set(self)
+        return _coro().__await__()
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -392,13 +416,472 @@ class BaseTask(ABC):
 
     @property
     def available_marches(self) -> int:
-        """عدد طوابير الجيوش الشاغرة الجاهزة للمسير."""
+        """عدد طوابير الجيوش الشاغرة الجاهزة للمسير (تفويض لـ get_available_marches_count مع دعم بيئات المحاكاة القديمة)."""
+        init_data = self.init_data
+        has_modern_state = any(k in init_data for k in ("technologyCtrl", "vipCtrl", "local_queues")) or (
+            self.conn and hasattr(self.conn, "memory_engine") and getattr(self.conn.memory_engine, "local_queues_synced", False)
+        )
+        if has_modern_state or not (isinstance(self.get_ctrl("queueCtrl"), dict) and "queues" in self.get_ctrl("queueCtrl")):
+            return self.get_available_marches_count()
+
+        # التوافق مع بيئات المحاكاة القديمة التي توفر queueCtrl فقط بدون متحكمات أبحاث أو local_queues
         queue_ctrl = self.get_ctrl("queueCtrl")
         queues = queue_ctrl.get("queues", []) if isinstance(queue_ctrl, dict) else []
-        active_marches = sum(1 for q in queues if isinstance(q, dict) and q.get("type") == 1)
-        # الحد الافتراضي الأدنى لطوابير الجيوش هو 1 على الأقل أو حسب مبنى قاعة الحرب
-        max_marches = max(2, int(self.config.get("max_marches", 2)))
-        return max(0, max_marches - active_marches)
+        active = sum(1 for q in queues if isinstance(q, dict) and q.get("type") == 1)
+        cfg_max = max(2, int(self.config.get("max_marches", 2)))
+        return AwaitableInt(max(0, cfg_max - active))
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # دوال إدارة والتعامل مع طوابير ومسيرات الجيوش في الذاكرة الحية (0-Network)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    def _read_live_local_queues(self_or_conn: Any, conn: Any = None) -> List[Dict[str, Any]]:
+        """
+        قراءة طوابير مسيرات القلعة الخاصة من مراجع الذاكرة الحية دون استعلام شبكي (0-Network).
+        الأولوية:
+          1. conn.local_queues
+          2. conn.memory_engine.get_own_local_queues()
+          3. conn.init_data.get('local_queues')
+        """
+        target_conn = conn if conn is not None else (getattr(self_or_conn, "conn", None) or self_or_conn)
+        if target_conn is None:
+            return []
+
+        # 1. conn.local_queues
+        queues = getattr(target_conn, "local_queues", None)
+        if queues:
+            if isinstance(queues, (list, tuple)):
+                return list(queues)
+            if isinstance(queues, dict):
+                return list(queues.values())
+
+        # 2. conn.memory_engine.get_own_local_queues()
+        mem_engine = getattr(target_conn, "memory_engine", None)
+        if mem_engine is not None and hasattr(mem_engine, "get_own_local_queues"):
+            try:
+                own = mem_engine.get_own_local_queues()
+                if own:
+                    return list(own) if isinstance(own, (list, tuple)) else list(own.values())
+            except Exception:
+                pass
+
+        # 3. conn.init_data.get('local_queues')
+        init_data = getattr(target_conn, "init_data", None)
+        if isinstance(init_data, dict):
+            init_q = init_data.get("local_queues")
+            if init_q:
+                if isinstance(init_q, (list, tuple)):
+                    return list(init_q)
+                if isinstance(init_q, dict):
+                    return list(init_q.values())
+
+        return []
+
+    def _read_live_other_queues(self_or_conn: Any, conn: Any = None) -> List[Dict[str, Any]]:
+        """
+        قراءة طوابير ومسيرات اللاعبين الآخرين من مراجع الذاكرة الحية دون استعلام شبكي (0-Network).
+        الأولوية:
+          1. conn.other_local_queues
+          2. conn.memory_engine.get_other_local_queues()
+          3. conn.init_data.get('other_local_queues')
+        """
+        target_conn = conn if conn is not None else (getattr(self_or_conn, "conn", None) or self_or_conn)
+        if target_conn is None:
+            return []
+
+        # 1. conn.other_local_queues
+        queues = getattr(target_conn, "other_local_queues", None)
+        if queues:
+            if isinstance(queues, (list, tuple)):
+                return list(queues)
+            if isinstance(queues, dict):
+                return list(queues.values())
+
+        # 2. conn.memory_engine.get_other_local_queues()
+        mem_engine = getattr(target_conn, "memory_engine", None)
+        if mem_engine is not None and hasattr(mem_engine, "get_other_local_queues"):
+            try:
+                other = mem_engine.get_other_local_queues()
+                if other:
+                    return list(other) if isinstance(other, (list, tuple)) else list(other.values())
+            except Exception:
+                pass
+
+        # 3. conn.init_data.get('other_local_queues')
+        init_data = getattr(target_conn, "init_data", None)
+        if isinstance(init_data, dict):
+            init_other = init_data.get("other_local_queues")
+            if init_other:
+                if isinstance(init_other, (list, tuple)):
+                    return list(init_other)
+                if isinstance(init_other, dict):
+                    return list(init_other.values())
+
+        return []
+
+    def get_active_marches_count(self, force_sync: bool = False) -> int:
+        """
+        حساب عدد الفيالق والمسيرات النشطة حالياً خارج القلعة بالاعتماد على الذاكرة الحية (0-Network):
+        - فلترة صارمة لمعرّف القلعة (uid) لضمان احتساب مسيرات هذه القلعة حصراً.
+        - فلترة الحالات النشطة فقط:
+          (0=حشد بتجمع, 1=سير على الخريطة, 2=جمع/تمركز, 3=عودة للقلعة, 4=انتظار, 7=حشد منطلق).
+        - عزل التكرار بناءً على معرف الطابور الفريد (qid).
+        """
+        conn = getattr(self, "conn", None)
+        if conn is None:
+            return AwaitableInt(0)
+
+        # إرسال استعلام المزامنة في الخلفية عند طلب force_sync
+        if force_sync and getattr(conn, "is_connected", False) and hasattr(conn, "query"):
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(conn.query("1007", "1000", {}))
+            except RuntimeError:
+                pass
+
+        queues = self._read_live_local_queues(conn)
+        my_uid = str(getattr(self, "uid", "") or "").strip()
+        active_statuses = (0, 1, 2, 3, 4, 7)
+        seen_ids: Set[str] = set()
+        active = 0
+
+        for q in queues:
+            if not isinstance(q, dict):
+                continue
+
+            # فلترة صاحب المسيرة لمنع احتساب مسيرات لاعبين آخرين
+            q_uid = q.get("uid")
+            if my_uid and q_uid not in (None, "", 0, "0") and str(q_uid).strip() != my_uid:
+                continue
+
+            raw_status = q.get("status")
+            if raw_status is None:
+                continue
+            try:
+                status = int(raw_status)
+            except (TypeError, ValueError):
+                continue
+            if status not in active_statuses:
+                continue
+
+            qid = str(q.get("id") or q.get("queueId") or "").strip()
+            if qid:
+                if qid in seen_ids:
+                    continue
+                seen_ids.add(qid)
+            active += 1
+
+        # احتياطي: إذا كانت local_queues فارغة تماماً، قراءة queueCtrl من الذاكرة الحية
+        if active == 0 and not queues:
+            queue_ctrl = self.get_ctrl("queueCtrl")
+            if isinstance(queue_ctrl, dict):
+                qc_queues = queue_ctrl.get("queues", [])
+                if isinstance(qc_queues, list):
+                    active = sum(1 for q in qc_queues if isinstance(q, dict) and q.get("type") == 1)
+
+        return AwaitableInt(active)
+
+    def get_other_marches_count(self) -> int:
+        """
+        حساب عدد طوابير ومسيرات اللاعبين الآخرين النشطة بالذاكرة الحية (0-Network):
+        تشمل التعزيزات القادمة للقلعة أو حشود التحالف الأخرى المنفصلة.
+        """
+        conn = getattr(self, "conn", None)
+        if conn is None:
+            return AwaitableInt(0)
+
+        other_queues = self._read_live_other_queues(conn)
+        if not other_queues:
+            return AwaitableInt(0)
+
+        my_uid = str(getattr(self, "uid", "") or "").strip()
+        active_statuses = (0, 1, 2, 3, 4, 7)
+        seen_ids: Set[str] = set()
+        count = 0
+
+        for q in other_queues:
+            if not isinstance(q, dict):
+                continue
+
+            q_uid = q.get("uid")
+            if my_uid and q_uid and str(q_uid).strip() == my_uid:
+                continue
+
+            raw_status = q.get("status")
+            if raw_status is not None:
+                try:
+                    status = int(raw_status)
+                    if status not in active_statuses:
+                        continue
+                except (TypeError, ValueError):
+                    continue
+
+            qid = str(q.get("id") or q.get("queueId") or "").strip()
+            if qid:
+                if qid in seen_ids:
+                    continue
+                seen_ids.add(qid)
+            count += 1
+
+        return AwaitableInt(count)
+
+    def get_max_marches_capacity(self) -> int:
+        """
+        حساب سعة الفيالق والمسيرات القصوى المسموح بها للقلعة بدقة طبقاً لكود اللعبة (0-Network):
+        1. السقف الأساسي لجميع القلاع = 1 (DEFAULT_EXP_ARMY_QUEUE).
+        2. أبحاث معهد العلوم (technologyCtrl - EXPEDITION_TROOPS):
+           - #24011 (فيلق البعثة I): +1
+           - #24017 (فيلق البعثة II): +1
+           - #24033 (فيلق البعثة III): +1
+           (الحد الأقصى لزيادة الأبحاث = +3).
+        3. ميزة الـ VIP (vipCtrl / lordInfoCtrl.vip):
+           - المستويات من VIP 4 إلى VIP 9: تمنح +1 طابور مسيرة إضافي.
+           - المستويات من VIP 10 إلى VIP 18: تمنح +2 طابور مسيرة إضافي.
+        4. مراعاة السقف الأقصى العام للعبة (MAX_MARCH_TROOP = 6) أو التقييد اليدوي في config.max_marches إن وُجد.
+        """
+        capacity = 1
+
+        # فحص سعة الطوابير المسجلة رسمياً في queueCtrl إن وجدت
+        queue_ctrl = self.get_ctrl("queueCtrl")
+        if isinstance(queue_ctrl, dict):
+            qc_max = queue_ctrl.get("maxQueueCount")
+            if qc_max is not None:
+                try:
+                    c_val = int(qc_max)
+                    if c_val > 0:
+                        capacity = max(capacity, c_val)
+                except (ValueError, TypeError):
+                    pass
+
+        # 1. أبحاث معهد العلوم (24011, 24017, 24033)
+        tech_ctrl = self.get_ctrl("technologyCtrl")
+        tech_bonus = 0
+        if isinstance(tech_ctrl, dict):
+            for tid in ("24011", "24017", "24033"):
+                val = tech_ctrl.get(tid) if tid in tech_ctrl else tech_ctrl.get(int(tid))
+                if val is not None:
+                    lv = 0
+                    if isinstance(val, (list, tuple)):
+                        if len(val) > 1:
+                            try:
+                                lv = int(val[1] or 0)
+                            except (ValueError, TypeError):
+                                lv = 0
+                        elif len(val) == 1:
+                            try:
+                                lv = int(val[0] or 0)
+                            except (ValueError, TypeError):
+                                lv = 0
+                    elif isinstance(val, dict):
+                        lv = int(val.get("level", val.get("lv", 0)) or 0)
+                    else:
+                        try:
+                            lv = int(val or 0)
+                        except (ValueError, TypeError):
+                            lv = 0
+                    if lv > 0:
+                        tech_bonus += 1
+        capacity += min(3, tech_bonus)
+
+        # 2. ميزة VIP (VIP 4..9 -> +1, VIP 10+ -> +2)
+        vip_ctrl = self.get_ctrl("vipCtrl")
+        vip_lv = 0
+        if isinstance(vip_ctrl, dict):
+            try:
+                vip_lv = int(vip_ctrl.get("vipLv", vip_ctrl.get("level", 0)) or 0)
+            except (ValueError, TypeError):
+                vip_lv = 0
+        if vip_lv == 0:
+            lord = self.get_ctrl("lordInfoCtrl")
+            if isinstance(lord, dict):
+                vip_obj = lord.get("vip", {})
+                if isinstance(vip_obj, dict):
+                    try:
+                        vip_lv = int(vip_obj.get("level", vip_obj.get("vipLv", 0)) or 0)
+                    except (ValueError, TypeError):
+                        vip_lv = 0
+
+        if vip_lv >= 10:
+            capacity += 2
+        elif vip_lv >= 4:
+            capacity += 1
+
+        # 3. السقف الأقصى العام للعبة 6 مسيرات
+        capacity = min(6, max(1, capacity))
+
+        # 4. مراعاة التقييد اليدوي config.get('max_marches') أو config.get('max_queues')
+        if hasattr(self, "config") and isinstance(self.config, dict):
+            cfg_max = self.config.get("max_marches", self.config.get("max_queues"))
+            if cfg_max is not None:
+                try:
+                    c_val = int(cfg_max)
+                    if c_val > 0:
+                        capacity = min(capacity, c_val)
+                except (ValueError, TypeError):
+                    pass
+
+        return AwaitableInt(capacity)
+
+    def get_available_marches_count(self) -> int:
+        """
+        حساب عدد الفيالق المتاحة والشاغرة للإرسال حالياً (0-Network):
+        الفارق بين سعة الفيالق القصوى للقلعة (get_max_marches_capacity)
+        وعدد الفيالق النشطة بالخارج حالياً (get_active_marches_count).
+        """
+        max_cap = self.get_max_marches_capacity()
+        active = self.get_active_marches_count()
+        return AwaitableInt(max(0, int(max_cap) - int(active)))
+
+    def get_active_gather_resource_types(self, force_sync: bool = False) -> Set[int]:
+        """
+        فحص أنواع الموارد التي تجمعها مسيرات نشطة بالخارج حالياً لقلعة هذا الحساب (0-Network)
+        (1=ذهب, 2=قمح, 3=خشب, 4=حديد, 5=فضة):
+        - قراءة فورية من الذاكرة الحية عبر _read_live_local_queues (Zero-Request).
+        - فلترة صارمة لمعرّف القلعة (uid) لضمان عدم احتساب مسيرات لاعبين آخرين.
+        """
+        conn = getattr(self, "conn", None)
+        if conn is None:
+            return AwaitableSet()
+
+        if force_sync and getattr(conn, "is_connected", False) and hasattr(conn, "query"):
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(conn.query("1007", "1000", {}))
+            except RuntimeError:
+                pass
+
+        queues = self._read_live_local_queues(conn)
+        if not queues:
+            return AwaitableSet()
+
+        my_uid = str(getattr(self, "uid", "") or "").strip()
+        active: Set[int] = set()
+
+        for q in queues:
+            if not isinstance(q, dict):
+                continue
+
+            # فلترة صاحب المسيرة
+            q_uid = q.get("uid")
+            if my_uid and q_uid not in (None, "", 0, "0") and str(q_uid).strip() != my_uid:
+                continue
+
+            raw_status = q.get("status")
+            if raw_status is None:
+                continue
+            try:
+                status = int(raw_status)
+            except (TypeError, ValueError):
+                continue
+            if status not in (0, 1, 2, 3, 4, 7):
+                continue
+
+            res_sub = None
+            for loc_key in ("to", "from"):
+                info = q.get(loc_key, {})
+                if isinstance(info, dict) and info.get("mapType") == 5:
+                    res_sub = info.get("subMapType")
+                    if not res_sub:
+                        parts = str(info.get("id", "")).split("-")
+                        if len(parts) >= 4 and parts[2] == "5" and parts[3].isdigit():
+                            res_sub = int(parts[3])
+                if res_sub:
+                    break
+
+            if not res_sub:
+                data_obj = q.get("data", {})
+                if isinstance(data_obj, dict):
+                    code = data_obj.get("resourceType")
+                    if code:
+                        res_sub = {1001: 1, 1002: 2, 1003: 3, 1004: 4, 1005: 5}.get(int(code))
+
+            if res_sub is not None:
+                try:
+                    sub_int = int(res_sub)
+                    if sub_int in (1, 2, 3, 4, 5):
+                        active.add(sub_int)
+                except (ValueError, TypeError):
+                    pass
+
+        return AwaitableSet(active)
+
+    def is_ruins_march_active(self, force_sync: bool = False) -> bool:
+        """
+        فحص هل يوجد فيلق مشغول باستكشاف الأطلال حالياً (سواء في الذهاب أو الاستكشاف أو العودة):
+        - قراءة فورية من الذاكرة الحية (0-Network) عبر _read_live_local_queues.
+        - فلترة صارمة لمعرّف القلعة (uid) لضمان احتساب مسيرات هذا الحساب فقط.
+        - التحقق من نوع المسار (moveLineType = 4) أو نوع خريطة الأطلال (mapType = 7) في الهدف (to) أو نقطة الانطلاق (from).
+        """
+        conn = getattr(self, "conn", None)
+        if conn is None:
+            return False
+
+        if force_sync and getattr(conn, "is_connected", False) and hasattr(conn, "query"):
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(conn.query("1007", "1000", {}))
+            except RuntimeError:
+                pass
+
+        queues = self._read_live_local_queues(conn)
+        if not queues:
+            return False
+
+        my_uid = str(getattr(self, "uid", "") or "").strip()
+        active_statuses = (0, 1, 2, 3, 4, 7)
+
+        for q in queues:
+            if not isinstance(q, dict):
+                continue
+
+            # فلترة صاحب المسيرة
+            q_uid = q.get("uid")
+            if my_uid and q_uid not in (None, "", 0, "0") and str(q_uid).strip() != my_uid:
+                continue
+
+            raw_status = q.get("status")
+            if raw_status is None:
+                continue
+            try:
+                status = int(raw_status)
+            except (TypeError, ValueError):
+                continue
+            if status not in active_statuses:
+                continue
+
+            # 1. moveLineType = 4 مخصص للأطلال
+            if q.get("moveLineType") == 4 or q.get("type") == 4:
+                return True
+
+            # 2. فحص الهدف (to) أو نقطة الانطلاق (from) للأطلال (mapType = 7)
+            for loc_key in ("to", "from"):
+                info = q.get(loc_key, {})
+                if isinstance(info, dict):
+                    if info.get("mapType") == 7:
+                        return True
+                    raw_id = str(info.get("id") or "")
+                    parts = raw_id.split("-")
+                    if len(parts) >= 3 and parts[2] == "7":
+                        return True
+
+        return False
+
+    # مسميات بديلة للتوافق الكامل
+    has_active_ruins_march = is_ruins_march_active
+    _get_active_gather_types = get_active_gather_resource_types
+
+    async def sync_local_queues(self, timeout: float = 2.0) -> bool:
+        """
+        إرسال استعلام مزامنة طوابير الفيالق 1007/1000 للسيرفر وانتظار وصول إشعار NOTIFY_LOCAL_QUEUE_SYNC (cmd 202).
+        """
+        if not self.conn or not getattr(self.conn, "is_connected", False) or not hasattr(self.conn, "query"):
+            return False
+        try:
+            await self.conn.query("1007", "1000", {}, timeout=timeout)
+            return True
+        except Exception as e:
+            self.log(f"⚠️ استعلام مزامنة الفيالق 1007/1000 لم يكتمل: {e}")
+            return False
 
     # ═════════════════════════════════════════════════════════════════════════
     # 2. الاستعلام الشبكي الآمن (Safe Query with Human Jitter)

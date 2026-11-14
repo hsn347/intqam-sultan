@@ -30,6 +30,8 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from Crypto.Cipher import DES
 
+from core.live_memory import LiveMemoryEngine
+
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -1204,12 +1206,39 @@ class GameConnection:
         self._init_flow_task: Optional[asyncio.Task] = None
         self._buffer = b""
 
-        self.init_data: Dict[str, Any] = {}
-        self.heroes: list = []
-        self.local_queues: list = []
+        owner_uid = getattr(self.account, "uid", None) or getattr(self.creds, "uid", None) or getattr(self.account, "user_id", None)
+        self.memory_engine: LiveMemoryEngine = LiveMemoryEngine(owner_uid=owner_uid)
+        self.init_data: Dict[str, Any] = self.memory_engine.init_data
         self.spy_mode: bool = False
         self.is_other_device: bool = False
         self.controllers_ready: asyncio.Event = asyncio.Event()
+
+    @property
+    def local_queues(self) -> list:
+        return self.memory_engine.get_own_local_queues()
+
+    @local_queues.setter
+    def local_queues(self, val: Any) -> None:
+        if isinstance(val, list):
+            self.memory_engine._sync_local_queues_from_list(val)
+
+    @property
+    def other_local_queues(self) -> list:
+        return self.memory_engine.get_other_local_queues()
+
+    @property
+    def heroes(self) -> list:
+        h = self.init_data.get("heroCtrl")
+        if isinstance(h, list):
+            return h
+        if isinstance(h, dict) and isinstance(h.get("heroes"), list):
+            return h["heroes"]
+        return []
+
+    @heroes.setter
+    def heroes(self, val: Any) -> None:
+        if isinstance(val, list):
+            self.init_data["heroCtrl"] = val
 
     @property
     def is_connected(self) -> bool:
@@ -1339,145 +1368,18 @@ class GameConnection:
                         if self.spy_mode:
                             log.info(f"👁️ [SPY RECV] cmd={cmd_s}/{sub_s} sess={sess_id} keys={list(parsed.keys())}")
 
-                        # 1. حزمة التهيئة الشاملة الرسمية (CMD 1000 / session 0)
+                        # معالجة وتحديث الذاكرة الحية عبر محرك الذاكرة الموحد (LiveMemoryEngine)
+                        self.memory_engine.ingest_packet(parsed)
+
+                        # إشعار اكتمال تحميل المتحكمات الأساسية
                         if sess_id == 0 or cmd_s in ('1000', 'onemt_1000'):
-                            retdata = c_data.get('retdata', {}) if isinstance(c_data, dict) else (parsed.get('retdata', {}) if isinstance(parsed, dict) else {})
-                            if isinstance(retdata, dict) and retdata:
-                                self.init_data.update(retdata)
-                                if 'heroCtrl' in retdata:
-                                    h_ctrl = retdata.get('heroCtrl', [])
-                                    if isinstance(h_ctrl, list):
-                                        self.heroes = list(h_ctrl)
-                                self.controllers_ready.set()
-                                log.info(f"[{self.account.email}] ✓ تم تفريغ وتحديث {len(retdata)} متحكم في الذاكرة الحية بنجاح.")
+                            self.controllers_ready.set()
+                            log.info(f"[{self.account.email}] ✓ تم تفريغ وتحديث {len(self.init_data)} متحكم في الذاكرة الحية بنجاح.")
+                        elif not self.controllers_ready.is_set() and self.memory_engine.is_memory_ready()[0]:
+                            self.controllers_ready.set()
 
-                        # 2. تحديث المتحكمات حسب نوع الأمر الفرعي دون إفساد هيكل البيانات
-                        if cmd_s == '1001' and isinstance(c_data, dict):
-                            if sub_s == '1':
-                                self.init_data['cityCtrl'] = c_data
-                            else:
-                                self.init_data.setdefault('cityCtrl', {}).update(c_data)
-                        elif cmd_s == '1002' and isinstance(c_data, dict):
-                            if sub_s == '1':
-                                self.init_data['lordInfoCtrl'] = c_data
-                            else:
-                                self.init_data.setdefault('lordInfoCtrl', {}).update(c_data)
-                        elif cmd_s == '1004' and isinstance(c_data, dict):
-                            if sub_s == '1':
-                                self.init_data['bagCtrl'] = c_data
-                                self.init_data['backpackCtrl'] = c_data
-                        elif cmd_s == '1005' and isinstance(c_data, dict):
-                            army_ctrl = self.init_data.setdefault('armyCtrl', {})
-
-                            # أوامر التهيئة (1005/1): استبدال كامل
-                            if sub_s == '1' and not c_data.get('armyInfo'):
-                                self.init_data['armyCtrl'] = c_data
-                                army_ctrl = self.init_data['armyCtrl']
-
-                            # أوامر التدريب وما شابهها (1005/2+): دمج armyInfo
-                            elif isinstance(c_data.get('armyInfo'), dict):
-                                local_train = army_ctrl.get('trainArmy') if isinstance(army_ctrl.get('trainArmy'), dict) else {}
-                                army_ctrl.update(c_data['armyInfo'])
-                                # استعادة trainArmy المحلي فقط في حالة بدء التدريب (subcmd 2) إذا أرسل السيرفر trainArmy فارغاً
-                                srv_train = army_ctrl.get('trainArmy')
-                                if not srv_train and local_train and sub_s not in ('4', '5'):
-                                    army_ctrl['trainArmy'] = local_train
-
-                            # أوامر استلام الجيش المنتهي (subcmd 5) أو إلغاء التدريب (subcmd 4)
-                            if sub_s in ('4', '5'):
-                                bid_key = str(c_data.get('bid', ''))
-                                train_map = army_ctrl.get('trainArmy')
-                                if isinstance(train_map, dict):
-                                    if bid_key in train_map:
-                                        train_map.pop(bid_key, None)
-                                    if not train_map or (isinstance(c_data.get('armyInfo'), dict) and c_data['armyInfo'].get('trainArmy') == {}):
-                                        army_ctrl['trainArmy'] = {}
-
-                            # حفظ معلومات طابور التدريب الجديد مباشرة داخل armyCtrl.trainArmy (subcmd 2)
-                            ret_q = c_data.get('retdata')
-                            if isinstance(ret_q, dict) and 'lefttime' in ret_q:
-                                train_map = army_ctrl.setdefault('trainArmy', {})
-                                if isinstance(train_map, dict):
-                                    bid_key = str(c_data.get('bid', 'unknown'))
-                                    train_map[bid_key] = {
-                                        'bid': bid_key,
-                                        'armyid': str(c_data.get('armyid', '')),
-                                        'armycount': str(c_data.get('armycount', '')),
-                                        'lefttime': ret_q.get('lefttime'),
-                                        'totaltime': ret_q.get('totaltime'),
-                                        'queuetype': ret_q.get('queuetype'),
-                                        '_uniqueid': ret_q.get('_uniqueid'),
-                                        'updated_at': int(time.time()),
-                                    }
-                                # تحديث رصيد الموارد في cityCtrl فوراً بعد خصم تكلفة التدريب
-                                cost_list = ret_q.get('costres')
-                                if isinstance(cost_list, list):
-                                    city = self.init_data.setdefault('cityCtrl', {})
-                                    reslist = city.setdefault('reslist', {})
-                                    if isinstance(reslist, dict):
-                                        for cr in cost_list:
-                                            if isinstance(cr, dict) and 'resid' in cr and 'curcount' in cr:
-                                                reslist[str(cr['resid'])] = cr['curcount']
-                                        city['resList'] = reslist
-                        elif cmd_s == '1010' and isinstance(c_data, dict) and sub_s == '1':
-                            self.init_data['allianceCtrl'] = c_data
-                        elif cmd_s == '1023' and isinstance(c_data, dict) and sub_s == '1':
-                            self.init_data['wallsCtrl'] = c_data
-                        elif cmd_s == '1024' and isinstance(c_data, dict) and sub_s == '1':
-                            self.init_data['shopCtrl'] = c_data
-                        elif cmd_s == '1028' and isinstance(c_data, dict) and sub_s == '1':
-                            self.init_data['taskCtrl'] = c_data
-                        elif cmd_s == '1033' and isinstance(c_data, dict):
-                            self.init_data['timeRewardCtrl'] = c_data
-
-                        # 3. معالجة الإشعارات الفورية من السيرفر (NOTIFY_*)
                         data_obj = c_data if isinstance(c_data, dict) else {}
                         notify_id = str(data_obj.get('notifyID', ''))
-                        notify_data = data_obj.get('notifyData', [])
-
-                        if notify_id == 'NOTIFY_LOCAL_QUEUE_SYNC' and isinstance(notify_data, list):
-                            self.local_queues = notify_data
-                            self.init_data['queueCtrl'] = {"queues": notify_data}
-                        elif notify_id == 'NOTIFY_ARMY' and isinstance(notify_data, list):
-                            for item in notify_data:
-                                if isinstance(item, dict) and item.get('armyInfo'):
-                                    self.init_data['armyCtrl'] = item['armyInfo']
-                        elif notify_id == 'NOTIFY_CITY' and isinstance(notify_data, list):
-                            city = self.init_data.setdefault('cityCtrl', {})
-                            for item in notify_data:
-                                if isinstance(item, dict):
-                                    if 'reslist' in item and isinstance(item['reslist'], dict):
-                                        city['reslist'] = item['reslist']
-                                        city['resList'] = item['reslist']
-                                    elif 'res' in item and isinstance(item['res'], dict):
-                                        cur_res = city.setdefault('reslist', {})
-                                        for rid, delta in item['res'].items():
-                                            try:
-                                                cur_res[str(rid)] = max(0, int(float(cur_res.get(str(rid), 0))) + int(float(delta)))
-                                            except Exception:
-                                                pass
-                                        city['resList'] = cur_res
-                                    if 'saferes' in item:
-                                        city['saferes'] = item['saferes']
-                        elif notify_id == 'NOTIFY_LORD' and isinstance(notify_data, list):
-                            lord = self.init_data.setdefault('lordInfoCtrl', {})
-                            for item in notify_data:
-                                if isinstance(item, dict):
-                                    key = item.get('key')
-                                    if key == 'base':
-                                        base_dict = lord.setdefault('base', {})
-                                        if isinstance(base_dict, dict):
-                                            for k, v in item.items():
-                                                if k != 'key':
-                                                    base_dict[k] = v
-                                    elif key:
-                                        val = item.get('val') if 'val' in item else {k: v for k, v in item.items() if k != 'key'}
-                                        lord[key] = val
-                        elif notify_id in ('NOTIFY_TIME_REWARD', 'NOTIFY_TIMEREWARD') and isinstance(notify_data, list):
-                            tr = self.init_data.setdefault('timeRewardCtrl', {})
-                            for item in notify_data:
-                                if isinstance(item, dict):
-                                    tr.update(item)
 
                         resp_cmd = str(parsed.get('cmd', ''))
                         if sess_id and sess_id in self._pending:
@@ -1629,9 +1531,9 @@ class GameConnection:
 
         self._reader = None
         self._buffer = b""
-        self.init_data.clear()
-        self.heroes.clear()
-        self.local_queues.clear()
+        self.memory_engine.clear()
+
+GateClient = GameConnection
 
 class MultiAccountManager:
     """مدير مركزي غير متزامن لإدارة وتنسيق اتصالات مئات الحسابات بالتوازي"""
