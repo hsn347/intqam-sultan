@@ -8,8 +8,8 @@ test_task_method.py — أداة اختبار دوال المهام الفردي
 
 أمثلة على الاستخدام من سطر الأوامر:
   1. اختبار دالة واحدة في مهمة التحالف لحساب LUCIFER:
-     python test_task_method.py --email LUCIFER@g4.com --task alliance _help_alliance_members
-
+     python tools/test_task_method.py --email beetoo3@hotmail.com --task command_hall get_command_hall_tasks
+                      
   2. اختبار عدة دوال دفعة واحدة:
      python test_task_method.py --email LUCIFER@g4.com --task alliance _treasure_alliance
 
@@ -72,7 +72,7 @@ def get_registered_tasks() -> Dict[str, type]:
     for attr in dir(tasks):
         cls = getattr(tasks, attr)
         if isinstance(cls, type) and issubclass(cls, BaseTask) and cls is not BaseTask:
-            # ربط باسم المهمة البرمجي (مثل: command_hall) واسم الفئة (مثل: CommandHallTask)
+            # ربط باسم المهمة البرمجي (مثل: arena) واسم الفئة (مثل: ArenaTask)
             task_name = getattr(cls, "name", "").lower()
             if task_name:
                 task_map[task_name] = cls
@@ -145,6 +145,8 @@ async def run_method_tests(
     offline: bool = False,
     memory_file: str = "docs/lucifer_live_memory.json",
     run_full_task: bool = False,
+    task_mode: Optional[str] = None,
+    allow_marches: Optional[bool] = None,
 ):
     print("\n" + "═" * 78)
     print(f" 🧪 أداة فحص واختبار دوال مهام البوت (Task Method Test Runner)")
@@ -235,9 +237,14 @@ async def run_method_tests(
     # تكوين افتراضي مفعل للمهمة
     cfg = {"enabled": True}
     if bot and bot.config:
-        t_name = getattr(task_cls, "name", "command_hall")
+        t_name = getattr(task_cls, "name", "hero_trial")
         cfg = bot.config.get("tasks", {}).get(t_name) or bot.config.get(t_name) or {"enabled": True}
         cfg["enabled"] = True
+
+    if task_mode:
+        cfg["mode"] = task_mode
+    if allow_marches is not None:
+        cfg["allow_marches"] = allow_marches
 
     task_instance = task_cls(conn, task_logger, cfg)
 
@@ -383,6 +390,24 @@ def main():
         default="docs/lucifer_live_memory.json",
         help="مسار ملف الذاكرة الحية لنمط الـ offline",
     )
+    parser.add_argument(
+        "--mode",
+        dest="mode",
+        choices=["daily", "full"],
+        help="نمط تشغيل المهمة: daily (النشاط اليومي) أو full (دورة كاملة)",
+    )
+    parser.add_argument(
+        "--full",
+        dest="full",
+        action="store_true",
+        help="اختصار لتشغيل دورة كاملة للمهمة (--mode full)",
+    )
+    parser.add_argument(
+        "--allow-marches",
+        dest="allow_marches",
+        action="store_true",
+        help="السماح بالمسيرات القتالية في دورة المهام الكاملة",
+    )
 
     args = parser.parse_args()
 
@@ -395,11 +420,12 @@ def main():
         if pos_args:
             task_name = pos_args.pop(0)
         else:
-            # مهمة افتراضية command_hall
-            task_name = "command_hall"
+            # مهمة افتراضية hero_trial
+            task_name = "hero_trial"
 
     methods.extend(pos_args)
 
+    mode = "full" if args.full else args.mode
     asyncio.run(
         run_method_tests(
             task_name_or_cls=task_name,
@@ -408,6 +434,8 @@ def main():
             offline=args.offline,
             memory_file=args.memory_file,
             run_full_task=args.run,
+            task_mode=mode,
+            allow_marches=args.allow_marches if args.allow_marches else None,
         )
     )
 

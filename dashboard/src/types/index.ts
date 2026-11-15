@@ -91,6 +91,14 @@ export interface ArenaConfig extends BaseTaskConfig {
   auto_claim_rewards: boolean
 }
 
+export interface CommandHallConfig extends BaseTaskConfig {
+  mode: 'daily' | 'full'
+  allow_marches: boolean
+  auto_claim_rewards: boolean
+  auto_upgrade_hall: boolean
+  min_safety_stamina?: number
+}
+
 export type EquipmentCategory = 'weapon' | 'clothes' | 'helmet' | 'trousers' | 'shoes' | 'ring'
 
 export interface TrainLevels {
@@ -144,9 +152,9 @@ export interface CastleConfig {
   forge_equipment?: BaseTaskConfig & { category: EquipmentCategory }
   daily_train?: BaseTaskConfig
   daily_quest?: BaseTaskConfig
-  command_hall?: SimpleToggleConfig
   arena?: ArenaConfig
   hero_trial?: SimpleToggleConfig
+  command_hall?: CommandHallConfig
   stamina: BaseTaskConfig & { gold_buys: number }
   skills: BaseTaskConfig & { target_skills: string[] }
   hero_draw: BaseTaskConfig
@@ -157,7 +165,7 @@ export interface CastleConfig {
   daily_luxury_gift: BaseTaskConfig
   vip_gift: BaseTaskConfig
   tactics_hall: BaseTaskConfig & { tactic: string }
-  watermill: BaseTaskConfig & { types: string; allow_shop_buy: boolean }
+  watermill: BaseTaskConfig & { resources?: string[]; types?: string | string[]; allow_shop_buy?: boolean }
   fountain: BaseTaskConfig & { resources: string[]; allow_gold: boolean; gold_times: number; use_gold?: boolean }
   material_workshop: BaseTaskConfig & { materials: string[] }
   caravan: BaseTaskConfig
@@ -218,9 +226,9 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
   cure_wounded: { enabled: false, mode: 'daily' },
   forge_equipment: { enabled: false, category: 'weapon' },
   daily_quest: { enabled: true },
-  command_hall: { enabled: false },
   arena: { enabled: false, arena_type: 'kingdom', auto_claim_rewards: true },
   hero_trial: { enabled: false },
+  command_hall: { enabled: false, mode: 'daily', allow_marches: false, auto_claim_rewards: true, auto_upgrade_hall: true },
   stamina: { enabled: false, gold_buys: 0 },
   skills: { enabled: false, target_skills: [] },
   hero_draw: { enabled: false },
@@ -231,7 +239,7 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
   daily_luxury_gift: { enabled: false },
   vip_gift: { enabled: false },
   tactics_hall: { enabled: false, tactic: 'القلعة الفارغة' },
-  watermill: { enabled: false, types: 'food', allow_shop_buy: false },
+  watermill: { enabled: false, resources: ['food', 'wood', 'iron', 'silver'], types: 'all' },
   fountain: { enabled: false, resources: ['food', 'wood', 'iron', 'diamond'], allow_gold: false, gold_times: 0 },
   material_workshop: { enabled: false, materials: [] },
   caravan: { enabled: false },
@@ -375,12 +383,9 @@ export type TaskTab =
   | 'combat'
   | 'watermill'
   | 'transport'
-  | 'prestige'
   | 'daily'
   | 'building'
   | 'events'
-  | 'gold'
-  | 'gold_bot'
 
 export interface GoldLocation {
   x: number

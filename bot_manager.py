@@ -61,9 +61,9 @@ from tasks import (
     WarMedalTask,
     DailyTrainTask,
     BuildingTask,
-    CommandHallTask,
     ArenaTask,
     HeroTrialTask,
+    CommandHallTask,
     DailyQuestTask,
 )
 
@@ -87,9 +87,9 @@ REGISTERED_TASKS = [
     PetTask,
     TreasureTask,
     TrainTask,
-    CommandHallTask,
     ArenaTask,
     HeroTrialTask,
+    CommandHallTask,
     DailyQuestTask,
 ]
 
@@ -188,9 +188,6 @@ DEFAULT_BOT_CONFIG: Dict[str, Any] = {
                 "military_tent": True,
             },
         },
-        "command_hall": {                     # قاعة القيادة: مهام القيادة بالنشاط اليومي
-            "enabled": False,
-        },
         "arena": {                            # تحدي الحلبة: مهام النشاط اليومي واستلام الجوائز التراكمية
             "enabled": False,
             "arena_type": "kingdom",          # "kingdom" (حلبة المملكة) أو "global" (حلبة العالم)
@@ -199,8 +196,21 @@ DEFAULT_BOT_CONFIG: Dict[str, Any] = {
         "hero_trial": {                       # كفاءة الجندي: مهمة النشاط اليومي رقم 25 (20 نقطة)
             "enabled": False,
         },
+        "command_hall": {                     # مهام قاعة القيادة: المعارك والمسير واستلام الجوائز
+            "enabled": False,
+            "mode": "daily",                  # "daily" أو "full"
+            "allow_marches": True,            # السماح بالمسير القتالي
+            "auto_claim_rewards": True,       # استلام جوائز المهام المكتملة
+            "auto_upgrade_hall": True,        # ترقية مستوى قاعة القيادة تلقائياً
+            "min_safety_stamina": 10,         # حد أمان طاقة اللورد بالقلعة
+        },
         "daily_quest": {                      # استلام صناديق النشاط اليومي (إلزامية وتلقائية)
             "enabled": True,
+        },
+        "watermill": {                        # مكافأة الطاحونة (زيادة إنتاج الموارد: قمح، خشب، حديد، فضة)
+            "enabled": False,
+            "resources": ["food", "wood", "iron", "silver"],
+            "types": "all",
         },
     }
 }
@@ -291,12 +301,12 @@ class CastleBot:
                 tasks_cfg.update(saved_cfg["tasks"])
 
             # إعدادات المهام المباشرة في جذر config هي صاحبة الأولوية المطلقة (تعديلات المستخدم في الواجهة)
-            for t_name in ("fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "command_hall", "arena", "hero_trial", "daily_quest"):
+            for t_name in ("fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest"):
                 if t_name in saved_cfg:
                     tasks_cfg[t_name] = saved_cfg[t_name]
 
             for k, v in saved_cfg.items():
-                if k not in ("tasks", "fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "command_hall", "arena", "hero_trial", "daily_quest"):
+                if k not in ("tasks", "fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest"):
                     self.config[k] = v
         except Exception:
             pass

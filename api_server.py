@@ -377,6 +377,26 @@ class ArenaConfigModel(BaseModel):
         val = str(v or "kingdom").lower().strip()
         return val if val in ("kingdom", "global") else "kingdom"
 
+class CommandHallConfigModel(BaseModel):
+    enabled: bool = False
+    mode: Literal["daily", "full"] = "daily"
+    allow_marches: bool = True
+    auto_claim_rewards: bool = True
+    auto_upgrade_hall: bool = True
+    min_safety_stamina: int = 10
+
+    @field_validator("mode", mode="before")
+    @classmethod
+    def normalize_mode(cls, v: Any) -> str:
+        val = str(v or "daily").lower().strip()
+        return val if val in ("daily", "full") else "daily"
+
+class WatermillConfigModel(BaseModel):
+    enabled: bool = False
+    resources: Optional[List[str]] = None
+    types: Optional[Any] = "all"
+    allow_shop_buy: Optional[bool] = False
+
 class CastleConfigModel(BaseModel):
     fountain: Optional[FountainConfig] = None
     train: Optional[TrainConfig] = None
@@ -392,10 +412,11 @@ class CastleConfigModel(BaseModel):
     pet: Optional[PetConfig] = None
     forge_equipment: Optional[ForgeEquipmentConfig] = None
     building: Optional[BuildingConfigModel] = None
-    command_hall: Optional[SimpleToggleConfig] = None
     arena: Optional[ArenaConfigModel] = None
     hero_trial: Optional[SimpleToggleConfig] = None
+    command_hall: Optional[CommandHallConfigModel] = None
     daily_quest: Optional[SimpleToggleConfig] = None
+    watermill: Optional[WatermillConfigModel] = None
 
     @model_validator(mode="before")
     @classmethod

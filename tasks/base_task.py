@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-python tools/test_base_task.py --email beetoo2@hotmail.com --fn is_shielded
+python tools/test_base_task.py --email beetoo3@hotmail.com --fn get_command_hall_tasks
+
+python tools/test_base_task.py --email beetoo3@hotmail.com command_hall
 """
 
 from __future__ import annotations
@@ -251,6 +253,53 @@ RESOURCE_CATALOG: Dict[str, Dict[str, Any]] = {
         ],
     },
 }
+
+# ═════════════════════════════════════════════════════════════════════════
+# جداول وثوابت قاعة القيادة الرسمية للعبة (Command Hall Standards)
+# ═════════════════════════════════════════════════════════════════════════
+
+CMD_COMMAND_HALL_MODULE = "2274"
+REQ_COMMAND_HALL_INIT = "1"                 # مزامنة بيانات قاعة القيادة
+REQ_COMMAND_HALL_UPGRADE_COMMAND_LV = "2"   # ترقية مستوى قاعة القيادة واستلام الجوائز
+REQ_COMMAND_HALL_UPGRADE_POWER_LV = "3"     # ترقية مستوى القوة
+REQ_COMMAND_HALL_FINISH_TASK = "5"          # إنجاز المهام الفورية (حوار / إنقاذ / قنص)
+REQ_COMMAND_HALL_SET_DEFEND = "6"           # تعيين تشكيلة الدفاع
+REQ_COMMAND_HALL_ATTACK_ARMY_GROUP = "7"    # شن هجوم استباقي على فيلق الغزاة
+REQ_COMMAND_HALL_COMMIT_TASK = "8"          # استلام جوائز المهام المنجزة (statue == 3)
+REQ_COMMAND_HALL_REFRESH_POS = "9"          # تحديث إحداثيات وموقع الـ NPC على الخريطة
+REQ_COMMAND_HALL_REFRESH_POS2 = "10"        # تنشيط ومزامنة موقع الـ NPC 2
+
+COMMAND_HALL_TASK_TYPES: Dict[int, Dict[str, Any]] = {
+    1: {"name_ar": "فيلق الغزاة (جيش المتمردين)", "category": "boss", "needs_army": True},
+    2: {"name_ar": "طليعة الغزاة (متمردون)", "category": "march", "needs_army": True},
+    3: {"name_ar": "المعلومات العسكرية (حوار فوري)", "category": "instant", "needs_army": False},
+    4: {"name_ar": "إنقاذ القرويين (إنقاذ فوري)", "category": "instant", "needs_army": False},
+    5: {"name_ar": "فريق الغزاة (معركة مسير)", "category": "march", "needs_army": True},
+    6: {"name_ar": "القناص الصامت (لعبة مصغرة)", "category": "instant", "needs_army": False},
+}
+
+COMMAND_HALL_TASK_STATUES: Dict[int, str] = {
+    1: "قيد الإعداد",
+    2: "جاهزة للتنفيذ",
+    3: "مكتملة وبانتظار الاستلام",
+}
+
+COMMAND_HALL_QUALITY_NAMES: Dict[int, str] = {
+    1: "أبيض (عادي)",
+    2: "أخضر (جيد)",
+    3: "أزرق (ممتاز)",
+    4: "بنفسجي (ملحمي)",
+    5: "برتقالي (أسطوري)",
+    6: "ذهبي/أحمر (فائق)",
+}
+
+COMMAND_HALL_EXP_BY_LV: Dict[int, int] = {
+    1: 200, 2: 300, 3: 400, 4: 500, 5: 600, 6: 800,
+    7: 1600, 8: 1600, 9: 1600, 10: 1600, 11: 2400,
+    12: 2400, 13: 2400, 14: 2400, 15: 2400, 16: 3200,
+    17: 3200, 18: 3200, 19: 3200, 20: 3200, 21: 4800,
+}
+COMMAND_HALL_MAX_LEVEL = 21
 
 
 class BaseTask(ABC):
@@ -828,6 +877,145 @@ class BaseTask(ABC):
     has_active_ruins_march = is_ruins_march_active
     _get_active_gather_types = get_active_gather_resource_types
 
+    # ═════════════════════════════════════════════════════════════════════════
+    # دوال جلب وفحص القوات والجنود الشاغرين في القلعة (0-Network Direct Read)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    def get_available_troops(
+        self,
+        exclude_fortress: bool = True,
+        as_list: bool = False,
+        reverse: bool = False,
+    ) -> Dict[int, int] | List[Dict[str, int]]:
+        """
+        جلب القوات والجنود المتاحين والشاغرين حالياً داخل القلعة من الذاكرة الحية (0-Network):
+        - قراءة فورية من كائن armyCtrl (totalArmy / freeArmy / armys) بصفر استعلامات شبكية.
+        - استبعاد وحدات حصن الحرب (فخاخ الحصن 800..899 / BUILDID 120) تلقائياً عند تفعيل exclude_fortress.
+        - استبعاد أي جنود منخرطين حالياً في معارك القلعة من كائن fightingArmy إن وُجد.
+        - ترتيب القوات تصاعدياً بحسب المعرف/الرتبة (reverse=False: الأضعف أولاً لتفادي استنزاف النخب)،
+          أو تنازلياً (reverse=True: الأقوى رتبة أولاً للحشود والمسيرات القتالية).
+        - صيغة الإرجاع:
+          * قاموس {unit_id: count} إذا كان as_list=False (الافتراضي).
+          * قائمة كائنات [{"id": unit_id, "num": count}, ...] إذا كان as_list=True لتناسب حزم السيرفر فوراً.
+        """
+        army_ctrl = self.get_ctrl("armyCtrl")
+        if not army_ctrl or not isinstance(army_ctrl, dict):
+            # محاولة قراءة الاسم البديل army في الذاكرة الحية
+            army_ctrl = self.get_ctrl("army")
+            if not army_ctrl or not isinstance(army_ctrl, dict):
+                army_ctrl = self.init_data.get("armyCtrl", {}) if isinstance(self.init_data.get("armyCtrl"), dict) else {}
+
+        # 1. استخراج مصدر القوات من الذاكرة الحية
+        raw_army = (
+            army_ctrl.get("totalArmy")
+            or army_ctrl.get("freeArmy")
+            or army_ctrl.get("armys")
+            or (army_ctrl.get("armyInfo", {}).get("totalArmy") if isinstance(army_ctrl.get("armyInfo"), dict) else None)
+            or {}
+        )
+
+        fighting_army = army_ctrl.get("fightingArmy") or {}
+        troops_map: Dict[int, int] = {}
+
+        # 2. استخراج وتطهير القوات المتاحة
+        if isinstance(raw_army, dict):
+            for k, v in raw_army.items():
+                try:
+                    uid = int(k)
+                    cnt = int(v)
+                except (ValueError, TypeError):
+                    continue
+
+                if cnt <= 0:
+                    continue
+
+                # استبعاد وحدات حصن الحرب (فخاخ الحصن 800..899 طبقاً لـ serviceFunctions.isTrapID)
+                if exclude_fortress and (800 <= uid <= 899):
+                    continue
+
+                # خصم أي قوات مقيدة في fightingArmy إن وُجدت
+                fight_cnt = 0
+                if isinstance(fighting_army, dict):
+                    raw_fight = fighting_army.get(str(uid)) if str(uid) in fighting_army else fighting_army.get(uid)
+                    if raw_fight is not None:
+                        try:
+                            fight_cnt = int(raw_fight)
+                        except (ValueError, TypeError):
+                            fight_cnt = 0
+
+                avail = max(0, cnt - fight_cnt)
+                if avail > 0:
+                    troops_map[uid] = avail
+
+        elif isinstance(raw_army, list):
+            for entry in raw_army:
+                if not isinstance(entry, dict):
+                    continue
+                raw_id = entry.get("id") or entry.get("armyid") or entry.get("armyID")
+                raw_count = entry.get("num") or entry.get("count") or entry.get("armycount")
+                try:
+                    uid = int(raw_id)
+                    cnt = int(raw_count)
+                except (ValueError, TypeError):
+                    continue
+
+                if cnt <= 0:
+                    continue
+
+                if exclude_fortress and (800 <= uid <= 899):
+                    continue
+
+                fight_cnt = 0
+                if isinstance(fighting_army, dict):
+                    raw_fight = fighting_army.get(str(uid)) if str(uid) in fighting_army else fighting_army.get(uid)
+                    if raw_fight is not None:
+                        try:
+                            fight_cnt = int(raw_fight)
+                        except (ValueError, TypeError):
+                            fight_cnt = 0
+
+                avail = max(0, cnt - fight_cnt)
+                if avail > 0:
+                    troops_map[uid] = troops_map.get(uid, 0) + avail
+
+        # 3. فرز الوحدات (تصاعدي الأضعف أولاً افتراضياً لتفادي استنزاف النخب)
+        sorted_items = sorted(troops_map.items(), key=lambda x: x[0], reverse=reverse)
+
+        # 4. تحويل لصيغة الإرجاع المطلوبة
+        if as_list:
+            return [{"id": k, "num": v} for k, v in sorted_items]
+        return dict(sorted_items)
+
+    def get_available_troops_count(self, exclude_fortress: bool = True) -> int:
+        """إجمالي تعداد الجنود المتاحين والشاغرين في القلعة حالياً (0-Network)."""
+        troops = self.get_available_troops(exclude_fortress=exclude_fortress, as_list=False)
+        return sum(troops.values()) if isinstance(troops, dict) else 0
+
+    @property
+    def available_troops(self) -> Dict[int, int]:
+        """قاموس القوات الشاغرة المتاحة حالياً في القلعة مع استبعاد وحدات حصن الحرب (0-Network)."""
+        res = self.get_available_troops(exclude_fortress=True, as_list=False, reverse=False)
+        return res if isinstance(res, dict) else {}
+
+    @property
+    def available_troops_count(self) -> int:
+        """إجمالي عدد القوات الشاغرة المتاحة في القلعة حالياً مع استبعاد وحدات حصن الحرب."""
+        return self.get_available_troops_count(exclude_fortress=True)
+
+    def get_available_troops_list(
+        self,
+        exclude_fortress: bool = True,
+        reverse: bool = False,
+    ) -> List[Dict[str, int]]:
+        """قائمة كائنات القوات المتاحة بصيغة [{"id": ..., "num": ...}] لتوافق حزم السيرفر فوراً."""
+        res = self.get_available_troops(exclude_fortress=exclude_fortress, as_list=True, reverse=reverse)
+        return res if isinstance(res, list) else []
+
+    # مسميات بديلة للتوافق والانسجام التام (Aliases)
+    get_available_soldiers = get_available_troops
+    get_idle_troops = get_available_troops
+    get_idle_soldiers = get_available_troops
+
     async def sync_local_queues(self, timeout: float = 2.0) -> bool:
         """
         إرسال استعلام مزامنة طوابير الفيالق 1007/1000 للسيرفر وانتظار وصول إشعار NOTIFY_LOCAL_QUEUE_SYNC (cmd 202).
@@ -1135,6 +1323,738 @@ class BaseTask(ABC):
             "success": all_satisfied,
             "results": results,
             "all_satisfied": all_satisfied,
+        }
+
+    @staticmethod
+    def _safe_int(v: Any, default: int = 0) -> int:
+        """تحويل آمن إلى عدد صحيح مع معالجة السلاسل النصية والقيم غير الصالحة دون استثناءات."""
+        if v is None or isinstance(v, bool):
+            return default
+        try:
+            if isinstance(v, str):
+                s = v.strip()
+                return int(float(s)) if s else default
+            return int(v)
+        except (ValueError, TypeError, OverflowError):
+            return default
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 5. استكشاف وجلب مهام قاعة القيادة (Command Hall Inspection)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    async def get_command_hall_tasks(self, force_sync: bool = False) -> Dict[str, Any]:
+        """
+        جلب وتصنيف كافة مهام قاعة القيادة وحالتها بدقة استناداً إلى كود اللعبة الرسمي:
+        - 0-Network Pre-flight: فحص كائن commandHall في الذاكرة الحية أولاً.
+        - عند عدم توفر البيانات أو طلب force_sync=True: إرسال استعلام رسمي آمن (CMD 2274 / SubCMD 1).
+        - تصنيف المهام التنفيذية إلى:
+          * مهام فورية آمنة (instant): حوار (3)، إنقاذ (4)، قنص (6) - لا تتطلب مسيراً ولا جيشاً.
+          * مهام مسير ومعارك (march): طليعة الغزاة (2)، فريق الغزاة (5) - تتطلب إرسال فيلق على الخريطة.
+          * مهمة فيلق الغزاة (boss/legion): المهمة 1 (شن هجوم استباقي أو دفاع عند السور).
+        - حصر المهام المنجزة الجاهزة لاستلام الجوائز (statue == 3).
+        - إثراء شامل لكل مهمة (الاسم العربي، الجودة واللون، الطاقة المطلوبة، الإحداثيات، فحص الأمان 0-Gold).
+        - توفير ملخص شامل للقاعة (المستوى، نقاط الخبرة، هل يمكن الترقية، تقدم النشاط اليومي 33).
+        """
+        # 1. فحص الذاكرة الحية (0-Network)
+        hall_data = self.get_ctrl("commandHall")
+        has_cached = isinstance(hall_data, dict) and bool(
+            hall_data.get("commandLv") or hall_data.get("commonTaskData") or hall_data.get("armyGroupTaskData")
+        )
+
+        # 2. استعلام السيرفر عند الحاجة أو عند طلب force_sync
+        if not has_cached or force_sync:
+            resp = await self.safe_query(CMD_COMMAND_HALL_MODULE, REQ_COMMAND_HALL_INIT, {})
+            if isinstance(resp, dict):
+                init_data = None
+                rspdata = resp.get("rspdata")
+                if isinstance(rspdata, dict) and isinstance(rspdata.get("initData"), dict):
+                    init_data = rspdata["initData"]
+                elif isinstance(resp.get("data"), dict) and resp.get("data"):
+                    init_data = resp["data"]
+                elif "commandLv" in resp or "commonTaskData" in resp or "armyGroupTaskData" in resp:
+                    init_data = resp
+
+                if isinstance(init_data, dict):
+                    if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
+                        cached = self.conn.init_data.setdefault("commandHall", {})
+                        if isinstance(cached, dict):
+                            cached.update(init_data)
+                            hall_data = cached
+                        else:
+                            self.conn.init_data["commandHall"] = init_data
+                            hall_data = init_data
+                    else:
+                        hall_data = init_data
+
+        if not isinstance(hall_data, dict):
+            return {
+                "success": False,
+                "message": "تعذر العثور على بيانات قاعة القيادة في الذاكرة الحية أو عبر السيرفر.",
+                "summary": {},
+                "counts": {"total": 0, "executable": 0, "instant": 0, "march": 0, "claimable": 0},
+                "executable_tasks": [],
+                "instant_tasks": [],
+                "march_tasks": [],
+                "army_group_task": None,
+                "claimable_tasks": [],
+                "all_tasks": [],
+            }
+
+        # 3. استخراج ملخص قاعة القيادة والنشاط اليومي
+        cmd_lv = self._safe_int(hall_data.get("commandLv"), 1)
+        cmd_exp = self._safe_int(hall_data.get("commandExp"), 0)
+        power_lv = self._safe_int(hall_data.get("powerLv"), 1)
+        army_group_id = self._safe_int(hall_data.get("armyGroupID"), 1)
+        next_refresh_time = self._safe_int(hall_data.get("nextRefreshTime"), 0)
+        now_ts = int(time.time())
+        next_refresh_remaining = max(0, next_refresh_time - now_ts) if next_refresh_time > 0 else 0
+        need_exp = COMMAND_HALL_EXP_BY_LV.get(cmd_lv, 0)
+        can_upgrade = (cmd_lv < COMMAND_HALL_MAX_LEVEL) and (need_exp > 0) and (cmd_exp >= need_exp)
+
+        # فحص إنجاز النشاط اليومي (مهمة 33 في everydayTaskCtrl)
+        daily_quest_completed = False
+        daily_progress = 0
+        everyday_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
+        if isinstance(everyday_ctrl, dict):
+            event_info = everyday_ctrl.get("eventInfo")
+            if isinstance(event_info, dict):
+                for k in ("33", "4100033", 33, 4100033):
+                    if k in event_info:
+                        val = self._safe_int(event_info.get(k), 0)
+                        if val >= 1:
+                            daily_quest_completed = True
+                            daily_progress = val
+                            break
+
+        summary = {
+            "command_lv": cmd_lv,
+            "command_exp": cmd_exp,
+            "need_exp": need_exp,
+            "can_upgrade": can_upgrade,
+            "power_lv": power_lv,
+            "army_group_id": army_group_id,
+            "next_refresh_time": next_refresh_time,
+            "next_refresh_remaining_seconds": next_refresh_remaining,
+            "daily_quest_completed": daily_quest_completed,
+            "daily_quest_progress": daily_progress,
+        }
+
+        # 4. تجميع كافة المهام الخام وتطبيعها
+        raw_items: List[Dict[str, Any]] = []
+
+        # (أ) commonTaskData (حوار، إنقاذ، معارك، قنص)
+        ct = hall_data.get("commonTaskData")
+        if isinstance(ct, list):
+            raw_items.extend(item for item in ct if isinstance(item, dict) and item)
+        elif isinstance(ct, dict):
+            raw_items.extend(item for item in ct.values() if isinstance(item, dict) and item)
+
+        # (ب) armyGroupTaskData (فيلق الغزاة)
+        ag = hall_data.get("armyGroupTaskData")
+        if isinstance(ag, dict) and ag:
+            raw_items.append(ag)
+
+        # (ج) armyPioneerTaskData (طليعة الغزاة)
+        ap = hall_data.get("armyPioneerTaskData")
+        if isinstance(ap, dict) and ap:
+            raw_items.append(ap)
+
+        # (د) finishTaskData (المهام المكتملة)
+        ft = hall_data.get("finishTaskData")
+        if isinstance(ft, list):
+            for item in ft:
+                if isinstance(item, dict) and item:
+                    it_copy = dict(item)
+                    if self._safe_int(it_copy.get("statue")) == 0:
+                        it_copy["statue"] = 3
+                    raw_items.append(it_copy)
+        elif isinstance(ft, dict):
+            for k_id, count in ft.items():
+                tid = self._safe_int(k_id)
+                if tid > 0:
+                    raw_items.append({
+                        "taskID": tid,
+                        "statue": 3,
+                        "finish_count": self._safe_int(count, 1),
+                        "is_historical_finish": True,
+                    })
+
+        # (هـ) taskList التوافقية
+        legacy = hall_data.get("taskList") or hall_data.get("tasks")
+        if isinstance(legacy, list):
+            raw_items.extend(item for item in legacy if isinstance(item, dict) and item)
+        elif isinstance(legacy, dict):
+            raw_items.extend(item for item in legacy.values() if isinstance(item, dict) and item)
+
+        # 5. إثراء وتصنيف المهام
+        def _is_costly(task: Dict[str, Any]) -> bool:
+            if self._safe_int(task.get("consumeGold")) > 0 or self._safe_int(task.get("gold")) > 0:
+                return True
+            if bool(task.get("consumeSpeedup")) or bool(task.get("speedup")):
+                return True
+            for field in ("consumeItem", "consumeItems", "item", "items"):
+                val = task.get(field)
+                if val:
+                    if isinstance(val, str) and val.lower().strip() not in ("", "0", "false", "none"):
+                        return True
+                    if isinstance(val, (int, float)) and val > 0:
+                        return True
+                    if isinstance(val, (list, dict)) and len(val) > 0:
+                        return True
+            return False
+
+        all_tasks: List[Dict[str, Any]] = []
+        executable_tasks: List[Dict[str, Any]] = []
+        instant_tasks: List[Dict[str, Any]] = []
+        march_tasks: List[Dict[str, Any]] = []
+        claimable_tasks: List[Dict[str, Any]] = []
+        army_group_task: Optional[Dict[str, Any]] = None
+        seen_keys: Set[Tuple[int, int, int]] = set()
+
+        for item in raw_items:
+            task_id = self._safe_int(item.get("taskID") or item.get("Index") or item.get("id"), 0)
+            idx = self._safe_int(item.get("index"), 0)
+            raw_type = self._safe_int(item.get("type"), 0)
+            # استنتاج النوع إذا لم يكن محدداً صراحة استناداً إلى معرف المهمة
+            if raw_type == 0 and task_id > 0:
+                raw_type = task_id // 1000
+
+            type_info = COMMAND_HALL_TASK_TYPES.get(
+                raw_type,
+                {"name_ar": f"مهمة قيادة نوع {raw_type}", "category": "unknown", "needs_army": False}
+            )
+            type_name = type_info["name_ar"]
+            category = type_info["category"]
+            needs_army = type_info["needs_army"]
+
+            statue = self._safe_int(item.get("statue"), 2 if idx > 0 else 1)
+            statue_name = COMMAND_HALL_TASK_STATUES.get(statue, "غير محددة")
+
+            quality = self._safe_int(item.get("quality"), 1)
+            if quality == 1 and task_id > 0:
+                q_mod = (task_id % 10)
+                if 1 <= q_mod <= 6:
+                    quality = q_mod
+            quality_name = COMMAND_HALL_QUALITY_NAMES.get(quality, f"مستوى {quality}")
+
+            stamina_cost = 0 if raw_type == 3 else self._safe_int(item.get("consume"), 10)
+
+            pos = None
+            obj = item.get("obj")
+            if isinstance(obj, dict) and "x" in obj and "y" in obj:
+                pos = {"x": self._safe_int(obj.get("x")), "y": self._safe_int(obj.get("y"))}
+
+            is_costly = _is_costly(item)
+
+            dedup_key = (task_id, idx, statue)
+            if dedup_key in seen_keys:
+                continue
+            seen_keys.add(dedup_key)
+
+            enriched = {
+                "task_id": task_id,
+                "index": idx,
+                "type": raw_type,
+                "type_name_ar": type_name,
+                "category": category,
+                "needs_army": needs_army,
+                "statue": statue,
+                "statue_name_ar": statue_name,
+                "quality": quality,
+                "quality_name_ar": quality_name,
+                "stamina_cost": stamina_cost,
+                "is_costly": is_costly,
+                "is_fixed_task": bool(item.get("isFixedTask", False)),
+                "pos": pos,
+                "raw": item,
+            }
+
+            all_tasks.append(enriched)
+
+            # المهام المكتملة الجاهزة للاستلام (statue == 3)
+            if statue == 3 and not item.get("is_historical_finish"):
+                claimable_tasks.append(enriched)
+
+            # المهام القابلة للتنفيذ (statue in (1, 2) and not is_costly)
+            if statue in (1, 2) and not is_costly and idx > 0:
+                executable_tasks.append(enriched)
+                if category == "instant":
+                    instant_tasks.append(enriched)
+                elif category == "march":
+                    march_tasks.append(enriched)
+                elif category == "boss":
+                    army_group_task = enriched
+
+        return {
+            "success": True,
+            "summary": summary,
+            "counts": {
+                "total": len(all_tasks),
+                "executable": len(executable_tasks),
+                "instant": len(instant_tasks),
+                "march": len(march_tasks),
+                "claimable": len(claimable_tasks),
+            },
+            "executable_tasks": executable_tasks,
+            "instant_tasks": instant_tasks,
+            "march_tasks": march_tasks,
+            "army_group_task": army_group_task,
+            "claimable_tasks": claimable_tasks,
+            "all_tasks": all_tasks,
+        }
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 6. تجهيز الجيش وتنفيذ معارك فريق الغزاة (Battle Task Execution)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    # جداول القوة والمطابقة الرسمية من سورس كود اللعبة (newcommandhalltask / armyinfo)
+    COMMAND_HALL_RECOMMEND_MAP: Dict[int, Dict[str, int]] = {
+        # مهام فريق الغزاة (نوع 5)
+        5021: {"recommendArmy": 5630, "recommendHero": 120200},
+        5022: {"recommendArmy": 5630, "recommendHero": 120200},
+        5023: {"recommendArmy": 5630, "recommendHero": 120200},
+        5024: {"recommendArmy": 5630, "recommendHero": 120200},
+        5025: {"recommendArmy": 5630, "recommendHero": 120200},
+        5026: {"recommendArmy": 10430, "recommendHero": 135200},
+        5027: {"recommendArmy": 10430, "recommendHero": 135200},
+        # مهام طليعة الغزاة (نوع 2)
+        2013: {"recommendArmy": 10175, "recommendHero": 135200},
+    }
+
+    # جدول القوة الرسمية للرتب القتالية من armyinfo.lua
+    UNIT_BASE_POWERS: Dict[int, float] = {
+        1: 1.0, 2: 1.4, 3: 1.9, 4: 2.5, 5: 3.2,
+        6: 4.0, 7: 4.9, 8: 5.9, 9: 7.0, 10: 8.2,
+        11: 10.5, 12: 13.5, 13: 24.0, 14: 30.0,
+    }
+
+    def prepare_combat_troops(
+        self,
+        task_id: int = 0,
+        target_power: Optional[int] = None,
+        safety_multiplier: float = 1.20,
+        min_troops: int = 100,
+    ) -> List[Dict[str, int]]:
+        """
+        تجهيز فرقة القوات القتالية لمسير المعركة بالاعتماد على الذاكرة الحية (0-Network) وفق سورس كود اللعبة:
+        - استخراج القوة الموصى بها (recommendArmy) من جدول مهام قاعة القيادة الرسمي (newcommandhalltask.lua).
+        - تطبيق هامش الأمان الموفر الذكي (+20%) المعتمد لضمان النصر بأقل عدد جنود وحماية القلعة.
+        - فرز القوات المتاحة بالقلعة من الأعلى رتبة قتالية (Tier Level = unit_id % 100 تنازلياً) وفق أسبقية اللعبة (WorldDispatchArmyViewPanel).
+        - احتساب القوة القتالية الرسمية لكل رتبة (وفق جدول armyinfo.lua: من 1.0 للرتبة 1 حتى 8.2 للرتبة 10 وما فوق).
+        - التوقف فور تحقيق القوة المستهدفة لتوفير بقية الجيش للمهام الأخرى.
+        - صيغة الإرجاع: [{"id": unit_id, "num": count}, ...] متوافقة مباشرة مع حزمة مسير السيرفر (CMD 1007 / 2).
+        """
+        # 1. احتساب القوة المستهدفة بناءً على مهمة قاعة القيادة وهامش الأمان (+20%)
+        if target_power is None or target_power <= 0:
+            task_cfg = self.COMMAND_HALL_RECOMMEND_MAP.get(task_id)
+            if task_cfg:
+                base_recommend = task_cfg.get("recommendArmy", 5630)
+            else:
+                base_recommend = 10430 if task_id >= 5026 or task_id in (2013, 2014) else 5630
+            target_power = int(math.ceil(base_recommend * safety_multiplier))
+
+        # 2. جلب القوات المتاحة من الذاكرة الحية مع استبعاد وحدات الحصن
+        available_troops = self.get_available_troops(exclude_fortress=True, as_list=False)
+        if not available_troops or not isinstance(available_troops, dict):
+            return []
+
+        # فرز الوحدات تنازلياً وفق الرتبة العسكرية (Tier Level = unit_id % 100) كما في سورس العميل الرسمي
+        sorted_units = sorted(
+            available_troops.items(),
+            key=lambda x: (x[0] % 100, x[0]),
+            reverse=True,
+        )
+
+        selected: List[Dict[str, int]] = []
+        accumulated_power = 0.0
+
+        for unit_id, available_count in sorted_units:
+            if available_count <= 0:
+                continue
+
+            # استخراج القوة الفعلية للوحدة من جدول armyinfo.lua
+            unit_level = max(1, unit_id % 100)
+            unit_base_power = self.UNIT_BASE_POWERS.get(unit_level, max(1.0, float(unit_level * 0.7)))
+
+            # حساب العدد المطلوب من هذه الرتبة لسد العجز المتبقي من القوة
+            remaining_power = max(0.0, float(target_power) - accumulated_power)
+            needed_count = math.ceil(remaining_power / unit_base_power) if unit_base_power > 0 else int(remaining_power)
+            take_count = min(available_count, max(min_troops, needed_count))
+
+            if take_count > 0:
+                selected.append({"id": int(unit_id), "num": int(take_count)})
+                accumulated_power += take_count * unit_base_power
+
+            if accumulated_power >= target_power:
+                break
+
+        # صمام أمان: إذا لم يتم اختيار جنود (مثلاً الرتب فارغة)، نضمن اختيار أول رتبة متاحة بالحد الأدنى
+        if not selected:
+            for unit_id, count in available_troops.items():
+                if count > 0:
+                    selected.append({"id": int(unit_id), "num": min(count, max(1, min_troops))})
+                    break
+
+        return selected
+
+    def prepare_combat_hero(self, task_id: int = 0) -> List[Dict[str, int]]:
+        """
+        انتقاء وتجهيز تشكيلة الأبطال القتاليين المتعددة وفق الاستنباط الدقيق من سورس كود اللعبة (heroSelectBanner / heroCtrl):
+        - احتساب عدد الخانات القتالية المفتوحة (openSites / max_slots) بحسب مستوى القلعة (حتى 5 أبطال للقلعة 18 فما فوق).
+        - قراءة الأبطال وحالاتهم من الذاكرة الحية (0-Network) عبر heroSysCtrl / heroCtrl.
+        - استبعاد أبطال حراسة السور المخصصين (defendList) لمنع سحبهم وإضعاف دفاع القلعة.
+        - استبعاد أبطال الجمع التخصصيين (1711, 1724, 1733).
+        - استبعاد الأبطال المشغولين في مسيرات نشطة أخرى (queue غير فارغ).
+        - تطبيق خوارزمية الفرز الرسمية للعبة (heroCtrl:sortDispatchHerosID):
+          1. الأبطال في الحالة الشاغرة (state == 1 أو state == 4 غير مخصص للسور).
+          2. أسبقية الأبطال ذوي المظهر/النائب الخاص (ownL).
+          3. المستوى التنازلي (level).
+          4. الجودة والنجوم التنازلية (quality).
+          5. حالة الصحوة التنازلية (isAwake).
+          6. المعرف التصاعدي (heroID).
+        - اختيار أفضل (max_slots) أبطال لملء كافة الخانات الشاغرة كما تفعل دالة اللعبة (autoFillHeros).
+        - صيغة الإرجاع: [{"heroID": hid}, ...] متوافقة 100% مع حزمة السيرفر الرسمية.
+        """
+        hero_ctrl = self.get_ctrl("heroSysCtrl") or self.get_ctrl("heroCtrl")
+        if not isinstance(hero_ctrl, dict):
+            return []
+
+        hero_list_raw = hero_ctrl.get("heroList")
+        if not isinstance(hero_list_raw, dict):
+            return []
+
+        # 1. تحديد عدد خانات الأبطال المفتوحة للمسير وفق مستوى القلعة (heroCtrl:getMaxBattleHeroNum)
+        castle_lv = getattr(self, "castle_level", 1)
+        if castle_lv >= 18:
+            max_slots = 5
+        elif castle_lv >= 14:
+            max_slots = 4
+        elif castle_lv >= 10:
+            max_slots = 3
+        elif castle_lv >= 5:
+            max_slots = 2
+        else:
+            max_slots = 1
+
+        # 2. استخراج قائمة حراس السور الفعليين لاستبعادهم بدقة
+        defend_ids: Set[int] = set()
+        raw_defend = hero_ctrl.get("defendList", {})
+        if isinstance(raw_defend, dict):
+            for vk, vv in raw_defend.items():
+                if isinstance(vv, dict):
+                    dhid = self._safe_int(vv.get("heroID", vv.get("id")))
+                    if dhid > 0:
+                        defend_ids.add(dhid)
+                elif isinstance(vv, (int, str)):
+                    dhid = self._safe_int(vv)
+                    if dhid > 0:
+                        defend_ids.add(dhid)
+
+        # 3. أبطال الجمع التخصصيين المستبعدين دائماً من القتال
+        gathering_hero_ids = {1711, 1724, 1733}
+
+        # فحص المسيرات النشطة لاستخراج أي بطل منخرط حالياً في طابور مسير
+        active_queue_heroes: Set[int] = set()
+        if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
+            for q_item in self.conn.init_data.get("local_queues", []):
+                if isinstance(q_item, dict):
+                    qid = self._safe_int(q_item.get("heroID", 0))
+                    if qid > 0:
+                        active_queue_heroes.add(qid)
+                    q_heroes = q_item.get("heroInfo")
+                    if isinstance(q_heroes, list):
+                        for qh in q_heroes:
+                            if isinstance(qh, dict):
+                                qhid = self._safe_int(qh.get("heroID", 0))
+                                if qhid > 0:
+                                    active_queue_heroes.add(qhid)
+
+        # 4. فلترة وتجهيز المرشحين (حصراً الأبطال في الحالة 1: HERO_STATE_NORMAL وفق معيار اللعبة الرسمي)
+        candidates: List[Dict[str, Any]] = []
+        for k, v in hero_list_raw.items():
+            if not isinstance(v, dict):
+                continue
+
+            hid = self._safe_int(v.get("heroID", k))
+            if hid <= 0 or hid in gathering_hero_ids or hid in defend_ids or hid in active_queue_heroes:
+                continue
+
+            state = self._safe_int(v.get("state"), 0)
+            q = v.get("queue")
+            has_queue = bool(q and isinstance(q, dict) and len(q) > 0)
+            # الحالة 1 فقط تعني متفرغ وجاهز للمسير (gHeroState.HERO_STATE_NORMAL = 1)
+            # الحالة 4 تعني HERO_STATE_BATTLE وحظر السيرفر المباشر بالخطأ 856008
+            if state == 1 and not has_queue:
+                quality = self._safe_int(v.get("quality"), 1)
+                level = self._safe_int(v.get("level"), 1)
+                is_awake = bool(v.get("isAwake", False))
+
+                dress = v.get("dress", {})
+                cur_dress = self._safe_int(dress.get("seting") if isinstance(dress, dict) else 0)
+                own_lieutenant = bool(cur_dress > 0 and cur_dress % 100 > 1)
+
+                candidates.append({
+                    "heroID": hid,
+                    "level": level,
+                    "quality": quality,
+                    "is_awake": is_awake,
+                    "own_l": own_lieutenant,
+                    "dress": cur_dress,
+                })
+
+        if not candidates:
+            return []
+
+        # 5. الفرز المطابق لخوارزمية اللعبة heroCtrl:sortDispatchHerosID
+        candidates.sort(
+            key=lambda x: (
+                1 if x["own_l"] else 0,
+                x["level"],
+                x["quality"],
+                1 if x["is_awake"] else 0,
+                -x["heroID"],
+            ),
+            reverse=True,
+        )
+
+        # 6. اختيار أعلى الأبطال لملء كافة الخانات المتاحة
+        selected_heroes: List[Dict[str, int]] = []
+        for c in candidates[:max_slots]:
+            selected_heroes.append({"heroID": int(c["heroID"])})
+
+        return selected_heroes
+
+    async def execute_command_hall_battle_task(
+        self,
+        task: Dict[str, Any],
+        wait_seconds: float = 7.0,
+    ) -> Dict[str, Any]:
+        """
+        إنجاز مهمة معركة فريق الغزاة (نوع 5) أو طليعة الغزاة (نوع 2) بالكامل:
+        1. الفحص القبلي للجاهزية (0-Network Pre-flight):
+           - التحقق من نوع المهمة (5 معركة أو 2 طليعة) ووجود الإحداثيات.
+           - التحقق من شاغرية الفيالق (get_available_marches_count() > 0).
+           - التحقق من كفاية طاقة اللورد (10 طاقة).
+           - التحقق من توفر القوات المقاتلة داخل القلعة.
+        2. تجهيز الجيش والبطل:
+           - استدعاء prepare_combat_troops() لتحقيق قوة الجيش الموصى بها.
+           - استدعاء prepare_combat_hero() لانتقاء أعلى بطل قتالي متفرغ.
+        3. مزامنة موقع الـ NPC الرسمي عبر CMD 2274 / SubCMD 9 (REQ_COMMAND_HALL_REFRESH_POS).
+        4. إرسال المسير الرسمي نحو هدف الـ NPC على الخريطة (CMD 1007 / SubCMD 2) بإحداثيات خلايا الخريطة (Tile = Server - 1).
+        5. الانتظار الإلزامي لحسم المعركة بالسيرفر (~7.0 ثوانٍ وفق زمن المسير الرسمي للعبة).
+        6. استلام الجائزة فورياً وتثبيت الإنجاز عبر (CMD 2274 / SubCMD 8 - commitTask).
+        7. تحديث الذاكرة الحية (خصم الطاقة، تحديث حالة المهمة والجوائز والخبرة).
+        """
+        if not isinstance(task, dict):
+            return {"success": False, "reason": "كائن المهمة غير صالح أو مفقود."}
+
+        task_id = self._safe_int(task.get("task_id") or task.get("taskID") or task.get("Index"), 0)
+        task_index = self._safe_int(task.get("index"), 0)
+        task_type = self._safe_int(task.get("type"), 0)
+        if task_type == 0 and task_id > 0:
+            task_type = task_id // 1000
+
+        # التحقق من أن المهمة قتالية (فريق الغزاة 5 أو طليعة الغزاة 2)
+        if task_type not in (2, 5):
+            return {
+                "success": False,
+                "reason": f"هذه الدالة مخصصة لمهام المعارك والمسير (نوع 5 أو 2) وليست للنوع {task_type}.",
+            }
+
+        if task_index <= 0:
+            return {"success": False, "reason": "معرف مؤشر المهمة (index) غير صالح."}
+
+        # فحص إحداثيات الهدف
+        pos = task.get("pos") or {}
+        if not isinstance(pos, dict) or not pos.get("x") or not pos.get("y"):
+            obj = task.get("obj") or (task.get("raw", {}).get("obj") if isinstance(task.get("raw"), dict) else {})
+            if isinstance(obj, dict) and obj.get("x") and obj.get("y"):
+                pos = {"x": self._safe_int(obj.get("x")), "y": self._safe_int(obj.get("y"))}
+
+        target_x = self._safe_int(pos.get("x"))
+        target_y = self._safe_int(pos.get("y"))
+        if target_x <= 0 or target_y <= 0:
+            return {"success": False, "reason": "إحداثيات هدف المعركة غير متوفرة على الخريطة."}
+
+        # 1. فحص الشواغر والموارد (0-Network)
+        avail_marches = self.get_available_marches_count()
+        if avail_marches <= 0:
+            return {
+                "success": False,
+                "reason": "لا توجد طوابير مسير شاغرة حالياً (كافة الفيالق نشطة بالخارج).",
+            }
+
+        stamina_cost = self._safe_int(task.get("stamina_cost"), 10)
+        if self.stamina < stamina_cost:
+            return {
+                "success": False,
+                "reason": f"طاقة اللورد غير كافية ({self.stamina} متوفر | المطلوب: {stamina_cost}).",
+            }
+
+        avail_troops = self.get_available_troops_count()
+        if avail_troops <= 0:
+            return {"success": False, "reason": "لا توجد قوات مقاتلة متاحة داخل القلعة."}
+
+        # 2. تجهيز الجيش والبطل
+        selected_troops = self.prepare_combat_troops(task_id=task_id)
+        if not selected_troops:
+            return {"success": False, "reason": "تعذر تشكيل فرقة القوات المقاتلة."}
+
+        selected_heroes = self.prepare_combat_hero(task_id=task_id)
+        hero_ids_str = ", ".join(str(h["heroID"]) for h in selected_heroes)
+        hero_log_str = f" مع الأبطال ({hero_ids_str})" if selected_heroes else " (بدون أبطال)"
+        total_troops_num = sum(t.get("num", 0) for t in selected_troops)
+
+        # 3. مزامنة وتنشيط موقع الـ NPC على الخريطة لدى السيرفر (CMD 2274 / SubCMD 9)
+        fresh_server_x = target_x
+        fresh_server_y = target_y
+        ref_resp = await self.safe_query(CMD_COMMAND_HALL_MODULE, REQ_COMMAND_HALL_REFRESH_POS, {"x": target_x, "y": target_y}, min_delay=0.3, max_delay=0.6)
+        if isinstance(ref_resp, dict):
+            rspdata = ref_resp.get("rspdata")
+            if isinstance(rspdata, dict) and rspdata.get("x") and rspdata.get("y"):
+                fresh_server_x = self._safe_int(rspdata.get("x"))
+                fresh_server_y = self._safe_int(rspdata.get("y"))
+
+        # تحويل إحداثيات السيرفر إلى إحداثيات خلايا الخريطة للعميل (Tile Pos = Server Pos - 1)
+        tile_x = fresh_server_x - 1
+        tile_y = fresh_server_y - 1
+
+        task_title = "طليعة الغزاة" if task_type == 2 else "فريق الغزاة"
+        self.log(
+            f"⚔️ [قاعة القيادة] إرسال فيلق معركة لمهمة {task_title} #{task_index} (ID: {task_id}) "
+            f"نحو الهدف ({tile_x}, {tile_y}) [سيرفر: {fresh_server_x}, {fresh_server_y}] — جنود: {total_troops_num:,}{hero_log_str}..."
+        )
+
+        # 4. بناء حزمة إرسال المسير الرسمية (CMD 1007 / SubCMD 2)
+        march_payload = {
+            "to": {"x": tile_x, "y": tile_y},
+            "moveLineType": 15,  # moveLineTypeCommandHallNpc
+            "matrixType": 1,     # moveLineMatrixTypeTroop
+            "taskIndex": task_index,
+            "taskType": task_type,
+            "commandHallTaskType": task_type,
+            "commandHallTaskID": task_id,
+            "army": selected_troops,
+            "heroInfo": selected_heroes,
+            "armsInfo": [],
+            "divineBeastInfo": [],
+            "data": {
+                "to": {"x": tile_x, "y": tile_y},
+                "data": {
+                    "commandHallTaskType": task_type,
+                    "commandHallTaskID": task_id,
+                },
+                "army": selected_troops,
+                "heroInfo": selected_heroes,
+                "armsInfo": [],
+                "divineBeastInfo": [],
+                "mapId": 1,
+                "isDuel": False,
+                "isKillLeaderNpc": False,
+                "killNormalNpcLv": 0,
+                "isForbidSpeed": False,
+                "isSecondaryLock": False,
+            },
+        }
+
+        # إرسال طلب المسير
+        march_resp = await self.safe_query("1007", "2", march_payload, min_delay=0.6, max_delay=1.2)
+        if not isinstance(march_resp, dict) or str(march_resp.get("err", march_resp.get("code", "0"))).strip() not in ("0", "Err_None"):
+            err_msg = march_resp.get("err") if isinstance(march_resp, dict) else "لم يرد استجابة من السيرفر"
+            self.log(f"⚠️ [قاعة القيادة] تعذر إرسال فيلق المعركة للمهمة #{task_index} (الخطأ: {err_msg}).")
+            return {
+                "success": False,
+                "reason": f"فشل طلب إرسال الفيلق: {err_msg}",
+                "march_response": march_resp,
+            }
+
+        # خصم طاقة اللورد محلياً في الذاكرة الحية (0-Network)
+        lord = self.get_ctrl("lordInfoCtrl")
+        if isinstance(lord, dict):
+            base = lord.get("base")
+            if isinstance(base, dict) and "health" in base:
+                base["health"] = max(0, self._safe_int(base["health"]) - stamina_cost)
+
+        self.log(f"🏹 [قاعة القيادة] انطلق الفيلق بنجاح إلى الهدف ({tile_x}, {tile_y}) — انتظار حسم المعركة بالسيرفر ({wait_seconds} ثانية)...")
+
+        # 4. الانتظار الإلزامي لحسم المعركة
+        await asyncio.sleep(max(1.0, float(wait_seconds)))
+
+        # 5. استلام الجائزة فورياً عبر CMD 2274 / SubCMD 8
+        self.log(f"🎁 [قاعة القيادة] استلام جوائز معركة فريق الغزاة #{task_index}...")
+        claim_payload = {"commitType": task_type, "index": task_index}
+        claim_resp = await self.safe_query(
+            CMD_COMMAND_HALL_MODULE,
+            REQ_COMMAND_HALL_COMMIT_TASK,
+            claim_payload,
+            min_delay=0.5,
+            max_delay=1.0,
+        )
+
+        rewards = []
+        claim_success = False
+        if isinstance(claim_resp, dict) and str(claim_resp.get("err", claim_resp.get("code", "0"))).strip() in ("0", "Err_None"):
+            claim_success = True
+        else:
+            # محاولة احتياطية ثانية بعد ثانية ونصف في حال استغرق السيرفر زمناً إضافياً لحسم المعركة
+            await asyncio.sleep(1.5)
+            claim_resp = await self.safe_query(
+                CMD_COMMAND_HALL_MODULE,
+                REQ_COMMAND_HALL_COMMIT_TASK,
+                claim_payload,
+                min_delay=0.4,
+                max_delay=0.8,
+            )
+            if isinstance(claim_resp, dict) and str(claim_resp.get("err", claim_resp.get("code", "0"))).strip() in ("0", "Err_None"):
+                claim_success = True
+
+        if claim_success:
+            rspdata = claim_resp.get("rspdata")
+            if isinstance(rspdata, dict) and "reward" in rspdata:
+                rewards = rspdata.get("reward") or []
+            elif "reward" in claim_resp:
+                rewards = claim_resp.get("reward") or []
+
+            # تحديث الذاكرة الحية (0-Network Cache Sync)
+            init_data = rspdata.get("initData") if isinstance(rspdata, dict) else None
+            if isinstance(init_data, dict):
+                if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
+                    cached = self.conn.init_data.setdefault("commandHall", {})
+                    if isinstance(cached, dict):
+                        cached.update(init_data)
+            else:
+                # وضع علامة اكتمال على المهمة محلياً بالذاكرة
+                cached_hall = self.get_ctrl("commandHall")
+                if isinstance(cached_hall, dict):
+                    for task_arr_key in ("commonTaskData", "taskList"):
+                        arr = cached_hall.get(task_arr_key)
+                        if isinstance(arr, list):
+                            for itm in arr:
+                                if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
+                                    itm["statue"] = 0
+                        elif isinstance(arr, dict):
+                            for itm in arr.values():
+                                if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
+                                    itm["statue"] = 0
+
+            self.log(f"✅ [قاعة القيادة] تم حسم المعركة واستلام جوائز {task_title} #{task_index} بنجاح!")
+        else:
+            claim_err = claim_resp.get("err") if isinstance(claim_resp, dict) else "no_response"
+            self.log(f"ℹ️ [قاعة القيادة] حسمت المعركة لمهمة {task_title} #{task_index} بنجاح عبر المسير (رد استلام الجائزة: {claim_err}).")
+
+        return {
+            "success": True,
+            "task_id": task_id,
+            "index": task_index,
+            "target_pos": {"server": {"x": fresh_server_x, "y": fresh_server_y}, "tile": {"x": tile_x, "y": tile_y}},
+            "troops_sent": selected_troops,
+            "heroes_sent": selected_heroes,
+            "stamina_spent": stamina_cost,
+            "march_response": march_resp,
+            "claim_response": claim_resp,
+            "claim_success": claim_success,
+            "rewards": rewards,
+            "message": f"تم إنجاز معركة {task_title} #{task_index} واستلام الجوائز بنجاح." if claim_success else f"تم إرسال فيلق المعركة لمهمة {task_title} #{task_index} بنجاح.",
         }
 
 

@@ -390,6 +390,68 @@ def test_ruins_march(task: BaseTask) -> Dict[str, Any]:
     }
 
 
+def test_available_troops(task: BaseTask) -> Dict[str, Any]:
+    """اختبار استخراج وفحص القوات والجنود الشاغرين في القلعة مع استبعاد حصن الحرب (0-Network)."""
+    t0 = time.perf_counter()
+    troops_dict = task.get_available_troops(exclude_fortress=True, as_list=False, reverse=False)
+    troops_list = task.get_available_troops(exclude_fortress=True, as_list=True, reverse=False)
+    troops_rev = task.get_available_troops(exclude_fortress=True, as_list=False, reverse=True)
+    all_units = task.get_available_troops(exclude_fortress=False, as_list=False)
+    total_count = task.get_available_troops_count(exclude_fortress=True)
+    prop_count = task.available_troops_count
+    prop_troops = task.available_troops
+    troops_list_helper = task.get_available_troops_list(exclude_fortress=True)
+    t_elapsed_ms = (time.perf_counter() - t0) * 1000
+
+    # إحصائيات الأفخاخ المستبعدة لحصن الحرب (800..899)
+    fortress_count = sum(v for k, v in all_units.items() if 800 <= k <= 899)
+
+    # تصنيف القوات المتاحة حسب الصنف الرسمي للعبة
+    type_names = {
+        4: "🛡️ مشاة (Infantry)",
+        5: "🐎 خيالة (Cavalry)",
+        6: "🏹 رماة (Archers)",
+        7: "🚜 عربات (Chariots)",
+        9: "⭐ نخبة (Elite)",
+    }
+    categorized: Dict[str, int] = {}
+    for uid, cnt in troops_dict.items():
+        cat_key = type_names.get(uid // 100, f"وحدات ({uid // 100})")
+        categorized[cat_key] = categorized.get(cat_key, 0) + cnt
+
+    print("\n" + "═" * 70)
+    print(" ⚔️ [Available Troops] القوات والجنود الشاغرين في القلعة (0-Network)")
+    print("═" * 70)
+    print(f"   • إجمالي الجنود المتاحين والشاغرين : {total_count:,} جندي (Property: {prop_count:,})")
+    print(f"   • وحدات حصن الحرب المستبعدة (الأفخاخ) : {fortress_count:,} فخ (ID: 800..899)")
+    print(f"   • تفصيل القوات حسب الصنف:")
+    if categorized:
+        for cat_name, cat_cnt in categorized.items():
+            print(f"       - {cat_name:<24}: {cat_cnt:,}")
+    else:
+        print("       (لا يوجد أي جنود متاحين في القلعة حالياً - القلعة خالية من الجنود)")
+    print(f"   • عينة من الوحدات المتاحة (تصاعدي - الأضعف رتبة أولاً):")
+    if troops_list:
+        for item in troops_list[:5]:
+            print(f"       - معرف: {item['id']} | العدد: {item['num']:,}")
+        if len(troops_list) > 5:
+            print(f"       ... و {len(troops_list) - 5} فئات أخرى")
+    else:
+        print("       (قائمة فارغة [] - صفر استهلاك للقوات الملفقة)")
+    print(f"   ⚡ زمن القراءة والمعالجة الفوري     : {t_elapsed_ms:.3f} ms (0-Network)")
+    print("═" * 70)
+
+    return {
+        "success": True,
+        "total_available_troops": total_count,
+        "fortress_traps_excluded": fortress_count,
+        "troops_dict": troops_dict,
+        "troops_list": troops_list,
+        "categorized": categorized,
+        "time_ms": t_elapsed_ms,
+    }
+
+
 async def test_sync_queues(task: BaseTask) -> Dict[str, Any]:
     """اختبار إرسال استعلام مزامنة طوابير الفيالق 1007/1000."""
     t0 = time.perf_counter()
@@ -520,6 +582,110 @@ async def test_safe_query_and_jitter(task: BaseTask) -> Dict[str, Any]:
     }
 
 
+async def test_command_hall_inspection(task: BaseTask, force_sync: bool = False) -> Dict[str, Any]:
+    """اختبار دالة استكشاف وجلب مهام قاعة القيادة (get_command_hall_tasks)."""
+    t0 = time.perf_counter()
+    print("\n" + "═" * 70)
+    print(" 🏰 [Command Hall Inspection] فحص وجلب مهام قاعة القيادة الشامل")
+    print("═" * 70)
+
+    res = await task.get_command_hall_tasks(force_sync=force_sync)
+    t_elapsed_ms = (time.perf_counter() - t0) * 1000
+
+    if not res.get("success", False):
+        print(f"   ❌ تعذر جلب بيانات قاعة القيادة: {res.get('message')}")
+        print("═" * 70)
+        return {"success": False, "time_ms": t_elapsed_ms, "result": res}
+
+    summary = res.get("summary", {})
+    counts = res.get("counts", {})
+    instant_tasks = res.get("instant_tasks", [])
+    march_tasks = res.get("march_tasks", [])
+    army_group = res.get("army_group_task")
+    claimable = res.get("claimable_tasks", [])
+
+    print(f"   👑 مستوى قاعة القيادة : Lv.{summary.get('command_lv')} (الخبرة: {summary.get('command_exp')}/{summary.get('need_exp')})")
+    print(f"   ⚡ مستوى القوة        : Lv.{summary.get('power_lv')}")
+    print(f"   🎯 فيلق الغزاة الحالي : #{summary.get('army_group_id')}")
+    print(f"   ✨ الترقية متاحة       : {'نعم ✅' if summary.get('can_upgrade') else 'لا ⏳'}")
+    print(f"   📅 النشاط اليومي (33) : {'مكتمل ✅' if summary.get('daily_quest_completed') else 'غير مكتمل ⏳'}")
+    print(f"   ⏳ التحديث القادم      : خلال {summary.get('next_refresh_remaining_seconds')} ثانية")
+    print("   ─" * 35)
+    print(f"   📊 إحصائيات المهام    : إجمالي={counts.get('total')} | للتنفيذ={counts.get('executable')} | فورية={counts.get('instant')} | مسير={counts.get('march')} | للاستلام={counts.get('claimable')}")
+    print("   ─" * 35)
+
+    if army_group:
+        print(f"   🚩 [فيلق الغزاة (بوس)] : ID={army_group['task_id']} | جودة={army_group['quality_name_ar']} | حالة={army_group['statue_name_ar']}")
+
+    if instant_tasks:
+        print(f"   ⚡ [مهام فورية آمنة ({len(instant_tasks)})]:")
+        for t in instant_tasks:
+            print(f"      • [{t['type_name_ar']}] ID={t['task_id']} | جودة={t['quality_name_ar']} | طاقة={t['stamina_cost']}")
+
+    if march_tasks:
+        print(f"   ⚔️ [مهام مسير ومعارك ({len(march_tasks)})]:")
+        for t in march_tasks:
+            pos_str = f"({t['pos']['x']}, {t['pos']['y']})" if t.get('pos') else "غير محدد"
+            print(f"      • [{t['type_name_ar']}] ID={t['task_id']} | جودة={t['quality_name_ar']} | موقع={pos_str} | طاقة={t['stamina_cost']}")
+
+    if claimable:
+        print(f"   🎁 [مهام جاهزة للاستلام ({len(claimable)})]:")
+        for t in claimable:
+            print(f"      • [{t['type_name_ar']}] ID={t['task_id']} | جودة={t['quality_name_ar']}")
+
+    print(f"   ⏱️ زمن التنفيذ الإجمالي: {t_elapsed_ms:.2f} ms")
+    print("═" * 70)
+
+    return {"success": True, "time_ms": t_elapsed_ms, "result": res}
+
+
+async def test_command_hall_battle(task: BaseTask) -> Dict[str, Any]:
+    """اختبار دوال تجهيز الجيش وتنفيذ معركة فريق الغزاة في قاعة القيادة."""
+    t0 = time.perf_counter()
+    print("\n" + "═" * 70)
+    print(" ⚔️ [Command Hall Battle] اختبار تجهيز الجيش وتنفيذ معركة فريق الغزاة")
+    print("═" * 70)
+
+    # 1. اختبار دوال تجهيز الجيش والبطل
+    troops = task.prepare_combat_troops(task_id=5025)
+    heroes = task.prepare_combat_hero(task_id=5025)
+    total_troops = sum(t.get("num", 0) for t in troops)
+    print(f"   🛡️ القوات المجهزة   : {len(troops)} فئات (إجمالي الجنود: {total_troops:,})")
+    for tr in troops:
+        print(f"      • رتبة ID={tr['id']} : {tr['num']:,} جندي")
+    print(f"   👑 الأبطال المجهزون : {len(heroes)} أبطال")
+    for idx, h in enumerate(heroes):
+        print(f"      • خانة {idx+1}: بطل ID={h.get('heroID')}" + (f" (نائب: {h.get('slaveHeroID')})" if h.get("slaveHeroID") else ""))
+
+    # 2. جلب مهام المعارك المتاحة حالياً
+    cmd_res = await task.get_command_hall_tasks(force_sync=False)
+    march_tasks = cmd_res.get("march_tasks", [])
+    battle_tasks = [t for t in march_tasks if t.get("type") in (5, 2)]
+
+    if not battle_tasks:
+        print("   ⚠️ لا توجد مهام فريق الغزاة (نوع 5) متاحة للتنفيذ حالياً في القلعة.")
+        print("═" * 70)
+        return {"success": True, "executed": False, "troops": troops, "heroes": heroes}
+
+    target_task = battle_tasks[0]
+    print(f"   🎯 المهمة المستهدفة : #{target_task.get('index')} (ID: {target_task.get('task_id')}) عند {target_task.get('pos')}")
+
+    # 3. تنفيذ المعركة بالكامل (إرسال المسير + الانتظار + استلام الجائزة)
+    exec_res = await task.execute_command_hall_battle_task(target_task)
+    t_elapsed_ms = (time.perf_counter() - t0) * 1000
+
+    print(f"   🚀 نتيجة التنفيذ   : {'ناجح ✅' if exec_res.get('success') else 'فشل ❌'}")
+    print(f"   📢 رسالة العملية   : {exec_res.get('message', exec_res.get('reason'))}")
+    print(f"   📬 رد إرسال المسير : {exec_res.get('march_response')}")
+    print(f"   🎁 رد استلام الجائزة: {exec_res.get('claim_response')}")
+    if exec_res.get("rewards"):
+        print(f"   ⭐ الجوائز المستلمة: {exec_res.get('rewards')}")
+    print(f"   ⏱️ زمن التنفيذ     : {t_elapsed_ms:.2f} ms")
+    print("═" * 70)
+
+    return {"success": exec_res.get("success", False), "result": exec_res, "time_ms": t_elapsed_ms}
+
+
 # ════════════════════════════════════════════════════════════════════
 # 5. الفحص الشامل لجميع المكونات (All-in-One Benchmark)
 # ════════════════════════════════════════════════════════════════════
@@ -537,6 +703,7 @@ async def run_all_benchmarks(task: BaseTask) -> Dict[str, Any]:
     results["marches"] = test_marches_and_queues(task)
     results["gather_types"] = test_gather_resource_types(task)
     results["ruins_march"] = test_ruins_march(task)
+    results["available_troops"] = test_available_troops(task)
     results["lifecycle"] = await test_lifecycle_and_safety(task)
     results["safe_query"] = await test_safe_query_and_jitter(task)
 
@@ -630,6 +797,7 @@ async def run_interactive_menu(current_email: str, is_live: bool, memory_file: O
             print(" [3] محرك الفيالق والمسيرات (get_max_marches_capacity, active, available...)")
             print(" [4] فحص موارد الجمع النشطة (get_active_gather_resource_types)")
             print(" [5] فحص مسيرات الأطلال (is_ruins_march_active / has_active_ruins_march)")
+            print(" [t] فحص القوات الشاغرة بالقلعة واستبعاد حصن الحرب (get_available_troops)")
             print(" [6] مزامنة طوابير الفيالق مع السيرفر (sync_local_queues)")
             print(" [7] تجربة توفير الموارد وفتح الصناديق (ensure_resources)")
             print(" [8] فحص دورة حياة التنفيذ والحماية (can_run / safe_execute)")
@@ -659,6 +827,9 @@ async def run_interactive_menu(current_email: str, is_live: bool, memory_file: O
 
             elif choice == "5":
                 test_ruins_march(task)
+
+            elif choice in ("t", "troops", "soldiers", "army"):
+                test_available_troops(task)
 
             elif choice == "6":
                 await test_sync_queues(task)
@@ -854,6 +1025,9 @@ async def main_async():
         elif cmd in ("ruins", "ruins_march", "ruin"):
             test_ruins_march(task)
 
+        elif cmd in ("troops", "soldiers", "army", "available_troops", "get_available_troops"):
+            test_available_troops(task)
+
         elif cmd in ("sync", "sync_queues", "sync_local_queues"):
             await test_sync_queues(task)
 
@@ -871,6 +1045,12 @@ async def main_async():
 
         elif cmd in ("safe_query", "query", "jitter"):
             await test_safe_query_and_jitter(task)
+
+        elif cmd in ("command_hall", "cmd_hall", "get_command_hall_tasks", "commandhall"):
+            await test_command_hall_inspection(task, force_sync=getattr(args, "live", False))
+
+        elif cmd in ("command_hall_battle", "battle", "test_battle", "battle_task"):
+            await test_command_hall_battle(task)
 
         elif hasattr(task, cmd):
             # فحص مرن لأي دالة أو خاصية أخرى في BaseTask

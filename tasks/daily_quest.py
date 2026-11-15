@@ -104,24 +104,31 @@ class DailyQuestTask(BaseTask):
     def calculate_cur_points(event_info: Dict[str | int, Any]) -> int:
         """
         احتساب مجموع نقاط النشاط اليومي الحالية من سجل eventInfo.
-        يطابق دالة everydayTaskCtrl:calCurPoint() الرسمية.
+        يطابق دالة everydayTaskCtrl:calCurPoint() الرسمية مع تفادي التكرار التام
+        في حال احتواء الذاكرة الحية على كل من معرف المهمة الكامل (4100001..4100033) ونوعها القصير (1..33).
         """
         if not isinstance(event_info, dict):
             return 0
 
-        total = 0
+        # تجميع العدادات أولاً حسب نوع المهمة الأساسي لمنع احتساب نفس النشاط مرتين
+        task_counts: Dict[int, int] = {}
         for raw_k, raw_count in event_info.items():
             try:
                 k_int = int(raw_k)
                 # مطابقة النوع سواء أكان رقماً مجرداً (1..33) أو ID كامل (4100001..4100033)
                 task_type = k_int % 4100000 if k_int > 4100000 else k_int
-                rule = DAILY_QUEST_POINT_RULES.get(task_type)
-                if rule:
-                    point, limit_time = rule
-                    count = int(raw_count or 0)
-                    total += point * min(count, limit_time)
+                count = int(raw_count or 0)
+                # الاحتفاظ بأعلى عداد مسجل لهذا النوع لمنع التكرار
+                task_counts[task_type] = max(task_counts.get(task_type, 0), count)
             except (ValueError, TypeError):
                 continue
+
+        total = 0
+        for task_type, count in task_counts.items():
+            rule = DAILY_QUEST_POINT_RULES.get(task_type)
+            if rule:
+                point, limit_time = rule
+                total += point * min(count, limit_time)
         return total
 
     @staticmethod
@@ -236,6 +243,14 @@ class DailyQuestTask(BaseTask):
                 everyday_ctrl["normalRecord"] = normal_record
                 self.log(f"ℹ️ [صناديق النشاط] الصندوق {index} مستلم مسبقاً اليوم على السيرفر — تم تحديث الذاكرة الحية.")
 
+            elif is_dict_res and err_str == "470002":
+                # النقاط غير كافية على السيرفر لفتح هذا الصندوق (Err_EVERYDAY_TASK_POINT_NOT_ENOUGH)
+                self.log(
+                    f"⚠️ [صناديق النشاط] تعذر استلام الصندوق {index}: نقاط النشاط على السيرفر لم تبلغ عتبة هذا الصندوق ({threshold} نقطة) بعد (رمز الخطأ: 470002)."
+                )
+                # التوقف الفوري لحماية الحساب من إرسال طلبات لصناديق أعلى غير مستحقة (0-Network Ban Prevention)
+                break
+
             else:
                 err_code = err_str if is_dict_res else "NoResponse"
                 self.log(f"⚠️ [صناديق النشاط] تعذر استلام الصندوق {index} (رمز الخطأ: {err_code}).")
@@ -244,6 +259,12 @@ class DailyQuestTask(BaseTask):
             return TaskResult.ok(
                 f"تم استلام {claimed_count} صندوق نشاط يومي بنجاح (الصناديق: {claimed_indices}) — الرصيد: {cur_points} نقطة.",
                 data={"claimed_chests": claimed_indices, "total_points": cur_points}
+            )
+
+        if is_dict_res and err_str == "470002":
+            return TaskResult.ok(
+                f"نقاط النشاط على السيرفر لم تبلغ عتبة الصندوق {ready_chests[0]} بعد — الرصيد: {cur_points}/500.",
+                data={"claimed_chests": [], "total_points": cur_points}
             )
 
         return TaskResult.fail(f"فشل استلام الصناديق الجاهزة {ready_chests}.")

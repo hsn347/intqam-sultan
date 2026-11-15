@@ -5,7 +5,7 @@ import { Toggle } from '../ui/Toggle'
 import { TaskTabs, TABS } from './TaskTabs'
 import { useUpdateCastleConfig } from '../../hooks/useCastles'
 import { updateCastle } from '../../lib/botApi'
-import type { Castle, TaskTab, CastleConfig, GoldLocation, AbraConfig } from '../../types'
+import type { Castle, TaskTab, CastleConfig, AbraConfig } from '../../types'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { localizeApiError } from '../../lib/localize'
@@ -507,12 +507,19 @@ const FOUNTAIN_RESOURCES = [
   { key: 'crystal', resKey: 'resources.crystal', img: '/images/resources/mkuvars.png' },
 ] as const
 
+const WATERMILL_BOOST_RESOURCES = [
+  { key: 'food',   resKey: 'resources.food',   img: '/images/boosts/icon_building_up_food.png' },
+  { key: 'wood',   resKey: 'resources.wood',   img: '/images/boosts/icon_building_up_wood.png' },
+  { key: 'iron',   resKey: 'resources.iron',   img: '/images/boosts/icon_building_up_iron.png' },
+  { key: 'silver', resKey: 'resources.silver', img: '/images/boosts/icon_building_up_silver.png' },
+] as const
+
 // أنواع القوات والتدريب العسكري
 const BARRACKS_TYPES = [
-  { key: 'infantry', labelKey: 'tasks.infantry', emoji: '🛡️' },
-  { key: 'cavalry',  labelKey: 'tasks.cavalry',  emoji: '🐎' },
-  { key: 'archers',  labelKey: 'tasks.archers',  emoji: '🏹' },
-  { key: 'chariots', labelKey: 'tasks.chariots', emoji: '🚜' },
+  { key: 'infantry', labelKey: 'tasks.infantry', emoji: '🛡️', img: '/images/soldiers/armyicon_s_401.png' },
+  { key: 'cavalry',  labelKey: 'tasks.cavalry',  emoji: '🐎', img: '/images/soldiers/armyicon_s_501.png' },
+  { key: 'archers',  labelKey: 'tasks.archers',  emoji: '🏹', img: '/images/soldiers/armyicon_s_601.png' },
+  { key: 'chariots', labelKey: 'tasks.chariots', emoji: '🚜', img: '/images/soldiers/armyicon_s_701.png' },
 ]
 
 export const PET_TARGETS = [
@@ -536,71 +543,6 @@ export const PET_TARGETS = [
   { id: 1268, name: 'الغوريلا',            emoji: '🦍' },
 ] as const
 
-interface StrategyItem {
-  id: number
-  key: string
-  name_en: string
-  name_ar: string
-  name_tr: string
-  img: string
-  category: 'battle' | 'development' | 'help'
-}
-
-const STRATEGY_ITEMS: StrategyItem[] = [
-  // ⚔️ Battle
-  { id: 91010000, key: 'strat_emptyFort',        name_en: 'Empty Fort',        name_ar: 'القلعة الفارغة', name_tr: 'Boş Hisar',        img: 'bos_hisar.png',        category: 'battle' },
-  { id: 91010015, key: 'strat_mountMastery',     name_en: 'Mount Mastery',     name_ar: 'قمة الإتقان',   name_tr: 'Ustalık Dağı',     img: 'ustalik_dagi.png',     category: 'battle' },
-  { id: 91010012, key: 'strat_oddArchery',       name_en: 'Odd Archery',       name_ar: 'الرماية الفردية', name_tr: 'Tekli Okçuluk',    img: 'tekli_okculuk.png',    category: 'battle' },
-  { id: 91010014, key: 'strat_eyeOfTheNeedle', name_en: 'Eye of the Needle', name_ar: 'عين الإبرة',     name_tr: 'İğnenin Gözü',     img: 'ignenin_gozu.png',     category: 'battle' },
-  { id: 91010013, key: 'strat_skilledSpearplay', name_en: 'Skilled Spearplay', name_ar: 'رمح المهارة',   name_tr: 'Vasıflı Mızrakçı', img: 'vasifli_mizrakci.png', category: 'battle' },
-  { id: 91010016, key: 'strat_lightningSpeed',   name_en: 'Lightning Speed',   name_ar: 'سرعة البرق',     name_tr: 'Yıldırım Hızı',    img: 'yildirim_hizi.png',    category: 'battle' },
-
-  // 🏗️ Development
-  { id: 91010001, key: 'strat_completeSearch',   name_en: 'Complete Search',   name_ar: 'البحث الكامل',   name_tr: 'Aramayı Tamamla',  img: 'aramayi_tamamla.png',  category: 'development' },
-  { id: 91010002, key: 'strat_fullRoom',         name_en: 'Full Room',         name_ar: 'الغرفة الكاملة', name_tr: 'Tam Oda',          img: 'tam_oda.png',          category: 'development' },
-  { id: 91010011, key: 'strat_literaryPursuits', name_en: 'Literary Pursuits', name_ar: 'المساعي الأدبية',name_tr: 'Edebi Arayışlar',  img: 'edebi_arayislar.png',  category: 'development' },
-  { id: 91010003, key: 'strat_washingWaves',     name_en: 'Washing Waves',     name_ar: 'أمواج الغسيل',   name_tr: 'Yıkama Dalgaları', img: 'yikama_dalgalari.png', category: 'development' },
-
-  // 🛡️ Help
-  { id: 91010004, key: 'strat_bornForWar',      name_en: 'Born For War',      name_ar: 'وُلد للحرب',     name_tr: 'Savaş İçin Doğmak', img: 'savas_icin_dogmak.png', category: 'help' },
-  { id: 91010009, key: 'strat_cavalryPractice',  name_en: 'Cavalry Practice',  name_ar: 'تدريب الفرسان',  name_tr: 'Süvari Tatbikatı',  img: 'suvari_tatbikati.png',  category: 'help' },
-  { id: 91010006, key: 'strat_infantryPractice', name_en: 'Infantry Practice', name_ar: 'تدريب المشاة',   name_tr: 'Piyade Tatbikatı',  img: 'piyade_tatbikati.png',  category: 'help' },
-  { id: 91010007, key: 'strat_archerPractice',   name_en: 'Archer Practice',   name_ar: 'تدريب الرماة',   name_tr: 'Okçu Tatbikatı',    img: 'okcu_tatbikati.png',    category: 'help' },
-  { id: 91010005, key: 'strat_bottomless',        name_en: 'Bottomless',        name_ar: 'بلا قاع',        name_tr: 'Dipsiz',            img: 'dipsiz.png',            category: 'help' },
-  { id: 91010010, key: 'strat_smokeBomb',        name_en: 'Smoke Bomb',        name_ar: 'القنبلة الدخانية',name_tr: 'Sis Bombası',      img: 'sis_bombasi.png',      category: 'help' },
-  { id: 91010008, key: 'strat_chariotPractice',  name_en: 'Chariot Practice',  name_ar: 'تدريب العربات',  name_tr: 'Araba Tatbikatı',   img: 'araba_tatbikati.png',   category: 'help' },
-]
-
-const STRATEGY_TABS = [
-  { id: 'battle',      label_en: 'Battle',      label_ar: 'قتال',  icon: '⚔️' },
-  { id: 'development', label_en: 'Development', label_ar: 'تطوير', icon: '🏗️' },
-  { id: 'help',        label_en: 'Help',        label_ar: 'دعم',   icon: '🛡️' },
-] as const
-
-function isStrategySelected(currentVal: any, item: StrategyItem): boolean {
-  if (!currentVal && item.id === 91010000) return true
-  if (currentVal === item.id || currentVal === String(item.id)) return true
-  if (currentVal === item.name_ar || currentVal === item.name_en || currentVal === item.name_tr) return true
-  if (item.id === 91010000 && (currentVal === 'القلعة الفارغة' || currentVal === 'Empty Fort' || currentVal === 'empty castle' || currentVal === 'Boş Hisar')) return true
-  if (item.id === 91010015 && (currentVal === 'قمة الاتقان' || currentVal === 'قمة الإتقان' || currentVal === 'Mount Mastery' || currentVal === 'Ustalık Dağı')) return true
-  if (item.id === 91010012 && (currentVal === 'الرماية الفردية' || currentVal === 'Odd Archery' || currentVal === 'Tekli Okçuluk')) return true
-  if (item.id === 91010014 && (currentVal === 'الضرر الجانبي' || currentVal === 'عين الإبرة' || currentVal === 'Eye of the Needle' || currentVal === 'İğnenin Gözü')) return true
-  if (item.id === 91010013 && (currentVal === 'الرمح الثاقب' || currentVal === 'رمح المهارة' || currentVal === 'Skilled Spearplay' || currentVal === 'Vasıflı Mızrakçı')) return true
-  if (item.id === 91010016 && (currentVal === 'سرعة البرق' || currentVal === 'Lightning Speed' || currentVal === 'Yıldırım Hızı')) return true
-  if (item.id === 91010001 && (currentVal === 'البحث الكامل' || currentVal === 'Complete Search' || currentVal === 'Complete Research' || currentVal === 'Aramayı Tamamla')) return true
-  if (item.id === 91010002 && (currentVal === 'التعزيز الكامل' || currentVal === 'الغرفة الكاملة' || currentVal === 'Full Room' || currentVal === 'Tam Oda')) return true
-  if (item.id === 91010011 && (currentVal === 'المساعي الاكاديمية' || currentVal === 'المساعي الأكاديمية' || currentVal === 'المساعي الأدبية' || currentVal === 'Literary Pursuits' || currentVal === 'Edebi Arayışlar')) return true
-  if (item.id === 91010003 && (currentVal === 'السيل الدافق' || currentVal === 'أمواج الغسيل' || currentVal === 'Washing Waves' || currentVal === 'Yıkama Dalgaları')) return true
-  if (item.id === 91010004 && (currentVal === 'جنود الحرب' || currentVal === 'وُلد للحرب' || currentVal === 'Born For War' || currentVal === 'Savaş İçin Doğmak')) return true
-  if (item.id === 91010009 && (currentVal === 'التدريب المكثف للفرسان' || currentVal === 'تدريب الفرسان' || currentVal === 'Cavalry Practice' || currentVal === 'Süvari Tatbikatı')) return true
-  if (item.id === 91010006 && (currentVal === 'التدريب الجدي للمشاة' || currentVal === 'تدريب المشاة' || currentVal === 'Infantry Practice' || currentVal === 'Piyade Tatbikatı')) return true
-  if (item.id === 91010007 && (currentVal === 'تدريب مكثف للرماة والنشاب' || currentVal === 'تدريب الرماة' || currentVal === 'Archer Practice' || currentVal === 'Okçu Tatbikatı')) return true
-  if (item.id === 91010005 && (currentVal === 'القعر العميق' || currentVal === 'بلا قاع' || currentVal === 'Bottomless' || currentVal === 'Dipsiz')) return true
-  if (item.id === 91010010 && (currentVal === 'القنبلة الدخانية' || currentVal === 'Smoke Bomb' || currentVal === 'Sis Bombası')) return true
-  if (item.id === 91010008 && (currentVal === 'التدريب المكثف للعربات' || currentVal === 'تدريب العربات' || currentVal === 'Chariot Practice' || currentVal === 'Araba Tatbikatı')) return true
-  return false
-}
-
 const STAMINA_GOLD_OPTIONS = [
   { count: 1,  gold: 60 },
   { count: 2,  gold: 150 },
@@ -613,13 +555,6 @@ const STAMINA_GOLD_OPTIONS = [
   { count: 9,  gold: 1620 },
   { count: 10, gold: 1950 },
 ]
-
-const WORKSHOP_MATERIALS = [
-  { key: 'fang',  label: 'ناب',  labelKey: 'tasks.matFang',  img: 'dis.png'   },
-  { key: 'fur',   label: 'فرو',  labelKey: 'tasks.matFur',   img: 'kurk.png'  },
-  { key: 'metal', label: 'معدن', labelKey: 'tasks.matMetal', img: 'metal.png' },
-  { key: 'coal',  label: 'فحم',  labelKey: 'tasks.matCoal',  img: 'komur.png' },
-] as const
 
 export const EQUIPMENT_CATEGORIES = [
   { key: 'weapon',   labelKey: 'tasks.equipWeapon',   img: '/images/daily/equip/weapon.png' },
@@ -673,8 +608,6 @@ function TaskTabContentInner({
   const { t, i18n } = useTranslation()
   const [internalTab, setInternalTab] = useState<TaskTab>(externalTab || initialTab)
   const [coordsError, setCoordsError] = useState(false)
-  const [goldError, setGoldError] = useState(false)
-  const [tacticsCategory, setTacticsCategory] = useState<'battle' | 'development' | 'help'>('battle')
   const [isSavingBatch, setIsSavingBatch] = useState(false)
 
   // حالة القائمة المنسدلة: مهمة واحدة فقط يمكن فتح خياراتها في الوقت نفسه
@@ -749,9 +682,10 @@ function TaskTabContentInner({
     const dailyTrainDraft = (currentDraft as any)?.daily_train
     const dailyQuestDraft = (currentDraft as any)?.daily_quest
     const buildingDraft = (currentDraft as any)?.building
-    const commandHallDraft = (currentDraft as any)?.command_hall
     const arenaDraft = (currentDraft as any)?.arena
     const heroTrialDraft = (currentDraft as any)?.hero_trial
+    const commandHallDraft = (currentDraft as any)?.command_hall
+    const watermillDraft = (currentDraft as any)?.watermill
     isSavingRef.current = true
     setSaveStatus('saving')
     try {
@@ -770,9 +704,10 @@ function TaskTabContentInner({
         daily_train: dailyTrainDraft,
         daily_quest: dailyQuestDraft,
         building: buildingDraft,
-        command_hall: commandHallDraft,
         arena: arenaDraft,
         hero_trial: heroTrialDraft,
+        command_hall: commandHallDraft,
+        watermill: watermillDraft,
       } as any)
       lastSavedConfigRef.current = JSON.parse(JSON.stringify(currentDraft))
       setSavedConfig(JSON.parse(JSON.stringify(currentDraft)))
@@ -827,7 +762,6 @@ function TaskTabContentInner({
       setSaveStatus('idle')
       setSaveErrorMsg(null)
       setCoordsError(false)
-      setGoldError(false)
       return
     }
 
@@ -850,24 +784,6 @@ function TaskTabContentInner({
     if (!isBatchMode) return 0
     return countConfigChanges(savedConfig, draftConfig)
   }, [isBatchMode, savedConfig, draftConfig])
-
-  const draftGg = (draftConfig.march_manager as any)?.gold_gather as { enabled: boolean; locations?: GoldLocation[] } | undefined
-  const goldHasIncompleteLocations = Boolean(
-    draftGg?.enabled &&
-    Array.isArray(draftGg.locations) &&
-    draftGg.locations.some(loc => {
-      const missingX = !loc.x || loc.x <= 0
-      const missingY = !loc.y || loc.y <= 0
-      const missingTag = !loc.alliance_tag || !loc.alliance_tag.trim()
-      return missingX || missingY || missingTag
-    })
-  )
-
-  useEffect(() => {
-    if (!goldHasIncompleteLocations && goldError) {
-      setGoldError(false)
-    }
-  }, [goldHasIncompleteLocations, goldError])
 
   const applyConfigChange = (
     updater: (prev: CastleConfig) => CastleConfig,
@@ -928,22 +844,7 @@ function TaskTabContentInner({
       }
     }
 
-    // التحقق من حقول تحالفات جمع الذهب إذا كانت مفعّلة
-    if (goldHasIncompleteLocations) {
-      toast.error(t('tasks.goldMissingCoordsNavToast'), {
-        id: 'gold-missing-coords',
-        duration: 4500,
-      })
-      setGoldError(true)
-      if (currentTab !== 'gold') {
-        setInternalTab('gold')
-        onTabChange?.('gold')
-      }
-      return
-    }
-
     setCoordsError(false)
-    setGoldError(false)
     setInternalTab(newTab)
     onTabChange?.(newTab)
   }
@@ -970,18 +871,6 @@ function TaskTabContentInner({
       }
     }
 
-    // التحقق من حقول تحالفات جمع الذهب عند الحفظ
-    if (goldHasIncompleteLocations) {
-      toast.error(t('tasks.goldMissingCoordsToast'), {
-        id: 'gold-missing-coords',
-        duration: 4500,
-      })
-      setGoldError(true)
-      setInternalTab('gold')
-      onTabChange?.('gold')
-      return
-    }
-
     const changedSections: Partial<CastleConfig> = {}
     for (const key of Object.keys(draftConfig) as (keyof CastleConfig)[]) {
       if (!fastDeepEqual(draftConfig[key], savedConfig[key])) {
@@ -1003,9 +892,10 @@ function TaskTabContentInner({
     const dailyTrainConfig = (draftConfig as any)?.daily_train
     const dailyQuestConfig = (draftConfig as any)?.daily_quest
     const buildingConfig = (draftConfig as any)?.building
-    const commandHallConfig = (draftConfig as any)?.command_hall
     const arenaConfig = (draftConfig as any)?.arena
     const heroTrialConfig = (draftConfig as any)?.hero_trial
+    const commandHallConfig = (draftConfig as any)?.command_hall
+    const watermillConfig = (draftConfig as any)?.watermill
     const payloadToSave = {
       ...(fountainConfig !== undefined ? { fountain: fountainConfig } : {}),
       ...(trainConfig !== undefined ? { train: trainConfig } : {}),
@@ -1021,9 +911,10 @@ function TaskTabContentInner({
       ...(dailyTrainConfig !== undefined ? { daily_train: dailyTrainConfig } : {}),
       ...(dailyQuestConfig !== undefined ? { daily_quest: dailyQuestConfig } : {}),
       ...(buildingConfig !== undefined ? { building: buildingConfig } : {}),
-      ...(commandHallConfig !== undefined ? { command_hall: commandHallConfig } : {}),
       ...(arenaConfig !== undefined ? { arena: arenaConfig } : {}),
       ...(heroTrialConfig !== undefined ? { hero_trial: heroTrialConfig } : {}),
+      ...(commandHallConfig !== undefined ? { command_hall: commandHallConfig } : {}),
+      ...(watermillConfig !== undefined ? { watermill: watermillConfig } : {}),
     }
     try {
       if (isBatchMode) {
@@ -1051,7 +942,6 @@ function TaskTabContentInner({
     draftConfigRef.current = restored
     setDraftConfig(restored)
     setCoordsError(false)
-    setGoldError(false)
     toast.success(t('common.success'))
   }
 
@@ -1059,236 +949,6 @@ function TaskTabContentInner({
 
   function renderTabContent() {
     const tab = currentTab
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // 0. بوت جمع الذهب والتطوير المستقل (Gold Bot Dedicated Section)
-    // ─────────────────────────────────────────────────────────────────────────
-    if (tab === 'gold_bot') {
-      const mm = cfg.march_manager
-      const gg = (mm as unknown as { gold_gather?: { enabled: boolean; locations: GoldLocation[] } }).gold_gather 
-        ?? { enabled: false, locations: [] }
-      const updateGg = (patch: Partial<typeof gg>) => {
-        update('march_manager', { gold_gather: { ...gg, ...patch } } as any)
-      }
-
-      const addGoldLocation = () => updateGg({ locations: [...gg.locations, { x: 0, y: 0, alliance_tag: '' }] })
-      const removeGoldLocation = (i: number) => {
-        const nextLocs = gg.locations.filter((_, idx) => idx !== i)
-        updateGg({ locations: nextLocs })
-        const stillIncomplete = nextLocs.some(loc => !loc.x || loc.x <= 0 || !loc.y || loc.y <= 0 || !loc.alliance_tag || !loc.alliance_tag.trim())
-        if (!stillIncomplete) setGoldError(false)
-      }
-      const setGoldLocation = (i: number, patch: Partial<GoldLocation>) => {
-        const locs = gg.locations.map((loc, idx) => idx === i ? { ...loc, ...patch } : loc)
-        updateGg({ locations: locs })
-        const stillIncomplete = locs.some(loc => !loc.x || loc.x <= 0 || !loc.y || loc.y <= 0 || !loc.alliance_tag || !loc.alliance_tag.trim())
-        if (!stillIncomplete) setGoldError(false)
-      }
-
-      const bld = cfg.building
-      const crv = cfg.caravan
-      const ft = cfg.fountain
-
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {/* بنر تعريفي رشيق لقائمة بوت الذهب */}
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            background: 'linear-gradient(135deg, rgba(234,179,8,0.12) 0%, rgba(202,138,4,0.06) 100%)',
-            border: '1px solid rgba(234,179,8,0.25)',
-            borderRadius: '10px', padding: '10px 14px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '20px' }}>🪙</span>
-              <div>
-                <div style={{ color: '#fef08a', fontWeight: 700, fontSize: '13px' }}>بوت جمع الذهب والتطوير المستقل</div>
-                <div style={{ color: '#ca8a04', fontSize: '11px' }}>إدارة متكاملة للمهام الأربع المخصصة (الذهب، البناء، القافلة، والنافورة)</div>
-              </div>
-            </div>
-          </div>
-
-          {/* 1. جمع الذهب في أراضي التحالفات */}
-          <TaskRow
-            id="gold_bot_gather"
-            emoji="🪙"
-            label="جمع الذهب للتحالف"
-            enabled={gg.enabled}
-            onToggle={v => {
-              updateGg({ enabled: v })
-              if (!v) setGoldError(false)
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ color: '#9ca3af', fontSize: '12px' }}>مواقع وأراضي التحالفات المستهدفة:</span>
-                <button
-                  type="button"
-                  onClick={addGoldLocation}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    padding: '4px 10px', borderRadius: '6px',
-                    background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.35)',
-                    color: '#fef08a', fontSize: '11px', fontWeight: 600, cursor: 'pointer',
-                  }}
-                >
-                  <Plus size={12} /> إضافة مركز تحالف
-                </button>
-              </div>
-
-              {gg.locations.map((loc, i) => (
-                <div key={i} style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '8px', padding: '6px 10px',
-                }}>
-                  <span style={{ color: '#eab308', fontSize: '12px', fontWeight: 600, flexShrink: 0 }}>#{i + 1}</span>
-                  <input
-                    type="text"
-                    placeholder="رمز التحالف (Tag)"
-                    value={loc.alliance_tag || ''}
-                    onChange={e => setGoldLocation(i, { alliance_tag: e.target.value.toUpperCase() })}
-                    style={{
-                      width: '90px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)',
-                      borderRadius: '6px', padding: '4px 8px', color: '#fff', fontSize: '12px', textAlign: 'center',
-                    }}
-                  />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
-                    <span style={{ color: '#6b7280', fontSize: '11px' }}>X:</span>
-                    <input
-                      type="number"
-                      placeholder="X"
-                      value={loc.x || ''}
-                      onChange={e => setGoldLocation(i, { x: Number(e.target.value) || 0 })}
-                      style={{
-                        width: '55px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)',
-                        borderRadius: '6px', padding: '4px 6px', color: '#fff', fontSize: '12px', textAlign: 'center',
-                      }}
-                    />
-                    <span style={{ color: '#6b7280', fontSize: '11px' }}>Y:</span>
-                    <input
-                      type="number"
-                      placeholder="Y"
-                      value={loc.y || ''}
-                      onChange={e => setGoldLocation(i, { y: Number(e.target.value) || 0 })}
-                      style={{
-                        width: '55px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)',
-                        borderRadius: '6px', padding: '4px 6px', color: '#fff', fontSize: '12px', textAlign: 'center',
-                      }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeGoldLocation(i)}
-                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px' }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </TaskRow>
-
-          {/* 2. التطوير وترقية القلعة والمباني */}
-          <TaskRow
-            id="gold_bot_building"
-            emoji="🏗️"
-            label="التطوير وترقية القلعة"
-            enabled={bld.enabled}
-            onToggle={toggle('building')}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div
-                onClick={() => update('building', { upgrade_castle: !bld.upgrade_castle })}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '6px 8px', borderRadius: '6px', cursor: 'pointer',
-                  background: bld.upgrade_castle ? 'rgba(var(--theme-primary-rgb),0.06)' : 'rgba(255,255,255,0.02)',
-                }}
-              >
-                <span style={{ fontSize: '12px', color: '#e5e7eb' }}>ترقية القلعة تلقائياً وحل شجرة المتطلبات</span>
-                <Toggle value={bld.upgrade_castle} size="sm" onChange={v => update('building', { upgrade_castle: v })} />
-              </div>
-
-              <div
-                onClick={() => update('building', { upgrade_support_buildings: !bld.upgrade_support_buildings })}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '6px 8px', borderRadius: '6px', cursor: 'pointer',
-                  background: bld.upgrade_support_buildings ? 'rgba(var(--theme-primary-rgb),0.06)' : 'rgba(255,255,255,0.02)',
-                }}
-              >
-                <span style={{ fontSize: '12px', color: '#e5e7eb' }}>ترقية مباني الموارد والمشافي والمعسكرات</span>
-                <Toggle value={bld.upgrade_support_buildings} size="sm" onChange={v => update('building', { upgrade_support_buildings: v })} />
-              </div>
-
-              <div
-                onClick={() => update('building', { speedup_castle: !bld.speedup_castle })}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '6px 8px', borderRadius: '6px', cursor: 'pointer',
-                  background: bld.speedup_castle ? 'rgba(var(--theme-primary-rgb),0.06)' : 'rgba(255,255,255,0.02)',
-                }}
-              >
-                <span style={{ fontSize: '12px', color: '#e5e7eb' }}>استخدام أدوات التسريع المجانية بالحقيبة</span>
-                <Toggle value={bld.speedup_castle} size="sm" onChange={v => update('building', { speedup_castle: v })} />
-              </div>
-            </div>
-          </TaskRow>
-
-          {/* 3. قافلة الغنيمة التجارية */}
-          <TaskRow
-            id="gold_bot_caravan"
-            emoji="🐪"
-            label="القافلة التجارية (حراسة الكنز)"
-            enabled={crv.enabled}
-            onToggle={toggle('caravan')}
-          />
-
-          {/* 4. نافورة الأمنيات */}
-          <TaskRow
-            id="gold_bot_fountain"
-            emoji="⛲"
-            label="نافورة الأمنيات الملكية"
-            enabled={ft.enabled}
-            onToggle={toggle('fountain')}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ color: '#9ca3af', fontSize: '12px' }}>الموارد المطلوبة للتمني عند توفر المحاولات المجانية:</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {[
-                  { key: 'food', label: '🌾 قمح' },
-                  { key: 'wood', label: '🪵 خشب' },
-                  { key: 'iron', label: '⛏️ حديد' },
-                  { key: 'diamond', label: '💎 ألماس' },
-                ].map(r => {
-                  const isChecked = ft.resources?.includes(r.key) ?? false
-                  return (
-                    <button
-                      key={r.key}
-                      type="button"
-                      onClick={() => {
-                        const cur = ft.resources || []
-                        const next = isChecked ? cur.filter(x => x !== r.key) : [...cur, r.key]
-                        update('fountain', { resources: next })
-                      }}
-                      style={{
-                        padding: '4px 10px', borderRadius: '6px',
-                        background: isChecked ? 'rgba(var(--theme-primary-rgb),0.15)' : 'rgba(255,255,255,0.04)',
-                        border: isChecked ? '1px solid rgba(var(--theme-primary-rgb),0.4)' : '1px solid rgba(255,255,255,0.1)',
-                        color: isChecked ? 'var(--theme-primary-light, #6ee7b7)' : '#9ca3af',
-                        fontSize: '12px', cursor: 'pointer',
-                      }}
-                    >
-                      {r.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </TaskRow>
-        </div>
-      )
-    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // 1. جمع الموارد (Gather)
@@ -1354,7 +1014,11 @@ function TaskTabContentInner({
           className={clsx('transition-colors task-header-card', tr.enabled ? 'enabled' : 'disabled')}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '20px' }}>⚔️</span>
+            <img
+              src="/images/soldiers/icon_building_training_finish.png"
+              alt="train"
+              style={{ width: '22px', height: '22px', objectFit: 'contain' }}
+            />
             <div>
               <div className="task-header-title" style={{ color: '#f0fdf4', fontWeight: 600, fontSize: '13px' }}>
                 {t('tasks.militaryTraining')}
@@ -1418,10 +1082,25 @@ function TaskTabContentInner({
                               cursor: isUsedElsewhere ? 'not-allowed' : 'pointer',
                               fontFamily: 'inherit', transition: 'all 0.15s',
                               opacity: isUsedElsewhere ? 0.38 : 1,
-                              textAlign: 'center',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
                             }}
                           >
-                            {b.emoji} {t(b.labelKey)}
+                            {(b as any).img ? (
+                              <img
+                                src={(b as any).img}
+                                alt=""
+                                style={{
+                                  width: '20px',
+                                  height: '20px',
+                                  objectFit: 'contain',
+                                  flexShrink: 0,
+                                }}
+                                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                              />
+                            ) : (
+                              <span>{b.emoji}</span>
+                            )}
+                            <span>{t(b.labelKey)}</span>
                           </button>
                         )
                       })}
@@ -1507,22 +1186,135 @@ function TaskTabContentInner({
   // 4. مكافأة الطاحونة (Watermill)
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'watermill') {
+    const wm = (cfg as any).watermill || { enabled: false, resources: ['food', 'wood', 'iron', 'silver'] }
+    const selectedRes: string[] = Array.isArray(wm.resources)
+      ? wm.resources
+      : (typeof wm.types === 'string' && wm.types === 'all'
+          ? ['food', 'wood', 'iron', 'silver']
+          : (typeof wm.types === 'string' && wm.types ? [wm.types] : ['food', 'wood', 'iron', 'silver']))
+
+    const activeCount = WATERMILL_BOOST_RESOURCES.filter(r => selectedRes.includes(r.key)).length
+
+    const toggleRes = (key: string) => {
+      const next = selectedRes.includes(key)
+        ? selectedRes.filter(k => k !== key)
+        : [...selectedRes, key]
+      update('watermill' as any, { resources: next, types: next })
+    }
+
+    const selectAll = () => {
+      update('watermill' as any, { resources: WATERMILL_BOOST_RESOURCES.map(r => r.key), types: 'all' })
+    }
+
+    const deselectAll = () => {
+      update('watermill' as any, { resources: [], types: [] })
+    }
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <TaskRow
+          id="watermill"
           img="/images/watermill/uretimbonusust.png"
           label={t('tasks.watermillBonus')}
-          enabled={false}
-          onToggle={() => {}}
-          comingSoon={true}
+          enabled={Boolean(wm.enabled)}
+          onToggle={v => update('watermill' as any, { enabled: v })}
+          comingSoon={false}
         />
-        <TaskRow
-          img="/images/watermill/uretimbonusust.png"
-          label={t('tasks.buyFromAllianceShop')}
-          enabled={false}
-          onToggle={() => {}}
-          comingSoon={true}
-        />
+
+        {/* خيارات مكافآت الموارد تظل مفتوحة ومباشرة دائماً طالما أن المهمة مفعلة دون زر قائمة منسدلة */}
+        {wm.enabled && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              padding: '12px',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '12px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '2px',
+                flexWrap: 'wrap',
+                gap: '6px',
+              }}
+            >
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#e2e8f0' }}>
+                {t('tasks.bonusTypes', 'أنواع المكافآت')} ({activeCount}/{WATERMILL_BOOST_RESOURCES.length})
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  className="task-fountain-btn-select-all"
+                >
+                  {t('common.selectAll', 'تحديد الكل')}
+                </button>
+                <button
+                  type="button"
+                  onClick={deselectAll}
+                  className="task-fountain-btn-deselect-all"
+                >
+                  {t('common.cancelAll', 'إلغاء الكل')}
+                </button>
+              </div>
+            </div>
+
+            {/* شبكة بطاقات الموارد الأربعة */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {WATERMILL_BOOST_RESOURCES.map(r => {
+                const isSelected = selectedRes.includes(r.key)
+                return (
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() => toggleRes(r.key)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '10px 8px',
+                      borderRadius: '8px',
+                      border: isSelected
+                        ? '1.5px solid rgba(var(--theme-primary-rgb),0.6)'
+                        : '1px solid rgba(255,255,255,0.08)',
+                      background: isSelected
+                        ? 'rgba(var(--theme-primary-rgb),0.12)'
+                        : 'rgba(255,255,255,0.03)',
+                      color: isSelected ? 'var(--theme-primary-light)' : '#9ca3af',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <img
+                      src={r.img}
+                      alt={t(r.resKey)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        objectFit: 'contain',
+                        opacity: isSelected ? 1 : 0.45,
+                        transition: 'opacity 0.15s ease',
+                      }}
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                    <span style={{ fontSize: '11.5px', fontWeight: isSelected ? 600 : 500 }}>
+                      {t(r.resKey)}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -1535,7 +1327,7 @@ function TaskTabContentInner({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <TaskRow
-          img="/images/transport/kaynakyardim.png"
+          img="/images/transport/transport.png"
           label={t('tasks.resourceTransport')}
           enabled={false}
           onToggle={() => {}}
@@ -1545,45 +1337,8 @@ function TaskTabContentInner({
     )
   }
 
-
   // ─────────────────────────────────────────────────────────────────────────
-  // 6. مهام الهيبة (Prestige)
-  // ─────────────────────────────────────────────────────────────────────────
-  if (tab === 'prestige') {
-    const prestigeTasks = [
-      { key: 'smuggler', img: '/images/prestige/kacakci.png', labelKey: 'tasks.smuggler' },
-      { key: 'gather', img: '/images/prestige/uretimtahil (1).png', labelKey: 'tasks.gatherResources' },
-      { key: 'watermill', img: '/images/development/tamponhasat.png', labelKey: 'tasks.watermillBonus' },
-      { key: 'train', img: '/images/prestige/asker_egit.png', labelKey: 'tasks.train' },
-      { key: 'invaders', img: '/images/prestige/yagmaci (1).png', labelKey: 'tasks.invaders' },
-      { key: 'stronghold', img: '/images/prestige/siginak (1).png', labelKey: 'tasks.stronghold' },
-    ]
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <TaskRow
-          emoji="🎁"
-          label={t('tasks.prestigeTasks', 'مهام الهيبة')}
-          enabled={false}
-          onToggle={() => {}}
-          comingSoon={true}
-        />
-        {prestigeTasks.map(p => (
-          <TaskRow
-            key={p.key}
-            img={p.img}
-            label={t(p.labelKey, p.key)}
-            enabled={false}
-            onToggle={() => {}}
-            comingSoon={true}
-          />
-        ))}
-      </div>
-    )
-  }
-
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // 7. المهام اليومية (Daily)
+  // 6. النشاط اليومي (Daily Activity)
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'daily') {
     const sh = cfg.shield || { enabled: false, duration: '8h', allow_gold: false }
@@ -1594,21 +1349,15 @@ function TaskTabContentInner({
     const fe = (cfg as any).forge_equipment || { enabled: false, category: 'weapon' }
     const dt = (cfg as any).daily_train || { enabled: false }
     const dq = (cfg as any).daily_quest || { enabled: true }
-    const ch = (cfg as any).command_hall || { enabled: false }
     const ar = (cfg as any).arena || { enabled: false, arena_type: 'kingdom', auto_claim_rewards: true }
     const ht = (cfg as any).hero_trial || { enabled: false }
+    const ch = (cfg as any).command_hall || { enabled: false, mode: 'daily', allow_marches: false, auto_claim_rewards: true, auto_upgrade_hall: true }
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {/* قافلة الغنيمة */}
         <TaskRow
           img="/images/daily/ganimetkaravani.png" label={t('tasks.lootCaravan')}
           enabled={cfg.caravan.enabled} onToggle={toggle('caravan')}
-        />
-
-        {/* الشارات الملكية (Hero Draw) */}
-        <TaskRow
-          img="/images/daily/kahramanlarsalonu.png" label={t('tasks.heroDraw')}
-          enabled={cfg.hero_draw.enabled} onToggle={toggle('hero_draw')}
         />
 
         {/* مهام التحالف (التبرع لعلوم التحالف) */}
@@ -1625,7 +1374,9 @@ function TaskTabContentInner({
         {/* مهمة الحيوان (استلام الجوائز والإطعام المجاني) */}
         <TaskRow
           id="pet"
-          emoji="🦁" label={t('tasks.pet', 'رعاية وجوائز الحيوانات')}
+          emoji="🦁"
+          img="/images/daily/pet.png"
+          label={t('tasks.pet', 'رعاية وجوائز الحيوانات')}
           enabled={cfg.pet?.enabled ?? false} onToggle={toggle('pet')}
           comingSoon={false}
         >
@@ -1727,166 +1478,6 @@ function TaskTabContentInner({
           )
         })()}
 
-
-        {/* بنك الادخار */}
-        <TaskRow
-          img="/images/daily/goldenchest.png" label={t('tasks.savingsBank')}
-          enabled={cfg.savings_bank.enabled} onToggle={toggle('savings_bank')}
-        >
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {[
-              { d: 1,  labelKey: 'tasks.day1',   img: 'goldenchest.png' },
-              { d: 7,  labelKey: 'tasks.days7',  img: 'silverchest.png' },
-              { d: 15, labelKey: 'tasks.days15', img: 'silverchest.png' },
-              { d: 30, labelKey: 'tasks.days30', img: 'silverchest.png' },
-            ].map(opt => {
-              const currentDays = cfg.savings_bank.days || 7
-              const isSelected = currentDays === opt.d
-              return (
-                <button
-                  key={opt.d}
-                  type="button"
-                  className={clsx('task-savings-btn', isSelected ? 'selected' : 'unselected')}
-                  onClick={() => update('savings_bank', { days: opt.d })}
-                  style={{
-                    flex: 1,
-                    padding: '5px 4px',
-                    borderRadius: '8px',
-                    border: isSelected ? '1.5px solid rgba(var(--theme-primary-rgb),0.6)' : '1px solid rgba(255,255,255,0.10)',
-                    background: isSelected ? 'rgba(var(--theme-primary-rgb),0.12)' : 'rgba(255,255,255,0.04)',
-                    color: isSelected ? 'var(--theme-primary-light)' : '#9ca3af',
-                    fontSize: '11px',
-                    fontWeight: isSelected ? 600 : 400,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '3px',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  <img
-                    src={`/images/daily/${opt.img}`}
-                    alt=""
-                    style={{
-                      width: '22px',
-                      height: '22px',
-                      objectFit: 'contain',
-                      filter: isSelected ? 'drop-shadow(0 0 6px rgba(var(--theme-primary-rgb),0.4))' : 'grayscale(15%) opacity(0.85)',
-                      transition: 'all 0.15s',
-                    }}
-                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                  />
-                  <span>{t(opt.labelKey)}</span>
-                </button>
-              )
-            })}
-          </div>
-        </TaskRow>
-
-        {/* متجر المحارب (مركز المنافع - متجر الاستبدال) */}
-        <TaskRow
-          id="warrior_exchange"
-          img="/images/daily/812034.png"
-          label={t('tasks.warriorExchange')}
-          enabled={cfg.warrior_exchange?.enabled ?? false}
-          onToggle={toggle('warrior_exchange')}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ color: '#e5e7eb', fontSize: '12px', fontWeight: 500 }}>
-                {t('tasks.warriorExchangeCount')}
-              </span>
-            </div>
-            <Stepper
-              value={cfg.warrior_exchange?.count ?? 15}
-              min={1}
-              max={15}
-              onChange={v => update('warrior_exchange', { count: v })}
-            />
-          </div>
-        </TaskRow>
-
-        {/* دراسة الاستراتيجيات (Study Strategies / Tactics Hall) */}
-        {(() => {
-          return (
-            <TaskRow
-              img="/images/daily/egitim_stratejisi.png"
-              label={t('tasks.studyStrategies')}
-              enabled={cfg.tactics_hall.enabled}
-              onToggle={toggle('tactics_hall')}
-            >
-              <div style={{ paddingTop: '2px' }}>
-                {/* ── تصنيفات الاستراتيجيات: Battle | Development | Help ── */}
-                <div className="gap-1.5 grid grid-cols-3 bg-gray-100 dark:bg-white/5 mb-2 p-1 border border-gray-200 dark:border-white/10 rounded-xl">
-                  {STRATEGY_TABS.map(tab => {
-                    const isActive = tacticsCategory === tab.id
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        className={clsx(
-                          'flex justify-center items-center gap-1.5 px-2 py-1 rounded-lg text-center transition-all cursor-pointer task-strategy-pill',
-                          isActive ? 'active' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                        )}
-                        onClick={() => setTacticsCategory(tab.id)}
-                      >
-                        <span className="text-sm">{tab.icon}</span>
-                        <span className="font-bold text-xs">{t(`tasks.${tab.id}`)}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* ── شبكة الأبحاث: بطاقات بسيطة وأنيقة مع تمييز واضح جداً للبحث المختار ── */}
-                <div className="gap-2 sm:gap-2.5 grid grid-cols-2">
-                  {STRATEGY_ITEMS.filter(item => item.category === tacticsCategory).map(item => {
-                    const isSelected = isStrategySelected(cfg.tactics_hall.tactic, item)
-                    const itemName = t(`tasks.${item.key}`, {
-                      defaultValue: i18n.language === 'ar' ? item.name_ar : (i18n.language === 'tr' ? item.name_tr : item.name_en)
-                    })
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={clsx(
-                          'relative flex flex-col justify-center items-center p-2 rounded-xl text-center transition-all cursor-pointer task-strategy-card',
-                          isSelected ? 'selected' : 'unselected'
-                        )}
-                        onClick={() => update('tactics_hall', { tactic: item.name_en })}
-                        style={{
-                          minHeight: '60px',
-                        }}
-                      >
-                        <img
-                          src={`/images/strategies/${item.img}`}
-                          alt={item.name_en}
-                          className={clsx(
-                            'mb-1 w-7 h-7 object-contain transition-transform',
-                            isSelected ? 'scale-105' : 'opacity-85'
-                          )}
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                        />
-                        <div className="px-1 w-full">
-                          <div className={clsx(
-                            'text-xs text-center truncate leading-tight transition-colors',
-                            isSelected
-                              ? 'font-bold text-emerald-800 dark:text-emerald-300'
-                              : 'font-medium text-gray-700 dark:text-gray-300'
-                          )}>
-                            {itemName}
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </TaskRow>
-          )
-        })()}
 
         {/* نافورة الأمنيات الملكية وبئر الحظ (Trevi Fountain) */}
         {(() => {
@@ -2074,104 +1665,6 @@ function TaskTabContentInner({
           )
         })()}
 
-        {/* ورشة المواد (Material Workshop) */}
-        <TaskRow
-          img="/images/daily/malzeme_atolyesi.png"
-          label={t('tasks.materialWorkshop')}
-          enabled={cfg.material_workshop.enabled}
-          onToggle={toggle('material_workshop')}
-        >
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {WORKSHOP_MATERIALS.map(m => {
-              const currentMats = cfg.material_workshop.materials || []
-              const isAll = currentMats.includes('all') || currentMats.includes('الكل')
-              const isSelected = isAll || currentMats.includes(m.key) || currentMats.includes(m.label)
-
-              const handleToggle = () => {
-                let nextMats: string[]
-                if (isAll) {
-                  nextMats = WORKSHOP_MATERIALS.filter(x => x.key !== m.key).map(x => x.key)
-                } else if (isSelected) {
-                  nextMats = currentMats.filter(x => x !== m.key && x !== m.label)
-                } else {
-                  nextMats = [...currentMats, m.key]
-                }
-                update('material_workshop', { materials: nextMats })
-              }
-
-              return (
-                <button
-                  key={m.key}
-                  type="button"
-                  className={clsx('task-workshop-card', isSelected ? 'selected' : 'unselected')}
-                  onClick={handleToggle}
-                  style={{
-                    flex: 1,
-                    padding: '6px 4px',
-                    borderRadius: '10px',
-                    border: isSelected ? '1.5px solid #f59e0b' : '1px solid rgba(255,255,255,0.08)',
-                    background: isSelected ? 'rgba(245,158,11,0.10)' : 'rgba(255,255,255,0.03)',
-                    boxShadow: isSelected ? '0 0 10px rgba(245,158,11,0.2)' : 'none',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '4px',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    transition: 'all 0.15s ease',
-                    minHeight: '62px',
-                  }}
-                  onMouseEnter={e => {
-                    if (!isSelected) {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!isSelected) {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
-                    }
-                  }}
-                >
-                  <div style={{
-                    width: '30px',
-                    height: '30px',
-                    borderRadius: '6px',
-                    background: isSelected ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.35)',
-                    border: isSelected ? '1px solid rgba(245,158,11,0.35)' : '1px solid rgba(255,255,255,0.08)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.15s ease',
-                  }}>
-                    <img
-                      src={`/images/workshop/${m.img}`}
-                      alt={t(m.labelKey)}
-                      style={{
-                        width: '22px',
-                        height: '22px',
-                        objectFit: 'contain',
-                        filter: isSelected ? 'drop-shadow(0 0 6px rgba(245,158,11,0.4))' : 'none',
-                        transition: 'filter 0.15s ease',
-                      }}
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                    />
-                  </div>
-                  <span style={{
-                    fontSize: '11px',
-                    color: isSelected ? '#fbbf24' : '#9ca3af',
-                    fontWeight: isSelected ? 600 : 500,
-                  }}>
-                    {t(m.labelKey)}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </TaskRow>
-
         {/* الدرع التلقائي (Peace Shield) */}
         <TaskRow
           id="shield"
@@ -2246,6 +1739,7 @@ function TaskTabContentInner({
         <TaskRow
           id="flower"
           emoji="🌸"
+          img="/images/daily/flower.png"
           label={t('tasks.giveFlowers', 'إهداء الزهور (النشاط اليومي)')}
           enabled={Boolean(fl.enabled)}
           onToggle={toggle('flower')}
@@ -2433,17 +1927,6 @@ function TaskTabContentInner({
           comingSoon={false}
         />
 
-        {/* مهام قاعة القيادة (Command Hall Quests) */}
-        <TaskRow
-          id="command_hall"
-          emoji="📜"
-          img="/images/daily/command_hall.png"
-          label={t('tasks.command_hall.title')}
-          description={t('tasks.command_hall.desc')}
-          enabled={Boolean(ch.enabled)}
-          onToggle={toggle('command_hall' as any)}
-          comingSoon={false}
-        />
 
         {/* تحدي الحلبة (Arena Challenge) */}
         <TaskRow
@@ -2512,6 +1995,92 @@ function TaskTabContentInner({
           onToggle={toggle('hero_trial' as any)}
           comingSoon={false}
         />
+
+        {/* مهام قاعة القيادة (Command Hall Tasks - مهمة النشاط اليومي رقم 33) */}
+        <TaskRow
+          id="command_hall"
+          emoji="🏛️"
+          img="/images/daily/command_hall.png"
+          label={t('tasks.command_hall.title', 'مهام قاعة القيادة')}
+          description={t('tasks.command_hall.desc', 'إنجاز مهام قاعة القيادة الفورية المجانية واستلام الجوائز لإتمام مهمة النشاط اليومي')}
+          enabled={Boolean(ch.enabled)}
+          onToggle={toggle('command_hall' as any)}
+          comingSoon={false}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '2px' }}>
+            {/* نمط التنفيذ: النشاط اليومي فقط (3 مهام) أو دورة كاملة */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <span style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 500 }}>
+                {t('tasks.command_hall.modeLabel', 'نمط التنفيذ')}
+              </span>
+              <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '2px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <button
+                  type="button"
+                  onClick={() => update('command_hall' as any, { mode: 'daily' }, 150)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: ch.mode !== 'full' ? 600 : 400,
+                    background: ch.mode !== 'full' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                    border: ch.mode !== 'full' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid transparent',
+                    color: ch.mode !== 'full' ? '#60a5fa' : '#94a3b8',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {t('tasks.command_hall.modeDaily', 'النشاط اليومي (3 مهام)')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => update('command_hall' as any, { mode: 'full' }, 150)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: ch.mode === 'full' ? 600 : 400,
+                    background: ch.mode === 'full' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                    border: ch.mode === 'full' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid transparent',
+                    color: ch.mode === 'full' ? '#60a5fa' : '#94a3b8',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {t('tasks.command_hall.modeFull', 'دورة كاملة')}
+                </button>
+              </div>
+            </div>
+
+            {/* خيار السماح بالمسير القتالي يظهر فقط عند اختيار دورة كاملة */}
+            {ch.mode === 'full' && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 10px',
+                background: ch.allow_marches ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.03)',
+                border: ch.allow_marches ? '1px solid rgba(239,68,68,0.25)' : '1px solid rgba(255,255,255,0.06)',
+                borderRadius: '8px',
+                transition: 'all 0.15s ease',
+              }}>
+                <div>
+                  <div style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: ch.allow_marches ? '#f87171' : '#e2e8f0',
+                  }}>
+                    {t('tasks.command_hall.allowMarches', 'السماح بإرسال فيالق للمهام القتالية عند توفر جنود وطوابير')}
+                  </div>
+                </div>
+                <Toggle
+                  value={Boolean(ch.allow_marches)}
+                  onChange={v => update('command_hall' as any, { allow_marches: v })}
+                  size="sm"
+                />
+              </div>
+            )}
+          </div>
+        </TaskRow>
 
         {/* استلام صناديق النشاط اليومي (Daily Activity Quest Chests) */}
         <TaskRow
@@ -3178,24 +2747,6 @@ function TaskTabContentInner({
     )
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 10. البحث عن الذهب (Gold)
-  // ─────────────────────────────────────────────────────────────────────────
-    if (tab === 'gold') {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <TaskRow
-            img="/images/gather/altin.png"
-            label={t('tasks.goldSearch')}
-            enabled={false}
-            onToggle={() => {}}
-            comingSoon={true}
-          />
-        </div>
-      )
-    }
-
-
   return null
   }
 
@@ -3206,57 +2757,28 @@ function TaskTabContentInner({
      !cfg.march_manager.transport.target_y || cfg.march_manager.transport.target_y <= 0)
   )
 
-  const goldHasErrorTab = Boolean(goldError && goldHasIncompleteLocations)
-
   return (
     <div className="relative space-y-4 w-full task-tab-content-root">
       <div className="space-y-2.5 w-full">
         <TaskTabs
           active={currentTab}
           onChange={handleTabChange}
-          errorTab={goldHasErrorTab ? 'gold' : transportHasMissingCoords ? 'transport' : null}
+          errorTab={transportHasMissingCoords ? 'transport' : null}
         />
 
-        {/* AutoSave Status Row for Single Mode */}
-        {!isBatchMode && (
-          <div className="flex justify-between items-center px-1 min-h-[22px] text-xs select-none">
-            <span className="font-medium text-[11px] text-gray-400">
-              {TABS.find(t => t.id === currentTab)?.emoji} {t(`tabs.${currentTab}`, { defaultValue: TABS.find(t => t.id === currentTab)?.label || '' })}
+        {/* AutoSave Status Row — يظهر حصراً واستثنائياً فقط إذا حدث خطأ في الحفظ */}
+        {!isBatchMode && saveStatus === 'error' && (
+          <div className="flex justify-end items-center px-1 min-h-[20px] text-xs select-none">
+            <span className="inline-flex items-center gap-2 font-medium text-[11px] text-rose-400">
+              <span>{t('common.saveFailed', 'فشل الحفظ')}{saveErrorMsg ? `: ${saveErrorMsg}` : ''}</span>
+              <button
+                type="button"
+                onClick={() => performSave()}
+                className="font-semibold text-rose-300 hover:text-white underline cursor-pointer"
+              >
+                {t('common.retry', 'إعادة المحاولة')}
+              </button>
             </span>
-
-            {/* Smart Autosave State Indicator */}
-            <div className="flex items-center gap-1.5 transition-all duration-200">
-              {saveStatus === 'saving' && (
-                <span className="inline-flex items-center gap-1.5 font-medium text-[11px] text-amber-400 animate-pulse">
-                  <Loader2 size={12} className="text-amber-400 animate-spin shrink-0" />
-                  <span>{t('common.saving', 'جاري الحفظ...')}</span>
-                </span>
-              )}
-              {saveStatus === 'saved' && (
-                <span className="inline-flex items-center gap-1.5 font-medium text-[11px] text-emerald-400">
-                  <Check size={12} className="text-emerald-400 shrink-0" />
-                  <span>{t('common.saved', 'تم الحفظ تلقائياً')}</span>
-                </span>
-              )}
-              {saveStatus === 'error' && (
-                <span className="inline-flex items-center gap-2 font-medium text-[11px] text-rose-400">
-                  <span>{t('common.saveFailed', 'فشل الحفظ')}{saveErrorMsg ? `: ${saveErrorMsg}` : ''}</span>
-                  <button
-                    type="button"
-                    onClick={() => performSave()}
-                    className="font-semibold text-rose-300 hover:text-white underline cursor-pointer"
-                  >
-                    {t('common.retry', 'إعادة المحاولة')}
-                  </button>
-                </span>
-              )}
-              {saveStatus === 'idle' && (
-                <span className="inline-flex items-center gap-1.5 font-normal text-[11px] text-amber-400/90">
-                  <span className="inline-block bg-amber-400 shadow-[0_0_4px_rgba(234,179,8,0.5)] rounded-full w-1.5 h-1.5" />
-                  <span>{t('tasks.comingSoonNote', 'المهام للعرض فقط — التفعيل قريباً')}</span>
-                </span>
-              )}
-            </div>
           </div>
         )}
 

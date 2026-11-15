@@ -4,17 +4,15 @@ import { useTranslation } from 'react-i18next'
 import type { TaskTab } from '../../types'
 
 // مطابق للموقع المرجعي بالضبط
-export const TABS: { id: TaskTab; emoji: string; label: string }[] = [
+export const TABS: { id: TaskTab; emoji?: string; img?: string; label: string }[] = [
   { id: 'gather',    emoji: '🌾', label: 'جمع الموارد'       },
-  { id: 'train',     emoji: '⚔️', label: 'التدريب العسكري'   },
+  { id: 'train',     img: '/images/soldiers/icon_building_training_finish.png', label: 'التدريب العسكري' },
   { id: 'combat',    emoji: '🗡️', label: 'الهجوم'            },
-  { id: 'watermill', emoji: '🌊', label: 'مكافأة الطاحونة'   },
-  { id: 'transport', emoji: '🔗', label: 'مساعدة الموارد'    },
-  { id: 'prestige',  emoji: '🎁', label: 'مهام الهيبة'       },
-  { id: 'daily',     emoji: '📅', label: 'المهام اليومية'     },
+  { id: 'watermill', img: '/images/watermill/uretimbonusust.png', label: 'مكافأة الطاحونة' },
+  { id: 'transport', img: '/images/transport/transport.png', label: 'مساعدة الموارد' },
+  { id: 'daily',     img: '/images/daily/quest_button.png', label: 'النشاط اليومي' },
   { id: 'building',  emoji: '🔼', label: 'التطوير والمكافآت' },
   { id: 'events',    emoji: '🏆', label: 'الفعاليات'         },
-  { id: 'gold',      emoji: '🔍', label: 'البحث عن الذهب'    },
 ]
 
 interface TaskTabsProps {
@@ -115,23 +113,16 @@ export function TaskTabs({ active, onChange, errorTab }: TaskTabsProps) {
                 fontFamily: 'inherit',
               }}
             >
-              <span style={{ fontSize: '12px', lineHeight: 1 }}>{tab.emoji}</span>
+              {tab.img ? (
+                <img
+                  src={tab.img}
+                  alt={tab.label}
+                  style={{ width: '16px', height: '16px', objectFit: 'contain', flexShrink: 0 }}
+                />
+              ) : (
+                <span style={{ fontSize: '12px', lineHeight: 1 }}>{tab.emoji}</span>
+              )}
               <span>{t(`tabs.${tab.id}`, tab.label)}</span>
-              <span
-                style={{
-                  fontSize: '9px',
-                  lineHeight: 1,
-                  padding: '1.5px 4px',
-                  borderRadius: '4px',
-                  background: 'rgba(234,179,8,0.14)',
-                  border: '1px solid rgba(234,179,8,0.22)',
-                  color: '#fef08a',
-                  fontWeight: 500,
-                  marginLeft: '2px',
-                }}
-              >
-                {t('tasks.comingSoon', 'قريباً')}
-              </span>
               {isError && (
                 <span
                   style={{

@@ -280,11 +280,9 @@
     "combat": "Attack",
     "watermill": "Watermill Bonus",
     "transport": "Resource Assistance",
-    "prestige": "Prestige Tasks",
-    "daily": "Daily Tasks",
+    "daily": "Daily Activity",
     "building": "Development & Rewards",
     "events": "Events",
-    "gold": "Gold Search",
     "resources": "Resource Assistance"
   },
   "tasks": {
@@ -393,7 +391,6 @@
     "resourceTypes": "Resource Types",
     "location": "Location",
     "invalidCoordsWarning": "Please enter valid coordinates for X and Y (> 0) before moving to another task or saving settings.",
-    "prestigeTasks": "Prestige Tasks",
     "activeSubtasks": "({{count}} active)",
     "smuggler": "Smuggler Market",
     "fortress": "War Fortress",
@@ -471,13 +468,6 @@
     "openTorchChestDesc": "Opens torch chest during royal event",
     "heroConsign": "Heroic Voyages",
     "heroConsignDesc": "Execute voyage travels, claim consign rewards, and dispatch hero tasks",
-    "goldSearch": "Gold Search",
-    "locationNumber": "Location #{{index}}",
-    "allianceTag": "Alliance Tag",
-    "addLocation": "Add Location",
-    "goldLocationIncomplete": "Please fill in all fields for this alliance (X, Y, and tag) or remove it.",
-    "goldMissingCoordsToast": "❌ Cannot save: Please enter all data for the added alliance (X, Y, and tag) in Gold Search or remove it!",
-    "goldMissingCoordsNavToast": "❌ Please enter all data for the added alliance (X, Y, and tag) in Gold Search or remove it before navigating!",
     "bldFarm": "Wheat Farm",
     "bldSawmill": "Sawmill",
     "bldIronMine": "Iron Mine",
@@ -535,10 +525,6 @@
     "strat_smokeBomb": "Smoke Bomb",
     "strat_chariotPractice": "Chariot Practice",
     "dailyQuest": "Daily Activity Quest Chests",
-    "command_hall": {
-      "title": "Command Quest",
-      "desc": "Execute daily command hall quests and claim rewards periodically"
-    },
     "arena": {
       "title": "Arena Challenge",
       "desc": "Execute 3 daily challenges against weakest rivals and claim accumulated ranking rewards",
@@ -549,6 +535,14 @@
     "hero_trial": {
       "title": "Soldier Trial",
       "desc": "Participate in the Soldier Trial once with minimal troops to earn 20 daily activity points"
+    },
+    "command_hall": {
+      "title": "Command Hall Tasks",
+      "desc": "Complete instant free Command Hall tasks and claim rewards to fulfill daily activity",
+      "modeLabel": "Execution Mode",
+      "modeDaily": "Daily Activity (3 tasks)",
+      "modeFull": "Full Cycle",
+      "allowMarches": "Allow troop marches for combat tasks when queues and troops are available"
     }
   },
   "resources": {
