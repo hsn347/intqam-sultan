@@ -26,6 +26,9 @@ from tasks.arena import ArenaTask
 from tasks.hero_trial import HeroTrialTask
 from tasks.command_hall import CommandHallTask
 from tasks.daily_quest import DailyQuestTask
+from tasks.skills import SkillsTask
+from tasks.material_workshop import MaterialWorkshopTask
+from tasks.stamina import StaminaTask
 
 __all__ = [
     "BaseTask",
@@ -52,4 +55,7 @@ __all__ = [
     "HeroTrialTask",
     "CommandHallTask",
     "DailyQuestTask",
+    "SkillsTask",
+    "MaterialWorkshopTask",
+    "StaminaTask",
 ]

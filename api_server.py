@@ -381,6 +381,10 @@ class CommandHallConfigModel(BaseModel):
     enabled: bool = False
     mode: Literal["daily", "full"] = "daily"
     allow_marches: bool = True
+    allow_snipe: bool = True
+    allow_rescue: bool = True
+    allow_dialogue: bool = True
+    allow_army_group: bool = True
     auto_claim_rewards: bool = True
     auto_upgrade_hall: bool = True
     min_safety_stamina: int = 10
@@ -396,6 +400,35 @@ class WatermillConfigModel(BaseModel):
     resources: Optional[List[str]] = None
     types: Optional[Any] = "all"
     allow_shop_buy: Optional[bool] = False
+
+class SkillsConfigModel(BaseModel):
+    enabled: bool = False
+    target_skills: Optional[List[str]] = Field(default_factory=list)
+
+class MaterialWorkshopConfigModel(BaseModel):
+    enabled: bool = False
+    selected_materials: Optional[List[int]] = Field(default_factory=lambda: [200101, 200201, 200301, 200401, 200501, 200601])
+
+class StaminaConfigModel(BaseModel):
+    enabled: bool = False
+    min_stamina: int = Field(default=100, ge=0)
+    mode: Literal["auto", "manual"] = "auto"
+    pack_tier: Literal["10", "50", "100"] = "50"
+    pack_count: int = Field(default=1, ge=1)
+    allow_buy: bool = False
+    max_gold_daily: int = Field(default=1000, ge=0)
+
+    @field_validator("mode", mode="before")
+    @classmethod
+    def normalize_mode(cls, v: Any) -> str:
+        val = str(v or "auto").lower().strip()
+        return val if val in ("auto", "manual") else "auto"
+
+    @field_validator("pack_tier", mode="before")
+    @classmethod
+    def normalize_tier(cls, v: Any) -> str:
+        val = str(v or "50").strip()
+        return val if val in ("10", "50", "100") else "50"
 
 class CastleConfigModel(BaseModel):
     fountain: Optional[FountainConfig] = None
@@ -417,6 +450,9 @@ class CastleConfigModel(BaseModel):
     command_hall: Optional[CommandHallConfigModel] = None
     daily_quest: Optional[SimpleToggleConfig] = None
     watermill: Optional[WatermillConfigModel] = None
+    skills: Optional[SkillsConfigModel] = None
+    material_workshop: Optional[MaterialWorkshopConfigModel] = None
+    stamina: Optional[StaminaConfigModel] = None
 
     @model_validator(mode="before")
     @classmethod

@@ -8,6 +8,8 @@ import {
 import type { Castle, BotState, CastleConfig } from '../types'
 import { DEFAULT_CASTLE_CONFIG } from '../types'
 
+export const defaultBotConfig = DEFAULT_CASTLE_CONFIG
+
 // ─── Deep merge castle config with defaults ────────────────
 export function mergeCastleConfig(fcConfig: Record<string, unknown>): CastleConfig {
   const def = DEFAULT_CASTLE_CONFIG
@@ -84,8 +86,17 @@ export function mergeCastleConfig(fcConfig: Record<string, unknown>): CastleConf
     daily_quest:        { ...(def.daily_quest || { enabled: true }), ...((fc.daily_quest as Record<string, unknown>) || {}) },
     arena:              { ...(def.arena || { enabled: false, arena_type: 'kingdom', auto_claim_rewards: true }), ...((fc.arena as Record<string, unknown>) || {}) },
     hero_trial:         { ...(def.hero_trial || { enabled: false }), ...((fc.hero_trial as Record<string, unknown>) || {}) },
-    command_hall:       { ...(def.command_hall || { enabled: false, mode: 'daily', allow_marches: false, auto_claim_rewards: true, auto_upgrade_hall: true }), ...((fc.command_hall as Record<string, unknown>) || {}) },
-    stamina:            { ...def.stamina,            ...((fc.stamina            as Record<string, unknown>) || {}) },
+    command_hall:       { ...(def.command_hall || { enabled: false, mode: 'daily', allow_marches: true, allow_snipe: true, allow_rescue: true, allow_dialogue: true, allow_army_group: true, auto_claim_rewards: true, auto_upgrade_hall: true }), ...((fc.command_hall as Record<string, unknown>) || {}) },
+    stamina: {
+      ...def.stamina,
+      ...((fc.stamina as Record<string, unknown>) || {}),
+      mode: ((fc.stamina as Record<string, unknown>)?.mode === 'manual' ? 'manual' : 'auto') as 'auto' | 'manual',
+      pack_tier: (['10', '50', '100'].includes(String((fc.stamina as Record<string, unknown>)?.pack_tier)) ? String((fc.stamina as Record<string, unknown>)?.pack_tier) : '50') as '10' | '50' | '100',
+      min_stamina: typeof (fc.stamina as Record<string, unknown>)?.min_stamina === 'number' ? Number((fc.stamina as Record<string, unknown>)?.min_stamina) : (def.stamina?.min_stamina ?? 100),
+      pack_count: typeof (fc.stamina as Record<string, unknown>)?.pack_count === 'number' ? Number((fc.stamina as Record<string, unknown>)?.pack_count) : (def.stamina?.pack_count ?? 1),
+      allow_buy: typeof (fc.stamina as Record<string, unknown>)?.allow_buy === 'boolean' ? Boolean((fc.stamina as Record<string, unknown>)?.allow_buy) : (def.stamina?.allow_buy ?? false),
+      max_gold_daily: typeof (fc.stamina as Record<string, unknown>)?.max_gold_daily === 'number' ? Number((fc.stamina as Record<string, unknown>)?.max_gold_daily) : (def.stamina?.max_gold_daily ?? 1000),
+    },
     skills:             { ...def.skills,             ...((fc.skills             as Record<string, unknown>) || {}), target_skills: (fc.skills as Record<string, unknown>)?.target_skills as string[] || def.skills.target_skills },
     hero_draw:          { ...def.hero_draw,          ...((fc.hero_draw          as Record<string, unknown>) || {}) },
     treasure_pavilion:  { ...def.treasure_pavilion,  ...((fc.treasure_pavilion  as Record<string, unknown>) || {}) },
@@ -97,7 +108,13 @@ export function mergeCastleConfig(fcConfig: Record<string, unknown>): CastleConf
     tactics_hall:       { ...def.tactics_hall,       ...((fc.tactics_hall       as Record<string, unknown>) || {}) },
     watermill:          { ...def.watermill,          ...((fc.watermill          as Record<string, unknown>) || {}), resources: (fc.watermill as Record<string, unknown>)?.resources as string[] || def.watermill.resources },
     fountain:           { ...def.fountain,           ...((fc.fountain           as Record<string, unknown>) || {}), resources: (fc.fountain as Record<string, unknown>)?.resources as string[] || def.fountain.resources },
-    material_workshop:  { ...def.material_workshop,  ...((fc.material_workshop  as Record<string, unknown>) || {}), materials: (fc.material_workshop as Record<string, unknown>)?.materials as string[] || def.material_workshop.materials },
+    material_workshop:  {
+      ...(def.material_workshop || { enabled: false, selected_materials: [200101, 200201, 200301, 200401, 200501, 200601] }),
+      ...((fc.material_workshop as Record<string, unknown>) || {}),
+      selected_materials: Array.isArray((fc.material_workshop as Record<string, unknown>)?.selected_materials)
+        ? ((fc.material_workshop as Record<string, unknown>).selected_materials as number[])
+        : (def.material_workshop?.selected_materials || [200101, 200201, 200301, 200401, 200501, 200601]),
+    },
     caravan:            { ...def.caravan,            ...((fc.caravan            as Record<string, unknown>) || {}) },
     port_delegate:      { ...def.port_delegate,      ...((fc.port_delegate      as Record<string, unknown>) || {}) },
     savings_bank:       { ...def.savings_bank,       ...((fc.savings_bank       as Record<string, unknown>) || {}), days: [1, 7, 15, 30].includes((fc.savings_bank as { days?: number })?.days as number) ? ((fc.savings_bank as { days?: number }).days as number) : 7 },

@@ -15,9 +15,14 @@ DB_PATH = os.path.join(_ROOT, "database", "castles.db")
 DEFAULT_COMMAND_HALL_CONFIG = {
     "enabled": False,
     "mode": "daily",
-    "allow_marches": False,
+    "allow_marches": True,
+    "allow_snipe": True,
+    "allow_rescue": True,
+    "allow_dialogue": True,
+    "allow_army_group": True,
     "auto_claim_rewards": True,
     "auto_upgrade_hall": True,
+    "min_safety_stamina": 10,
 }
 
 def migrate():
@@ -47,11 +52,26 @@ def migrate():
             cfg["command_hall"] = dict(DEFAULT_COMMAND_HALL_CONFIG)
             changed = True
         else:
-            # ضمان اكتمال المفاتيح
+            # ضمان اكتمال المفاتيح وتفعيل المسير الافتراضي
             for k, v in DEFAULT_COMMAND_HALL_CONFIG.items():
                 if k not in cfg["command_hall"]:
                     cfg["command_hall"][k] = v
                     changed = True
+            if cfg["command_hall"].get("allow_marches") is False:
+                cfg["command_hall"]["allow_marches"] = True
+                changed = True
+            if "allow_snipe" not in cfg["command_hall"]:
+                cfg["command_hall"]["allow_snipe"] = True
+                changed = True
+            if "allow_rescue" not in cfg["command_hall"]:
+                cfg["command_hall"]["allow_rescue"] = True
+                changed = True
+            if "allow_dialogue" not in cfg["command_hall"]:
+                cfg["command_hall"]["allow_dialogue"] = True
+                changed = True
+            if "allow_army_group" not in cfg["command_hall"]:
+                cfg["command_hall"]["allow_army_group"] = True
+                changed = True
 
         # إضافة الإعداد في كائن tasks الفرعي إن وجد
         if "tasks" in cfg and isinstance(cfg["tasks"], dict):
@@ -63,6 +83,21 @@ def migrate():
                     if k not in cfg["tasks"]["command_hall"]:
                         cfg["tasks"]["command_hall"][k] = v
                         changed = True
+                if cfg["tasks"]["command_hall"].get("allow_marches") is False:
+                    cfg["tasks"]["command_hall"]["allow_marches"] = True
+                    changed = True
+                if "allow_snipe" not in cfg["tasks"]["command_hall"]:
+                    cfg["tasks"]["command_hall"]["allow_snipe"] = True
+                    changed = True
+                if "allow_rescue" not in cfg["tasks"]["command_hall"]:
+                    cfg["tasks"]["command_hall"]["allow_rescue"] = True
+                    changed = True
+                if "allow_dialogue" not in cfg["tasks"]["command_hall"]:
+                    cfg["tasks"]["command_hall"]["allow_dialogue"] = True
+                    changed = True
+                if "allow_army_group" not in cfg["tasks"]["command_hall"]:
+                    cfg["tasks"]["command_hall"]["allow_army_group"] = True
+                    changed = True
 
         if changed:
             new_config_str = json.dumps(cfg, ensure_ascii=False)

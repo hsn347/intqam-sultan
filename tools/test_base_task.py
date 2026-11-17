@@ -16,9 +16,8 @@ test_base_task.py — أداة فحص واختبار دوال وخصائص BaseT
      - استهلاك الصناديق العادية ثم الآمنة تنازلياً وتحديث الذاكرة.
   4. دورة حياة التنفيذ والحماية (can_run / safe_execute / safe_query).
 
-أنماط التشغيل المدعومة:
-  - نمط حي حقيقي (Live Mode - الافتراضي): يتصل مباشرة بالبوابة الرسمية للحساب عبر CastleBot (مطابق لتشغيل البوت العام من الواجهة).
-  - نمط محلي آمن (Offline Mode): يعتمد على ملفات تفريغ الذاكرة الحية في مجلد docs/ (0-Network) عند تمرير --offline صراحة.
+نمط التشغيل:
+  - نمط حي مباشر ورسمي 100% (Live Mode): يتصل مباشرة بالبوابة الرسمية للحساب عبر CastleBot لمزامنة وقراءة الذاكرة الحية الحقيقية (مطابق لتشغيل البوت العام من الواجهة).
 
 أمثلة الاستخدام من سطر الأوامر:
   1. تشغيل القائمة التفاعلية في التيرمنال:
@@ -52,6 +51,7 @@ import argparse
 import asyncio
 import contextlib
 import io
+import inspect
 import json
 import logging
 import os
@@ -77,7 +77,14 @@ DB_PATH = os.path.join(WORKSPACE_DIR, "database", "castles.db")
 if WORKSPACE_DIR not in sys.path:
     sys.path.insert(0, WORKSPACE_DIR)
 
-from tasks.base_task import BaseTask, TaskResult, RESOURCE_CATALOG, RESOURCE_KEY_MAP
+from tasks.base_task import (
+    BaseTask,
+    TaskResult,
+    RESOURCE_CATALOG,
+    RESOURCE_KEY_MAP,
+    STAMINA_PACKS_CATALOG,
+    STAMINA_PACKS_KEY_MAP,
+)
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -102,67 +109,7 @@ class BaseTaskHarness(BaseTask):
 
 
 # ════════════════════════════════════════════════════════════════════
-# 2. محاكي الاتصال المحلي (Offline Mock Connection)
-# ════════════════════════════════════════════════════════════════════
-
-class OfflineMockConnection:
-    """
-    محاكي اتصال يعتمد على ملف الذاكرة الحية المحلي للاختبار السريع (0-Network).
-    يدعم محاكاة استهلاك الصناديق وتحديث الموارد بالذاكرة محلياً.
-    """
-    def __init__(self, init_data: Dict[str, Any], email: str = "offline@bot.com"):
-        self.init_data = init_data
-        self.email = email
-        self.is_connected = True
-
-        # استخراج بيانات اللورد والقلعة
-        lord = self.init_data.get("lordInfoCtrl", {})
-        base = lord.get("base", {}) if isinstance(lord, dict) else {}
-        uid = str(base.get("uid") or "31596828")
-        kid = int(base.get("lastKid") or 614)
-        server_name = f"OfflineKingdom_{kid}"
-
-        self.creds = type("MockCreds", (), {
-            "uid": uid,
-            "kingdom_id": kid,
-            "server_name": server_name,
-            "user_id": uid,
-        })()
-
-        # استخراج طوابير الفيالق إن وجدت
-        self.local_queues = self.init_data.get("local_queues", [])
-        self.other_local_queues = self.init_data.get("other_local_queues", [])
-
-    def get_ctrl(self, name: str) -> Dict[str, Any]:
-        val = self.init_data.get(name, {})
-        return val if isinstance(val, dict) else {}
-
-    async def query(self, cmd: str, subcmd: str, data: Optional[Dict[str, Any]] = None, timeout: float = 5.0) -> Dict[str, Any]:
-        """محاكاة استعلام الشبكة المحلي مع معالجة منطق فتح الصناديق محلياً."""
-        payload = data or {}
-        # محاكاة استخدام الصناديق في الحقيبة (CMD 1004 / SubCMD 2)
-        if cmd == "1004" and subcmd == "2":
-            item_id = str(payload.get("itemID", ""))
-            count = int(payload.get("count", 1))
-            backpack = self.get_ctrl("backpackCtrl") or self.get_ctrl("bagCtrl")
-            entry = backpack.get(item_id) or backpack.get(int(item_id) if item_id.isdigit() else 0)
-            if entry and isinstance(entry, dict):
-                cur_count = int(entry.get("count", 0))
-                entry["count"] = max(0, cur_count - count)
-            return {"err": 0, "data": {"status": "ok", "mock_consumed": True}}
-
-        # محاكاة مزامنة الفيالق (CMD 1007 / SubCMD 1000)
-        if cmd == "1007" and subcmd == "1000":
-            return {"err": 0, "data": {"status": "synced"}}
-
-        return {"err": 0, "data": {}}
-
-    async def close(self):
-        self.is_connected = False
-
-
-# ════════════════════════════════════════════════════════════════════
-# 3. مساعدات قراءة الحسابات وملفات الذاكرة
+# 2. مساعدات قراءة حسابات القلاع
 # ════════════════════════════════════════════════════════════════════
 
 def get_registered_accounts() -> List[Dict[str, Any]]:
@@ -196,32 +143,8 @@ def get_default_account_email() -> str:
     return accs[0]["email"] if accs else "LUCIFER@g4.com"
 
 
-def find_memory_dump_file(target_account: Optional[str] = None) -> Optional[str]:
-    """العثور على أنسب ملف تفريغ ذاكرة حية محلي."""
-    candidates = []
-    if target_account:
-        name_prefix = target_account.split("@")[0].lower()
-        candidates.extend([
-            os.path.join(DOCS_DIR, f"{name_prefix}_live_memory.json"),
-            os.path.join(WORKSPACE_DIR, "scratch", f"init_{name_prefix.upper()}.json"),
-        ])
-
-    candidates.extend([
-        os.path.join(DOCS_DIR, "lucifer_live_memory.json"),
-        os.path.join(DOCS_DIR, "beetoo1_live_memory.json"),
-        os.path.join(DOCS_DIR, "beetoo3_live_memory.json"),
-        os.path.join(DOCS_DIR, "sample_live_memory.json"),
-        os.path.join(WORKSPACE_DIR, "scratch", "init_LUCIFER.json"),
-    ])
-
-    for p in candidates:
-        if os.path.exists(p):
-            return p
-    return None
-
-
 # ════════════════════════════════════════════════════════════════════
-# 4. دوال فحص واختبار BaseTask المحددة
+# 3. دوال فحص واختبار BaseTask المحددة
 # ════════════════════════════════════════════════════════════════════
 
 def test_fast_memory_properties(task: BaseTask) -> Dict[str, Any]:
@@ -448,6 +371,44 @@ def test_available_troops(task: BaseTask) -> Dict[str, Any]:
         "troops_dict": troops_dict,
         "troops_list": troops_list,
         "categorized": categorized,
+        "time_ms": t_elapsed_ms,
+    }
+
+
+def test_stamina_packs(task: BaseTask, pack_type: Optional[str] = None) -> Dict[str, Any]:
+    """اختبار استخراج حزم وباقات طاقة اللورد من الحقيبة (0-Network Direct Read)."""
+    t0 = time.perf_counter()
+    res = task.get_available_stamina_packs(pack_type)
+    t_elapsed_ms = (time.perf_counter() - t0) * 1000
+
+    print("\n" + "═" * 70)
+    print(" ⚡ [BaseTask Stamina Packs] حزم وباقات طاقة اللورد بالحقيبة (0-Network)")
+    print("═" * 70)
+    if pack_type is not None:
+        print(f"   • الفئة المفحوصة          : {pack_type}")
+        print(f"   • إجمالي نقاط الطاقة المتاحة : {res:,}")
+    else:
+        tot_pts = res.get("total_stamina", 0) if isinstance(res, dict) else 0
+        tot_packs = res.get("total_packs", 0) if isinstance(res, dict) else 0
+        p10 = res.get("10", 0) if isinstance(res, dict) else 0
+        p50 = res.get("50", 0) if isinstance(res, dict) else 0
+        p100 = res.get("100", 0) if isinstance(res, dict) else 0
+        details = res.get("details", {}) if isinstance(res, dict) else {}
+        cnt10 = details.get("10", {}).get("count", 0)
+        cnt50 = details.get("50", {}).get("count", 0)
+        cnt100 = details.get("100", {}).get("count", 0)
+        print(f"   • إجمالي نقاط الطاقة الكلي : {tot_pts:,} نقطة طاقة")
+        print(f"   • إجمالي عدد الحزم        : {tot_packs:,} حزمة")
+        print(f"   • تفاصيل الحزم:")
+        print(f"       - 🟢 حزم 10 طاقة (300401) : {cnt10:,} حزمة ({p10:,} نقطة طاقة)")
+        print(f"       - 🔵 حزم 50 طاقة (300402) : {cnt50:,} حزمة ({p50:,} نقطة طاقة)")
+        print(f"       - 🟣 حزم 100 طاقة (300403): {cnt100:,} حزمة ({p100:,} نقطة طاقة)")
+    print(f"   ⚡ زمن القراءة الفوري       : {t_elapsed_ms:.3f} ms (استهلاك شبكي: 0-Network)")
+    print("═" * 70)
+
+    return {
+        "success": True,
+        "result": res,
         "time_ms": t_elapsed_ms,
     }
 
@@ -686,6 +647,111 @@ async def test_command_hall_battle(task: BaseTask) -> Dict[str, Any]:
     return {"success": exec_res.get("success", False), "result": exec_res, "time_ms": t_elapsed_ms}
 
 
+async def test_command_hall_snipe(task: BaseTask) -> Dict[str, Any]:
+    """اختبار دالة تنفيذ مهمة القناص الصامت (نوع 6) في قاعة القيادة."""
+    t0 = time.perf_counter()
+    print("\n" + "═" * 70)
+    print(" 🎯 [Command Hall Snipe] اختبار تنفيذ مهمة القناص الصامت (نوع 6)")
+    print("═" * 70)
+
+    # 1. جلب مهام قاعة القيادة وفحص القناص الصامت
+    cmd_res = await task.get_command_hall_tasks(force_sync=False)
+    all_t = cmd_res.get("all_tasks", [])
+    snipe_tasks = [t for t in all_t if t.get("type") == 6 and t.get("statue") in (1, 2)]
+
+    if not snipe_tasks:
+        print("   ⚠️ لا توجد مهام قناص صامت (نوع 6) جاهزة للتنفيذ حالياً في القلعة.")
+        print(f"      (إجمالي المهام المرصودة: {len(all_t)} | القابلة للتنفيذ: {len(cmd_res.get('executable_tasks', []))})")
+        print("═" * 70)
+        return {"success": True, "executed": False, "found": 0}
+
+    target_task = snipe_tasks[0]
+    print(f"   🎯 المهمة المستهدفة : #{target_task.get('index')} (ID: {target_task.get('task_id')}) جودة: {target_task.get('quality_name_ar')}")
+
+    # 2. تنفيذ مهمة القناص الصامت
+    exec_res = await task.execute_command_hall_snipe_task(target_task, wait_seconds=1.5)
+    t_elapsed_ms = (time.perf_counter() - t0) * 1000
+
+    print(f"   🚀 نتيجة التنفيذ   : {'ناجح ✅' if exec_res.get('success') else 'فشل ❌'}")
+    print(f"   📢 رسالة العملية   : {exec_res.get('message', exec_res.get('reason'))}")
+    if exec_res.get("rewards"):
+        print(f"   ⭐ الجوائز المستلمة: {exec_res.get('rewards')}")
+    print(f"   ⏱️ زمن التنفيذ     : {t_elapsed_ms:.2f} ms")
+    print("═" * 70)
+
+    return {"success": exec_res.get("success", False), "result": exec_res, "time_ms": t_elapsed_ms}
+
+
+async def test_command_hall_rescue(task: BaseTask) -> Dict[str, Any]:
+    """اختبار دالة تنفيذ مهمة إنقاذ القرويين (نوع 4) في قاعة القيادة."""
+    t0 = time.perf_counter()
+    print("\n" + "═" * 70)
+    print(" 🤝 [Command Hall Rescue] اختبار تنفيذ مهمة إنقاذ القرويين (نوع 4)")
+    print("═" * 70)
+
+    # 1. جلب مهام قاعة القيادة وفحص مهام إنقاذ القرويين
+    cmd_res = await task.get_command_hall_tasks(force_sync=False)
+    all_t = cmd_res.get("all_tasks", [])
+    rescue_tasks = [t for t in all_t if t.get("type") == 4 and t.get("statue") in (1, 2, 3)]
+
+    if not rescue_tasks:
+        print("   ⚠️ لا توجد مهام إنقاذ قرويين (نوع 4) جاهزة للتنفيذ حالياً في القلعة.")
+        print(f"      (إجمالي المهام المرصودة: {len(all_t)} | القابلة للتنفيذ: {len(cmd_res.get('executable_tasks', []))})")
+        print("═" * 70)
+        return {"success": True, "executed": False, "found": 0}
+
+    target_task = rescue_tasks[0]
+    print(f"   🎯 المهمة المستهدفة : #{target_task.get('index')} (ID: {target_task.get('task_id')}) جودة: {target_task.get('quality_name_ar')} | الحالة: {target_task.get('statue_name_ar')}")
+
+    # 2. تنفيذ مهمة إنقاذ القرويين
+    exec_res = await task.execute_command_hall_rescue_task(target_task, wait_seconds=2.0)
+    t_elapsed_ms = (time.perf_counter() - t0) * 1000
+
+    print(f"   🚀 نتيجة التنفيذ   : {'ناجح ✅' if exec_res.get('success') else 'فشل ❌'}")
+    print(f"   📢 رسالة العملية   : {exec_res.get('message', exec_res.get('reason'))}")
+    if exec_res.get("rewards"):
+        print(f"   ⭐ الجوائز المستلمة: {exec_res.get('rewards')}")
+    print(f"   ⏱️ زمن التنفيذ     : {t_elapsed_ms:.2f} ms")
+    print("═" * 70)
+
+    return {"success": exec_res.get("success", False), "result": exec_res, "time_ms": t_elapsed_ms}
+
+
+async def test_command_hall_dialogue(task: BaseTask) -> Dict[str, Any]:
+    """اختبار دالة تنفيذ مهمة المعلومات العسكرية (نوع 3) في قاعة القيادة."""
+    t0 = time.perf_counter()
+    print("\n" + "═" * 70)
+    print(" 📜 [Command Hall Dialogue] اختبار تنفيذ مهمة المعلومات العسكرية (نوع 3)")
+    print("═" * 70)
+
+    # 1. جلب مهام قاعة القيادة وفحص مهام المعلومات العسكرية
+    cmd_res = await task.get_command_hall_tasks(force_sync=False)
+    all_t = cmd_res.get("all_tasks", [])
+    dialogue_tasks = [t for t in all_t if t.get("type") == 3 and t.get("statue") in (1, 2, 3)]
+
+    if not dialogue_tasks:
+        print("   ⚠️ لا توجد مهام معلومات عسكرية (نوع 3) جاهزة للتنفيذ حالياً في القلعة.")
+        print(f"      (إجمالي المهام المرصودة: {len(all_t)} | القابلة للتنفيذ: {len(cmd_res.get('executable_tasks', []))})")
+        print("═" * 70)
+        return {"success": True, "executed": False, "found": 0}
+
+    target_task = dialogue_tasks[0]
+    print(f"   🎯 المهمة المستهدفة : #{target_task.get('index')} (ID: {target_task.get('task_id')}) جودة: {target_task.get('quality_name_ar')} | الحالة: {target_task.get('statue_name_ar')}")
+
+    # 2. تنفيذ مهمة المعلومات العسكرية
+    exec_res = await task.execute_command_hall_dialogue_task(target_task, wait_seconds=1.5)
+    t_elapsed_ms = (time.perf_counter() - t0) * 1000
+
+    print(f"   🚀 نتيجة التنفيذ   : {'ناجح ✅' if exec_res.get('success') else 'فشل ❌'}")
+    print(f"   📢 رسالة العملية   : {exec_res.get('message', exec_res.get('reason'))}")
+    if exec_res.get("rewards"):
+        print(f"   ⭐ الجوائز المستلمة: {exec_res.get('rewards')}")
+    print(f"   ⏱️ زمن التنفيذ     : {t_elapsed_ms:.2f} ms")
+    print("═" * 70)
+
+    return {"success": exec_res.get("success", False), "result": exec_res, "time_ms": t_elapsed_ms}
+
+
 # ════════════════════════════════════════════════════════════════════
 # 5. الفحص الشامل لجميع المكونات (All-in-One Benchmark)
 # ════════════════════════════════════════════════════════════════════
@@ -704,6 +770,7 @@ async def run_all_benchmarks(task: BaseTask) -> Dict[str, Any]:
     results["gather_types"] = test_gather_resource_types(task)
     results["ruins_march"] = test_ruins_march(task)
     results["available_troops"] = test_available_troops(task)
+    results["stamina_packs"] = test_stamina_packs(task)
     results["lifecycle"] = await test_lifecycle_and_safety(task)
     results["safe_query"] = await test_safe_query_and_jitter(task)
 
@@ -743,54 +810,43 @@ async def run_all_benchmarks(task: BaseTask) -> Dict[str, Any]:
 
 
 # ════════════════════════════════════════════════════════════════════
-# 6. القائمة التفاعلية في التيرمنال (Interactive Menu)
+# 5. القائمة التفاعلية في التيرمنال (Interactive Menu)
 # ════════════════════════════════════════════════════════════════════
 
-async def run_interactive_menu(current_email: str, is_live: bool, memory_file: Optional[str] = None):
-    """تشغيل القائمة التفاعلية في التيرمنال لاختيار الدالة المطلوب فحصها."""
+async def run_interactive_menu(current_email: str):
+    """تشغيل القائمة التفاعلية في التيرمنال لاختيار الدالة المطلوب فحصها (نمط حي دائم)."""
     task = None
     bot = None
     conn = None
 
-    async def _setup_harness(live_mode: bool, email: str, mem_path: Optional[str]) -> Tuple[BaseTask, Any, Any]:
-        if live_mode:
-            print(f"\n🌐 جاري الاتصال الحي بالبوابة لحساب: {email} (محاكاة تشغيل البوت العام)...")
-            from bot_manager import CastleBot
-            import core.database as db
-            c_data = db.get_castle_by_id(email)
-            pwd = c_data.get("password") if c_data else None
-            b = CastleBot(email=email, password=pwd, log_callback=lambda m: None)
-            b.is_running = True  # إلزامي لتمكين اتصال البوابة
-            ok = await b.connect()
-            if not ok or not b.conn:
-                print(f"❌ فشل الاتصال بالبوابة للحساب: {email}! سيتم التحويل للنمط المحلي.")
-                return await _setup_harness(False, email, mem_path)
-            b.reload_config_from_db()
-            print(f"✓ متصل بالبوابة بنجاح! UID={getattr(b.creds, 'uid', 'N/A')} | المملكة={getattr(b.creds, 'kingdom_id', 'N/A')}")
-            t = BaseTaskHarness(b.conn, log_func=b.log, config=b.config)
-            print("🔄 جاري مزامنة طوابير الفيالق مع السيرفر...")
-            await t.sync_local_queues(timeout=3.0)
-            await asyncio.sleep(0.5)
-            return t, b, b.conn
-        else:
-            path = mem_path or find_memory_dump_file(email)
-            print(f"\n⚡ جاري تجهيز النمط المحلي (Offline) من الملف: {path}...")
-            if not path or not os.path.exists(path):
-                raise FileNotFoundError(f"لم يتم العثور على ملف ذاكرة حية محلي ({path})!")
-            with open(path, "r", encoding="utf-8") as f:
-                dump = json.load(f)
-            c = OfflineMockConnection(dump, email=email)
-            t = BaseTaskHarness(c, log_func=lambda m: print(f"   [Offline Log] {m}"))
-            print(f"✓ تم تجهيز الذاكرة الحية المحلية بنجاح ({len(dump)} متحكم).")
-            return t, None, c
+    async def _setup_harness(email: str) -> Tuple[Optional[BaseTask], Any, Any]:
+        print(f"\n🌐 جاري الاتصال الحي بالبوابة لحساب: {email} (محاكاة تشغيل البوت العام)...")
+        from bot_manager import CastleBot
+        import core.database as db
+        c_data = db.get_castle_by_id(email)
+        pwd = c_data.get("password") if c_data else None
+        b = CastleBot(email=email, password=pwd, log_callback=lambda m: None)
+        b.is_running = True  # إلزامي لتمكين اتصال البوابة
+        ok = await b.connect()
+        if not ok or not b.conn:
+            print(f"❌ فشل الاتصال بالبوابة للحساب: {email}!")
+            return None, None, None
+        b.reload_config_from_db()
+        print(f"✓ متصل بالبوابة بنجاح! UID={getattr(b.creds, 'uid', 'N/A')} | المملكة={getattr(b.creds, 'kingdom_id', 'N/A')}")
+        t = BaseTaskHarness(b.conn, log_func=b.log, config=b.config)
+        print("🔄 جاري مزامنة طوابير الفيالق مع السيرفر...")
+        await t.sync_local_queues(timeout=3.0)
+        await asyncio.sleep(0.5)
+        return t, b, b.conn
 
     try:
-        task, bot, conn = await _setup_harness(is_live, current_email, memory_file)
+        task, bot, conn = await _setup_harness(current_email)
+        if not task:
+            return
 
         while True:
-            mode_badge = "🔴 حي (Live)" if is_live else "🟢 محلي (Offline)"
             print("\n" + "═" * 70)
-            print(f" 🧪 أداة فحص واختبار BaseTask — النمط: [{mode_badge}] | الحساب: {current_email}")
+            print(f" 🧪 أداة فحص واختبار BaseTask — النمط: [🔴 حي مباشر (Live)] | الحساب: {current_email}")
             print("═" * 70)
             print(" [1] فحص شامل لكافة الخصائص والدوال (All-in-One Benchmark)")
             print(" [2] خصائص الذاكرة الحية (uid, kingdom_id, stamina, gold, resources...)")
@@ -798,11 +854,11 @@ async def run_interactive_menu(current_email: str, is_live: bool, memory_file: O
             print(" [4] فحص موارد الجمع النشطة (get_active_gather_resource_types)")
             print(" [5] فحص مسيرات الأطلال (is_ruins_march_active / has_active_ruins_march)")
             print(" [t] فحص القوات الشاغرة بالقلعة واستبعاد حصن الحرب (get_available_troops)")
+            print(" [p] فحص حزم وباقات طاقة اللورد بالحقيبة (get_available_stamina_packs)")
             print(" [6] مزامنة طوابير الفيالق مع السيرفر (sync_local_queues)")
             print(" [7] تجربة توفير الموارد وفتح الصناديق (ensure_resources)")
             print(" [8] فحص دورة حياة التنفيذ والحماية (can_run / safe_execute)")
             print(" [9] فحص الاستعلام الآمن والفاصل البشري (safe_query)")
-            print(" [0] تبديل نمط التشغيل (Live ⮂ Offline)")
             print(" [c] تغيير الحساب المستهدف")
             print(" [q] خروج")
             print("─" * 70)
@@ -831,6 +887,10 @@ async def run_interactive_menu(current_email: str, is_live: bool, memory_file: O
             elif choice in ("t", "troops", "soldiers", "army"):
                 test_available_troops(task)
 
+            elif choice in ("p", "packs", "stamina_packs", "stamina"):
+                p_in = input("   أدخل فئة الحزمة (10, 50, 100, total أو اتركه فارغاً للتقرير الشامل): ").strip()
+                test_stamina_packs(task, pack_type=p_in if p_in else None)
+
             elif choice == "6":
                 await test_sync_queues(task)
 
@@ -854,13 +914,6 @@ async def run_interactive_menu(current_email: str, is_live: bool, memory_file: O
             elif choice == "9":
                 await test_safe_query_and_jitter(task)
 
-            elif choice == "0":
-                is_live = not is_live
-                print(f"🔄 جاري التحويل إلى النمط {'الحي (Live)' if is_live else 'المحلي (Offline)'}...")
-                if bot and bot.conn:
-                    await bot.conn.close()
-                task, bot, conn = await _setup_harness(is_live, current_email, memory_file)
-
             elif choice == "c":
                 accs = get_registered_accounts()
                 print("\nالحسابات المتاحة:")
@@ -872,7 +925,7 @@ async def run_interactive_menu(current_email: str, is_live: bool, memory_file: O
                     current_email = accs[int(c_idx) - 1]["email"]
                     if bot and bot.conn:
                         await bot.conn.close()
-                    task, bot, conn = await _setup_harness(is_live, current_email, memory_file)
+                    task, bot, conn = await _setup_harness(current_email)
 
             else:
                 print("⚠️ خيار غير معروف، يرجى الاختيار من القائمة.")
@@ -886,7 +939,7 @@ async def run_interactive_menu(current_email: str, is_live: bool, memory_file: O
 
 
 # ════════════════════════════════════════════════════════════════════
-# 7. نقطة الدخول الرئيسية للسكريبت (CLI Entrypoint)
+# 6. نقطة الدخول الرئيسية للسكريبت (CLI Entrypoint)
 # ════════════════════════════════════════════════════════════════════
 
 async def main_async():
@@ -896,14 +949,14 @@ async def main_async():
     )
 
     # خيارات البيئة والاتصال
-    parser.add_argument("--live", action="store_true", help="تشغيل في النمط الحي (Live) بالاتصال المباشر بالبوابة (الافتراضي)")
-    parser.add_argument("--offline", action="store_true", help="تشغيل في النمط المحلي الآمن (Offline) بدون شبكة عبر تفريغ الذاكرة")
+    parser.add_argument("--live", action="store_true", default=True, help="تشغيل في النمط الحي (Live) بالاتصال المباشر بالبوابة (الافتراضي دائماً)")
     parser.add_argument("--email", type=str, default=None, help="بريد حساب القلعة المراد اختباره")
-    parser.add_argument("--memory-file", type=str, default=None, help="مسار مخصص لملف الذاكرة الحية JSON")
 
     # خيارات الاختبارات
     parser.add_argument("command", nargs="?", default=None, help="اسم الاختبار السريع (all, properties, marches, gather, ruins, sync, ensure_resources, lifecycle)")
     parser.add_argument("--fn", type=str, default=None, help="اسم الدالة أو الخاصية المراد فحصها تحديداً")
+    parser.add_argument("--skill", "--skill-id", dest="skill", type=str, default=None, help="معرف أو اسم المهارة المراد فحصها (مثل 12008 أو 'حصاد وافر')")
+    parser.add_argument("--pack", "--pack-type", dest="pack", type=str, default=None, help="نوع أو فئة حزمة الطاقة المراد فحصها (10, 50, 100, total, all...)")
     parser.add_argument("--all", action="store_true", help="تشغيل الفحص الشامل الميداني (All-in-One Benchmark)")
     parser.add_argument("-i", "--interactive", action="store_true", help="فتح القائمة التفاعلية في التيرمنال")
 
@@ -915,8 +968,7 @@ async def main_async():
 
     args = parser.parse_args()
 
-    # تحديد نمط التشغيل: الافتراضي هو النمط الحي المباشر (Live) محاكاة لتشغيل البوت من الواجهة
-    is_live = not args.offline
+    # تحديد الحساب المستهدف (دائماً في النمط الحي المباشر)
     target_email = args.email or get_default_account_email()
 
     # إذا تم تمرير دالة محددة بـ --fn، يُطلب حصراً طباعة ناتجها المباشر فقط بدون أي سجلات أو نصوص إضافية
@@ -927,43 +979,55 @@ async def main_async():
         res_fn = None
         f_silent = io.StringIO()
         with contextlib.redirect_stdout(f_silent), contextlib.redirect_stderr(f_silent):
-            if is_live:
-                from bot_manager import CastleBot
-                import core.database as db
-                c_data = db.get_castle_by_id(target_email)
-                pwd = c_data.get("password") if c_data else None
-                bot_fn = CastleBot(email=target_email, password=pwd, log_callback=lambda m: None)
-                bot_fn.is_running = True
-                ok = await bot_fn.connect()
-                if not ok or not bot_fn.conn:
-                    return
-                bot_fn.reload_config_from_db()
-                task = BaseTaskHarness(bot_fn.conn, log_func=lambda m: None, config=bot_fn.config)
-                if any(k in fn_name.lower() for k in ("march", "queue", "gather", "ruin")):
-                    await task.sync_local_queues(timeout=3.0)
-                    await asyncio.sleep(0.5)
-            else:
-                mem_file = args.memory_file or find_memory_dump_file(target_email)
-                if not mem_file or not os.path.exists(mem_file):
-                    return
-                with open(mem_file, "r", encoding="utf-8") as f:
-                    dump = json.load(f)
-                conn = OfflineMockConnection(dump, email=target_email)
-                task = BaseTaskHarness(conn, log_func=lambda m: None)
+            from bot_manager import CastleBot
+            import core.database as db
+            c_data = db.get_castle_by_id(target_email)
+            pwd = c_data.get("password") if c_data else None
+            bot_fn = CastleBot(email=target_email, password=pwd, log_callback=lambda m: None)
+            bot_fn.is_running = True
+            ok = await bot_fn.connect()
+            if not ok or not bot_fn.conn:
+                return
+            bot_fn.reload_config_from_db()
+            task = BaseTaskHarness(bot_fn.conn, log_func=lambda m: None, config=bot_fn.config)
+            if any(k in fn_name.lower() for k in ("march", "queue", "gather", "ruin")):
+                await task.sync_local_queues(timeout=3.0)
+                await asyncio.sleep(0.5)
 
             if hasattr(task, fn_name):
                 attr = getattr(task, fn_name)
                 if callable(attr):
                     is_async = asyncio.iscoroutinefunction(attr)
-                    res_fn = await attr() if is_async else attr()
+                    try:
+                        sig = inspect.signature(attr)
+                        params = [p for p in sig.parameters.values() if p.default == inspect.Parameter.empty and p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)]
+                    except Exception:
+                        params = []
+
+                    # إذا كانت الدالة هي get_lord_skill_status أو تتطلب معامل المهارة
+                    if "skill" in fn_name.lower():
+                        res_fn = await attr(args.skill) if is_async else attr(args.skill)
+                    elif any(k in fn_name.lower() for k in ("boost", "speedup")):
+                        res_arg = args.resource if any(a.startswith("--resource") for a in sys.argv) else None
+                        res_fn = await attr(res_arg) if is_async else attr(res_arg)
+                    elif any(k in fn_name.lower() for k in ("stamina_pack", "stamina_packs")):
+                        pack_arg = args.pack if any(a.startswith(("--pack", "--pack-type")) for a in sys.argv) else None
+                        res_fn = await attr(pack_arg) if is_async else attr(pack_arg)
+                    elif len(params) > 0:
+                        res_fn = await attr(args.skill) if is_async else attr(args.skill)
+                    else:
+                        res_fn = await attr() if is_async else attr()
                 else:
                     res_fn = attr
 
             if bot_fn and bot_fn.conn:
                 await bot_fn.conn.close()
 
-        # طباعة قيمة الدالة فقط بدون أي زيادة
-        print(res_fn)
+        # طباعة قيمة الدالة بتنسيق JSON نظيف إذا كانت قاموساً أو مصفوفة
+        if isinstance(res_fn, (dict, list)):
+            print(json.dumps(res_fn, ensure_ascii=False, indent=2))
+        else:
+            print(res_fn)
         return
 
     # تحديد اسم العملية المطلوبة
@@ -971,43 +1035,32 @@ async def main_async():
 
     # إذا تم طلب الوضع التفاعلي أو لم يتم تمرير أي أمر أو دالة
     if args.interactive or (not args.all and not cmd):
-        await run_interactive_menu(target_email, is_live, args.memory_file)
+        await run_interactive_menu(target_email)
         return
 
-    # تجهيز كائن المهمة للاختبار المباشر من سطر الأوامر
+    # تجهيز كائن المهمة للاختبار المباشر من سطر الأوامر (نمط حي دائم)
     bot = None
     conn = None
 
-    if is_live:
-        print(f"🌐 [Live Mode] جاري الاتصال بحساب القلعة: {target_email} (محاكاة تشغيل البوت العام)...")
-        from bot_manager import CastleBot
-        import core.database as db
-        c_data = db.get_castle_by_id(target_email)
-        pwd = c_data.get("password") if c_data else None
-        bot = CastleBot(email=target_email, password=pwd, log_callback=lambda m: None)
-        bot.is_running = True  # إلزامي لتمكين اتصال البوابة
-        ok = await bot.connect()
-        if not ok or not bot.conn:
-            print(f"❌ فشل الاتصال بالبوابة لحساب: {target_email}")
-            return
-        bot.reload_config_from_db()
-        conn = bot.conn
-        print(f"✓ متصل بالبوابة بنجاح! UID={getattr(bot.creds, 'uid', 'N/A')} | المملكة={getattr(bot.creds, 'kingdom_id', 'N/A')}")
-        cfg = bot.config
-        task = BaseTaskHarness(conn, log_func=bot.log, config=cfg)
-        print("🔄 جاري مزامنة طوابير الفيالق مع السيرفر...")
-        await task.sync_local_queues(timeout=3.0)
-        await asyncio.sleep(0.5)
-    else:
-        mem_file = args.memory_file or find_memory_dump_file(target_email)
-        if not mem_file or not os.path.exists(mem_file):
-            print(f"❌ تعذر العثور على ملف ذاكرة حية محلي ({mem_file})!")
-            return
-        print(f"⚡ [Offline Mode] قراءة الذاكرة الحية من: {mem_file}...")
-        with open(mem_file, "r", encoding="utf-8") as f:
-            dump = json.load(f)
-        conn = OfflineMockConnection(dump, email=target_email)
-        task = BaseTaskHarness(conn, log_func=lambda m: print(f"   [Task Log] {m}"))
+    print(f"🌐 [Live Mode] جاري الاتصال بحساب القلعة: {target_email} (محاكاة تشغيل البوت العام)...")
+    from bot_manager import CastleBot
+    import core.database as db
+    c_data = db.get_castle_by_id(target_email)
+    pwd = c_data.get("password") if c_data else None
+    bot = CastleBot(email=target_email, password=pwd, log_callback=lambda m: None)
+    bot.is_running = True  # إلزامي لتمكين اتصال البوابة
+    ok = await bot.connect()
+    if not ok or not bot.conn:
+        print(f"❌ فشل الاتصال بالبوابة لحساب: {target_email}")
+        return
+    bot.reload_config_from_db()
+    conn = bot.conn
+    print(f"✓ متصل بالبوابة بنجاح! UID={getattr(bot.creds, 'uid', 'N/A')} | المملكة={getattr(bot.creds, 'kingdom_id', 'N/A')}")
+    cfg = bot.config
+    task = BaseTaskHarness(conn, log_func=bot.log, config=cfg)
+    print("🔄 جاري مزامنة طوابير الفيالق مع السيرفر...")
+    await task.sync_local_queues(timeout=3.0)
+    await asyncio.sleep(0.5)
 
     try:
         if args.all or cmd in ("all", "benchmark", "full"):
@@ -1051,6 +1104,18 @@ async def main_async():
 
         elif cmd in ("command_hall_battle", "battle", "test_battle", "battle_task"):
             await test_command_hall_battle(task)
+
+        elif cmd in ("command_hall_snipe", "snipe", "sniper", "test_snipe", "snipe_task"):
+            await test_command_hall_snipe(task)
+
+        elif cmd in ("command_hall_rescue", "rescue", "rescue_task", "test_rescue"):
+            await test_command_hall_rescue(task)
+
+        elif cmd in ("command_hall_dialogue", "dialogue", "dialogue_task", "test_dialogue"):
+            await test_command_hall_dialogue(task)
+
+        elif cmd in ("stamina_packs", "stamina_pack", "get_available_stamina_packs", "packs", "stamina_boxes"):
+            test_stamina_packs(task, pack_type=args.pack)
 
         elif hasattr(task, cmd):
             # فحص مرن لأي دالة أو خاصية أخرى في BaseTask

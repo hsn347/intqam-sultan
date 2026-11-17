@@ -112,6 +112,8 @@ ALLOWED_CONTROLLERS: FrozenSet[str] = frozenset({
     "shopCtrl",
     "playerArenaCtrl",
     "arenaCtrl",
+    "stuffWorkshopCtrl",
+    "stuffWorkshop",
 
     # --- Aliases & Internal State Keys (10) ---
     "lord",
@@ -144,6 +146,7 @@ FALLBACK_QUERIES: Dict[str, Tuple[int, int, Dict[str, Any]]] = {
     "armyCtrl": (1005, 1, {}),
     "backpackCtrl": (1004, 1, {}),
     "local_queues": (1007, 1000, {}),
+    "stuffWorkshopCtrl": (2021, 1, {}),
 }
 
 
@@ -763,6 +766,9 @@ class LiveMemoryEngine:
         "65": ("_handle_notify_generic_controller", ("godBeastCtrl",), True),
         "PET": ("_handle_notify_generic_controller", ("godBeastCtrl",), True),
         "NOTIFY_PET": ("_handle_notify_generic_controller", ("godBeastCtrl",), True),
+        "1002": ("_handle_notify_generic_controller", ("stuffWorkshopCtrl",), True),
+        "STUFFWORKSHOP_REFINERY": ("_handle_notify_generic_controller", ("stuffWorkshopCtrl",), True),
+        "NOTIFY_STUFFWORKSHOP_REFINERY": ("_handle_notify_generic_controller", ("stuffWorkshopCtrl",), True),
     }
 
     def ingest_packet_with_report(self, packet: Any) -> Tuple[Dict[str, Any], Dict[str, Any]]:
@@ -831,19 +837,28 @@ class LiveMemoryEngine:
                 notify_detail = "وصلت حزمة cmd=1009 بدون حقل notifyID"
 
             # 2. Handle domain-specific commands (such as army training updates in cmd 1005)
+            controller_status: Optional[str] = None
+            merged_controllers: List[str] = []
+
             if cmd in ("1005", "onemt_1005"):
                 try:
                     self._handle_cmd_1005(subcmd, packet)
                 except Exception as exc:
                     errors.append(f"cmd_1005_handling: {exc}")
 
+            if cmd in ("2021", "onemt_2021"):
+                try:
+                    self._handle_cmd_2021(subcmd, packet)
+                    merged_controllers.append("stuffWorkshopCtrl")
+                    controller_status = "merged"
+                except Exception as exc:
+                    errors.append(f"cmd_2021_handling: {exc}")
+
             # 3. Extract and merge whitelisted controller state
-            controller_status: Optional[str] = None
-            merged_controllers: List[str] = []
             try:
                 controllers = self.extract_controllers(packet)
                 if controllers:
-                    merged_controllers = list(controllers.keys())
+                    merged_controllers.extend([k for k in controllers.keys() if k not in merged_controllers])
                     smart_deep_merge(self.init_data, controllers, in_place=True)
 
                     # Ensure both 'reslist' and 'resList' are kept in sync in cityCtrl
@@ -1096,6 +1111,18 @@ class LiveMemoryEngine:
                         if isinstance(cr, dict) and "resid" in cr and "curcount" in cr:
                             reslist[str(cr["resid"])] = cr["curcount"]
                     city["resList"] = reslist
+
+    def _handle_cmd_2021(self, sub_s: str, packet: Dict[str, Any]) -> None:
+        """Handles Material Workshop responses (cmd 2021) and updates stuffWorkshopCtrl."""
+        res = packet.get("result")
+        if isinstance(res, dict):
+            existing = self.init_data.setdefault("stuffWorkshopCtrl", {})
+            if isinstance(existing, dict):
+                existing.update({k: copy.deepcopy(v) for k, v in res.items() if k != "list"})
+                if "list" in res:
+                    existing["list"] = copy.deepcopy(res["list"])
+            else:
+                self.init_data["stuffWorkshopCtrl"] = copy.deepcopy(res)
 
     # ──────────────────────────────────────────────────────────────────────────
     # Notification Handlers (Lua Model Synchronization)

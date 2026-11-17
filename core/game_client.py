@@ -1407,6 +1407,7 @@ class GameConnection:
             try:
                 chunk = await self._reader.read(4096)
                 if not chunk:
+                    log.warning(f"[{self.account.email}] انتهى الاتصال من جهة السيرفر (EOF / Empty chunk)")
                     break
                 self._buffer += chunk
                 pkts, self._buffer = unpack_stream(self._buffer)
@@ -1453,7 +1454,7 @@ class GameConnection:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                log.debug(f"[{self.account.email}] استثناء في حلقة الاستقبال: {e}")
+                log.error(f"[{self.account.email}] استثناء في حلقة الاستقبال: {e}", exc_info=True)
                 break
         self._alive = False
 

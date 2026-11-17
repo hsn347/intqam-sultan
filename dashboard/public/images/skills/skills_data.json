@@ -1,0 +1,2212 @@
+{
+  "summary": {
+    "total_skills_mapped": 288,
+    "lord_skills_count": 68,
+    "hero_skills_count": 109,
+    "stun_skills_count": 86,
+    "beast_skills_count": 25
+  },
+  "categories": {
+    "lord": {
+      "title_ar": "مهارات الحاكم / اللورد (شجرة المواهب)",
+      "total": 68,
+      "skills": [
+        {
+          "id": 11001,
+          "name": "حمولة القوات",
+          "description": "يزيد من الحمولة القصوى لقوات الحملات.",
+          "icon": "Battle_1.png",
+          "category": "battle",
+          "is_active": true,
+          "relative_path": "skills/lord/Battle_1.png"
+        },
+        {
+          "id": 11002,
+          "name": "دفاع المشاة I",
+          "description": "يزيد من الدفاع لجميع المشاة.",
+          "icon": "Battle_2.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_2.png"
+        },
+        {
+          "id": 11003,
+          "name": "صحة المشاة I",
+          "description": "يزيد من الصحة لجميع المشاة. ",
+          "icon": "Battle_3.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_3.png"
+        },
+        {
+          "id": 11004,
+          "name": "هجوم المشاة I",
+          "description": "يزيد من الهجوم لجميع المشاة.",
+          "icon": "Battle_4.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_4.png"
+        },
+        {
+          "id": 11005,
+          "name": "هجوم الفرسان I",
+          "description": "يزيد من الهجوم لجميع الفرسان.",
+          "icon": "Battle_5.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_5.png"
+        },
+        {
+          "id": 11006,
+          "name": "هجوم رماة السهام I",
+          "description": "يزيد من الهجوم لجميع رماة السهام.",
+          "icon": "Battle_6.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_6.png"
+        },
+        {
+          "id": 11007,
+          "name": "هجوم العربات I",
+          "description": "يزيد من الهجوم لجميع العربات.",
+          "icon": "Battle_7.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_7.png"
+        },
+        {
+          "id": 11008,
+          "name": "دفاع الفرسان I",
+          "description": "يزيد من الدفاع لجميع الفرسان.",
+          "icon": "Battle_8.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_8.png"
+        },
+        {
+          "id": 11009,
+          "name": "دفاع رماة السهام I",
+          "description": "يزيد من الدفاع لجميع رماة السهام.",
+          "icon": "Battle_9.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_9.png"
+        },
+        {
+          "id": 11010,
+          "name": "دفاع العربات I",
+          "description": "يزيد من الدفاع لجميع العربات.",
+          "icon": "Battle_10.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_10.png"
+        },
+        {
+          "id": 11011,
+          "name": "العودة الفورية",
+          "description": "مهارة إيجابية. من خلالها يمكن سحب كل القوات التي تسير حالياً وإرجاعها إلى قلعتك على الفور. لا يشمل القوات التي تشارك في حشد.",
+          "icon": "Battle_11.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_11.png"
+        },
+        {
+          "id": 11012,
+          "name": "دفاع المشاة II",
+          "description": "يزيد من الدفاع لجميع المشاة.",
+          "icon": "Battle_12.png",
+          "category": "battle",
+          "is_active": true,
+          "relative_path": "skills/lord/Battle_12.png"
+        },
+        {
+          "id": 11013,
+          "name": "صحة المشاة II",
+          "description": "يزيد من الصحة لجميع المشاة. ",
+          "icon": "Battle_13.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_13.png"
+        },
+        {
+          "id": 11014,
+          "name": "هجوم المشاة II",
+          "description": "يزيد من الهجوم لجميع المشاة.",
+          "icon": "Battle_14.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_14.png"
+        },
+        {
+          "id": 11015,
+          "name": "هجوم الفرسان II",
+          "description": "يزيد من الهجوم لجميع الفرسان.",
+          "icon": "Battle_15.png",
+          "category": "battle",
+          "is_active": true,
+          "relative_path": "skills/lord/Battle_15.png"
+        },
+        {
+          "id": 11016,
+          "name": "هجوم رماة السهام II",
+          "description": "يزيد من الهجوم لجميع رماة السهام.",
+          "icon": "Battle_16.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_16.png"
+        },
+        {
+          "id": 11017,
+          "name": "هجوم العربات II",
+          "description": "يزيد من الهجوم لجميع العربات.",
+          "icon": "Battle_17.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_17.png"
+        },
+        {
+          "id": 11018,
+          "name": "دفاع الفرسان II",
+          "description": "يزيد من الدفاع لجميع الفرسان.",
+          "icon": "Battle_18.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_18.png"
+        },
+        {
+          "id": 11019,
+          "name": "دفاع رماة السهام II",
+          "description": "يزيد من الدفاع لجميع رماة السهام.",
+          "icon": "Battle_19.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_19.png"
+        },
+        {
+          "id": 11020,
+          "name": "دفاع العربات II",
+          "description": "يزيد من الدفاع لجميع العربات.",
+          "icon": "Battle_20.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_20.png"
+        },
+        {
+          "id": 11021,
+          "name": "درع قوي",
+          "description": "يقلل إصابة المشاة.",
+          "icon": "Battle_21.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_21.png"
+        },
+        {
+          "id": 11022,
+          "name": "صحة الفرسان II",
+          "description": "يزيد من الصحة لكل الفرسان.",
+          "icon": "Battle_22.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_22.png"
+        },
+        {
+          "id": 11023,
+          "name": "صحة رماة السهام II",
+          "description": "يزيد من الصحة لكل رماة السهام.",
+          "icon": "Battle_23.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_23.png"
+        },
+        {
+          "id": 11024,
+          "name": "صحة العربات II",
+          "description": "يزيد من الصحة لكل العربات.",
+          "icon": "Battle_24.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_24.png"
+        },
+        {
+          "id": 11025,
+          "name": "الخيالة",
+          "description": "يزيد من نسبة ضرر الذي يسببه الفرسان عند شن الهجوم.",
+          "icon": "Battle_25.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_25.png"
+        },
+        {
+          "id": 11026,
+          "name": "قوس طويل",
+          "description": "يزيد من نسبة ضرر الذي يسببه رماة السهام.",
+          "icon": "Battle_26.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_26.png"
+        },
+        {
+          "id": 11027,
+          "name": "اقتحام القلعة",
+          "description": "يزيد من ضرر العربات الحربية أثناء معركة مهاجمة القلاع.",
+          "icon": "Battle_27.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_27.png"
+        },
+        {
+          "id": 11028,
+          "name": "الإنقاذ",
+          "description": "مهارة إيجابية: أول هجوم فردي تم على قلاع الآخرين أو مباني للتحالفات الأخرى أو نقاط الموارد أو القوات المخيمة في خريطة المملكة بعد تفعيل هذه المهارة فانه لن يكون هناك قتلى وسوف تتحول الجنود المقتولة إلى جرحى ويذهبون إلى الخيام الطبية حتى تمتلئ الخيام بهم لمرة واحدة فقط بعد التفعيل. (المهارة لا تفعل في الحشد أو الهجوم على القصر)",
+          "icon": "Battle_28.png",
+          "category": "battle",
+          "is_active": false,
+          "relative_path": "skills/lord/Battle_28.png"
+        },
+        {
+          "id": 11029,
+          "name": "زيادة المسيرة ",
+          "description": "مهارة إيجابية: بعد إستخدامها يزيد من الحد الأقصى لقوات الحملات بنسبة 10% لمدة 1 ساعة .",
+          "icon": "Battle_29.png",
+          "category": "battle",
+          "is_active": true,
+          "relative_path": "skills/lord/Battle_29.png"
+        },
+        {
+          "id": 12001,
+          "name": "تسريع البناء",
+          "description": "يقلل مدة تطوير المباني.",
+          "icon": "Develop_1.png",
+          "category": "develop",
+          "is_active": true,
+          "relative_path": "skills/lord/Develop_1.png"
+        },
+        {
+          "id": 12002,
+          "name": "إنتاج الخشب I",
+          "description": "يزيد إنتاج الخشب.",
+          "icon": "Develop_2.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_2.png"
+        },
+        {
+          "id": 12003,
+          "name": "إنتاج القمح I",
+          "description": "يزيد إنتاج القمح.",
+          "icon": "Develop_3.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_3.png"
+        },
+        {
+          "id": 12004,
+          "name": "جمع الخشب I",
+          "description": "يزيد سرعة جمع الخشب في العالم.",
+          "icon": "Develop_4.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_4.png"
+        },
+        {
+          "id": 12005,
+          "name": "جمع القمح I",
+          "description": "يزيد سرعة جمع القمح في العالم.",
+          "icon": "Develop_5.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_5.png"
+        },
+        {
+          "id": 12006,
+          "name": "تسريع البحث",
+          "description": "يقلل مدة عمل الأبحاث العلمية.",
+          "icon": "Develop_6.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_6.png"
+        },
+        {
+          "id": 12007,
+          "name": "القبو السوبر I",
+          "description": "زيادة الحد الأقصى للموارد المحفوظة بالمخزن",
+          "icon": "Develop_7.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_7.png"
+        },
+        {
+          "id": 12008,
+          "name": "حصاد وافر",
+          "description": "مهارة إيجابية: تمكنك من الحصول على انتاج الموارد لمدة ساعة واحدة في الحال.",
+          "icon": "Develop_8.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_8.png"
+        },
+        {
+          "id": 12009,
+          "name": "إنتاج الخشب II",
+          "description": "يزيد إنتاج الخشب.",
+          "icon": "Develop_9.png",
+          "category": "develop",
+          "is_active": true,
+          "relative_path": "skills/lord/Develop_9.png"
+        },
+        {
+          "id": 12010,
+          "name": "إنتاج القمح II",
+          "description": "يزيد إنتاج القمح.",
+          "icon": "Develop_10.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_10.png"
+        },
+        {
+          "id": 12011,
+          "name": "إنتاج الحديد",
+          "description": "يزيد إنتاج الحديد.",
+          "icon": "Develop_11.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_11.png"
+        },
+        {
+          "id": 12012,
+          "name": "جمع الخشب II",
+          "description": "يزيد سرعة جمع الخشب في العالم.",
+          "icon": "Develop_12.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_12.png"
+        },
+        {
+          "id": 12013,
+          "name": "جمع القمح II",
+          "description": "يزيد سرعة جمع القمح في العالم.",
+          "icon": "Develop_13.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_13.png"
+        },
+        {
+          "id": 12014,
+          "name": "جمع الحديد",
+          "description": "يزيد سرعة جمع الحديد في العالم.",
+          "icon": "Develop_14.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_14.png"
+        },
+        {
+          "id": 12015,
+          "name": "تسريع البناء II",
+          "description": "يقلل مدة تطوير المباني.",
+          "icon": "Develop_15.png",
+          "category": "develop",
+          "is_active": true,
+          "relative_path": "skills/lord/Develop_15.png"
+        },
+        {
+          "id": 12016,
+          "name": "تسريع البحث II",
+          "description": "يقلل مدة عمل الأبحاث العلمية.",
+          "icon": "Develop_16.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_16.png"
+        },
+        {
+          "id": 12017,
+          "name": "القبو السوبر II",
+          "description": "زيادة الحد الأقصى للموارد المحفوظة بالمخزن",
+          "icon": "Develop_17.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_17.png"
+        },
+        {
+          "id": 12018,
+          "name": "إنتاج الفضة",
+          "description": "يزيد إنتاج الفضة.",
+          "icon": "Develop_18.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_18.png"
+        },
+        {
+          "id": 12019,
+          "name": "جمع الفضة",
+          "description": "تزيد سرعة جمع الفضة في العالم.",
+          "icon": "Develop_19.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_19.png"
+        },
+        {
+          "id": 12020,
+          "name": "جمع الذهب",
+          "description": "تزيد سرعة جمع الذهب في العالم.",
+          "icon": "Develop_20.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_20.png"
+        },
+        {
+          "id": 12021,
+          "name": "حماية الموارد",
+          "description": "مهارة إيجابية. تمنع موارد قلعتك من التعرض للسرقة لمدة ساعة واحدة.",
+          "icon": "Develop_21.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_21.png"
+        },
+        {
+          "id": 12022,
+          "name": "الجمع السريع",
+          "description": "المهارة الإيجابية : بعد استخدامها يمكنك زيادة السرعة في تجميع الموارد بنسبة 100% لمدة 1ساعة. (لا تستخدم في جمع الذهب)",
+          "icon": "Develop_22.png",
+          "category": "develop",
+          "is_active": false,
+          "relative_path": "skills/lord/Develop_22.png"
+        },
+        {
+          "id": 12023,
+          "name": "الجمع الآمن",
+          "description": "مهارة إيجابية: بعد استخدامها يمكنك حماية كل قواتك أثناء تجميع الموارد لمدة 3 ساعات. (فعالة فقط في مملكتك)",
+          "icon": "Develop_23.png",
+          "category": "develop",
+          "is_active": true,
+          "relative_path": "skills/lord/Develop_23.png"
+        },
+        {
+          "id": 13001,
+          "name": "مهاجمة الوحوش I",
+          "description": "تزيد سرعة المسيرة عند مهاجمة الوحوش.",
+          "icon": "Assist_1.png",
+          "category": "assist",
+          "is_active": true,
+          "relative_path": "skills/lord/Assist_1.png"
+        },
+        {
+          "id": 13002,
+          "name": "استعادة الطاقة I",
+          "description": "تزيد سرعة إستعادة الطاقة للأمير.",
+          "icon": "Assist_2.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_2.png"
+        },
+        {
+          "id": 13003,
+          "name": "كمية التدريب I",
+          "description": "يزيد من عدد الجنود النظاميين (جنود المشاة، والفرسان، والرماة، والعربات) الذي يتم تدريبهم في كل مرة.",
+          "icon": "Assist_3.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_3.png"
+        },
+        {
+          "id": 13004,
+          "name": "بناء الفخاخ I",
+          "description": "يزيد من سرعة بناء الفخاخ.",
+          "icon": "Assist_4.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_4.png"
+        },
+        {
+          "id": 13005,
+          "name": "سعة تخزين المصابين I",
+          "description": "يزيد من السعة القصوى للخيمة الطبية.",
+          "icon": "Assist_5.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_5.png"
+        },
+        {
+          "id": 13006,
+          "name": "هجوم الفخاخ I",
+          "description": "يزيد من قوة الهجوم للفخاخ.",
+          "icon": "Assist_6.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_6.png"
+        },
+        {
+          "id": 13007,
+          "name": "سرعة التدريب I",
+          "description": "تزيد سرعة تدريب الجنود (النظاميين).",
+          "icon": "Assist_7.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_7.png"
+        },
+        {
+          "id": 13008,
+          "name": "مسيرة التحالف",
+          "description": "مهارة إيجابية. تزيد من سرعة مسيرة القوات إلى أعضاء التحالف الخاص بك بشكل ملحوظ لمدة 60 دقيقة. (تقلل وقت المسيرة بنسبة 50% تقريباً)",
+          "icon": "Assist_8.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_8.png"
+        },
+        {
+          "id": 13009,
+          "name": "مهاجمة الوحوش II",
+          "description": "تزيد سرعة المسيرة عند مهاجمة الوحوش.",
+          "icon": "Assist_9.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_9.png"
+        },
+        {
+          "id": 13010,
+          "name": "سرعة المسيرة",
+          "description": "يزيد من سرعة مسيرة القوات المرسلة.",
+          "icon": "Assist_10.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_10.png"
+        },
+        {
+          "id": 13011,
+          "name": "كمية التدريب II",
+          "description": "يزيد من عدد الجنود النظاميين (جنود المشاة، والفرسان، والرماة، والعربات) الذي يتم تدريبهم في كل مرة.",
+          "icon": "Assist_11.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_11.png"
+        },
+        {
+          "id": 13012,
+          "name": "بناء الفخاخ II",
+          "description": "يزيد من سرعة بناء الفخاخ.",
+          "icon": "Assist_12.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_12.png"
+        },
+        {
+          "id": 13013,
+          "name": "سعة تخزين المصابين II",
+          "description": "يزيد من السعة القصوى للخيمة الطبية.",
+          "icon": "Assist_13.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_13.png"
+        },
+        {
+          "id": 13014,
+          "name": "هجوم الفخاخ II",
+          "description": "يزيد من قوة الهجوم للفخاخ.",
+          "icon": "Assist_14.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_14.png"
+        },
+        {
+          "id": 13015,
+          "name": "سرعة العلاج",
+          "description": "يزيد من سرعة علاج الجنود المصابين في الخيام الطبية.",
+          "icon": "Assist_15.png",
+          "category": "assist",
+          "is_active": true,
+          "relative_path": "skills/lord/Assist_15.png"
+        },
+        {
+          "id": 13016,
+          "name": "هجوم برج السهام",
+          "description": "يزيد من قوة هجوم برج السهام.",
+          "icon": "Assist_16.png",
+          "category": "assist",
+          "is_active": false,
+          "relative_path": "skills/lord/Assist_16.png"
+        }
+      ]
+    },
+    "hero": {
+      "title_ar": "مهارات الأبطال (Hero Skills)",
+      "total": 109,
+      "skills": [
+        {
+          "id": 170001,
+          "name": "سرعة علاج الفرسان",
+          "description": "",
+          "icon": "icon_skill_01.png",
+          "relative_path": "skills/hero/icon_skill_01.png"
+        },
+        {
+          "id": 170002,
+          "name": "سرعة تصنيع الفخاخ",
+          "description": "",
+          "icon": "icon_skill_02.png",
+          "relative_path": "skills/hero/icon_skill_02.png"
+        },
+        {
+          "id": 170003,
+          "name": "دفاع الفرسان",
+          "description": "",
+          "icon": "icon_skill_03.png",
+          "relative_path": "skills/hero/icon_skill_03.png"
+        },
+        {
+          "id": 170004,
+          "name": "war_stone_name_06",
+          "description": "",
+          "icon": "icon_skill_04.png",
+          "relative_path": "skills/hero/icon_skill_04.png"
+        },
+        {
+          "id": 170101,
+          "name": "سرعة تجنيد الرماة",
+          "description": "",
+          "icon": "icon_skill_05.png",
+          "relative_path": "skills/hero/icon_skill_05.png"
+        },
+        {
+          "id": 170102,
+          "name": "common_text_2442",
+          "description": "",
+          "icon": "icon_skill_06.png",
+          "relative_path": "skills/hero/icon_skill_06.png"
+        },
+        {
+          "id": 170103,
+          "name": "دفاع رماة السهام",
+          "description": "",
+          "icon": "icon_skill_07.png",
+          "relative_path": "skills/hero/icon_skill_07.png"
+        },
+        {
+          "id": 170104,
+          "name": "هجوم رماة السهام",
+          "description": "",
+          "icon": "icon_skill_08.png",
+          "relative_path": "skills/hero/icon_skill_08.png"
+        },
+        {
+          "id": 170201,
+          "name": "سرعة علاج جنود العربات الحربية",
+          "description": "",
+          "icon": "icon_skill_09.png",
+          "relative_path": "skills/hero/icon_skill_09.png"
+        },
+        {
+          "id": 170202,
+          "name": "سرعة البناء",
+          "description": "",
+          "icon": "icon_skill_10.png",
+          "relative_path": "skills/hero/icon_skill_10.png"
+        },
+        {
+          "id": 170203,
+          "name": "هجوم العربات",
+          "description": "",
+          "icon": "icon_skill_11.png",
+          "relative_path": "skills/hero/icon_skill_11.png"
+        },
+        {
+          "id": 170204,
+          "name": "دفاع العربات",
+          "description": "",
+          "icon": "icon_skill_12.png",
+          "relative_path": "skills/hero/icon_skill_12.png"
+        },
+        {
+          "id": 170301,
+          "name": "buff_text_01",
+          "description": "",
+          "icon": "icon_skill_13.png",
+          "relative_path": "skills/hero/icon_skill_13.png"
+        },
+        {
+          "id": 170302,
+          "name": "تقوية الفخاخة",
+          "description": "",
+          "icon": "icon_skill_14.png",
+          "relative_path": "skills/hero/icon_skill_14.png"
+        },
+        {
+          "id": 170303,
+          "name": "war_stone_name_04",
+          "description": "",
+          "icon": "icon_skill_15.png",
+          "relative_path": "skills/hero/icon_skill_15.png"
+        },
+        {
+          "id": 170304,
+          "name": "دفاع المشاة",
+          "description": "",
+          "icon": "icon_skill_16.png",
+          "relative_path": "skills/hero/icon_skill_16.png"
+        },
+        {
+          "id": 170401,
+          "name": "سرعة تجنيد الفرسان",
+          "description": "",
+          "icon": "icon_skill_17.png",
+          "relative_path": "skills/hero/icon_skill_17.png"
+        },
+        {
+          "id": 170402,
+          "name": "إنتاج الخشب",
+          "description": "",
+          "icon": "icon_skill_18.png",
+          "relative_path": "skills/hero/icon_skill_18.png"
+        },
+        {
+          "id": 170403,
+          "name": "هجوم الفرسان",
+          "description": "",
+          "icon": "icon_skill_19.png",
+          "relative_path": "skills/hero/icon_skill_19.png"
+        },
+        {
+          "id": 170404,
+          "name": "دفاع الفرسان",
+          "description": "",
+          "icon": "icon_skill_03.png",
+          "relative_path": "skills/hero/icon_skill_03.png"
+        },
+        {
+          "id": 170501,
+          "name": "سرعة علاج الرماة",
+          "description": "",
+          "icon": "icon_skill_20.png",
+          "relative_path": "skills/hero/icon_skill_20.png"
+        },
+        {
+          "id": 170502,
+          "name": "سرعة البحث العلمي",
+          "description": "",
+          "icon": "icon_skill_21.png",
+          "relative_path": "skills/hero/icon_skill_21.png"
+        },
+        {
+          "id": 170503,
+          "name": "هجوم رماة السهام",
+          "description": "",
+          "icon": "icon_skill_08.png",
+          "relative_path": "skills/hero/icon_skill_08.png"
+        },
+        {
+          "id": 170504,
+          "name": "صحة الرماة",
+          "description": "",
+          "icon": "icon_skill_22.png",
+          "relative_path": "skills/hero/icon_skill_22.png"
+        },
+        {
+          "id": 170601,
+          "name": "war_stone_name_06",
+          "description": "",
+          "icon": "icon_skill_04.png",
+          "relative_path": "skills/hero/icon_skill_04.png"
+        },
+        {
+          "id": 170602,
+          "name": "سرعة المسيرة",
+          "description": "",
+          "icon": "icon_skill_23.png",
+          "relative_path": "skills/hero/icon_skill_23.png"
+        },
+        {
+          "id": 170603,
+          "name": "حمولة القوات",
+          "description": "",
+          "icon": "icon_skill_24.png",
+          "relative_path": "skills/hero/icon_skill_24.png"
+        },
+        {
+          "id": 170604,
+          "name": "هجوم رماة السهام",
+          "description": "",
+          "icon": "icon_skill_08.png",
+          "relative_path": "skills/hero/icon_skill_08.png"
+        },
+        {
+          "id": 170701,
+          "name": "صحة الرماة",
+          "description": "",
+          "icon": "icon_skill_22.png",
+          "relative_path": "skills/hero/icon_skill_22.png"
+        },
+        {
+          "id": 170702,
+          "name": "الحد الأقصى للفخاخ",
+          "description": "",
+          "icon": "icon_skill_25.png",
+          "relative_path": "skills/hero/icon_skill_25.png"
+        },
+        {
+          "id": 170703,
+          "name": "سرعة جمع الخشب",
+          "description": "",
+          "icon": "icon_skill_26.png",
+          "relative_path": "skills/hero/icon_skill_26.png"
+        },
+        {
+          "id": 170704,
+          "name": "دفاع رماة السهام",
+          "description": "",
+          "icon": "icon_skill_07.png",
+          "relative_path": "skills/hero/icon_skill_07.png"
+        },
+        {
+          "id": 170801,
+          "name": "سرعة تجنيد العربة الحربية",
+          "description": "",
+          "icon": "icon_skill_27.png",
+          "relative_path": "skills/hero/icon_skill_27.png"
+        },
+        {
+          "id": 170802,
+          "name": "common_text_2442",
+          "description": "",
+          "icon": "icon_skill_28.png",
+          "relative_path": "skills/hero/icon_skill_28.png"
+        },
+        {
+          "id": 170803,
+          "name": "دفاع العربات",
+          "description": "",
+          "icon": "icon_skill_12.png",
+          "relative_path": "skills/hero/icon_skill_12.png"
+        },
+        {
+          "id": 170804,
+          "name": "هجوم العربات",
+          "description": "",
+          "icon": "icon_skill_11.png",
+          "relative_path": "skills/hero/icon_skill_11.png"
+        },
+        {
+          "id": 170901,
+          "name": "war_stone_name_04",
+          "description": "",
+          "icon": "icon_skill_15.png",
+          "relative_path": "skills/hero/icon_skill_15.png"
+        },
+        {
+          "id": 170902,
+          "name": "سرعة جمع القمح",
+          "description": "",
+          "icon": "icon_skill_30.png",
+          "relative_path": "skills/hero/icon_skill_30.png"
+        },
+        {
+          "id": 170903,
+          "name": "إنتاج القمح",
+          "description": "",
+          "icon": "icon_skill_31.png",
+          "relative_path": "skills/hero/icon_skill_31.png"
+        },
+        {
+          "id": 170904,
+          "name": "هجوم المشاة",
+          "description": "",
+          "icon": "icon_skill_32.png",
+          "relative_path": "skills/hero/icon_skill_32.png"
+        },
+        {
+          "id": 171001,
+          "name": "سرعة البناء",
+          "description": "",
+          "icon": "icon_skill_10.png",
+          "relative_path": "skills/hero/icon_skill_10.png"
+        },
+        {
+          "id": 171002,
+          "name": "هجوم المشاة",
+          "description": "",
+          "icon": "icon_skill_32.png",
+          "relative_path": "skills/hero/icon_skill_32.png"
+        },
+        {
+          "id": 171003,
+          "name": "سرعة البحث العلمي",
+          "description": "",
+          "icon": "icon_skill_21.png",
+          "relative_path": "skills/hero/icon_skill_21.png"
+        },
+        {
+          "id": 171004,
+          "name": "دفاع المشاة",
+          "description": "",
+          "icon": "icon_skill_16.png",
+          "relative_path": "skills/hero/icon_skill_16.png"
+        },
+        {
+          "id": 171101,
+          "name": "الحد الأقصى للجنود المصابين",
+          "description": "",
+          "icon": "icon_skill_33.png",
+          "relative_path": "skills/hero/icon_skill_33.png"
+        },
+        {
+          "id": 171102,
+          "name": "إستهلاك العلاج",
+          "description": "",
+          "icon": "icon_skill_34.png",
+          "relative_path": "skills/hero/icon_skill_34.png"
+        },
+        {
+          "id": 171103,
+          "name": "سرعة التجنيد",
+          "description": "",
+          "icon": "icon_skill_35.png",
+          "relative_path": "skills/hero/icon_skill_35.png"
+        },
+        {
+          "id": 171104,
+          "name": "سرعة العلاج",
+          "description": "",
+          "icon": "icon_skill_36.png",
+          "relative_path": "skills/hero/icon_skill_36.png"
+        },
+        {
+          "id": 171201,
+          "name": "سرعة تجنيد المشاة",
+          "description": "",
+          "icon": "icon_skill_37.png",
+          "relative_path": "skills/hero/icon_skill_37.png"
+        },
+        {
+          "id": 171202,
+          "name": "سرعة جمع الذهب",
+          "description": "",
+          "icon": "icon_skill_38.png",
+          "relative_path": "skills/hero/icon_skill_38.png"
+        },
+        {
+          "id": 171203,
+          "name": "هجوم المشاة",
+          "description": "",
+          "icon": "icon_skill_32.png",
+          "relative_path": "skills/hero/icon_skill_32.png"
+        },
+        {
+          "id": 171204,
+          "name": "war_stone_name_04",
+          "description": "",
+          "icon": "icon_skill_15.png",
+          "relative_path": "skills/hero/icon_skill_15.png"
+        },
+        {
+          "id": 171301,
+          "name": "رادع",
+          "description": "",
+          "icon": "icon_skill_58.png",
+          "relative_path": "skills/hero/icon_skill_58.png"
+        },
+        {
+          "id": 171302,
+          "name": "war_stone_name_04",
+          "description": "",
+          "icon": "icon_skill_15.png",
+          "relative_path": "skills/hero/icon_skill_15.png"
+        },
+        {
+          "id": 171303,
+          "name": "دفاع المشاة",
+          "description": "",
+          "icon": "icon_skill_16.png",
+          "relative_path": "skills/hero/icon_skill_16.png"
+        },
+        {
+          "id": 171304,
+          "name": "هجوم الجيش",
+          "description": "",
+          "icon": "icon_skill_32.png",
+          "relative_path": "skills/hero/icon_skill_32.png"
+        },
+        {
+          "id": 171401,
+          "name": "هجوم الفرسان",
+          "description": "",
+          "icon": "icon_skill_19.png",
+          "relative_path": "skills/hero/icon_skill_19.png"
+        },
+        {
+          "id": 171402,
+          "name": "سرعة جمع الفضة",
+          "description": "",
+          "icon": "icon_skill_41.png",
+          "relative_path": "skills/hero/icon_skill_41.png"
+        },
+        {
+          "id": 171403,
+          "name": "دفاع الفرسان",
+          "description": "",
+          "icon": "icon_skill_03.png",
+          "relative_path": "skills/hero/icon_skill_03.png"
+        },
+        {
+          "id": 171404,
+          "name": "war_stone_name_06",
+          "description": "",
+          "icon": "icon_skill_04.png",
+          "relative_path": "skills/hero/icon_skill_04.png"
+        },
+        {
+          "id": 170005,
+          "name": "الفروسية",
+          "description": "زيادة هجوم ودفاع الفرسان بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_45.png",
+          "relative_path": "skills/hero/icon_skill_45.png"
+        },
+        {
+          "id": 170105,
+          "name": "الرماية",
+          "description": "زيادة هجوم ودفاع الرماة بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_46.png",
+          "relative_path": "skills/hero/icon_skill_46.png"
+        },
+        {
+          "id": 170205,
+          "name": "العربات",
+          "description": "زيادة هجوم ودفاع العربات بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_47.png",
+          "relative_path": "skills/hero/icon_skill_47.png"
+        },
+        {
+          "id": 170305,
+          "name": "تشكيلة",
+          "description": "زيادة هجوم ودفاع المشاة بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_48.png",
+          "relative_path": "skills/hero/icon_skill_48.png"
+        },
+        {
+          "id": 170405,
+          "name": "الفروسية III",
+          "description": "زيادة هجوم ودفاع الفرسان بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_49.png",
+          "relative_path": "skills/hero/icon_skill_49.png"
+        },
+        {
+          "id": 170505,
+          "name": "الرماية المتقدمة",
+          "description": "زيادة هجوم ودفاع الرماة بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_50.png",
+          "relative_path": "skills/hero/icon_skill_50.png"
+        },
+        {
+          "id": 170605,
+          "name": "الرماية المتقدمة",
+          "description": "زيادة هجوم ودفاع الرماة بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_50.png",
+          "relative_path": "skills/hero/icon_skill_50.png"
+        },
+        {
+          "id": 170705,
+          "name": "الرماية المتقدمة",
+          "description": "زيادة هجوم ودفاع الرماة بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_50.png",
+          "relative_path": "skills/hero/icon_skill_50.png"
+        },
+        {
+          "id": 170805,
+          "name": "عربات متقدمة",
+          "description": "زيادة هجوم ودفاع العربات بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_51.png",
+          "relative_path": "skills/hero/icon_skill_51.png"
+        },
+        {
+          "id": 170905,
+          "name": "تشكيلة متقدمة",
+          "description": "زيادة هجوم ودفاع المشاة بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_52.png",
+          "relative_path": "skills/hero/icon_skill_52.png"
+        },
+        {
+          "id": 171005,
+          "name": "العتاد الثقيل",
+          "description": "زيادة هجوم ودفاع المشاة بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_53.png",
+          "relative_path": "skills/hero/icon_skill_53.png"
+        },
+        {
+          "id": 171105,
+          "name": "محاربة التمرد",
+          "description": "زيادة سرعة المسيرة بنسبة %{num} عند مهاجمة الوحوش (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_54.png",
+          "relative_path": "skills/hero/icon_skill_54.png"
+        },
+        {
+          "id": 171205,
+          "name": "الحماسة",
+          "description": "زيادة احتمال الضربة الحاسمة للمشاة بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_55.png",
+          "relative_path": "skills/hero/icon_skill_55.png"
+        },
+        {
+          "id": 171305,
+          "name": "الصنديد الماهر",
+          "description": "يزيد هجوم ودفاع وصحة الجنود %{num1} (بعد الوصول إلى المستوى 60 وعند الترقية لكل مستوى ستحصل على زيادة بنسبة 0.7%)",
+          "icon": "icon_skill_56.png",
+          "relative_path": "skills/hero/icon_skill_56.png"
+        },
+        {
+          "id": 171405,
+          "name": "الخيالة",
+          "description": "زيادة هجوم ودفاع الفرسان بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_57.png",
+          "relative_path": "skills/hero/icon_skill_57.png"
+        },
+        {
+          "id": 171601,
+          "name": "توسع",
+          "description": "",
+          "icon": "icon_skill_60.png",
+          "relative_path": "skills/hero/icon_skill_60.png"
+        },
+        {
+          "id": 171602,
+          "name": "صحة الرماة",
+          "description": "",
+          "icon": "icon_skill_22.png",
+          "relative_path": "skills/hero/icon_skill_22.png"
+        },
+        {
+          "id": 171603,
+          "name": "دفاع رماة السهام",
+          "description": "",
+          "icon": "icon_skill_07.png",
+          "relative_path": "skills/hero/icon_skill_07.png"
+        },
+        {
+          "id": 171604,
+          "name": "هجوم رماة السهام",
+          "description": "",
+          "icon": "icon_skill_08.png",
+          "relative_path": "skills/hero/icon_skill_08.png"
+        },
+        {
+          "id": 171605,
+          "name": "القناص",
+          "description": "ستزيد هجوم الرماة و صحتهم ودفاعهم بنسبة %{num1}، هناك احتمال نسبته %{num2} لتجاهل 30% من دفاع الهدف بعد الهجوم (بعد وصول المستوى 60 وعند الترقية لكل مستوى يمكن الحصول على زيادة بنسبة 0.7% من هجوم ودفاع وصحة الرماة)",
+          "icon": "icon_skill_59.png",
+          "relative_path": "skills/hero/icon_skill_59.png"
+        },
+        {
+          "id": 171701,
+          "name": "الفريق الطبي لتجميع الموارد",
+          "description": "",
+          "icon": "icon_skill_61.png",
+          "relative_path": "skills/hero/icon_skill_61.png"
+        },
+        {
+          "id": 171702,
+          "name": "سرعة جمع الخشب",
+          "description": "",
+          "icon": "icon_skill_26.png",
+          "relative_path": "skills/hero/icon_skill_26.png"
+        },
+        {
+          "id": 171703,
+          "name": "سرعة جمع القمح",
+          "description": "",
+          "icon": "icon_skill_30.png",
+          "relative_path": "skills/hero/icon_skill_30.png"
+        },
+        {
+          "id": 171704,
+          "name": "سرعة جمع الحديد",
+          "description": "",
+          "icon": "icon_skill_62.png",
+          "relative_path": "skills/hero/icon_skill_62.png"
+        },
+        {
+          "id": 171705,
+          "name": "التجميع المتقدم",
+          "description": "زيادة سرعة الجمع بنسبة %{num} (بعد الوصول الى المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_63.png",
+          "relative_path": "skills/hero/icon_skill_63.png"
+        },
+        {
+          "id": 171801,
+          "name": "الصيد السريع",
+          "description": "",
+          "icon": "icon_skill_64.png",
+          "relative_path": "skills/hero/icon_skill_64.png"
+        },
+        {
+          "id": 171802,
+          "name": "هجوم الفرسان",
+          "description": "",
+          "icon": "icon_skill_19.png",
+          "relative_path": "skills/hero/icon_skill_19.png"
+        },
+        {
+          "id": 171803,
+          "name": "صياد الوحوش",
+          "description": "",
+          "icon": "icon_skill_65.png",
+          "relative_path": "skills/hero/icon_skill_65.png"
+        },
+        {
+          "id": 171804,
+          "name": "war_stone_name_06",
+          "description": "",
+          "icon": "icon_skill_04.png",
+          "relative_path": "skills/hero/icon_skill_04.png"
+        },
+        {
+          "id": 171805,
+          "name": "الفروسية III",
+          "description": "زيادة هجوم ودفاع الفرسان بنسبة %{num} (بعد وصول المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة %{add}%)",
+          "icon": "icon_skill_49.png",
+          "relative_path": "skills/hero/icon_skill_49.png"
+        },
+        {
+          "id": 171901,
+          "name": "الجدار المدرع",
+          "description": "",
+          "icon": "icon_skill_66.png",
+          "relative_path": "skills/hero/icon_skill_66.png"
+        },
+        {
+          "id": 171902,
+          "name": "war_stone_name_04",
+          "description": "",
+          "icon": "icon_skill_15.png",
+          "relative_path": "skills/hero/icon_skill_15.png"
+        },
+        {
+          "id": 171903,
+          "name": "دفاع المشاة",
+          "description": "",
+          "icon": "icon_skill_16.png",
+          "relative_path": "skills/hero/icon_skill_16.png"
+        },
+        {
+          "id": 171904,
+          "name": "هجوم المشاة",
+          "description": "",
+          "icon": "icon_skill_32.png",
+          "relative_path": "skills/hero/icon_skill_32.png"
+        },
+        {
+          "id": 171905,
+          "name": "الرمق الأخير",
+          "description": "بعد امتلاك المستبدة ستزداد قيمة الصحة للمشاة بنسبة %{num1}، عند خروج المستبدة مع مسيرة القوات يزداد تفادي المشاة للضرر بنسبة %{num2}، وصحة الجنود بنسبة %{num3}، (التأثير لكل جنود المشاة التي لديها زيادة 50% في الصحة، وزيادة في تفادي للضرر بنسبة +0.03%، وزيادة في صحة الجنود +0.3%. بعد وصولها المستوى 60 وعند الترقية في كل مستوى سيزيد تفادي المشاة للضرر بنسبة 0.03%، وستزيد صحة الجنود بنسبة 0.3%)",
+          "icon": "icon_skill_67.png",
+          "relative_path": "skills/hero/icon_skill_67.png"
+        },
+        {
+          "id": 172001,
+          "name": "توسع",
+          "description": "",
+          "icon": "icon_skill_60.png",
+          "relative_path": "skills/hero/icon_skill_60.png"
+        },
+        {
+          "id": 172002,
+          "name": "war_stone_name_04",
+          "description": "",
+          "icon": "icon_skill_15.png",
+          "relative_path": "skills/hero/icon_skill_15.png"
+        },
+        {
+          "id": 172003,
+          "name": "دفاع المشاة",
+          "description": "",
+          "icon": "icon_skill_16.png",
+          "relative_path": "skills/hero/icon_skill_16.png"
+        },
+        {
+          "id": 172004,
+          "name": "هجوم المشاة",
+          "description": "",
+          "icon": "icon_skill_32.png",
+          "relative_path": "skills/hero/icon_skill_32.png"
+        },
+        {
+          "id": 172005,
+          "name": "الجسور",
+          "description": "زيادة هجوم، دفاع، صحة المشاة بنسبة %{num1} (بعد المستوى 60 عند الترقية في كل مستوى تحصل على زيادة بنسبة 0.7%)",
+          "icon": "icon_skill_68.png",
+          "relative_path": "skills/hero/icon_skill_68.png"
+        },
+        {
+          "id": 172101,
+          "name": "توسع",
+          "description": "",
+          "icon": "icon_skill_60.png",
+          "relative_path": "skills/hero/icon_skill_60.png"
+        },
+        {
+          "id": 172102,
+          "name": "war_stone_name_06",
+          "description": "",
+          "icon": "icon_skill_04.png",
+          "relative_path": "skills/hero/icon_skill_04.png"
+        },
+        {
+          "id": 172103,
+          "name": "دفاع الفرسان",
+          "description": "",
+          "icon": "icon_skill_03.png",
+          "relative_path": "skills/hero/icon_skill_03.png"
+        },
+        {
+          "id": 172104,
+          "name": "common_text_1299",
+          "description": "",
+          "icon": "icon_skill_40.png",
+          "relative_path": "skills/hero/icon_skill_40.png"
+        },
+        {
+          "id": 172105,
+          "name": "الإنفراد",
+          "description": "زيادة هجوم الجنود %{num1} (بعد وصول إلى المستوى 60 وعند الترقية لكل مستوى ستحصل على مكافأة بنسبة 0.6%)",
+          "icon": "icon_skill_70.png",
+          "relative_path": "skills/hero/icon_skill_70.png"
+        },
+        {
+          "id": 172201,
+          "name": "توسع",
+          "description": "",
+          "icon": "icon_skill_60.png",
+          "relative_path": "skills/hero/icon_skill_60.png"
+        },
+        {
+          "id": 172202,
+          "name": "صحة الرماة",
+          "description": "",
+          "icon": "icon_skill_22.png",
+          "relative_path": "skills/hero/icon_skill_22.png"
+        },
+        {
+          "id": 172203,
+          "name": "دفاع رماة السهام",
+          "description": "",
+          "icon": "icon_skill_07.png",
+          "relative_path": "skills/hero/icon_skill_07.png"
+        },
+        {
+          "id": 172204,
+          "name": "هجوم رماة السهام",
+          "description": "",
+          "icon": "icon_skill_08.png",
+          "relative_path": "skills/hero/icon_skill_08.png"
+        }
+      ]
+    },
+    "stun": {
+      "title_ar": "مهارات الصعق والقتال الخاصة (Stun Skills)",
+      "total": 86,
+      "skills": [
+        {
+          "id": 17000601,
+          "name": "الإندفاع",
+          "description": "يزيد من إضرار الفرسان على الرماة",
+          "icon": "icon_stunskill_01.png",
+          "relative_path": "skills/stun/icon_stunskill_01.png"
+        },
+        {
+          "id": 17000602,
+          "name": "الدرع الخفيف",
+          "description": "نقاط صحة الفرسان",
+          "icon": "icon_stunskill_02.png",
+          "relative_path": "skills/stun/icon_stunskill_02.png"
+        },
+        {
+          "id": 17000603,
+          "name": "تحسين العتاد",
+          "description": "دفاع الفرسان",
+          "icon": "icon_stunskill_03.png",
+          "relative_path": "skills/stun/icon_stunskill_03.png"
+        },
+        {
+          "id": 17000604,
+          "name": "الهجوم الثلاثي",
+          "description": "هجوم الفرسان",
+          "icon": "icon_stunskill_04.png",
+          "relative_path": "skills/stun/icon_stunskill_04.png"
+        },
+        {
+          "id": 17010601,
+          "name": "محطم الدروع",
+          "description": "يزيد من إضرار الرماة على المشاة",
+          "icon": "icon_stunskill_05.png",
+          "relative_path": "skills/stun/icon_stunskill_05.png"
+        },
+        {
+          "id": 17010602,
+          "name": "حزمة الإنقاذ",
+          "description": "نقاط صحة رماة السهام",
+          "icon": "icon_stunskill_06.png",
+          "relative_path": "skills/stun/icon_stunskill_06.png"
+        },
+        {
+          "id": 17010603,
+          "name": "محطة الإنتعاش",
+          "description": "دفاع رماة السهام",
+          "icon": "icon_stunskill_07.png",
+          "relative_path": "skills/stun/icon_stunskill_07.png"
+        },
+        {
+          "id": 17010604,
+          "name": "مجموعة السهام",
+          "description": "هجوم رماة السهام",
+          "icon": "icon_stunskill_08.png",
+          "relative_path": "skills/stun/icon_stunskill_08.png"
+        },
+        {
+          "id": 17020601,
+          "name": "محطم الأسوار",
+          "description": "ضرر العربات عند مهاجمة القلعة:",
+          "icon": "icon_stunskill_09.png",
+          "relative_path": "skills/stun/icon_stunskill_09.png"
+        },
+        {
+          "id": 17020602,
+          "name": "مناورة جماعية",
+          "description": "common_text_1325",
+          "icon": "icon_stunskill_10.png",
+          "relative_path": "skills/stun/icon_stunskill_10.png"
+        },
+        {
+          "id": 17020603,
+          "name": "درع العتاد",
+          "description": "دفاع العربات",
+          "icon": "icon_stunskill_11.png",
+          "relative_path": "skills/stun/icon_stunskill_11.png"
+        },
+        {
+          "id": 17020604,
+          "name": "الضرب المزدوج",
+          "description": "هجوم العربات",
+          "icon": "icon_stunskill_12.png",
+          "relative_path": "skills/stun/icon_stunskill_12.png"
+        },
+        {
+          "id": 17030601,
+          "name": "الدرع",
+          "description": "يزيد من إضرار المشاة على الفرسان",
+          "icon": "icon_stunskill_13.png",
+          "relative_path": "skills/stun/icon_stunskill_13.png"
+        },
+        {
+          "id": 17030602,
+          "name": "درع الظهر",
+          "description": "نقاط صحة المشاة",
+          "icon": "icon_stunskill_14.png",
+          "relative_path": "skills/stun/icon_stunskill_14.png"
+        },
+        {
+          "id": 17030603,
+          "name": "المسيرة الى الأمام",
+          "description": "دفاع المشاة",
+          "icon": "icon_stunskill_15.png",
+          "relative_path": "skills/stun/icon_stunskill_15.png"
+        },
+        {
+          "id": 17030604,
+          "name": "السيف ذو حدين",
+          "description": "هجوم المشاة",
+          "icon": "icon_stunskill_16.png",
+          "relative_path": "skills/stun/icon_stunskill_16.png"
+        },
+        {
+          "id": 17040601,
+          "name": "الإندفاع",
+          "description": "يزيد من إضرار الفرسان على الرماة",
+          "icon": "icon_stunskill_01.png",
+          "relative_path": "skills/stun/icon_stunskill_01.png"
+        },
+        {
+          "id": 17040602,
+          "name": "الدرع الخفيف",
+          "description": "نقاط صحة الفرسان",
+          "icon": "icon_stunskill_02.png",
+          "relative_path": "skills/stun/icon_stunskill_02.png"
+        },
+        {
+          "id": 17040603,
+          "name": "تحسين العتاد",
+          "description": "دفاع الفرسان",
+          "icon": "icon_stunskill_03.png",
+          "relative_path": "skills/stun/icon_stunskill_03.png"
+        },
+        {
+          "id": 17040604,
+          "name": "الهجوم الثلاثي",
+          "description": "هجوم الفرسان",
+          "icon": "icon_stunskill_04.png",
+          "relative_path": "skills/stun/icon_stunskill_04.png"
+        },
+        {
+          "id": 17050601,
+          "name": "محطم الدروع",
+          "description": "يزيد من إضرار الرماة على المشاة",
+          "icon": "icon_stunskill_05.png",
+          "relative_path": "skills/stun/icon_stunskill_05.png"
+        },
+        {
+          "id": 17050602,
+          "name": "حزمة الإنقاذ",
+          "description": "نقاط صحة رماة السهام",
+          "icon": "icon_stunskill_06.png",
+          "relative_path": "skills/stun/icon_stunskill_06.png"
+        },
+        {
+          "id": 17050603,
+          "name": "محطة الإنتعاش",
+          "description": "دفاع رماة السهام",
+          "icon": "icon_stunskill_07.png",
+          "relative_path": "skills/stun/icon_stunskill_07.png"
+        },
+        {
+          "id": 17050604,
+          "name": "مجموعة السهام",
+          "description": "هجوم رماة السهام",
+          "icon": "icon_stunskill_08.png",
+          "relative_path": "skills/stun/icon_stunskill_08.png"
+        },
+        {
+          "id": 17060601,
+          "name": "محطم الدروع",
+          "description": "يزيد من إضرار الرماة على المشاة",
+          "icon": "icon_stunskill_05.png",
+          "relative_path": "skills/stun/icon_stunskill_05.png"
+        },
+        {
+          "id": 17060602,
+          "name": "حزمة الإنقاذ",
+          "description": "نقاط صحة رماة السهام",
+          "icon": "icon_stunskill_06.png",
+          "relative_path": "skills/stun/icon_stunskill_06.png"
+        },
+        {
+          "id": 17060603,
+          "name": "محطة الإنتعاش",
+          "description": "دفاع رماة السهام",
+          "icon": "icon_stunskill_07.png",
+          "relative_path": "skills/stun/icon_stunskill_07.png"
+        },
+        {
+          "id": 17060604,
+          "name": "مجموعة السهام",
+          "description": "هجوم رماة السهام",
+          "icon": "icon_stunskill_08.png",
+          "relative_path": "skills/stun/icon_stunskill_08.png"
+        },
+        {
+          "id": 17070601,
+          "name": "محطم الدروع",
+          "description": "يزيد من إضرار الرماة على المشاة",
+          "icon": "icon_stunskill_05.png",
+          "relative_path": "skills/stun/icon_stunskill_05.png"
+        },
+        {
+          "id": 17070602,
+          "name": "حزمة الإنقاذ",
+          "description": "نقاط صحة رماة السهام",
+          "icon": "icon_stunskill_06.png",
+          "relative_path": "skills/stun/icon_stunskill_06.png"
+        },
+        {
+          "id": 17070603,
+          "name": "محطة الإنتعاش",
+          "description": "دفاع رماة السهام",
+          "icon": "icon_stunskill_07.png",
+          "relative_path": "skills/stun/icon_stunskill_07.png"
+        },
+        {
+          "id": 17070604,
+          "name": "مجموعة السهام",
+          "description": "هجوم رماة السهام",
+          "icon": "icon_stunskill_08.png",
+          "relative_path": "skills/stun/icon_stunskill_08.png"
+        },
+        {
+          "id": 17080601,
+          "name": "محطم الأسوار",
+          "description": "ضرر العربات عند مهاجمة القلعة:",
+          "icon": "icon_stunskill_09.png",
+          "relative_path": "skills/stun/icon_stunskill_09.png"
+        },
+        {
+          "id": 17080602,
+          "name": "مناورة جماعية",
+          "description": "common_text_1325",
+          "icon": "icon_stunskill_10.png",
+          "relative_path": "skills/stun/icon_stunskill_10.png"
+        },
+        {
+          "id": 17080603,
+          "name": "درع العتاد",
+          "description": "دفاع العربات",
+          "icon": "icon_stunskill_11.png",
+          "relative_path": "skills/stun/icon_stunskill_11.png"
+        },
+        {
+          "id": 17080604,
+          "name": "الضرب المزدوج",
+          "description": "هجوم العربات",
+          "icon": "icon_stunskill_12.png",
+          "relative_path": "skills/stun/icon_stunskill_12.png"
+        },
+        {
+          "id": 17090601,
+          "name": "الدرع",
+          "description": "يزيد من إضرار المشاة على الفرسان",
+          "icon": "icon_stunskill_13.png",
+          "relative_path": "skills/stun/icon_stunskill_13.png"
+        },
+        {
+          "id": 17090602,
+          "name": "درع الظهر",
+          "description": "نقاط صحة المشاة",
+          "icon": "icon_stunskill_14.png",
+          "relative_path": "skills/stun/icon_stunskill_14.png"
+        },
+        {
+          "id": 17090603,
+          "name": "المسيرة الى الأمام",
+          "description": "دفاع المشاة",
+          "icon": "icon_stunskill_15.png",
+          "relative_path": "skills/stun/icon_stunskill_15.png"
+        },
+        {
+          "id": 17090604,
+          "name": "السيف ذو حدين",
+          "description": "هجوم المشاة",
+          "icon": "icon_stunskill_16.png",
+          "relative_path": "skills/stun/icon_stunskill_16.png"
+        },
+        {
+          "id": 17100601,
+          "name": "الدرع",
+          "description": "يزيد من إضرار المشاة على الفرسان",
+          "icon": "icon_stunskill_13.png",
+          "relative_path": "skills/stun/icon_stunskill_13.png"
+        },
+        {
+          "id": 17100602,
+          "name": "درع الظهر",
+          "description": "نقاط صحة المشاة",
+          "icon": "icon_stunskill_14.png",
+          "relative_path": "skills/stun/icon_stunskill_14.png"
+        },
+        {
+          "id": 17100603,
+          "name": "المسيرة الى الأمام",
+          "description": "دفاع المشاة",
+          "icon": "icon_stunskill_15.png",
+          "relative_path": "skills/stun/icon_stunskill_15.png"
+        },
+        {
+          "id": 17100604,
+          "name": "السيف ذو حدين",
+          "description": "هجوم المشاة",
+          "icon": "icon_stunskill_16.png",
+          "relative_path": "skills/stun/icon_stunskill_16.png"
+        },
+        {
+          "id": 17110601,
+          "name": "خبير الصيد",
+          "description": "زيادة الخبرة من مهاجمة الوحش",
+          "icon": "icon_stunskill_17.png",
+          "relative_path": "skills/stun/icon_stunskill_17.png"
+        },
+        {
+          "id": 17110602,
+          "name": "مدرب المبارزة",
+          "description": "سرعة تجنيد المشاة",
+          "icon": "icon_stunskill_18.png",
+          "relative_path": "skills/stun/icon_stunskill_18.png"
+        },
+        {
+          "id": 17110603,
+          "name": "مدرب الفروسية",
+          "description": "سرعة تجنيد الفرسان",
+          "icon": "icon_stunskill_19.png",
+          "relative_path": "skills/stun/icon_stunskill_19.png"
+        },
+        {
+          "id": 17110604,
+          "name": "مدرب الرماية",
+          "description": "سرعة تجنيد الرماة",
+          "icon": "icon_stunskill_20.png",
+          "relative_path": "skills/stun/icon_stunskill_20.png"
+        },
+        {
+          "id": 17120601,
+          "name": "الدرع",
+          "description": "يزيد من إضرار المشاة على الفرسان",
+          "icon": "icon_stunskill_13.png",
+          "relative_path": "skills/stun/icon_stunskill_13.png"
+        },
+        {
+          "id": 17120602,
+          "name": "درع الظهر",
+          "description": "نقاط صحة المشاة",
+          "icon": "icon_stunskill_14.png",
+          "relative_path": "skills/stun/icon_stunskill_14.png"
+        },
+        {
+          "id": 17120603,
+          "name": "المسيرة الى الأمام",
+          "description": "دفاع المشاة",
+          "icon": "icon_stunskill_15.png",
+          "relative_path": "skills/stun/icon_stunskill_15.png"
+        },
+        {
+          "id": 17120604,
+          "name": "السيف ذو حدين",
+          "description": "هجوم المشاة",
+          "icon": "icon_stunskill_16.png",
+          "relative_path": "skills/stun/icon_stunskill_16.png"
+        },
+        {
+          "id": 17130601,
+          "name": "الدرع",
+          "description": "يزيد من إضرار المشاة على الفرسان",
+          "icon": "icon_stunskill_13.png",
+          "relative_path": "skills/stun/icon_stunskill_13.png"
+        },
+        {
+          "id": 17130602,
+          "name": "درع الظهر",
+          "description": "نقاط صحة المشاة",
+          "icon": "icon_stunskill_14.png",
+          "relative_path": "skills/stun/icon_stunskill_14.png"
+        },
+        {
+          "id": 17130603,
+          "name": "المسيرة الى الأمام",
+          "description": "دفاع المشاة",
+          "icon": "icon_stunskill_15.png",
+          "relative_path": "skills/stun/icon_stunskill_15.png"
+        },
+        {
+          "id": 17130604,
+          "name": "السيف ذو حدين",
+          "description": "هجوم المشاة",
+          "icon": "icon_stunskill_16.png",
+          "relative_path": "skills/stun/icon_stunskill_16.png"
+        },
+        {
+          "id": 17140601,
+          "name": "الإندفاع",
+          "description": "يزيد من إضرار الفرسان على الرماة",
+          "icon": "icon_stunskill_01.png",
+          "relative_path": "skills/stun/icon_stunskill_01.png"
+        },
+        {
+          "id": 17140602,
+          "name": "الدرع الخفيف",
+          "description": "نقاط صحة الفرسان",
+          "icon": "icon_stunskill_02.png",
+          "relative_path": "skills/stun/icon_stunskill_02.png"
+        },
+        {
+          "id": 17140603,
+          "name": "نقل الحصن",
+          "description": "دفاع الجيش",
+          "icon": "icon_stunskill_22.png",
+          "relative_path": "skills/stun/icon_stunskill_22.png"
+        },
+        {
+          "id": 17140604,
+          "name": "الهجوم الثلاثي",
+          "description": "هجوم الفرسان",
+          "icon": "icon_stunskill_04.png",
+          "relative_path": "skills/stun/icon_stunskill_04.png"
+        },
+        {
+          "id": 17160601,
+          "name": "محطم الدروع",
+          "description": "يزيد من إضرار الرماة على المشاة",
+          "icon": "icon_stunskill_05.png",
+          "relative_path": "skills/stun/icon_stunskill_05.png"
+        },
+        {
+          "id": 17160602,
+          "name": "حزمة الإنقاذ",
+          "description": "نقاط صحة رماة السهام",
+          "icon": "icon_stunskill_06.png",
+          "relative_path": "skills/stun/icon_stunskill_06.png"
+        },
+        {
+          "id": 17160603,
+          "name": "محطة الإنتعاش",
+          "description": "دفاع رماة السهام",
+          "icon": "icon_stunskill_07.png",
+          "relative_path": "skills/stun/icon_stunskill_07.png"
+        },
+        {
+          "id": 17160604,
+          "name": "مجموعة السهام",
+          "description": "هجوم رماة السهام",
+          "icon": "icon_stunskill_08.png",
+          "relative_path": "skills/stun/icon_stunskill_08.png"
+        },
+        {
+          "id": 17170601,
+          "name": "زراعة الغابة",
+          "description": "إنتاج الخشب",
+          "icon": "icon_stunskill_23.png",
+          "relative_path": "skills/stun/icon_stunskill_23.png"
+        },
+        {
+          "id": 17170602,
+          "name": "آلة تقطيع الخشب المحمول",
+          "description": "سرعة جمع الخشب",
+          "icon": "icon_stunskill_24.png",
+          "relative_path": "skills/stun/icon_stunskill_24.png"
+        },
+        {
+          "id": 17170603,
+          "name": "المهارة الكيميائية",
+          "description": "common_text_2442",
+          "icon": "icon_stunskill_25.png",
+          "relative_path": "skills/stun/icon_stunskill_25.png"
+        },
+        {
+          "id": 17170604,
+          "name": "تحديد موقع المنجم",
+          "description": "سرعة جمع الفضة",
+          "icon": "icon_stunskill_26.png",
+          "relative_path": "skills/stun/icon_stunskill_26.png"
+        },
+        {
+          "id": 17180601,
+          "name": "الإندفاع",
+          "description": "يزيد من إضرار الفرسان على الرماة",
+          "icon": "icon_stunskill_01.png",
+          "relative_path": "skills/stun/icon_stunskill_01.png"
+        },
+        {
+          "id": 17180602,
+          "name": "الدرع الخفيف",
+          "description": "نقاط صحة الفرسان",
+          "icon": "icon_stunskill_02.png",
+          "relative_path": "skills/stun/icon_stunskill_02.png"
+        },
+        {
+          "id": 17180603,
+          "name": "تحسين العتاد",
+          "description": "دفاع الفرسان",
+          "icon": "icon_stunskill_03.png",
+          "relative_path": "skills/stun/icon_stunskill_03.png"
+        },
+        {
+          "id": 17180604,
+          "name": "الهجوم الثلاثي",
+          "description": "هجوم الفرسان",
+          "icon": "icon_stunskill_04.png",
+          "relative_path": "skills/stun/icon_stunskill_04.png"
+        },
+        {
+          "id": 17190601,
+          "name": "الدرع",
+          "description": "يزيد من إضرار المشاة على الفرسان",
+          "icon": "icon_stunskill_13.png",
+          "relative_path": "skills/stun/icon_stunskill_13.png"
+        },
+        {
+          "id": 17190602,
+          "name": "درع الظهر",
+          "description": "نقاط صحة المشاة",
+          "icon": "icon_stunskill_14.png",
+          "relative_path": "skills/stun/icon_stunskill_14.png"
+        },
+        {
+          "id": 17190603,
+          "name": "المسيرة الى الأمام",
+          "description": "دفاع المشاة",
+          "icon": "icon_stunskill_15.png",
+          "relative_path": "skills/stun/icon_stunskill_15.png"
+        },
+        {
+          "id": 17190604,
+          "name": "السيف ذو حدين",
+          "description": "هجوم المشاة",
+          "icon": "icon_stunskill_16.png",
+          "relative_path": "skills/stun/icon_stunskill_16.png"
+        },
+        {
+          "id": 17200601,
+          "name": "الدرع",
+          "description": "يزيد من إضرار المشاة على الفرسان",
+          "icon": "icon_stunskill_13.png",
+          "relative_path": "skills/stun/icon_stunskill_13.png"
+        },
+        {
+          "id": 17200602,
+          "name": "درع الظهر",
+          "description": "نقاط صحة المشاة",
+          "icon": "icon_stunskill_14.png",
+          "relative_path": "skills/stun/icon_stunskill_14.png"
+        },
+        {
+          "id": 17200603,
+          "name": "المسيرة الى الأمام",
+          "description": "دفاع المشاة",
+          "icon": "icon_stunskill_15.png",
+          "relative_path": "skills/stun/icon_stunskill_15.png"
+        },
+        {
+          "id": 17200604,
+          "name": "السيف ذو حدين",
+          "description": "هجوم المشاة",
+          "icon": "icon_stunskill_16.png",
+          "relative_path": "skills/stun/icon_stunskill_16.png"
+        },
+        {
+          "id": 17210601,
+          "name": "الإندفاع",
+          "description": "يزيد من إضرار الفرسان على الرماة",
+          "icon": "icon_stunskill_01.png",
+          "relative_path": "skills/stun/icon_stunskill_01.png"
+        },
+        {
+          "id": 17210602,
+          "name": "الدرع الخفيف",
+          "description": "نقاط صحة الفرسان",
+          "icon": "icon_stunskill_02.png",
+          "relative_path": "skills/stun/icon_stunskill_02.png"
+        },
+        {
+          "id": 17210603,
+          "name": "تحسين العتاد",
+          "description": "دفاع الفرسان",
+          "icon": "icon_stunskill_03.png",
+          "relative_path": "skills/stun/icon_stunskill_03.png"
+        },
+        {
+          "id": 17210604,
+          "name": "تحسين التكتيك",
+          "description": "هجوم الجيش",
+          "icon": "icon_stunskill_21.png",
+          "relative_path": "skills/stun/icon_stunskill_21.png"
+        },
+        {
+          "id": 17220601,
+          "name": "محطم الدروع",
+          "description": "يزيد من إضرار الرماة على المشاة",
+          "icon": "icon_stunskill_05.png",
+          "relative_path": "skills/stun/icon_stunskill_05.png"
+        },
+        {
+          "id": 17220602,
+          "name": "تحسين التكتيك",
+          "description": "هجوم الجيش",
+          "icon": "icon_stunskill_21.png",
+          "relative_path": "skills/stun/icon_stunskill_21.png"
+        }
+      ]
+    },
+    "beast": {
+      "title_ar": "مهارات الوحوش والحيوانات الأليفة (Divine Beast Skills)",
+      "total": 25,
+      "skills": [
+        {
+          "id": 1001,
+          "name": "divineskill_name_1001",
+          "description": "divineskill_des_1001",
+          "icon": "divine_skill_1001.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1001.png"
+        },
+        {
+          "id": 1001,
+          "name": "divineskill_name_1001",
+          "description": "divineskill_des_1001",
+          "icon": "divine_skill_1001.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1001.png"
+        },
+        {
+          "id": 1001,
+          "name": "divineskill_name_1001",
+          "description": "divineskill_des_1001",
+          "icon": "divine_skill_1001.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1001.png"
+        },
+        {
+          "id": 1001,
+          "name": "divineskill_name_1001",
+          "description": "divineskill_des_1001",
+          "icon": "divine_skill_1001.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1001.png"
+        },
+        {
+          "id": 1002,
+          "name": "divineskill_name_1002",
+          "description": "divineskill_des_1002",
+          "icon": "divine_skill_1002.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1002.png"
+        },
+        {
+          "id": 1002,
+          "name": "divineskill_name_1002",
+          "description": "divineskill_des_1002",
+          "icon": "divine_skill_1002.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1002.png"
+        },
+        {
+          "id": 1002,
+          "name": "divineskill_name_1002",
+          "description": "divineskill_des_1002",
+          "icon": "divine_skill_1002.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1002.png"
+        },
+        {
+          "id": 1002,
+          "name": "divineskill_name_1002",
+          "description": "divineskill_des_1002",
+          "icon": "divine_skill_1002.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1002.png"
+        },
+        {
+          "id": 1003,
+          "name": "divineskill_name_1003",
+          "description": "divineskill_des_1003",
+          "icon": "divine_skill_1003.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1003.png"
+        },
+        {
+          "id": 1003,
+          "name": "divineskill_name_1003",
+          "description": "divineskill_des_1003",
+          "icon": "divine_skill_1003.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1003.png"
+        },
+        {
+          "id": 1003,
+          "name": "divineskill_name_1003",
+          "description": "divineskill_des_1003",
+          "icon": "divine_skill_1003.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1003.png"
+        },
+        {
+          "id": 1004,
+          "name": "divineskill_name_1004",
+          "description": "divineskill_des_1004",
+          "icon": "divine_skill_1004.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1004.png"
+        },
+        {
+          "id": 1004,
+          "name": "divineskill_name_1004",
+          "description": "divineskill_des_1004",
+          "icon": "divine_skill_1004.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_1004.png"
+        },
+        {
+          "id": 2001,
+          "name": "divineskill_name_2001",
+          "description": "divineskill_des_1001",
+          "icon": "divine_skill_2001.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_2001.png"
+        },
+        {
+          "id": 2001,
+          "name": "divineskill_name_2001",
+          "description": "divineskill_des_1001",
+          "icon": "divine_skill_2001.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_2001.png"
+        },
+        {
+          "id": 2001,
+          "name": "divineskill_name_2001",
+          "description": "divineskill_des_1001",
+          "icon": "divine_skill_2001.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_2001.png"
+        },
+        {
+          "id": 2001,
+          "name": "divineskill_name_2001",
+          "description": "divineskill_des_1001",
+          "icon": "divine_skill_2001.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_2001.png"
+        },
+        {
+          "id": 2002,
+          "name": "divineskill_name_2002",
+          "description": "divineskill_des_2002",
+          "icon": "divine_skill_2002.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_2002.png"
+        },
+        {
+          "id": 2002,
+          "name": "divineskill_name_2002",
+          "description": "divineskill_des_2002",
+          "icon": "divine_skill_2002.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_2002.png"
+        },
+        {
+          "id": 2002,
+          "name": "divineskill_name_2002",
+          "description": "divineskill_des_2002",
+          "icon": "divine_skill_2002.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_2002.png"
+        },
+        {
+          "id": 2002,
+          "name": "divineskill_name_2002",
+          "description": "divineskill_des_2002",
+          "icon": "divine_skill_2002.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_2002.png"
+        },
+        {
+          "id": 2003,
+          "name": "divineskill_name_2003",
+          "description": "divineskill_des_2003",
+          "icon": "divine_skill_2003.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_2003.png"
+        },
+        {
+          "id": 2003,
+          "name": "divineskill_name_2003",
+          "description": "divineskill_des_2003",
+          "icon": "divine_skill_2003.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_2003.png"
+        },
+        {
+          "id": 2003,
+          "name": "divineskill_name_2003",
+          "description": "divineskill_des_2003",
+          "icon": "divine_skill_2003.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_2003.png"
+        },
+        {
+          "id": 2004,
+          "name": "divineskill_name_2004",
+          "description": "divineskill_des_2004",
+          "icon": "divine_skill_2004.png",
+          "is_active": false,
+          "relative_path": "skills/beast/divine_skill_2004.png"
+        }
+      ]
+    }
+  }
+}

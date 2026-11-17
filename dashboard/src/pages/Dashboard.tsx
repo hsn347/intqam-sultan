@@ -299,24 +299,95 @@ export function DashboardPage() {
         {/* Recent castles */}
         {allCastles.length > 0 && (
           <div className="overflow-hidden glass-card">
-            <div className="px-5 py-3 border-gray-100 dark:border-white/8 border-b">
-              <h2 className="font-semibold text-sm brand-title">{t('dashboard.recentActivity')}</h2>
+            <div className="flex justify-between items-center px-5 py-3.5 border-gray-100 dark:border-white/8 border-b">
+              <div className="flex items-center gap-2">
+                <img
+                  src="/images/castles/main_castle_square.png"
+                  alt=""
+                  className="w-5 h-5 object-contain select-none"
+                  loading="lazy"
+                />
+                <h2 className="font-semibold text-sm sm:text-base brand-title">{t('dashboard.recentActivity')}</h2>
+                <span className="bg-primary-500/15 px-2 py-0.5 border border-primary-500/30 rounded-full font-bold text-[10px] text-primary-700 dark:text-primary-300">
+                  {allCastles.length}
+                </span>
+              </div>
+              <Link
+                to="/accounts"
+                className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-xs font-semibold transition-colors"
+              >
+                {t('dashboard.viewAllAccounts')} &larr;
+              </Link>
             </div>
             <div className="divide-y divide-gray-100 dark:divide-white/6">
-              {allCastles.slice(0, 5).map(c => (
-                <div key={c.id} className="flex justify-between items-center hover:bg-black/2 dark:hover:bg-white/3 px-5 py-3 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="flex justify-center items-center bg-primary-900/60 border border-primary-700/30 rounded-lg w-8 h-8 font-bold text-primary-400 text-xs">
-                      {c.castle_info.castle_level}
+              {allCastles.map(c => {
+                const info = c.castle_info
+                const emailPrefix = (c.email || '').split('@')[0] || t('common.castle', 'قلعة')
+                const isGenericName = !info?.lord_name || ['لورد الإمبراطورية', 'القلعة الملكية', 'قلعة جديدة', 'غير معروف', 'قلعة'].includes(info.lord_name)
+                const displayLordName = isGenericName ? emailPrefix : info.lord_name
+                const castleLevel = info?.castle_level || 1
+
+                return (
+                  <Link
+                    key={c.id}
+                    to="/accounts"
+                    className="flex justify-between items-center hover:bg-black/2 dark:hover:bg-white/3 px-4 sm:px-5 py-3.5 transition-colors group"
+                  >
+                    <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+                      {/* أيقونة القلعة الكبيرة والواضحة جداً */}
+                      <div className="relative flex-shrink-0">
+                        <div className="flex justify-center items-center bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-amber-500/5 dark:from-amber-400/20 dark:to-transparent border border-amber-500/30 dark:border-amber-500/35 rounded-2xl w-14 h-14 sm:w-16 sm:h-16 p-1 shadow-sm overflow-hidden group-hover:scale-105 transition-transform duration-200">
+                          <img
+                            src="/images/castles/main_castle_square.png"
+                            alt={displayLordName}
+                            className="w-full h-full object-contain filter drop-shadow-md select-none"
+                            loading="lazy"
+                          />
+                        </div>
+                        {castleLevel > 0 && (
+                          <span className="absolute -bottom-1 -end-1 bg-gradient-to-r from-amber-600 to-amber-700 text-white font-black text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full border border-amber-300/40 shadow-sm leading-none select-none">
+                            {castleLevel}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                          <span className="font-bold text-gray-900 dark:text-white text-sm sm:text-base brand-title truncate">
+                            {displayLordName}
+                          </span>
+
+                          {castleLevel > 0 && (
+                            <span className="inline-flex items-center gap-1 bg-amber-500/15 px-1.5 sm:px-2 py-0.5 border border-amber-500/30 rounded-md font-bold text-[10px] sm:text-xs text-amber-800 dark:text-amber-300 select-none">
+                              {t('accounts.castleLevelPrefix', 'قلعة')} {castleLevel}
+                            </span>
+                          )}
+
+                          {info?.server_id ? (
+                            <span className="bg-blue-500/10 px-1.5 py-0.5 border border-blue-500/25 rounded-md font-semibold text-[10px] text-blue-700 dark:text-blue-300 select-none">
+                              #{info.server_id}
+                            </span>
+                          ) : null}
+
+                          {info?.alliance_name ? (
+                            <span className="bg-primary-500/15 px-1.5 py-0.5 border border-primary-500/30 rounded-md font-semibold text-[10px] text-primary-700 dark:text-primary-300 select-none">
+                              [{info.alliance_name.split(' ')[0]}]
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="text-gray-500 dark:text-gray-400 text-xs font-mono truncate mt-0.5">
+                          {c.email}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-medium text-sm brand-title">{c.castle_info.lord_name}</div>
-                      <div className="text-gray-500 text-xs">{c.email}</div>
+
+                    <div className="flex-shrink-0 ms-3">
+                      <StatusBadge state={c.bot_status.state} label={t(`status.${c.bot_status.state}`)} />
                     </div>
-                  </div>
-                  <StatusBadge state={c.bot_status.state} label={t(`status.${c.bot_status.state}`)} />
-                </div>
-              ))}
+                  </Link>
+                )
+              })}
             </div>
           </div>
         )}

@@ -94,9 +94,22 @@ export interface ArenaConfig extends BaseTaskConfig {
 export interface CommandHallConfig extends BaseTaskConfig {
   mode: 'daily' | 'full'
   allow_marches: boolean
+  allow_snipe?: boolean
+  allow_rescue?: boolean
+  allow_dialogue?: boolean
+  allow_army_group?: boolean
   auto_claim_rewards: boolean
   auto_upgrade_hall: boolean
   min_safety_stamina?: number
+}
+
+export interface StaminaConfig extends BaseTaskConfig {
+  min_stamina: number
+  mode: 'auto' | 'manual'
+  pack_tier: '10' | '50' | '100'
+  pack_count: number
+  allow_buy: boolean
+  max_gold_daily: number
 }
 
 export type EquipmentCategory = 'weapon' | 'clothes' | 'helmet' | 'trousers' | 'shoes' | 'ring'
@@ -106,6 +119,11 @@ export interface TrainLevels {
   cavalry: number
   archers: number
   chariots: number
+}
+
+export interface MaterialWorkshopConfig extends BaseTaskConfig {
+  selected_materials?: number[]
+  materials?: string[]
 }
 
 export interface MarchManagerConfig extends BaseTaskConfig {
@@ -155,7 +173,7 @@ export interface CastleConfig {
   arena?: ArenaConfig
   hero_trial?: SimpleToggleConfig
   command_hall?: CommandHallConfig
-  stamina: BaseTaskConfig & { gold_buys: number }
+  stamina?: StaminaConfig
   skills: BaseTaskConfig & { target_skills: string[] }
   hero_draw: BaseTaskConfig
   treasure_pavilion: BaseTaskConfig
@@ -167,7 +185,7 @@ export interface CastleConfig {
   tactics_hall: BaseTaskConfig & { tactic: string }
   watermill: BaseTaskConfig & { resources?: string[]; types?: string | string[]; allow_shop_buy?: boolean }
   fountain: BaseTaskConfig & { resources: string[]; allow_gold: boolean; gold_times: number; use_gold?: boolean }
-  material_workshop: BaseTaskConfig & { materials: string[] }
+  material_workshop?: MaterialWorkshopConfig
   caravan: BaseTaskConfig
   port_delegate: BaseTaskConfig & { shop_item: string }
   savings_bank: BaseTaskConfig & { days: number }
@@ -185,6 +203,8 @@ export interface CastleConfig {
   gold_gather?: { enabled: boolean; locations: GoldLocation[] }
   abra?: AbraConfig
 }
+
+export type BotConfig = CastleConfig
 
 export interface AbraConfig extends BaseTaskConfig {
   x: number
@@ -228,8 +248,16 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
   daily_quest: { enabled: true },
   arena: { enabled: false, arena_type: 'kingdom', auto_claim_rewards: true },
   hero_trial: { enabled: false },
-  command_hall: { enabled: false, mode: 'daily', allow_marches: false, auto_claim_rewards: true, auto_upgrade_hall: true },
-  stamina: { enabled: false, gold_buys: 0 },
+  command_hall: { enabled: false, mode: 'daily', allow_marches: true, allow_snipe: true, allow_rescue: true, allow_dialogue: true, allow_army_group: true, auto_claim_rewards: true, auto_upgrade_hall: true, min_safety_stamina: 10 },
+  stamina: {
+    enabled: false,
+    min_stamina: 100,
+    mode: 'auto',
+    pack_tier: '50',
+    pack_count: 1,
+    allow_buy: false,
+    max_gold_daily: 1000,
+  },
   skills: { enabled: false, target_skills: [] },
   hero_draw: { enabled: false },
   treasure_pavilion: { enabled: false },
@@ -241,7 +269,7 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
   tactics_hall: { enabled: false, tactic: 'القلعة الفارغة' },
   watermill: { enabled: false, resources: ['food', 'wood', 'iron', 'silver'], types: 'all' },
   fountain: { enabled: false, resources: ['food', 'wood', 'iron', 'diamond'], allow_gold: false, gold_times: 0 },
-  material_workshop: { enabled: false, materials: [] },
+  material_workshop: { enabled: false, selected_materials: [200101, 200201, 200301, 200401, 200501, 200601] },
   caravan: { enabled: false },
   port_delegate: { enabled: false, shop_item: 'all' },
   savings_bank: { enabled: false, days: 7 },
@@ -311,7 +339,7 @@ export const FIXED_PRESET_CONFIG: CastleConfig = {
   // 7. نافورة الأمنيات على كل الموارد بدون شراء من المتجر
   fountain: { enabled: true, resources: ['food', 'wood', 'iron', 'coal', 'diamond'], allow_gold: false, gold_times: 0 },
   // 8. ورشة المواد على كل المواد
-  material_workshop: { enabled: true, materials: ['fang', 'fur', 'metal', 'coal'] },
+  material_workshop: { enabled: true, selected_materials: [200101, 200201, 200301, 200401, 200501, 200601] },
   // 9 & 10. مكافأة الجمع السريع ومكافأة الحصاد
   skills: { enabled: true, target_skills: ['harvest', 'gather'] },
   // 11. الزنزانة الأساسية لكل العناصر
@@ -333,7 +361,15 @@ export const FIXED_PRESET_CONFIG: CastleConfig = {
   material_synthesis: { enabled: false },
   cure_wounded: { enabled: false, mode: 'daily' },
   forge_equipment: { enabled: false, category: 'weapon' },
-  stamina: { enabled: false, gold_buys: 0 },
+  stamina: {
+    enabled: false,
+    min_stamina: 100,
+    mode: 'auto',
+    pack_tier: '50',
+    pack_count: 1,
+    allow_buy: false,
+    max_gold_daily: 1000,
+  },
   hero_draw: { enabled: false },
   treasure_pavilion: { enabled: true },
   blacksmith_forge: { enabled: true },

@@ -1,8 +1,24 @@
 # -*- coding: utf-8 -*-
 """
-python tools/test_base_task.py --email beetoo3@hotmail.com --fn get_command_hall_tasks
+python tools/test_base_task.py --email beetoo2@hotmail.com --fn get_lord_skill_status
+
+
+
+python tools/test_base_task.py --email beetoo3@hotmail.com --fn get_lord_skill_status --skill  "الطاقة الوافرة"
+
+
+python tools/test_base_task.py --email beetoo2@hotmail.com --fn use_lord_skill --skill  "الإكسير الفتاك"
+
 
 python tools/test_base_task.py --email beetoo3@hotmail.com command_hall
+
+
+
+python tools/test_base_task.py --email beetoo2 --fn get_material_workshop_status
+
+
+python tools/test_base_task.py --email beetoo1 --fn get_resource_buildings_boost_status
+
 """
 
 from __future__ import annotations
@@ -11,9 +27,10 @@ import asyncio
 from abc import ABC, abstractmethod
 import math
 import random
+import re
 import sys
 import time
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 if sys.platform == "win32":
     try:
@@ -301,6 +318,605 @@ COMMAND_HALL_EXP_BY_LV: Dict[int, int] = {
 }
 COMMAND_HALL_MAX_LEVEL = 21
 
+# ═════════════════════════════════════════════════════════════════════════
+# ثوابت وجداول مهارات ومواهب الأمير الرسمية للعبة (Lord Skills Standards)
+# مستخرجة بدقة من سورس كود العميل الأصلي (lordSkillCtrl, skill.lua, etc.)
+# ═════════════════════════════════════════════════════════════════════════
+
+CMD_LORD_MODULE = "1002"
+REQ_LORD_SKILL_UPGRADE = "20"    # ترقية مستوى المهارة
+REQ_LORD_SKILL_RESET = "21"      # إعادة تعيين مهارات الطقم
+REQ_LORD_SKILL_USE = "22"        # استخدام/تفعيل المهارة النشطة
+REQ_LORD_SKILL_SWITCH = "23"     # التبديل إلى طقم مهارات آخر
+REQ_LORD_SKILL_SET_TITLE = "24"  # تغيير مسمى طقم المهارات
+
+# تصنيفات مهارات ومواهب اللورد
+LORD_SKILL_TYPE_BATTLE = 1     # قتالي (Battle)
+LORD_SKILL_TYPE_DEVELOP = 2    # تطوير/إنتاج (Develop)
+LORD_SKILL_TYPE_AUXILIARY = 3  # مساعد/دعم (Auxiliary)
+
+# كتالوج المهارات النشطة الرسمية الـ 16 في اللعبة
+LORD_ACTIVE_SKILLS_CATALOG: Dict[int, Dict[str, Any]] = {
+    11011: {
+        "id": 11011,
+        "name_ar": "العودة الفورية",
+        "name_en": "Immediate Return",
+        "type": LORD_SKILL_TYPE_BATTLE,
+        "type_name": "battle",
+        "queue_type": 1213,
+        "buff_id": None,
+        "base_cd": 28800,  # 8 ساعات
+        "is_active_skill": True,
+        "description": "استدعاء كافة القوات التابعة للقلعة بالخارج فوراً دون انتظار وقت المسير.",
+        "aliases": ["العودة الفورية", "العودة", "عودة_فورية", "immediate_return", "recall", "return", "11011"],
+    },
+    11028: {
+        "id": 11028,
+        "name_ar": "الإنقاذ",
+        "name_en": "Rescue",
+        "type": LORD_SKILL_TYPE_BATTLE,
+        "type_name": "battle",
+        "queue_type": 1214,
+        "buff_id": 4501,
+        "base_cd": 28800,  # 8 ساعات
+        "is_active_skill": True,
+        "description": "تحويل قتلى المعركة القادمة إلى جرحى يدخلون الخيام الطبية.",
+        "aliases": ["الإنقاذ", "انقاذ", "اسعاف", "الإسعاف", "rescue", "help", "first_aid", "11028"],
+    },
+    11029: {
+        "id": 11029,
+        "name_ar": "زيادة المسيرة",
+        "name_en": "General Mobilization",
+        "type": LORD_SKILL_TYPE_BATTLE,
+        "type_name": "battle",
+        "queue_type": None,
+        "buff_id": 4506,
+        "base_cd": 57600,  # 16 ساعة
+        "is_active_skill": True,
+        "description": "زيادة سعة استيعاب الفيلق للمسيرة بنسبة 10% لمدة ساعتين.",
+        "aliases": ["زيادة المسيرة", "تعبئة عامة", "التعبئة العامة", "تعبئة", "general_mobilization", "mobilization", "march_size", "11029"],
+    },
+    11042: {
+        "id": 11042,
+        "name_ar": "حشد سوبر",
+        "name_en": "Super Rally",
+        "type": LORD_SKILL_TYPE_BATTLE,
+        "type_name": "battle",
+        "queue_type": 1247,
+        "buff_id": 5128,
+        "base_cd": 57600,  # 16 ساعة
+        "is_active_skill": True,
+        "description": "زيادة الحد الأقصى لسعة القوات المحشودة.",
+        "aliases": ["حشد سوبر", "حشد_سوبر", "حشد", "mass_support", "mass_num", "super_rally", "11042"],
+    },
+    11056: {
+        "id": 11056,
+        "name_ar": "السم القاتل",
+        "name_en": "Deadly Poison",
+        "type": LORD_SKILL_TYPE_BATTLE,
+        "type_name": "battle",
+        "queue_type": None,
+        "buff_id": 5436,
+        "base_cd": 18000,  # 5 ساعات
+        "is_active_skill": True,
+        "description": "إضعاف هجوم ودفاع قوات العدو.",
+        "aliases": ["السم القاتل", "سم_قاتل", "deadly_poison", "poison", "11056"],
+    },
+    11057: {
+        "id": 11057,
+        "name_ar": "الإكسير الفتاك",
+        "name_en": "Fatal Elixir",
+        "type": LORD_SKILL_TYPE_BATTLE,
+        "type_name": "battle",
+        "queue_type": None,
+        "buff_id": 5446,
+        "base_cd": 18000,  # 5 ساعات
+        "is_active_skill": True,
+        "description": "زيادة الضرر والفتك في المعارك القتالية.",
+        "aliases": ["الإكسير الفتاك", "اكسير_فتاك", "fatal_elixir", "elixir", "11057"],
+    },
+    12008: {
+        "id": 12008,
+        "name_ar": "حصاد وافر",
+        "name_en": "Bumper Harvest",
+        "type": LORD_SKILL_TYPE_DEVELOP,
+        "type_name": "develop",
+        "queue_type": 1215,
+        "buff_id": None,
+        "base_cd": 14400,  # 4 ساعات
+        "is_active_skill": True,
+        "description": "الحصول الفوري على إنتاج موارد القلعة داخل الأسوار.",
+        "aliases": ["حصاد وافر", "حصاد", "الحصاد الوافر", "الحصاد", "bumper_harvest", "harvest", "bumper", "12008"],
+    },
+    12022: {
+        "id": 12022,
+        "name_ar": "الجمع السريع",
+        "name_en": "Crazy Gather",
+        "type": LORD_SKILL_TYPE_DEVELOP,
+        "type_name": "develop",
+        "queue_type": 1216,
+        "buff_id": 4507,
+        "base_cd": 86400,  # 24 ساعة
+        "is_active_skill": True,
+        "description": "مضاعفة سرعة جمع الموارد على الخريطة بنسبة 100% لمدة ساعتين.",
+        "aliases": ["الجمع السريع", "جمع سريع", "الجمع الجنوني", "crazy_gather", "fast_gather", "12022"],
+    },
+    12023: {
+        "id": 12023,
+        "name_ar": "الجمع الآمن",
+        "name_en": "Gather Protect",
+        "type": LORD_SKILL_TYPE_DEVELOP,
+        "type_name": "develop",
+        "queue_type": 1217,
+        "buff_id": 4504,
+        "base_cd": 28800,  # 8 ساعات
+        "is_active_skill": True,
+        "description": "حماية قوات جمع الموارد من هجمات أو استطلاع الأعداء لمدة ساعتين.",
+        "aliases": ["الجمع الآمن", "جمع آمن", "حماية الجمع", "gather_protect", "safe_gather", "12023"],
+    },
+    12031: {
+        "id": 12031,
+        "name_ar": "إنتاج سريع",
+        "name_en": "Resource Up",
+        "type": LORD_SKILL_TYPE_DEVELOP,
+        "type_name": "develop",
+        "queue_type": 1248,
+        "buff_id": 5129,
+        "base_cd": 86400,  # 24 ساعة
+        "is_active_skill": True,
+        "description": "مضاعفة إنتاج كافة حقول الموارد بالقلعة لمدة ساعتين.",
+        "aliases": ["إنتاج سريع", "انتاج سريع", "مضاعفة الإنتاج", "resource_up", "production_boost", "12031"],
+    },
+    12042: {
+        "id": 12042,
+        "name_ar": "تحويل الموارد",
+        "name_en": "Resource Conversion",
+        "type": LORD_SKILL_TYPE_DEVELOP,
+        "type_name": "develop",
+        "queue_type": None,
+        "buff_id": None,
+        "base_cd": 86400,  # 24 ساعة
+        "is_active_skill": True,
+        "description": "تحويل كمية من القمح إلى موارد آمنة ومحمية من النهب.",
+        "aliases": ["تحويل الموارد", "تحويل موارد", "تحويل القمح", "resource_conversion", "convert_resource", "12042"],
+    },
+    13020: {
+        "id": 13020,
+        "name_ar": "عامل ماهر",
+        "name_en": "Master Craft",
+        "type": LORD_SKILL_TYPE_AUXILIARY,
+        "type_name": "auxiliary",
+        "queue_type": 1218,
+        "buff_id": None,
+        "base_cd": 14400,  # 4 ساعات
+        "is_active_skill": True,
+        "description": "الحصول فوراً على كمية من الفخاخ الدفاعية من أعلى مستوى متاح.",
+        "aliases": ["عامل ماهر", "فخاخ فورية", "الفخاخ", "master_craft", "dap", "traps", "13020"],
+    },
+    13021: {
+        "id": 13021,
+        "name_ar": "الطاقة الوافرة",
+        "name_en": "Physical Abundant",
+        "type": LORD_SKILL_TYPE_AUXILIARY,
+        "type_name": "auxiliary",
+        "queue_type": None,
+        "buff_id": None,
+        "base_cd": 14400,  # 4 ساعات
+        "is_active_skill": True,
+        "description": "استعادة 30 نقطة طاقة إضافية للأمير فوراً.",
+        "aliases": ["الطاقة الوافرة", "طاقة وافرة", "استعادة الطاقة", "physical_abundant", "stamina_boost", "13021"],
+    },
+    13022: {
+        "id": 13022,
+        "name_ar": "المسيرة السريعة",
+        "name_en": "Rapid March",
+        "type": LORD_SKILL_TYPE_AUXILIARY,
+        "type_name": "auxiliary",
+        "queue_type": None,
+        "buff_id": 4505,
+        "base_cd": 86400,  # 24 ساعة
+        "is_active_skill": True,
+        "description": "مضاعفة سرعة مسيرة القوات في العالم.",
+        "aliases": ["المسيرة السريعة", "مسيرة سريعة", "rapid_march", "fast_march", "13022"],
+    },
+    13032: {
+        "id": 13032,
+        "name_ar": "تسلل",
+        "name_en": "Sneak Into",
+        "type": LORD_SKILL_TYPE_AUXILIARY,
+        "type_name": "auxiliary",
+        "queue_type": 1249,
+        "buff_id": 5130,
+        "base_cd": 86400,  # 24 ساعة
+        "is_active_skill": True,
+        "description": "إخفاء معلومات القلعة والمسيرات من الاستطلاع لمدة ساعتين.",
+        "aliases": ["تسلل", "التسلل", "إخفاء القلعة", "sneak_into", "sneak", "stealth", "13032"],
+    },
+    13040: {
+        "id": 13040,
+        "name_ar": "الإستحواذ الهادئ",
+        "name_en": "Quiet Acquisition",
+        "type": LORD_SKILL_TYPE_AUXILIARY,
+        "type_name": "auxiliary",
+        "queue_type": None,
+        "buff_id": 5425,
+        "base_cd": 86400,  # 24 ساعة
+        "is_active_skill": True,
+        "description": "استهلاك كامل طاقة اللورد في ضربة وحوش واحدة مع مضاعفة الجوائز المقابلة.",
+        "aliases": ["الإستحواذ الهادئ", "استحواذ هادئ", "quiet_acquisition", "monster_energy_dump", "13040"],
+    },
+}
+
+# قاموس التطابق السريع للأسماء والرموز والـ IDs
+SKILL_ALIAS_TO_ID: Dict[str, int] = {}
+for _sid, _meta in LORD_ACTIVE_SKILLS_CATALOG.items():
+    SKILL_ALIAS_TO_ID[str(_sid)] = _sid
+    SKILL_ALIAS_TO_ID[_meta["name_ar"].lower().strip()] = _sid
+    SKILL_ALIAS_TO_ID[_meta["name_en"].lower().strip()] = _sid
+    for _alias in _meta.get("aliases", []):
+        SKILL_ALIAS_TO_ID[_alias.lower().strip()] = _sid
+
+# ═════════════════════════════════════════════════════════════════════════
+# ثوابت وجداول مهارات الحشد التآزرية للأبطال (Hero Rally Skills Standards)
+# مستخرجة بدقة من سورس كود العميل الأصلي (heroComboSkillCtrl, hero_combos_skill.lua)
+# تبويب 'مهارات الحشد' (common_text_4870) في نافذة المهارات النشطة (skillNewActiveViewPanel)
+# ═════════════════════════════════════════════════════════════════════════
+
+CMD_HERO_COMBO_SKILL_MODULE = "2235"
+REQ_HERO_COMBO_SKILL_INIT = "1"  # استدعاء بيانات ومستويات مهارات الحشد
+REQ_HERO_COMBO_SKILL_USE = "2"   # تفعيل مهارة الحشد (مع skillGroup)
+
+HERO_RALLY_SKILLS_CATALOG: Dict[int, Dict[str, Any]] = {
+    172308: {
+        "id": 172308,
+        "group_id": 172308,
+        "name_ar": "نداء الحشود",
+        "name_en": "Rally Call",
+        "troop_type": "bowmen",
+        "troop_name_ar": "رماة",
+        "hero_id": 1723,
+        "hero_name_ar": "الأمير القناص",
+        "lieutenant_id": 1726,
+        "lieutenant_name_ar": "جسار",
+        "dress_id": 172302,
+        "skill_ids": [17230801, 17230802, 17230803, 17230804, 17230805],
+        "effect_seconds": 3600,
+        "base_cd": 0,
+        "description": "انطلاق حشد الرماة مباشرة فور بلوغ عدد الجنود الحد الأقصى ووصول كافة الفرق المشاركة إلى قلعة الأمير الحاشد.",
+        "aliases": ["نداء الحشود", "نداء_الحشود", "نداء الحشد", "حشد الرماة", "حشد_رماة", "رماة_حشد", "rally_call", "bowmen_rally", "archer_rally", "172308"],
+    },
+    173608: {
+        "id": 173608,
+        "group_id": 173608,
+        "name_ar": "مسيرة صف القوات",
+        "name_en": "Troop Line March",
+        "troop_type": "infantry",
+        "troop_name_ar": "مشاة",
+        "hero_id": 1736,
+        "hero_name_ar": "العاصوف",
+        "lieutenant_id": 1720,
+        "lieutenant_name_ar": "الكاسر",
+        "dress_id": 173602,
+        "skill_ids": [17360801, 17360802, 17360803, 17360804, 17360805],
+        "effect_seconds": 3600,
+        "base_cd": 0,
+        "description": "انطلاق حشد المشاة مباشرة فور بلوغ عدد الجنود الحد الأقصى ووصول كافة الفرق المشاركة إلى قلعة الأمير الحاشد.",
+        "aliases": ["مسيرة صف القوات", "مسيرة_صف_القوات", "صف القوات", "حشد المشاة", "حشد_مشاة", "مشاة_حشد", "troop_line_march", "infantry_rally", "173608"],
+    },
+    174308: {
+        "id": 174308,
+        "group_id": 174308,
+        "name_ar": "الغارة السريعة",
+        "name_en": "Rapid Raid",
+        "troop_type": "cavalry",
+        "troop_name_ar": "فرسان",
+        "hero_id": 1743,
+        "hero_name_ar": "أميرة وحيد القرن",
+        "lieutenant_id": 1721,
+        "lieutenant_name_ar": "صائد الفرسان",
+        "dress_id": 174302,
+        "skill_ids": [17430801, 17430802, 17430803, 17430804, 17430805],
+        "effect_seconds": 3600,
+        "base_cd": 0,
+        "description": "انطلاق حشد الفرسان مباشرة فور بلوغ عدد الجنود الحد الأقصى ووصول كافة الفرق المشاركة إلى قلعة الأمير الحاشد.",
+        "aliases": ["الغارة السريعة", "الغارة_السريعة", "غارة سريعة", "حشد الفرسان", "حشد_فرسان", "فرسان_حشد", "rapid_raid", "cavalry_rally", "174308"],
+    },
+}
+
+HERO_RALLY_SKILL_ALIAS_TO_ID: Dict[str, int] = {}
+for _rsid, _rmeta in HERO_RALLY_SKILLS_CATALOG.items():
+    HERO_RALLY_SKILL_ALIAS_TO_ID[str(_rsid)] = _rsid
+    HERO_RALLY_SKILL_ALIAS_TO_ID[_rmeta["name_ar"].lower().strip()] = _rsid
+    HERO_RALLY_SKILL_ALIAS_TO_ID[_rmeta["name_en"].lower().strip()] = _rsid
+    for _sub_id in _rmeta.get("skill_ids", []):
+        HERO_RALLY_SKILL_ALIAS_TO_ID[str(_sub_id)] = _rsid
+    for _ralias in _rmeta.get("aliases", []):
+        HERO_RALLY_SKILL_ALIAS_TO_ID[_ralias.lower().strip()] = _rsid
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# معمل المواد (Material Workshop / stuffWorkshopCtrl)
+# ═════════════════════════════════════════════════════════════════════════
+CMD_STUFF_WORKSHOP_MODULE = "2021"
+REQ_STUFF_WORKSHOP_REFRESH = "1"
+REQ_STUFF_WORKSHOP_REFINERY = "2"
+REQ_STUFF_WORKSHOP_CANCEL = "3"
+REQ_STUFF_WORKSHOP_GET = "4"
+REQ_STUFF_WORKSHOP_OPEN_POS = "5"
+REQ_STUFF_WORKSHOP_SWITCH_QUALITY = "6"
+QUEUE_TYPE_STUFF_WORKSHOP = 1238
+
+MATERIAL_BASE_NAMES: Dict[int, str] = {
+    2001: "عشب",
+    2002: "خشب بنفسجي",
+    2003: "برونز",
+    2004: "ياقوت",
+    2005: "فرو",
+    2006: "قرن",
+    10: "عشب",
+    11: "خشب بنفسجي",
+    12: "برونز",
+    13: "ياقوت",
+    14: "فرو",
+    15: "قرن",
+}
+
+MATERIAL_QUALITY_NAMES: Dict[int, str] = {
+    0: "أبيض (عادي)",
+    1: "أبيض (عادي)",
+    2: "أخضر",
+    3: "أزرق",
+}
+
+MATERIAL_WORKSHOP_CATALOG: Dict[int, Dict[str, Any]] = {
+    # المستوى 1 (أبيض / عادي) - مدة التكرير 4 ساعات (14400 ثانية)
+    200101: {"name": "عشب المستوى 1", "base_id": 2001, "base_name": "عشب", "quality": 1, "quality_name": "أبيض (عادي)", "refine_time": 14400},
+    200201: {"name": "خشب بنفسجي المستوى 1", "base_id": 2002, "base_name": "خشب بنفسجي", "quality": 1, "quality_name": "أبيض (عادي)", "refine_time": 14400},
+    200301: {"name": "برونز المستوى 1", "base_id": 2003, "base_name": "برونز", "quality": 1, "quality_name": "أبيض (عادي)", "refine_time": 14400},
+    200401: {"name": "ياقوت المستوى 1", "base_id": 2004, "base_name": "ياقوت", "quality": 1, "quality_name": "أبيض (عادي)", "refine_time": 14400},
+    200501: {"name": "فرو المستوى 1", "base_id": 2005, "base_name": "فرو", "quality": 1, "quality_name": "أبيض (عادي)", "refine_time": 14400},
+    200601: {"name": "قرن المستوى 1", "base_id": 2006, "base_name": "قرن", "quality": 1, "quality_name": "أبيض (عادي)", "refine_time": 14400},
+
+    # المستوى 2 (أخضر) - مدة التكرير 12 ساعة (43200 ثانية)
+    200102: {"name": "عشب المستوى 2", "base_id": 2001, "base_name": "عشب", "quality": 2, "quality_name": "أخضر", "refine_time": 43200},
+    200202: {"name": "خشب بنفسجي المستوى 2", "base_id": 2002, "base_name": "خشب بنفسجي", "quality": 2, "quality_name": "أخضر", "refine_time": 43200},
+    200302: {"name": "برونز المستوى 2", "base_id": 2003, "base_name": "برونز", "quality": 2, "quality_name": "أخضر", "refine_time": 43200},
+    200402: {"name": "ياقوت المستوى 2", "base_id": 2004, "base_name": "ياقوت", "quality": 2, "quality_name": "أخضر", "refine_time": 43200},
+    200502: {"name": "فرو المستوى 2", "base_id": 2005, "base_name": "فرو", "quality": 2, "quality_name": "أخضر", "refine_time": 43200},
+    200602: {"name": "قرن المستوى 2", "base_id": 2006, "base_name": "قرن", "quality": 2, "quality_name": "أخضر", "refine_time": 43200},
+
+    # المستوى 3 (أزرق) - مدة التكرير 24 ساعة (86400 ثانية)
+    200103: {"name": "عشب المستوى 3", "base_id": 2001, "base_name": "عشب", "quality": 3, "quality_name": "أزرق", "refine_time": 86400},
+    200203: {"name": "خشب بنفسجي المستوى 3", "base_id": 2002, "base_name": "خشب بنفسجي", "quality": 3, "quality_name": "أزرق", "refine_time": 86400},
+    200303: {"name": "برونز المستوى 3", "base_id": 2003, "base_name": "برونز", "quality": 3, "quality_name": "أزرق", "refine_time": 86400},
+    200403: {"name": "ياقوت المستوى 3", "base_id": 2004, "base_name": "ياقوت", "quality": 3, "quality_name": "أزرق", "refine_time": 86400},
+    200503: {"name": "فرو المستوى 3", "base_id": 2005, "base_name": "فرو", "quality": 3, "quality_name": "أزرق", "refine_time": 86400},
+    200603: {"name": "قرن المستوى 3", "base_id": 2006, "base_name": "قرن", "quality": 3, "quality_name": "أزرق", "refine_time": 86400},
+}
+
+# ═════════════════════════════════════════════════════════════════════════
+# جداول أدوات تسريع ومضاعفة إنتاج الحقول والمناجم (Resource Boost Tools)
+# والتسريعات العامة المعزولة (General Speedups)
+# ═════════════════════════════════════════════════════════════════════════
+
+RESOURCE_BOOST_KEY_MAP: Dict[str | int, str] = {
+    # 1. القمح / المزرعة (Wheat / Farm) - دعم المزرعة (501501)
+    "wheat": "wheat", "food": "wheat", "farm": "wheat", "قمح": "wheat", "مزرعة": "wheat", "مزارع": "wheat",
+    "القمح": "wheat", "المزرعة": "wheat", "المزارع": "wheat", "غذاء": "wheat", "طعام": "wheat",
+    "201": "wheat", 201: "wheat", "501501": "wheat", 501501: "wheat",
+
+    # 2. الخشب / المنشرة (Wood / Sawmill) - دعم المنشرة (501401)
+    "wood": "wood", "sawmill": "wood", "timber": "wood", "خشب": "wood", "منشرة": "wood", "مناشر": "wood",
+    "الخشب": "wood", "المنشرة": "wood", "المناشر": "wood",
+    "202": "wood", 202: "wood", "501401": "wood", 501401: "wood",
+
+    # 3. الحديد / منجم الحديد (Iron / Iron Mine) - دعم منجم الحديد (501601)
+    "iron": "iron", "iron_mine": "iron", "ironmine": "iron", "حديد": "iron", "منجم_حديد": "iron",
+    "منجم حديد": "iron", "مناجم حديد": "iron", "الحديد": "iron", "منجم الحديد": "iron",
+    "203": "iron", 203: "iron", "501601": "iron", 501601: "iron",
+
+    # 4. الفضة / منجم الفضة (Silver / Steel / Mithril) - دعم منجم الفضة (501701)
+    "silver": "silver", "steel": "silver", "mithril": "silver", "silver_mine": "silver",
+    "silvermine": "silver", "فضة": "silver", "الفضة": "silver", "منجم_فضة": "silver",
+    "منجم فضة": "silver", "مناجم فضة": "silver", "منجم الفضة": "silver", "فولاذ": "silver",
+    "204": "silver", 204: "silver", "501701": "silver", 501701: "silver",
+
+    # 5. البلور / الألماس / منجم البلور (Crystal / Diamond) - دعم منجم البلور (503201)
+    "crystal": "crystal", "diamond": "crystal", "crystal_mine": "crystal", "crystalmine": "crystal",
+    "بلور": "crystal", "البلور": "crystal", "الماس": "crystal", "ألماس": "crystal", "الألماس": "crystal",
+    "منجم_بلور": "crystal", "منجم بلور": "crystal", "مناجم بلور": "crystal", "منجم البلور": "crystal",
+    "منجم الماس": "crystal", "منجم ألماس": "crystal", "منجم الألماس": "crystal",
+    "217": "crystal", 217: "crystal", "218": "crystal", 218: "crystal", "503201": "crystal", 503201: "crystal",
+
+    # 6. التسريعات العامة (General Speedups)
+    "general": "general", "speedup": "general", "speedups": "general", "عام": "general", "عامة": "general",
+    "تسريع": "general", "تسريعات": "general", "تسريع عام": "general", "تسريعات عامة": "general",
+}
+
+RESOURCE_BOOST_CATALOG: Dict[str, Dict[str, Any]] = {
+    "wheat": {
+        "item_id": 501501,
+        "name_ar": "دعم المزرعة",
+        "name_en": "Farm Boost",
+        "resource": "wheat",
+        "building_id": 201,
+        "duration_seconds": 86400,  # 24 ساعة = مضاعفة إنتاج مزرعة واحدة لمدة يوم كامل
+        "multiplier": 2.0,
+    },
+    "wood": {
+        "item_id": 501401,
+        "name_ar": "دعم المنشرة",
+        "name_en": "Sawmill Boost",
+        "resource": "wood",
+        "building_id": 202,
+        "duration_seconds": 86400,  # 24 ساعة = مضاعفة إنتاج منشرة واحدة لمدة يوم كامل
+        "multiplier": 2.0,
+    },
+    "iron": {
+        "item_id": 501601,
+        "name_ar": "دعم منجم الحديد",
+        "name_en": "Iron Mine Boost",
+        "resource": "iron",
+        "building_id": 203,
+        "duration_seconds": 86400,  # 24 ساعة = مضاعفة إنتاج منجم حديد واحد لمدة يوم كامل
+        "multiplier": 2.0,
+    },
+    "silver": {
+        "item_id": 501701,
+        "name_ar": "دعم منجم الفضة",
+        "name_en": "Silver Mine Boost",
+        "resource": "silver",
+        "building_id": 204,
+        "duration_seconds": 86400,  # 24 ساعة = مضاعفة إنتاج منجم فضة واحد لمدة يوم كامل
+        "multiplier": 2.0,
+    },
+    "crystal": {
+        "item_id": 503201,
+        "name_ar": "دعم منجم البلور",
+        "name_en": "Crystal Mine Boost",
+        "resource": "crystal",
+        "building_id": 217,
+        "duration_seconds": 86400,  # 24 ساعة = مضاعفة إنتاج منجم بلور لمدة يوم كامل
+        "multiplier": 2.0,
+    },
+}
+
+GENERAL_SPEEDUP_CATALOG: Dict[int, Dict[str, Any]] = {
+    500606: {"item_id": 500606, "name_ar": "تسريع دقيقة واحدة", "name_en": "1m Speedup", "seconds": 60},
+    500601: {"item_id": 500601, "name_ar": "تسريع 5 دقائق", "name_en": "5m Speedup", "seconds": 300},
+    500607: {"item_id": 500607, "name_ar": "تسريع 15 دقيقة", "name_en": "15m Speedup", "seconds": 900},
+    500608: {"item_id": 500608, "name_ar": "تسريع 30 دقيقة", "name_en": "30m Speedup", "seconds": 1800},
+    500602: {"item_id": 500602, "name_ar": "تسريع ساعة واحدة", "name_en": "1h Speedup", "seconds": 3600},
+    500603: {"item_id": 500603, "name_ar": "تسريع 8 ساعات", "name_en": "8h Speedup", "seconds": 28800},
+    500604: {"item_id": 500604, "name_ar": "تسريع 12 ساعة", "name_en": "12h Speedup", "seconds": 43200},
+    500605: {"item_id": 500605, "name_ar": "تسريع 24 ساعة", "name_en": "24h Speedup", "seconds": 86400},
+}
+
+RESOURCE_BUILDING_METADATA: Dict[int, Dict[str, Any]] = {
+    201: {
+        "bid": 201,
+        "resource": "wheat",
+        "name_ar": "مزرعة",
+        "plural_ar": "مزارع القمح",
+        "name_en": "Farm",
+        "boost_buff_id": 5020,
+        "boost_item_id": 501501,
+        "boost_item_name": "دعم المزرعة",
+        "effect_type": 33,
+    },
+    202: {
+        "bid": 202,
+        "resource": "wood",
+        "name_ar": "منشرة",
+        "plural_ar": "مناشر الخشب",
+        "name_en": "Sawmill",
+        "boost_buff_id": 5019,
+        "boost_item_id": 501401,
+        "boost_item_name": "دعم المنشرة",
+        "effect_type": 34,
+    },
+    203: {
+        "bid": 203,
+        "resource": "iron",
+        "name_ar": "منجم حديد",
+        "plural_ar": "مناجم الحديد",
+        "name_en": "Iron Mine",
+        "boost_buff_id": 5021,
+        "boost_item_id": 501601,
+        "boost_item_name": "دعم منجم الحديد",
+        "effect_type": 35,
+    },
+    204: {
+        "bid": 204,
+        "resource": "silver",
+        "name_ar": "منجم فضة",
+        "plural_ar": "مناجم الفضة",
+        "name_en": "Silver Mine",
+        "boost_buff_id": 5022,
+        "boost_item_id": 501701,
+        "boost_item_name": "دعم منجم الفضة",
+        "effect_type": 36,
+    },
+    217: {
+        "bid": 217,
+        "resource": "crystal",
+        "name_ar": "منجم بلور",
+        "plural_ar": "مناجم البلور",
+        "name_en": "Crystal Mine",
+        "boost_buff_id": 5131,
+        "boost_item_id": 503201,
+        "boost_item_name": "دعم منجم البلور",
+        "effect_type": 98,
+    },
+    218: {
+        "bid": 218,
+        "resource": "crystal",
+        "name_ar": "منجم بلور",
+        "plural_ar": "مناجم البلور",
+        "name_en": "Crystal Mine",
+        "boost_buff_id": 5131,
+        "boost_item_id": 503201,
+        "boost_item_name": "دعم منجم البلور",
+        "effect_type": 98,
+    },
+}
+
+# ═════════════════════════════════════════════════════════════════════════
+# جداول حزم وباقات طاقة اللورد الرسمية للعبة (Stamina Packs Standards)
+# مستخرجة بدقة من سورس كود العميل الأصلي (itemdescribe.lua / local_cn / local_arab)
+# ═════════════════════════════════════════════════════════════════════════
+
+STAMINA_PACKS_KEY_MAP: Dict[str | int, str] = {
+    # 1. باقة 10 طاقة (300401)
+    "10": "10", 10: "10", "300401": "10", 300401: "10",
+    "10 طاقة": "10", "طاقة 10": "10", "10_stamina": "10", "stamina_10": "10", "10stamina": "10",
+    # 2. باقة 50 طاقة (300402)
+    "50": "50", 50: "50", "300402": "50", 300402: "50",
+    "50 طاقة": "50", "طاقة 50": "50", "50_stamina": "50", "stamina_50": "50", "50stamina": "50",
+    # 3. باقة 100 طاقة (300403)
+    "100": "100", 100: "100", "300403": "100", 300403: "100",
+    "100 طاقة": "100", "طاقة 100": "100", "100_stamina": "100", "stamina_100": "100", "100stamina": "100",
+    # 4. إجمالي كافة الحزم (Total)
+    "total": "total", "all": "total", "المجموع": "total", "إجمالي": "total", "اجمالي": "total",
+    "الكل": "total", "كل": "total", "طاقة": "total", "stamina": "total", "packs": "total",
+}
+
+STAMINA_PACKS_CATALOG: Dict[str, Dict[str, Any]] = {
+    "10": {
+        "item_id": 300401,
+        "name": "10 طاقة",
+        "name_ar": "10 طاقة",
+        "name_en": "10 Stamina",
+        "stamina_value": 10,
+        "stamina_per_item": 10,
+        "icon": "3004.png",
+    },
+    "50": {
+        "item_id": 300402,
+        "name": "50 طاقة",
+        "name_ar": "50 طاقة",
+        "name_en": "50 Stamina",
+        "stamina_value": 50,
+        "stamina_per_item": 50,
+        "icon": "3004.png",
+    },
+    "100": {
+        "item_id": 300403,
+        "name": "100 طاقة",
+        "name_ar": "100 طاقة",
+        "name_en": "100 Stamina",
+        "stamina_value": 100,
+        "stamina_per_item": 100,
+        "icon": "3004.png",
+    },
+}
+
+STAMINA_PACKS_BY_ID: Dict[int, Dict[str, Any]] = {
+    300401: STAMINA_PACKS_CATALOG["10"],
+    300402: STAMINA_PACKS_CATALOG["50"],
+    300403: STAMINA_PACKS_CATALOG["100"],
+}
+
 
 class BaseTask(ABC):
     """
@@ -339,17 +955,32 @@ class BaseTask(ABC):
             return self.conn.init_data
         return {}
 
-    def get_ctrl(self, name: str) -> Dict[str, Any]:
+    def get_ctrl(self, name: str) -> Any:
         """
-        جلب بيانات متحكم معين بأمان من الذاكرة الحية بدون رفع استثناءات.
+        جلب بيانات متحكم معين بأمان من الذاكرة الحية بدون رفع استثناءات (يدعم القواميس والمصفوفات).
         """
         if not self.conn:
             return {}
         if hasattr(self.conn, "get_ctrl"):
             c = self.conn.get_ctrl(name)
-            if isinstance(c, dict):
+            if isinstance(c, (dict, list)):
                 return c
-        return self.init_data.get(name, {}) if isinstance(self.init_data.get(name), dict) else {}
+        val = self.init_data.get(name) if hasattr(self, "init_data") and isinstance(self.init_data, dict) else None
+        if isinstance(val, (dict, list)):
+            return val
+        return {}
+
+    def record_daily_quest_event(self, task_type: int | str, increment: int = 1) -> None:
+        """
+        تحديث عداد النشاط اليومي في الذاكرة الحية (0-Network) لضمان مزامنة فورية لمتحكم everydayTaskCtrl.
+        """
+        everyday_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
+        if isinstance(everyday_ctrl, dict):
+            event_info = everyday_ctrl.setdefault("eventInfo", {})
+            if isinstance(event_info, dict):
+                k = str(task_type)
+                current = self._safe_int(event_info.get(k), 0)
+                event_info[k] = current + increment
 
     @property
     def uid(self) -> str:
@@ -432,6 +1063,905 @@ class BaseTask(ABC):
     def shield_remaining_seconds(self) -> int:
         """مؤشر ثواني الدرع المتبقية أو حالة الأمان (توافق خلفي وبساطة مطلقة)."""
         return 1 if self.is_shielded else 0
+
+    @property
+    def vip_level(self) -> int:
+        """
+        مستوى الـ VIP الفعلي للقلعة من مراجع الذاكرة الحية (0-Network).
+        يقرأ من vipCtrl أولاً ثم من lordInfoCtrl.vip كبديل احتياطي.
+        """
+        vip_ctrl = self.get_ctrl("vipCtrl")
+        if isinstance(vip_ctrl, dict):
+            try:
+                lv = int(vip_ctrl.get("vipLv", vip_ctrl.get("level", 0)) or 0)
+                if lv > 0:
+                    return lv
+            except (ValueError, TypeError):
+                pass
+        lord = self.get_ctrl("lordInfoCtrl")
+        if isinstance(lord, dict):
+            vip_obj = lord.get("vip", {})
+            if isinstance(vip_obj, dict):
+                try:
+                    return int(vip_obj.get("level", vip_obj.get("vipLv", 0)) or 0)
+                except (ValueError, TypeError):
+                    pass
+        return 0
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # دوال فحص وإدارة مهارات ومواهب الأمير الذكية (0-Network Lord Skills Engine)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    def resolve_lord_skill_id(self, skill_input: Any) -> Optional[int]:
+        """
+        مطابقة وتحويل مدخل المهارة إلى المعرف الرقمي الخماسي الرسمي (Smart Resolver):
+        - يقبل أرقام خماسية (مثل 12008) أو سباعية (مثل 1200801 حيث يأخذ أول 5 خانات).
+        - يقبل نصوصاً رقمية ('12008', '1101101').
+        - يقبل الأسماء العربية والإنجليزية والرموز الشائعة ('حصاد وافر', 'الإنقاذ', 'rescue', 'harvest').
+        """
+        if skill_input is None:
+            return None
+
+        # 1. إذا كان المدخل رقماً صحيحاً
+        if isinstance(skill_input, int):
+            s = str(skill_input)
+            if len(s) >= 5:
+                return int(s[:5])
+            return skill_input
+
+        # 2. إذا كان المدخل نصاً
+        if isinstance(skill_input, str):
+            cleaned = skill_input.strip()
+            if not cleaned:
+                return None
+
+            # فحص إذا كان نصاً رقمياً
+            if cleaned.isdigit():
+                if len(cleaned) >= 5:
+                    return int(cleaned[:5])
+                return int(cleaned)
+
+            # فحص التطابق الدقيق مع قاموس الأسماء والرموز
+            lowered = cleaned.lower()
+            if lowered in SKILL_ALIAS_TO_ID:
+                return SKILL_ALIAS_TO_ID[lowered]
+
+            # فحص التطابق الجزئي المرن مع الكلمات المفتاحية
+            for alias, sid in SKILL_ALIAS_TO_ID.items():
+                if lowered == alias or lowered in alias or alias in lowered:
+                    return sid
+
+        return None
+
+    def resolve_hero_rally_skill_id(self, skill_input: Any) -> Optional[int]:
+        """
+        التحليل الذكي المرن لمعرف مهارة الحشد التآزرية للأبطال (Hero Rally Skill ID Resolver):
+        يقبل: رقم المجموعة (172308)، رقم الجودة الثماني (17230801)، الاسم بالعربية، أو الرمز بالإنجليزية.
+        """
+        if skill_input is None:
+            return None
+
+        # 1. إذا كان المدخل رقماً صحيحاً
+        if isinstance(skill_input, int):
+            if skill_input in HERO_RALLY_SKILLS_CATALOG:
+                return skill_input
+            s = str(skill_input)
+            if len(s) == 8 and int(s[:6]) in HERO_RALLY_SKILLS_CATALOG:
+                return int(s[:6])
+            if s in HERO_RALLY_SKILL_ALIAS_TO_ID:
+                return HERO_RALLY_SKILL_ALIAS_TO_ID[s]
+            return None
+
+        # 2. إذا كان المدخل نصاً
+        if isinstance(skill_input, str):
+            cleaned = skill_input.strip()
+            if not cleaned:
+                return None
+            if cleaned.isdigit():
+                if len(cleaned) == 8 and int(cleaned[:6]) in HERO_RALLY_SKILLS_CATALOG:
+                    return int(cleaned[:6])
+                val_int = int(cleaned)
+                if val_int in HERO_RALLY_SKILLS_CATALOG:
+                    return val_int
+                if cleaned in HERO_RALLY_SKILL_ALIAS_TO_ID:
+                    return HERO_RALLY_SKILL_ALIAS_TO_ID[cleaned]
+                return None
+
+            lowered = cleaned.lower()
+            if lowered in HERO_RALLY_SKILL_ALIAS_TO_ID:
+                return HERO_RALLY_SKILL_ALIAS_TO_ID[lowered]
+
+            for alias, sid in HERO_RALLY_SKILL_ALIAS_TO_ID.items():
+                if lowered == alias or lowered in alias or alias in lowered:
+                    return sid
+
+        return None
+
+    def get_lord_skill_status(self, skill_id: Any = None) -> Dict[str, Any]:
+        """
+        محرك فحص مهارات ومواهب الأمير المعتمد كلياً على الذاكرة الحية المحدثة (0-Network Pre-flight):
+        
+        يفحص المهارة ويرجع:
+          1. هل هي متوفرة أصلاً للقلعة (متعلمة ومفتوحة بنقاط في أي طقم)؟
+          2. هل هي قيد التفعيل حالياً (سريان مفعول باف أو طابور نشط)؟
+          3. هل هي في فترة انتظار التبريد (Cooldown) وكم الثواني المتبقية؟
+          4. في أي طقم (Preset) موجودة، وما مستواها فيه، وهل موجودة في الطقم النشط حالياً؟
+          5. هل هي جاهزة للتفعيل الفوري الآن؟
+          6. هل يمكن التبديل لطقم يحتوي عليها إذا لم تكن في الطقم النشط؟
+
+        :param skill_id: معرف المهارة (رقم خماسي أو سباعي أو اسم/رمز باللغة العربية أو الإنجليزية).
+                         إذا تم تمرير None، يرجع تقريراً شاملاً بكافة مهارات اللورد النشطة في القلعة.
+        :return: قاموس بيانات تفصيلي ذكي وموحد لحالة المهارة أو تقرير شامل إذا كان skill_id فارغاً.
+        """
+        # إذا لم يتم تمرير معرف مهارة، إرجاع تقرير شامل لجميع المهارات بالقلعة
+        if skill_id is None or str(skill_id).strip() == "":
+            lord_skills = self.get_ctrl("lordSkillCtrl")
+            active_set_id = str(lord_skills.get("activeSetID", "1")) if isinstance(lord_skills, dict) else "1"
+            point_total = int(lord_skills.get("pointTotal", 0) or 0) if isinstance(lord_skills, dict) else 0
+
+            active_skills_report: Dict[int, Dict[str, Any]] = {}
+            can_activate_list: List[Dict[str, Any]] = []
+            available_list: List[Dict[str, Any]] = []
+            in_cooldown_list: List[Dict[str, Any]] = []
+
+            for sid in LORD_ACTIVE_SKILLS_CATALOG.keys():
+                st = self.get_lord_skill_status(sid)
+                active_skills_report[sid] = st
+                if st.get("can_activate"):
+                    can_activate_list.append(st)
+                if st.get("is_available"):
+                    available_list.append(st)
+                if st.get("in_cooldown"):
+                    in_cooldown_list.append(st)
+
+            return {
+                "success": True,
+                "summary": True,
+                "active_set_id": active_set_id,
+                "point_total": point_total,
+                "total_catalog_active_skills": len(LORD_ACTIVE_SKILLS_CATALOG),
+                "available_skills_count": len(available_list),
+                "can_activate_count": len(can_activate_list),
+                "in_cooldown_count": len(in_cooldown_list),
+                "can_activate_skills": [
+                    {"id": s["skill_id"], "name": s["skill_name"], "level": s["current_level"]}
+                    for s in can_activate_list
+                ],
+                "available_skills": [
+                    {
+                        "id": s["skill_id"],
+                        "name": s["skill_name"],
+                        "in_active_set": s["is_in_active_set"],
+                        "level": s["current_level"],
+                        "sets": [sf["set_id"] for sf in s.get("sets_found", [])],
+                        "can_activate": s["can_activate"],
+                        "in_cooldown": s["in_cooldown"],
+                    }
+                    for s in available_list
+                ],
+                "cooldown_skills": [
+                    {"id": s["skill_id"], "name": s["skill_name"], "cd_remaining_sec": s["cd_remaining_seconds"]}
+                    for s in in_cooldown_list
+                ],
+                "rally_skills_summary": self.get_hero_rally_skill_status(None),
+                "skills_details": active_skills_report,
+            }
+
+        # فحص إذا كان المعرف يخص إحدى مهارات الحشد التآزرية للأبطال
+        rally_id = self.resolve_hero_rally_skill_id(skill_id)
+        if rally_id is not None:
+            return self.get_hero_rally_skill_status(rally_id)
+
+        resolved_id = self.resolve_lord_skill_id(skill_id)
+        if resolved_id is None:
+            return {
+                "success": False,
+                "error": f"معرف المهارة غير معروف أو غير صالح: {skill_id}",
+                "skill_id": skill_id,
+                "resolved_id": None,
+                "skill_name": "غير معروف",
+                "skill_name_en": "",
+                "is_available": False,
+                "is_learned": False,
+                "is_in_active_set": False,
+                "active_set_id": "1",
+                "current_level": 0,
+                "sets_found": [],
+                "sets_count": 0,
+                "is_active": False,
+                "is_buff_active": False,
+                "buff_remaining_seconds": 0,
+                "in_cooldown": False,
+                "cd_remaining_seconds": 0,
+                "can_activate": False,
+                "can_switch_to_set": False,
+                "target_switch_set_id": None,
+            }
+
+        # جلب البيانات الوصفية للمهارة من الكتالوج الرسمي
+        meta = LORD_ACTIVE_SKILLS_CATALOG.get(resolved_id, {})
+        is_cataloged_active = meta.get("is_active_skill", False)
+        skill_name_ar = meta.get("name_ar", f"مهارة {resolved_id}")
+        skill_name_en = meta.get("name_en", "")
+        skill_type = meta.get("type_name", "unknown")
+        base_cd = meta.get("base_cd", 0)
+        target_buff_id = meta.get("buff_id")
+        target_queue_type = meta.get("queue_type")
+
+        # 1. قراءة بيانات مهارات اللورد من الذاكرة الحية (lordSkillCtrl)
+        lord_skills = self.get_ctrl("lordSkillCtrl")
+        if not isinstance(lord_skills, dict):
+            lord_skills = {}
+
+        active_set_id = str(lord_skills.get("activeSetID", "1"))
+        set_list_data = lord_skills.get("setListData", {})
+        if not isinstance(set_list_data, dict):
+            set_list_data = {}
+
+        cd_data = lord_skills.get("CDData", {})
+        if not isinstance(cd_data, dict):
+            cd_data = {}
+
+        point_total = int(lord_skills.get("pointTotal", 0) or 0)
+        now_ts = int(time.time())
+
+        # 2. فحص الأطقم التي تحتوي على المهارة ومستواها
+        str_id = str(resolved_id)
+        sets_found: List[Dict[str, Any]] = []
+        skill_level_in_active_set = 0
+        max_level_found = 0
+
+        # فحص بديل احتياطي إذا كان setListData فارغاً (lordInfoCtrl.skill.skillBasic)
+        fallback_skills: Dict[str, int] = {}
+        if not set_list_data:
+            lord_info = self.get_ctrl("lordInfoCtrl")
+            if isinstance(lord_info, dict):
+                sb = lord_info.get("skill", {}).get("skillBasic", {})
+                if isinstance(sb, dict):
+                    for k, v in sb.items():
+                        lvl = v[1] if isinstance(v, list) and len(v) > 1 else v
+                        try:
+                            fallback_skills[str(k)] = int(lvl or 0)
+                        except (ValueError, TypeError):
+                            pass
+
+        if set_list_data:
+            for s_id_raw, s_info in set_list_data.items():
+                s_id = str(s_id_raw)
+                if not isinstance(s_info, dict):
+                    continue
+                s_list = s_info.get("list", {})
+                if not isinstance(s_list, dict):
+                    continue
+                try:
+                    lvl = int(s_list.get(str_id, 0) or 0)
+                except (ValueError, TypeError):
+                    lvl = 0
+
+                if lvl > 0:
+                    is_curr = (s_id == active_set_id)
+                    if is_curr:
+                        skill_level_in_active_set = lvl
+                    if lvl > max_level_found:
+                        max_level_found = lvl
+                    sets_found.append({
+                        "set_id": s_id,
+                        "level": lvl,
+                        "title": s_info.get("title", ""),
+                        "is_active_set": is_curr,
+                        "used_points": int(s_info.get("usedPoint", 0) or 0),
+                        "power": int(s_info.get("power", 0) or 0),
+                    })
+        elif fallback_skills:
+            lvl = int(fallback_skills.get(str_id, 0) or 0)
+            if lvl > 0:
+                skill_level_in_active_set = lvl
+                max_level_found = lvl
+                sets_found.append({
+                    "set_id": "1",
+                    "level": lvl,
+                    "title": "",
+                    "is_active_set": True,
+                    "used_points": 0,
+                    "power": 0,
+                })
+
+        # ترتيب الأطقم: الطقم النشط أولاً، ثم حسب رقم الطقم
+        sets_found.sort(key=lambda s: (0 if s["is_active_set"] else 1, s["set_id"]))
+
+        is_learned = (len(sets_found) > 0)
+        is_in_active_set = (skill_level_in_active_set > 0)
+        is_available = is_learned
+
+        # 3. فحص حالة التبريد (CDData)
+        in_cd = False
+        cd_remain = 0
+        cd_entry = cd_data.get(str_id) or cd_data.get(resolved_id)
+        if cd_entry:
+            cd_begin_time = 0
+            cd_duration = 0
+            if isinstance(cd_entry, dict):
+                cd_begin_time = int(cd_entry.get("beginTime", 0) or 0)
+                cd_duration = int(cd_entry.get("CD", 0) or 0)
+            elif isinstance(cd_entry, (list, tuple)) and len(cd_entry) >= 2:
+                cd_begin_time = int(cd_entry[0] or 0)
+                cd_duration = int(cd_entry[1] or 0)
+
+            if cd_duration > 0 and cd_begin_time > 0:
+                elapsed = now_ts - cd_begin_time
+                if elapsed < cd_duration:
+                    in_cd = True
+                    cd_remain = max(0, cd_duration - elapsed)
+
+        # 4. فحص سريان مفعول المهارة حالياً (Active Buff / Queue)
+        is_buff_active = False
+        buff_remaining = 0
+
+        # أ. فحص بافات القلعة (buffCtrl و newBuffCtrl)
+        if target_buff_id is not None:
+            str_bid = str(target_buff_id)
+            buff_ctrl = self.get_ctrl("buffCtrl")
+            new_buff_ctrl = self.get_ctrl("newBuffCtrl")
+            for b_ctrl in (buff_ctrl, new_buff_ctrl):
+                if not isinstance(b_ctrl, dict):
+                    continue
+                b_val = b_ctrl.get(str_bid) or b_ctrl.get(target_buff_id)
+                if b_val:
+                    is_buff_active = True
+                    if isinstance(b_val, dict):
+                        end_t = int(b_val.get("endTime") or b_val.get("finishTime") or b_val.get("time") or 0)
+                        if end_t > now_ts:
+                            buff_remaining = max(buff_remaining, end_t - now_ts)
+                    elif isinstance(b_val, (int, float)) and b_val > now_ts:
+                        buff_remaining = max(buff_remaining, int(b_val) - now_ts)
+
+        # ب. فحص طوابير المهارات النشطة (queueCtrl)
+        if target_queue_type is not None:
+            queue_ctrl = self.get_ctrl("queueCtrl")
+            if isinstance(queue_ctrl, dict):
+                for qk, qv in queue_ctrl.items():
+                    if not isinstance(qv, dict):
+                        continue
+                    qtype = qv.get("queueType") or qv.get("type")
+                    if str(qtype) == str(target_queue_type):
+                        f_time = int(qv.get("finishTime") or qv.get("endTime") or 0)
+                        is_buff_active = True
+                        if f_time > now_ts:
+                            buff_remaining = max(buff_remaining, f_time - now_ts)
+
+        # ج. تحديد حالة المهارة الكامنة (Passive Skill)
+        if not is_cataloged_active:
+            # المهارات الكامنة تكون نشطة طالما أنها متعلمة في الطقم المفعل حالياً
+            is_active_now = is_in_active_set
+        else:
+            # المهارات النشطة تكون مفعلة إذا كان الباف أو الطابور قيد السريان
+            is_active_now = is_buff_active
+
+        # 5. جاهزية التفعيل الفوري (Can Activate Now)
+        # تشترط: مهارة نشطة + متعلمة في الطقم النشط + ليست في تبريد + ليس تأثيرها فعالاً حالياً
+        can_activate = (
+            is_cataloged_active
+            and is_in_active_set
+            and not in_cd
+            and not is_active_now
+        )
+
+        # 6. إمكانية التبديل لطقم يحتوي على المهارة (Can Switch To Set)
+        can_switch_to_set = False
+        target_switch_set_id: Optional[str] = None
+        if not is_in_active_set and sets_found:
+            candidate_set = sets_found[0]["set_id"]
+            # فحص فك قفل الطقم المطلوب بحسب شروط اللعبة (lordskill_set_config)
+            v_lv = self.vip_level
+            is_unlocked = False
+            if candidate_set == "1":
+                is_unlocked = True
+            elif candidate_set == "2":
+                is_unlocked = (v_lv >= 9) or (candidate_set in set_list_data)
+            elif candidate_set == "3":
+                is_unlocked = (v_lv >= 13) or (candidate_set in set_list_data)
+            else:
+                is_unlocked = (candidate_set in set_list_data)
+
+            if is_unlocked:
+                can_switch_to_set = True
+                target_switch_set_id = candidate_set
+
+        return {
+            "success": True,
+            "skill_id": resolved_id,
+            "skill_name": skill_name_ar,
+            "skill_name_en": skill_name_en,
+            "skill_type": skill_type,
+            "is_active_skill": is_cataloged_active,
+            "is_available": is_available,
+            "is_learned": is_learned,
+            "is_in_active_set": is_in_active_set,
+            "active_set_id": active_set_id,
+            "current_level": skill_level_in_active_set,
+            "max_level_learned": max_level_found,
+            "sets_found": sets_found,
+            "sets_count": len(sets_found),
+            "is_active": is_active_now,
+            "is_buff_active": is_buff_active,
+            "buff_remaining_seconds": buff_remaining,
+            "in_cooldown": in_cd,
+            "cd_remaining_seconds": cd_remain,
+            "base_cd_seconds": base_cd,
+            "can_activate": can_activate,
+            "can_switch_to_set": can_switch_to_set,
+            "target_switch_set_id": target_switch_set_id,
+            "point_total": point_total,
+            "description": meta.get("description", ""),
+        }
+
+
+    @staticmethod
+    def _is_resp_ok(resp: Optional[Dict[str, Any]]) -> bool:
+        """
+        فحص نجاح استجابة السيرفر بشكل مرن ودقيق:
+        يعتبر الطلب ناجحاً إذا كان err أو code هو 0 أو '0' أو 'Err_None' أو غير موجود.
+        """
+        if not isinstance(resp, dict):
+            return False
+        err = resp.get("err")
+        if err is None:
+            err = resp.get("code")
+        if err is None:
+            return True
+        return str(err).strip() in ("0", "Err_None")
+
+    async def switch_lord_skill_set(self, set_id: Any) -> Tuple[bool, str]:
+        """
+        التبديل إلى طقم مواهب/مهارات محدد مع تحديث فوري للذاكرة الحية (In-Memory State Sync).
+        
+        :param set_id: رقم الطقم المستهدف (مثل 1 أو 2).
+        :return: (نجاح/فشل، رسالة توضيحية).
+        """
+        target_set = str(set_id)
+        lord_skills = self.get_ctrl("lordSkillCtrl")
+        if isinstance(lord_skills, dict):
+            curr_set = str(lord_skills.get("activeSetID", "1"))
+            if curr_set == target_set:
+                return True, f"الطقم {target_set} مفعل بالفعل كطقم نشط حالياً."
+
+        self.log(f"🔄 [مهارات اللورد] إرسال طلب التبديل إلى طقم المهارات {target_set}...")
+        resp = await self.safe_query(
+            CMD_LORD_MODULE,
+            REQ_LORD_SKILL_SWITCH,
+            {"setID": int(target_set) if target_set.isdigit() else target_set},
+            min_delay=0.4,
+            max_delay=0.8,
+        )
+
+        if not self._is_resp_ok(resp):
+            err_code = resp.get("err", resp.get("code", "no_response")) if isinstance(resp, dict) else "no_response"
+            return False, f"فشل تبديل طقم المهارات (كود الخطأ: {err_code})."
+
+        # تحديث فوري للذاكرة الحية المحلية
+        if hasattr(self, "conn") and isinstance(self.conn.init_data, dict):
+            lord_skills = self.conn.init_data.setdefault("lordSkillCtrl", {})
+            if isinstance(lord_skills, dict):
+                lord_skills["activeSetID"] = int(target_set) if target_set.isdigit() else target_set
+
+        self.log(f"✅ [مهارات اللورد] تم التبديل بنجاح إلى طقم المهارات {target_set}.")
+        return True, f"تم التبديل بنجاح إلى طقم المهارات {target_set}."
+
+    def _sync_skill_cd_in_memory(self, skill_id: int, resp: Dict[str, Any], status: Dict[str, Any]) -> None:
+        """مزامنة فورية لحالة التبريد في كائن الذاكرة الحية (0-Network In-Memory State Sync)."""
+        now_ts = int(time.time())
+        base_cd = status.get("base_cd_seconds", 14400)
+        rsp_data = resp.get("data", {}) if isinstance(resp.get("data"), dict) else {}
+        cd_val = int(rsp_data.get("CD", base_cd) or base_cd)
+        begin_t = int(rsp_data.get("beginTime", now_ts) or now_ts)
+
+        if hasattr(self, "conn") and isinstance(self.conn.init_data, dict):
+            lord_skills = self.conn.init_data.setdefault("lordSkillCtrl", {})
+            if isinstance(lord_skills, dict):
+                cd_data = lord_skills.setdefault("CDData", {})
+                if isinstance(cd_data, dict):
+                    cd_data[str(skill_id)] = {
+                        "beginTime": begin_t,
+                        "CD": cd_val,
+                    }
+
+    async def use_lord_skill(
+        self,
+        skill_id: Any,
+        auto_revert: bool = True,
+        step_delay: Optional[float] = None,
+    ) -> Tuple[bool, str]:
+        """
+        تفعيل واستخدام المهارة النشطة للأمير بأمان، مع دعم التبديل التلقائي المؤقت والرجوع للطقم السابق:
+        - إذا كانت المهارة في الطقم النشط: تُفعل مباشرة دون تبديل.
+        - إذا كانت في طقم آخر (وكان auto_revert=True):
+          1. حفظ رقم الطقم النشط الأصلي.
+          2. التبديل إلى الطقم الذي يحتوي على المهارة.
+          3. تفعيل المهارة وتحديث فترة التبريد (CDData).
+          4. العودة الإلزامية في كتلة (try...finally) إلى الطقم الأصلي السابق.
+        
+        :param skill_id: معرف المهارة أو اسمها/رمزها.
+        :param auto_revert: هل يتم الرجوع تلقائياً إلى الطقم الأصلي السابق بعد انتهاء التفعيل (افتراضياً True).
+        :param step_delay: تخصيص الفاصل الزمني البشري بين الخطوات (افتراضياً عشوائي آمن بين 0.5 و 0.9 ثانية).
+        :return: (نجاح/فشل، رسالة توضيحية).
+        """
+        # فحص ما إذا كانت المهارة المطلوبة هي إحدى مهارات الحشد التآزرية للأبطال
+        rally_id = self.resolve_hero_rally_skill_id(skill_id)
+        if rally_id is not None:
+            return await self.use_hero_rally_skill(rally_id, step_delay=step_delay)
+
+        status = self.get_lord_skill_status(skill_id)
+        if not status.get("success"):
+            return False, status.get("error", "فشل التعرف على المهارة.")
+
+        resolved_id = status["skill_id"]
+        skill_name = status["skill_name"]
+
+        if not status.get("is_active_skill"):
+            return False, f"المهارة '{skill_name}' ({resolved_id}) هي مهارة كامنة (Passive) وتعمل تلقائياً دون تفعيل يدوي."
+
+        if not status.get("is_available"):
+            return False, f"المهارة '{skill_name}' ({resolved_id}) غير متوفرة أو غير مفتوحة بنقاط للقلعة في أي طقم."
+
+        if status.get("is_active"):
+            return False, f"المهارة '{skill_name}' مفعّلة وسارية بالفعل حالياً (متبقي {status.get('buff_remaining_seconds')} ثانية)."
+
+        if status.get("in_cooldown"):
+            return False, f"المهارة '{skill_name}' في فترة تبريد (متبقي {status.get('cd_remaining_seconds')} ثانية)."
+
+        original_set_id = str(status.get("active_set_id", "1"))
+        in_active_set = status.get("is_in_active_set", False)
+        target_set_id = str(status.get("target_switch_set_id") or original_set_id)
+
+        # دالة مساعدة للفواصل الزمنية البشرية الآمنة
+        async def _safe_delay():
+            d = step_delay if (step_delay is not None and step_delay > 0) else random.uniform(0.5, 0.9)
+            await asyncio.sleep(d)
+
+        # الحالة 1: المهارة موجودة ومفعلة بالفعل في الطقم النشط حالياً (لا حاجة لأي تبديل)
+        if in_active_set:
+            self.log(f"⚡ [مهارات اللورد] إرسال طلب تفعيل المهارة النشطة: {skill_name} ({resolved_id})...")
+            resp = await self.safe_query(
+                CMD_LORD_MODULE,
+                REQ_LORD_SKILL_USE,
+                {"skillID": resolved_id},
+                min_delay=0.4,
+                max_delay=0.8,
+            )
+            if not self._is_resp_ok(resp):
+                err_code = resp.get("err", resp.get("code", "no_response")) if isinstance(resp, dict) else "no_response"
+                return False, f"فشل تفعيل المهارة '{skill_name}' من السيرفر (كود الخطأ: {err_code})."
+
+            self._sync_skill_cd_in_memory(resolved_id, resp, status)
+            self.log(f"✅ [مهارات اللورد] تم تفعيل المهارة '{skill_name}' بنجاح ودخلت فترة التبريد.")
+            return True, f"تم تفعيل المهارة '{skill_name}' بنجاح."
+
+        # الحالة 2: المهارة موجودة في طقم آخر غير النشط
+        if not status.get("can_switch_to_set") or not target_set_id:
+            return False, f"المهارة '{skill_name}' موجودة في طقم آخر ({target_set_id}) وغير متاحة للتبديل حالياً (شروط VIP غير مكتملة)."
+
+        self.log(
+            f"🔄 [مهارات اللورد] المهارة '{skill_name}' موجودة في الطقم {target_set_id}. "
+            f"جاري التبديل المؤقت من الطقم الأصلي {original_set_id}..."
+        )
+
+        # 1. التبديل إلى الطقم الذي يحتوي على المهارة
+        switch_ok, switch_msg = await self.switch_lord_skill_set(target_set_id)
+        if not switch_ok:
+            return False, f"فشل التبديل إلى الطقم {target_set_id}: {switch_msg}"
+
+        success = False
+        result_msg = ""
+
+        try:
+            # فاصل زمني بشري آمن قبل إرسال طلب التفعيل
+            await _safe_delay()
+
+            # 2. إرسال طلب تفعيل المهارة داخل الطقم المؤقت
+            self.log(f"⚡ [مهارات اللورد] تفعيل المهارة '{skill_name}' ({resolved_id}) داخل الطقم {target_set_id}...")
+            resp = await self.safe_query(
+                CMD_LORD_MODULE,
+                REQ_LORD_SKILL_USE,
+                {"skillID": resolved_id},
+                min_delay=0.4,
+                max_delay=0.8,
+            )
+
+            if not self._is_resp_ok(resp):
+                err_code = resp.get("err", resp.get("code", "no_response")) if isinstance(resp, dict) else "no_response"
+                success = False
+                result_msg = f"فشل تفعيل المهارة '{skill_name}' من السيرفر (كود الخطأ: {err_code})."
+            else:
+                success = True
+                self._sync_skill_cd_in_memory(resolved_id, resp, status)
+                result_msg = f"تم تفعيل المهارة '{skill_name}' بنجاح."
+                self.log(f"✅ [مهارات اللورد] تم تفعيل المهارة '{skill_name}' بنجاح في الطقم {target_set_id}.")
+
+        finally:
+            # 3. العودة الإلزامية والحتمية إلى الطقم الأصلي السابق (Zero-Stranded Protocol)
+            if auto_revert and target_set_id != original_set_id:
+                await _safe_delay()
+                self.log(f"🔄 [مهارات اللورد] جاري إعادة القلعة إلى طقمها الأصلي السابق {original_set_id}...")
+                rev_ok, rev_msg = await self.switch_lord_skill_set(original_set_id)
+                if not rev_ok:
+                    self.log(f"⚠️ [مهارات اللورد] تحذير: تعذر استعادة الطقم السابق {original_set_id}: {rev_msg}")
+                    if success:
+                        result_msg += f" (ملاحظة: تعذر العودة للطقم الأصلي: {rev_msg})"
+                else:
+                    self.log(f"🛡️ [مهارات اللورد] تمت استعادة الطقم الأصلي {original_set_id} بنجاح.")
+
+        return success, result_msg
+
+    async def trigger_lord_skill_with_revert(
+        self,
+        skill_id: Any,
+        auto_revert: bool = True,
+        step_delay: Optional[float] = None,
+    ) -> Tuple[bool, str]:
+        """
+        دالة صريحة مسماة لتفعيل مهارة معينة مع التبديل التلقائي والرجوع للطقم السابق:
+        تقوم بفحص المهارة، التبديل لطقمها إن لزم، تفعيلها، ثم الرجوع الحتمي للطقم الأصلي.
+        """
+        return await self.use_lord_skill(skill_id, auto_revert=auto_revert, step_delay=step_delay)
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # دوال مهارات الحشد التآزرية للأبطال (Hero Rally Skills Engine)
+    # تبويب 'مهارات الحشد' (common_text_4870) - الوحدة CMD 2235 (heroComboSkillCtrl)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    def get_hero_rally_skill_status(self, skill_id: Any = None) -> Dict[str, Any]:
+        """
+        محرك فحص مهارات الحشد التآزرية للأبطال المعتمد كلياً على الذاكرة الحية (0-Network Pre-flight):
+        يفحص المهارة (نداء الحشود، مسيرة صف القوات، الغارة السريعة) ويرجع تفاصيل توفرها وتبريدها وجاهزيتها.
+        """
+        # إذا لم يتم تمرير معرف مهارة، إرجاع تقرير شامل لمهارات الحشد الثلاث
+        if skill_id is None or str(skill_id).strip() == "":
+            rally_report: Dict[int, Dict[str, Any]] = {}
+            can_activate_list: List[Dict[str, Any]] = []
+            available_list: List[Dict[str, Any]] = []
+            active_buff_list: List[Dict[str, Any]] = []
+
+            for rsid in HERO_RALLY_SKILLS_CATALOG.keys():
+                rst = self.get_hero_rally_skill_status(rsid)
+                rally_report[rsid] = rst
+                if rst.get("can_activate"):
+                    can_activate_list.append(rst)
+                if rst.get("is_available"):
+                    available_list.append(rst)
+                if rst.get("is_active"):
+                    active_buff_list.append(rst)
+
+            return {
+                "success": True,
+                "summary": True,
+                "module": "hero_combo_skill",
+                "module_cmd": CMD_HERO_COMBO_SKILL_MODULE,
+                "total_rally_skills": len(HERO_RALLY_SKILLS_CATALOG),
+                "available_skills_count": len(available_list),
+                "can_activate_count": len(can_activate_list),
+                "active_buff_count": len(active_buff_list),
+                "can_activate_skills": [
+                    {"id": s["skill_id"], "name": s["skill_name"], "remaining_uses": s["remaining_uses_today"]}
+                    for s in can_activate_list
+                ],
+                "available_skills": [
+                    {"id": s["skill_id"], "name": s["skill_name"], "heroes": f"{s['hero_name']} + {s['lieutenant_name']}", "remaining_uses": s["remaining_uses_today"]}
+                    for s in available_list
+                ],
+                "skills_details": rally_report,
+            }
+
+        resolved_id = self.resolve_hero_rally_skill_id(skill_id)
+        if resolved_id is None:
+            return {
+                "success": False,
+                "error": f"معرف مهارة الحشد غير معروف أو غير صالح: {skill_id}",
+                "skill_id": skill_id,
+                "resolved_id": None,
+                "skill_name": "غير معروف",
+                "is_available": False,
+                "can_activate": False,
+            }
+
+        meta = HERO_RALLY_SKILLS_CATALOG[resolved_id]
+        skill_name_ar = meta["name_ar"]
+        skill_name_en = meta["name_en"]
+        troop_type = meta["troop_type"]
+        troop_name_ar = meta["troop_name_ar"]
+        req_hero_id = meta["hero_id"]
+        req_hero_name = meta["hero_name_ar"]
+        req_lt_id = meta["lieutenant_id"]
+        req_lt_name = meta["lieutenant_name_ar"]
+        dress_id = meta["dress_id"]
+        effect_sec = meta["effect_seconds"]
+
+        # 1. فحص ملكية الأبطال في الذاكرة الحية (0-Network)
+        hero_sys = self.get_ctrl("heroSysCtrl")
+        hero_list = hero_sys.get("heroList", {}) if isinstance(hero_sys, dict) else {}
+        if not isinstance(hero_list, dict):
+            hero_list = {}
+
+        hero_info = hero_list.get(str(req_hero_id)) or hero_list.get(req_hero_id)
+        lt_info = hero_list.get(str(req_lt_id)) or hero_list.get(req_lt_id)
+
+        has_primary_hero = bool(hero_info and isinstance(hero_info, dict))
+        has_lieutenant = bool(lt_info and isinstance(lt_info, dict))
+        is_available = has_primary_hero and has_lieutenant
+
+        # استخراج جودة البطل (تحدد الحد الأقصى للاستخدام اليومي من 1 إلى 5 مرات)
+        hero_quality = 1
+        if has_primary_hero:
+            try:
+                hero_quality = max(1, min(5, int(hero_info.get("quality", 1) or 1)))
+            except (ValueError, TypeError):
+                hero_quality = 1
+        daily_max_uses = hero_quality
+
+        # 2. قراءة بيانات استخدام وتبريد مهارة الحشد من الذاكرة الحية (heroComboSkillCtrl)
+        now_ts = int(time.time())
+        combo_ctrl = self.get_ctrl("heroComboSkillCtrl")
+        if not isinstance(combo_ctrl, dict):
+            combo_ctrl = self.get_ctrl("heroComboSkill") or {}
+        if not isinstance(combo_ctrl, dict):
+            combo_ctrl = {}
+
+        skill_group_info = combo_ctrl.get("skillGroupInfo") or combo_ctrl.get("skillData") or combo_ctrl
+        if not isinstance(skill_group_info, dict):
+            skill_group_info = {}
+
+        group_data = skill_group_info.get(str(resolved_id)) or skill_group_info.get(resolved_id) or {}
+        if not isinstance(group_data, dict):
+            group_data = {}
+
+        use_num = int(group_data.get("useNum", 0) or 0)
+        remaining_uses = max(0, daily_max_uses - use_num) if is_available else 0
+        begin_time = int(group_data.get("beginTime", 0) or 0)
+        end_time = int(group_data.get("endTime", 0) or 0)
+        cd_val = int(group_data.get("cd", 0) or 0)
+
+        # 3. فحص سريان مفعول المهارة حالياً
+        is_active = (end_time > now_ts)
+        active_remaining_sec = max(0, end_time - now_ts) if is_active else 0
+
+        # 4. فحص حالة التبريد
+        in_cd = (cd_val > 0 and (begin_time + cd_val) > now_ts)
+        cd_remaining_sec = max(0, (begin_time + cd_val) - now_ts) if in_cd else 0
+
+        # 5. فحص وجود مسيرة حشد نشطة للقلعة (0-Network)
+        conn = getattr(self, "conn", None)
+        local_queues = self._read_live_local_queues(conn) if conn else []
+        has_active_rally_queue = False
+        for q in local_queues:
+            if not isinstance(q, dict):
+                continue
+            q_status = q.get("status")
+            q_type = q.get("queueType") or q.get("type")
+            if q_status in (0, 7) or str(q_type) in ("0", "7"):
+                has_active_rally_queue = True
+                break
+
+        # 6. جاهزية التفعيل الفوري
+        can_activate = (
+            is_available
+            and remaining_uses > 0
+            and not in_cd
+            and not is_active
+        )
+
+        return {
+            "success": True,
+            "skill_id": resolved_id,
+            "group_id": resolved_id,
+            "skill_name": skill_name_ar,
+            "skill_name_en": skill_name_en,
+            "category": "hero_rally_skill",
+            "troop_type": troop_type,
+            "troop_name": troop_name_ar,
+            "hero_id": req_hero_id,
+            "hero_name": req_hero_name,
+            "has_hero": has_primary_hero,
+            "lieutenant_id": req_lt_id,
+            "lieutenant_name": req_lt_name,
+            "has_lieutenant": has_lieutenant,
+            "dress_id": dress_id,
+            "hero_quality": hero_quality,
+            "daily_max_uses": daily_max_uses,
+            "used_today": use_num,
+            "remaining_uses_today": remaining_uses,
+            "is_available": is_available,
+            "is_active": is_active,
+            "buff_remaining_seconds": active_remaining_sec,
+            "in_cooldown": in_cd,
+            "cd_remaining_seconds": cd_remaining_sec,
+            "has_active_rally_queue": has_active_rally_queue,
+            "can_activate": can_activate,
+            "description": meta.get("description", ""),
+        }
+
+    def _sync_hero_rally_skill_in_memory(self, group_id: int, resp: Dict[str, Any], status: Dict[str, Any]) -> None:
+        """مزامنة فورية لحالة مهارة الحشد في كائن الذاكرة الحية (0-Network In-Memory State Sync)."""
+        now_ts = int(time.time())
+        effect_sec = status.get("buff_remaining_seconds", 3600) or 3600
+
+        rsp_data = resp.get("rspdata", {}) if isinstance(resp, dict) else {}
+        skill_data_resp = rsp_data.get("skillData", {}) if isinstance(rsp_data, dict) else {}
+        s_info = skill_data_resp.get(str(group_id)) or skill_data_resp.get(group_id)
+
+        if hasattr(self, "conn") and isinstance(self.conn.init_data, dict):
+            combo_ctrl = self.conn.init_data.setdefault("heroComboSkillCtrl", {})
+            if isinstance(combo_ctrl, dict):
+                group_map = combo_ctrl.setdefault("skillGroupInfo", {})
+                if isinstance(group_map, dict):
+                    if isinstance(s_info, dict):
+                        group_map[str(group_id)] = s_info
+                    else:
+                        cur_entry = group_map.setdefault(str(group_id), {})
+                        cur_entry["useNum"] = cur_entry.get("useNum", 0) + 1
+                        cur_entry["beginTime"] = now_ts
+                        cur_entry["endTime"] = now_ts + effect_sec
+                        cur_entry["cd"] = 0
+
+    async def use_hero_rally_skill(
+        self,
+        skill_id: Any,
+        step_delay: Optional[float] = None,
+    ) -> Tuple[bool, str]:
+        """
+        تفعيل واستخدام مهارة الحشد التآزرية للأبطال بأمان وموثوقية (0-Network Pre-flight):
+        - يفحص توفر الأبطال المطلوبين، مرات الاستخدام المتبقية اليوم، وحالة السريان بالذاكرة الحية أولاً.
+        - يرسل طلب التفعيل الرسمي لوحدة الأبطال (CMD 2235 / SubCMD 2 مع skillGroup).
+        - يتحقق من الرد بدقة ويحدث كائن الذاكرة الحية محلياً لمنع تكرار الإرسال.
+
+        :param skill_id: معرف مهارة الحشد (رقم المجموعة أو الاسم العربي/الإنجليزي).
+        :param step_delay: فاصل بشري عشوائي بين الخطوات.
+        :return: (نجاح/فشل، رسالة توضيحية).
+        """
+        status = self.get_hero_rally_skill_status(skill_id)
+        if not status.get("success"):
+            return False, status.get("error", "فشل التعرف على مهارة الحشد.")
+
+        group_id = status["group_id"]
+        skill_name = status["skill_name"]
+        hero_req = f"{status['hero_name']} ومرافقه {status['lieutenant_name']}"
+
+        if not status.get("is_available"):
+            missing = []
+            if not status.get("has_hero"):
+                missing.append(status["hero_name"])
+            if not status.get("has_lieutenant"):
+                missing.append(status["lieutenant_name"])
+            return False, f"مهارة الحشد '{skill_name}' غير متوفرة لعدم امتلاك الأبطال المطلوبين: {', '.join(missing)}."
+
+        if status.get("is_active"):
+            return False, f"مهارة الحشد '{skill_name}' مفعلة وسارية بالفعل حالياً (متبقي {status.get('buff_remaining_seconds')} ثانية)."
+
+        if status.get("in_cooldown"):
+            return False, f"مهارة الحشد '{skill_name}' في فترة تبريد (متبقي {status.get('cd_remaining_seconds')} ثانية)."
+
+        if status.get("remaining_uses_today", 0) <= 0:
+            return False, f"تم استنفاد كامل مرات الاستخدام اليومية لمهارة الحشد '{skill_name}' ({status.get('daily_max_uses')}/{status.get('daily_max_uses')})."
+
+        # فاصل بشري عشوائي خفيف قبل إرسال الطلب
+        d = step_delay if (step_delay is not None and step_delay > 0) else random.uniform(0.4, 0.8)
+        await asyncio.sleep(d)
+
+        self.log(f"⚡ [مهارات الحشد] إرسال طلب تفعيل مهارة الحشد: {skill_name} (مجموعة: {group_id} - أبطال: {hero_req})...")
+        resp = await self.safe_query(
+            CMD_HERO_COMBO_SKILL_MODULE,
+            REQ_HERO_COMBO_SKILL_USE,
+            {"skillGroup": group_id},
+            min_delay=0.3,
+            max_delay=0.6,
+        )
+
+        if not self._is_resp_ok(resp):
+            err_code = resp.get("err", resp.get("code", "no_response")) if isinstance(resp, dict) else "no_response"
+            return False, f"فشل تفعيل مهارة الحشد '{skill_name}' من السيرفر (كود الخطأ: {err_code})."
+
+        self._sync_hero_rally_skill_in_memory(group_id, resp, status)
+        self.log(f"✅ [مهارات الحشد] تم تفعيل مهارة الحشد '{skill_name}' بنجاح وسيبدأ انطلاق الحشد فور اكتماله.")
+        return True, f"تم تفعيل مهارة الحشد '{skill_name}' بنجاح."
+
 
     # ═════════════════════════════════════════════════════════════════════════
     # دوال إدارة والتعامل مع طوابير ومسيرات الجيوش في الذاكرة الحية (0-Network)
@@ -1355,6 +2885,15 @@ class BaseTask(ABC):
         - إثراء شامل لكل مهمة (الاسم العربي، الجودة واللون، الطاقة المطلوبة، الإحداثيات، فحص الأمان 0-Gold).
         - توفير ملخص شامل للقاعة (المستوى، نقاط الخبرة، هل يمكن الترقية، تقدم النشاط اليومي 33).
         """
+        # 0. فحص استباقي لمستوى القلعة عبر castle_level لمنع أي استعلام شبكي مشبوه (0-Network Check)
+        if self.castle_level < 5:
+            return {
+                "success": False,
+                "error": f"قاعة القيادة غير متوفرة لهذه القلعة (مستوى القلعة Lv.{self.castle_level} أقل من المستوى المطلوب Lv.5).",
+                "castle_level": self.castle_level,
+                "tasks": [],
+            }
+
         # 1. فحص الذاكرة الحية (0-Network)
         hall_data = self.get_ctrl("commandHall")
         has_cached = isinstance(hall_data, dict) and bool(
@@ -1537,7 +3076,7 @@ class BaseTask(ABC):
                     quality = q_mod
             quality_name = COMMAND_HALL_QUALITY_NAMES.get(quality, f"مستوى {quality}")
 
-            stamina_cost = 0 if raw_type == 3 else self._safe_int(item.get("consume"), 10)
+            stamina_cost = 0 if raw_type == 6 else (5 if raw_type in (3, 4) else self._safe_int(item.get("consume"), 10))
 
             pos = None
             obj = item.get("obj")
@@ -2037,6 +3576,7 @@ class BaseTask(ABC):
                                 if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
                                     itm["statue"] = 0
 
+            self.record_daily_quest_event(33, 1)
             self.log(f"✅ [قاعة القيادة] تم حسم المعركة واستلام جوائز {task_title} #{task_index} بنجاح!")
         else:
             claim_err = claim_resp.get("err") if isinstance(claim_resp, dict) else "no_response"
@@ -2056,5 +3596,1528 @@ class BaseTask(ABC):
             "rewards": rewards,
             "message": f"تم إنجاز معركة {task_title} #{task_index} واستلام الجوائز بنجاح." if claim_success else f"تم إرسال فيلق المعركة لمهمة {task_title} #{task_index} بنجاح.",
         }
+
+    async def execute_command_hall_snipe_task(
+        self,
+        task: Dict[str, Any],
+        wait_seconds: float = 2.5,
+    ) -> Dict[str, Any]:
+        """
+        إنجاز مهمة القناص الصامت (Snipe Hunter Task - نوع 6) بقاعة القيادة:
+        1. الفحص القبلي للجاهزية (0-Network Pre-flight):
+           - التحقق من نوع المهمة (type == 6) وصحة معرف الفهرس (index > 0).
+           - التحقق من أن حالة المهمة قابلة للإنجاز (statue in (1, 2)).
+        2. محاكاة السلوك البشري الطبيعي للعبة (Human-like Simulation):
+           - في العميل الرسمي، يشاهد اللاعب حركة الكشاف (2 ثانية) ثم يرمي الأسهم في اللعبة المصغرة (~1.0s).
+           - الانتظار الآمن (افتراضياً 2.5 ثانية) يضمن التوافق التام مع نمط اللعب البشري وحماية الحساب من أي شذوذ.
+        3. إرسال حزمة الإنهاء الرسمية المباشرة للسيرفر:
+           - CMD: 2274 (CMD_COMMAND_HALL_MODULE)
+           - SubCMD: 5 (REQ_COMMAND_HALL_FINISH_TASK)
+           - Payload: {"index": task_index}
+        4. استلام الجوائز المباشرة وتحديث الذاكرة الحية (0-Network Cache Sync):
+           - دمج بيانات initData المحدثة في ذاكرة قاعة القيادة.
+           - تسجيل اكتمال المهمة (statue = 0) في الذاكرة الحية لمنع تكرار استدعائها.
+        """
+        if not isinstance(task, dict):
+            return {"success": False, "reason": "كائن المهمة غير صالح أو مفقود."}
+
+        task_id = self._safe_int(task.get("task_id") or task.get("taskID") or task.get("Index"), 0)
+        task_index = self._safe_int(task.get("index"), 0)
+        task_type = self._safe_int(task.get("type"), 0)
+        if task_type == 0 and task_id > 0:
+            task_type = task_id // 1000
+
+        # التحقق الصارم من أن المهمة هي مهمة القناص الصامت (نوع 6)
+        if task_type != 6:
+            return {
+                "success": False,
+                "reason": f"هذه الدالة مخصصة حصراً لمهام القناص الصامت (نوع 6) وليست للنوع {task_type}.",
+            }
+
+        if task_index <= 0:
+            return {"success": False, "reason": "معرف مؤشر المهمة (index) غير صالح."}
+
+        quality_name = task.get("quality_name_ar") or str(task.get("quality", ""))
+        self.log(
+            f"🎯 [قاعة القيادة] بدء مهمة القناص الصامت #{task_index} (ID: {task_id} | جودة: {quality_name})..."
+        )
+
+        # محاكاة زمنية بشرية آمنة لحل اللعبة المصغرة
+        sim_wait = max(1.0, float(wait_seconds))
+        await asyncio.sleep(sim_wait)
+
+        # إرسال طلب الإنهاء الرسمي المباشر للميني جيم (CMD 2274 / SubCMD 5)
+        payload = {"index": task_index}
+        resp = await self.safe_query(
+            CMD_COMMAND_HALL_MODULE,
+            REQ_COMMAND_HALL_FINISH_TASK,
+            payload,
+            min_delay=0.4,
+            max_delay=0.8,
+        )
+
+        if not isinstance(resp, dict) or str(resp.get("err", resp.get("code", "0"))).strip() not in ("0", "Err_None"):
+            err_msg = resp.get("err") if isinstance(resp, dict) else "لم يرد استجابة من السيرفر"
+            self.log(f"⚠️ [قاعة القيادة] تعذر إنجاز مهمة القناص الصامت #{task_index} (الخطأ: {err_msg}).")
+            return {
+                "success": False,
+                "reason": f"فشل طلب إنهاء مهمة القناص: {err_msg}",
+                "response": resp,
+            }
+
+        all_rewards: List[Dict[str, Any]] = []
+        rspdata = resp.get("rspdata") if isinstance(resp, dict) else {}
+        if isinstance(rspdata, dict) and "reward" in rspdata:
+            all_rewards.extend(rspdata.get("reward") or [])
+        elif isinstance(resp, dict) and "reward" in resp:
+            all_rewards.extend(resp.get("reward") or [])
+
+        # استلام الجوائز وتثبيت الإنجاز النهائي عبر (CMD 2274 / SubCMD 8 - commitTask)
+        await asyncio.sleep(random.uniform(0.6, 1.2))
+        commit_payload = {"commitType": 6, "index": task_index}
+        commit_resp = await self.safe_query(
+            CMD_COMMAND_HALL_MODULE,
+            REQ_COMMAND_HALL_COMMIT_TASK,
+            commit_payload,
+            min_delay=0.4,
+            max_delay=0.8,
+        )
+
+        final_rspdata = rspdata
+        if isinstance(commit_resp, dict) and str(commit_resp.get("err", commit_resp.get("code", "0"))).strip() in ("0", "Err_None"):
+            c_rspdata = commit_resp.get("rspdata")
+            if isinstance(c_rspdata, dict):
+                final_rspdata = c_rspdata
+                c_rewards = c_rspdata.get("reward") or []
+                if c_rewards:
+                    all_rewards.extend(c_rewards)
+
+        # تحديث الذاكرة الحية الشامل (0-Network Cache Sync)
+        init_data = final_rspdata.get("initData") if isinstance(final_rspdata, dict) else None
+        if isinstance(init_data, dict):
+            if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
+                cached = self.conn.init_data.setdefault("commandHall", {})
+                if isinstance(cached, dict):
+                    cached.update(init_data)
+        else:
+            # وضع علامة اكتمال على المهمة محلياً بالذاكرة كاحتياط
+            cached_hall = self.get_ctrl("commandHall")
+            if isinstance(cached_hall, dict):
+                for task_arr_key in ("commonTaskData", "taskList"):
+                    arr = cached_hall.get(task_arr_key)
+                    if isinstance(arr, list):
+                        for itm in arr:
+                            if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
+                                itm["statue"] = 0
+                    elif isinstance(arr, dict):
+                        for itm in arr.values():
+                            if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
+                                itm["statue"] = 0
+
+        self.record_daily_quest_event(33, 1)
+        self.log(
+            f"✅ [قاعة القيادة] تم إنجاز مهمة القناص الصامت #{task_index} واستلام {len(all_rewards)} جوائز بنجاح!"
+        )
+
+        return {
+            "success": True,
+            "task_id": task_id,
+            "index": task_index,
+            "task_type": 6,
+            "stamina_spent": 0,
+            "rewards": all_rewards,
+            "rewards_count": len(all_rewards),
+            "message": f"تم إنجاز مهمة القناص الصامت #{task_index} واستلام الجوائز بنجاح.",
+            "finish_response": resp,
+            "commit_response": commit_resp,
+        }
+
+    async def execute_command_hall_rescue_task(
+        self,
+        task: Dict[str, Any],
+        wait_seconds: float = 2.2,
+        min_safety_stamina: int = 10,
+    ) -> Dict[str, Any]:
+        """
+        تنفيذ مهمة إنقاذ القرويين (RESCUE_TASK - النوع 4) من مهام قاعة القيادة:
+        - الاستناد الصارم لكود اللعبة الرسمي:
+          * consume = 5 (تستهلك 5 طاقة من اللورد).
+          * checkTaskTypeNeedArmy(4) == False (لا تحتاج جنوداً مقاتلين ولا فيالق مسير).
+          * محاكاة مسير كشاف الاستطلاع (COMMANDHALL_COMMON_TASK_MARCH_TIME = 2s).
+          * الإنجاز الذري عبر (CMD 2274 / SubCMD 5 - reqFinishTask).
+          * استلام الجوائز والتثبيت عبر (CMD 2274 / SubCMD 8 - reqCommitTask).
+        - يدعم الفحص القبلي الذكي للطاقة وحد الأمان، والتنفيذ الفوري إن كانت المهمة مكتملة مسبقاً (statue == 3).
+        - التحديث الآني المتزامن للذاكرة الحية (0-Network Cache Sync).
+        """
+        task_id = self._safe_int(task.get("task_id") or task.get("Index") or task.get("id"), 0)
+        task_index = self._safe_int(task.get("index"), 0)
+        task_type = self._safe_int(task.get("type"), 4)
+        statue = self._safe_int(task.get("statue"), 2)
+        quality_name = task.get("quality_name_ar", str(task.get("quality", "")))
+        stamina_cost = 5
+
+        # 1. التحقق القبلي من صحة بيانات المهمة (0-Network Pre-flight)
+        if task_index <= 0:
+            return {
+                "success": False,
+                "reason": f"رقم فهرس المهمة غير صالح (index={task_index})",
+                "task_id": task_id,
+                "index": task_index,
+            }
+
+        if task_type != 4:
+            self.log(f"⚠️ [قاعة القيادة] تحذير: نوع المهمة (#{task_index}) هو {task_type} وليس 4 (إنقاذ قرويين).")
+
+        # 2. فحص طاقة اللورد مع حد الأمان
+        current_stamina = self.stamina
+        min_needed = stamina_cost + min_safety_stamina
+        if current_stamina < min_needed and statue != 3:
+            self.log(
+                f"🛑 [قاعة القيادة] طاقة اللورد غير كافية لمهمة إنقاذ القرويين #{task_index} "
+                f"({current_stamina} متوفر | المطلوب {min_needed} تشمل {min_safety_stamina} حد أمان)."
+            )
+            return {
+                "success": False,
+                "reason": f"طاقة اللورد غير كافية ({current_stamina} < {min_needed})",
+                "task_id": task_id,
+                "index": task_index,
+                "stamina_spent": 0,
+            }
+
+        self.log(
+            f"🤝 [قاعة القيادة] بدء مهمة إنقاذ القرويين #{task_index} "
+            f"(ID: {task_id} | جودة: {quality_name} | استهلاك {stamina_cost} طاقة)..."
+        )
+
+        all_rewards: List[Dict[str, Any]] = []
+        finish_resp: Optional[Dict[str, Any]] = None
+        final_rspdata: Dict[str, Any] = {}
+
+        # 3. إنجاز مهمة الإنقاذ عبر (CMD 2274 / SubCMD 5) إذا لم تكن مكتملة مسبقاً
+        if statue != 3:
+            # محاكاة مسير كشاف الاستطلاع الطبيعي وفق معايير اللعبة (COMMANDHALL_COMMON_TASK_MARCH_TIME = 2s)
+            sim_wait = max(0.5, wait_seconds + random.uniform(-0.2, 0.3))
+            await asyncio.sleep(sim_wait)
+
+            payload = {"index": task_index}
+            finish_resp = await self.safe_query(
+                CMD_COMMAND_HALL_MODULE,
+                REQ_COMMAND_HALL_FINISH_TASK,
+                payload,
+                min_delay=0.4,
+                max_delay=0.8,
+            )
+
+            if not isinstance(finish_resp, dict) or str(finish_resp.get("err", finish_resp.get("code", "0"))).strip() not in ("0", "Err_None"):
+                err_msg = finish_resp.get("err") if isinstance(finish_resp, dict) else "لم يرد استجابة من السيرفر"
+                self.log(f"⚠️ [قاعة القيادة] تعذر إنجاز إنقاذ القرويين #{task_index} (الخطأ: {err_msg}).")
+                return {
+                    "success": False,
+                    "reason": f"فشل طلب إنهاء مهمة الإنقاذ: {err_msg}",
+                    "response": finish_resp,
+                    "task_id": task_id,
+                    "index": task_index,
+                }
+
+            rspdata = finish_resp.get("rspdata") if isinstance(finish_resp, dict) else {}
+            if isinstance(rspdata, dict):
+                final_rspdata = rspdata
+                if "reward" in rspdata:
+                    all_rewards.extend(rspdata.get("reward") or [])
+            elif isinstance(finish_resp, dict) and "reward" in finish_resp:
+                all_rewards.extend(finish_resp.get("reward") or [])
+
+        # 4. تثبيت الإنجاز واستلام الجوائز النهائية عبر (CMD 2274 / SubCMD 8 - commitTask)
+        await asyncio.sleep(random.uniform(0.6, 1.2))
+        commit_payload = {"commitType": 4, "index": task_index}
+        commit_resp = await self.safe_query(
+            CMD_COMMAND_HALL_MODULE,
+            REQ_COMMAND_HALL_COMMIT_TASK,
+            commit_payload,
+            min_delay=0.4,
+            max_delay=0.8,
+        )
+
+        if isinstance(commit_resp, dict) and str(commit_resp.get("err", commit_resp.get("code", "0"))).strip() in ("0", "Err_None"):
+            c_rspdata = commit_resp.get("rspdata")
+            if isinstance(c_rspdata, dict):
+                final_rspdata = c_rspdata
+                c_rewards = c_rspdata.get("reward") or []
+                if c_rewards:
+                    all_rewards.extend(c_rewards)
+
+        # 5. التحديث الآني المتزامن للذاكرة الحية (0-Network Cache Sync)
+        init_data = final_rspdata.get("initData") if isinstance(final_rspdata, dict) else None
+        if isinstance(init_data, dict):
+            if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
+                cached = self.conn.init_data.setdefault("commandHall", {})
+                if isinstance(cached, dict):
+                    cached.update(init_data)
+        else:
+            # تحديث محلي في الذاكرة الحية لمنع إعادة التنفيذ
+            cached_hall = self.get_ctrl("commandHall")
+            if isinstance(cached_hall, dict):
+                for task_arr_key in ("commonTaskData", "taskList"):
+                    arr = cached_hall.get(task_arr_key)
+                    if isinstance(arr, list):
+                        for itm in arr:
+                            if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
+                                itm["statue"] = 0
+                    elif isinstance(arr, dict):
+                        for itm in arr.values():
+                            if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
+                                itm["statue"] = 0
+
+        self.record_daily_quest_event(33, 1)
+        self.log(
+            f"✅ [قاعة القيادة] تم إنجاز مهمة إنقاذ القرويين #{task_index} واستلام {len(all_rewards)} جوائز بنجاح!"
+        )
+
+        return {
+            "success": True,
+            "task_id": task_id,
+            "index": task_index,
+            "task_type": 4,
+            "stamina_spent": stamina_cost,
+            "rewards": all_rewards,
+            "rewards_count": len(all_rewards),
+            "message": f"تم إنجاز مهمة إنقاذ القرويين #{task_index} بنجاح واستلام الجوائز.",
+            "finish_response": finish_resp,
+            "commit_response": commit_resp,
+        }
+
+    async def execute_command_hall_dialogue_task(
+        self,
+        task: Dict[str, Any],
+        wait_seconds: float = 1.5,
+        min_safety_stamina: int = 10,
+    ) -> Dict[str, Any]:
+        """
+        تنفيذ مهمة المعلومات العسكرية (DIALOGUE_TASK - النوع 3) من مهام قاعة القيادة:
+        - الاستناد الصارم لكود اللعبة الرسمي:
+          * consume = 5 (تستهلك 5 طاقة من اللورد).
+          * moveType = 0, moveTime = 0 (حوار فوري داخل القلعة بلا مسير كشاف ولا استهلاك فيالق أو جنود).
+          * محاكاة بشرية ذكية لتصفح الحوار التفاعلي (1.2 - 1.8 ثانية) تحاكي CommandHallTalkPanel.
+          * الإنجاز الذري عبر (CMD 2274 / SubCMD 5 - reqFinishTask).
+          * استلام الجوائز وتثبيت الإنجاز النهائي عبر (CMD 2274 / SubCMD 8 - reqCommitTask).
+        - يدعم الفحص القبلي الذكي للطاقة وحد الأمان، والتنفيذ الفوري إن كانت المهمة مكتملة مسبقاً (statue == 3).
+        - التحديث الآني المتزامن للذاكرة الحية (0-Network Cache Sync).
+        """
+        task_id = self._safe_int(task.get("task_id") or task.get("Index") or task.get("id"), 0)
+        task_index = self._safe_int(task.get("index"), 0)
+        task_type = self._safe_int(task.get("type"), 3)
+        statue = self._safe_int(task.get("statue"), 2)
+        quality_name = task.get("quality_name_ar", str(task.get("quality", "")))
+        stamina_cost = 5
+
+        # 1. التحقق القبلي من صحة بيانات المهمة (0-Network Pre-flight)
+        if task_index <= 0:
+            return {
+                "success": False,
+                "reason": f"رقم فهرس المهمة غير صالح (index={task_index})",
+                "task_id": task_id,
+                "index": task_index,
+            }
+
+        if task_type != 3:
+            self.log(f"⚠️ [قاعة القيادة] تحذير: نوع المهمة (#{task_index}) هو {task_type} وليس 3 (معلومات عسكرية).")
+
+        # 2. فحص طاقة اللورد مع حد الأمان
+        current_stamina = self.stamina
+        min_needed = stamina_cost + min_safety_stamina
+        if current_stamina < min_needed and statue != 3:
+            self.log(
+                f"🛑 [قاعة القيادة] طاقة اللورد غير كافية لمهمة المعلومات العسكرية #{task_index} "
+                f"({current_stamina} متوفر | المطلوب {min_needed} تشمل {min_safety_stamina} حد أمان)."
+            )
+            return {
+                "success": False,
+                "reason": f"طاقة اللورد غير كافية ({current_stamina} < {min_needed})",
+                "task_id": task_id,
+                "index": task_index,
+                "stamina_spent": 0,
+            }
+
+        self.log(
+            f"📜 [قاعة القيادة] بدء مهمة المعلومات العسكرية #{task_index} "
+            f"(ID: {task_id} | جودة: {quality_name} | استهلاك {stamina_cost} طاقة)..."
+        )
+
+        all_rewards: List[Dict[str, Any]] = []
+        finish_resp: Optional[Dict[str, Any]] = None
+        final_rspdata: Dict[str, Any] = {}
+
+        # 3. إنجاز مهمة الحوار عبر (CMD 2274 / SubCMD 5) إذا لم تكن مكتملة مسبقاً
+        if statue != 3:
+            # محاكاة بشرية ذكية لتصفح الحوار والنقر على التالي
+            sim_wait = max(0.5, wait_seconds + random.uniform(-0.3, 0.3))
+            await asyncio.sleep(sim_wait)
+
+            payload = {"index": task_index}
+            finish_resp = await self.safe_query(
+                CMD_COMMAND_HALL_MODULE,
+                REQ_COMMAND_HALL_FINISH_TASK,
+                payload,
+                min_delay=0.4,
+                max_delay=0.8,
+            )
+
+            if not isinstance(finish_resp, dict) or str(finish_resp.get("err", finish_resp.get("code", "0"))).strip() not in ("0", "Err_None"):
+                err_msg = finish_resp.get("err") if isinstance(finish_resp, dict) else "لم يرد استجابة من السيرفر"
+                self.log(f"⚠️ [قاعة القيادة] تعذر إنجاز المعلومات العسكرية #{task_index} (الخطأ: {err_msg}).")
+                return {
+                    "success": False,
+                    "reason": f"فشل طلب إنهاء مهمة المعلومات العسكرية: {err_msg}",
+                    "response": finish_resp,
+                    "task_id": task_id,
+                    "index": task_index,
+                }
+
+            rspdata = finish_resp.get("rspdata") if isinstance(finish_resp, dict) else {}
+            if isinstance(rspdata, dict):
+                final_rspdata = rspdata
+                if "reward" in rspdata:
+                    all_rewards.extend(rspdata.get("reward") or [])
+            elif isinstance(finish_resp, dict) and "reward" in finish_resp:
+                all_rewards.extend(finish_resp.get("reward") or [])
+
+        # 4. تثبيت الإنجاز واستلام الجوائز النهائية عبر (CMD 2274 / SubCMD 8 - commitTask)
+        await asyncio.sleep(random.uniform(0.6, 1.2))
+        commit_payload = {"commitType": 3, "index": task_index}
+        commit_resp = await self.safe_query(
+            CMD_COMMAND_HALL_MODULE,
+            REQ_COMMAND_HALL_COMMIT_TASK,
+            commit_payload,
+            min_delay=0.4,
+            max_delay=0.8,
+        )
+
+        if isinstance(commit_resp, dict) and str(commit_resp.get("err", commit_resp.get("code", "0"))).strip() in ("0", "Err_None"):
+            c_rspdata = commit_resp.get("rspdata")
+            if isinstance(c_rspdata, dict):
+                final_rspdata = c_rspdata
+                c_rewards = c_rspdata.get("reward") or []
+                if c_rewards:
+                    all_rewards.extend(c_rewards)
+
+        # 5. التحديث الآني المتزامن للذاكرة الحية (0-Network Cache Sync)
+        init_data = final_rspdata.get("initData") if isinstance(final_rspdata, dict) else None
+        if isinstance(init_data, dict):
+            if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
+                cached = self.conn.init_data.setdefault("commandHall", {})
+                if isinstance(cached, dict):
+                    cached.update(init_data)
+        else:
+            # تحديث محلي في الذاكرة الحية لمنع إعادة التنفيذ
+            cached_hall = self.get_ctrl("commandHall")
+            if isinstance(cached_hall, dict):
+                for task_arr_key in ("commonTaskData", "taskList"):
+                    arr = cached_hall.get(task_arr_key)
+                    if isinstance(arr, list):
+                        for itm in arr:
+                            if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
+                                itm["statue"] = 0
+                    elif isinstance(arr, dict):
+                        for itm in arr.values():
+                            if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
+                                itm["statue"] = 0
+
+        self.record_daily_quest_event(33, 1)
+        self.log(
+            f"✅ [قاعة القيادة] تم إنجاز مهمة المعلومات العسكرية #{task_index} واستلام {len(all_rewards)} جوائز بنجاح!"
+        )
+
+        return {
+            "success": True,
+            "task_id": task_id,
+            "index": task_index,
+            "task_type": 3,
+            "stamina_spent": stamina_cost,
+            "rewards": all_rewards,
+            "rewards_count": len(all_rewards),
+            "message": f"تم إنجاز مهمة المعلومات العسكرية #{task_index} بنجاح واستلام الجوائز.",
+            "finish_response": finish_resp,
+            "commit_response": commit_resp,
+        }
+
+    async def execute_command_hall_army_group_task(
+        self,
+        task: Optional[Dict[str, Any]] = None,
+        wait_seconds: float = 1.0,
+    ) -> Dict[str, Any]:
+        """
+        تنفيذ مهمة فيلق الغزاة (Rebel Legion / Boss - Type 1) الرسمية:
+        1. فحص الذاكرة المسبق (0-Network Pre-flight):
+           - قراءة armyGroupTaskData من commandHall.
+           - التأكد من عدم وجود مهام طليعة غير مكتملة (armyPioneerTaskCount == 0) لمنع ضياع جوائزها (commandhall_text_15).
+           - التحقق من شرط القضاء على الفيلق: نقاط صحة الفيلق وصلت إلى 0 (hurtHp >= rabelHp) أو حالة المهمة 3 (FINISH).
+        2. خطوة القضاء على الفيلق (Attack Boss):
+           - إرسال REQ_COMMAND_HALL_ATTACK_ARMY_GROUP (CMD 2274, SubCMD 7).
+           - تحديث حالة الفيلق محلياً إلى statue: 3 (FINISH).
+        3. خطوة تسليم المهمة وتجديد المهام (Commit & Refresh):
+           - إرسال REQ_COMMAND_HALL_COMMIT_TASK (CMD 2274, SubCMD 8 مع commitType=1).
+           - استلام جوائز الانتصار والقتل الضخمة.
+           - دمج حزمة initData الجديدة مباشرة في الذاكرة الحية (لتوليد وتجديد حزمة المهام الجديدة تلقائياً).
+        """
+        # 1. جلب بيانات المهمة وقاعة القيادة من الذاكرة الحية
+        hall_data = self.get_ctrl("commandHall")
+        if not isinstance(hall_data, dict):
+            return {"success": False, "reason": "بيانات قاعة القيادة غير متوفرة في الذاكرة الحية."}
+
+        ag_data = task if (isinstance(task, dict) and task.get("type") == 1) else hall_data.get("armyGroupTaskData")
+        if not isinstance(ag_data, dict) or not ag_data.get("index"):
+            return {"success": False, "reason": "لا توجد مهمة فيلق غزاة (Type 1) مسجلة حالياً."}
+
+        task_index = self._safe_int(ag_data.get("index"), 0)
+        task_id = self._safe_int(ag_data.get("taskID"), 0)
+        rabel_hp = self._safe_int(ag_data.get("rabelHp"), 1000)
+        hurt_hp = self._safe_int(ag_data.get("hurtHp"), 0)
+        statue = self._safe_int(ag_data.get("statue"), 2)
+
+        # 2. فحص مهام الطليعة المتبقية (قاعدة اللعبة الرسمية لمنع ضياع جوائز الطليعة)
+        pioneer_count = self._safe_int(hall_data.get("armyPioneerTaskCount"), 0)
+        if pioneer_count > 0:
+            self.log(
+                f"🛡️ [قاعة القيادة] تأجيل استلام جائزة فيلق الغزاة لحين إكمال {pioneer_count} مهمة طليعة غزاة متبقية لمنع ضياع جوائزها."
+            )
+            return {
+                "success": False,
+                "reason": f"توجد {pioneer_count} مهام طليعة غزاة لم تكتمل بعد، تم التأجيل لحمايتها.",
+                "pending_pioneers": pioneer_count,
+            }
+
+        # 3. فحص شرط اكتمال الضرر (صحة الفيلق صفر)
+        is_defeated = (hurt_hp >= rabel_hp) or (statue == 3)
+        if not is_defeated:
+            rem_hp = max(0, rabel_hp - hurt_hp)
+            return {
+                "success": False,
+                "reason": f"صحة فيلق الغزاة لم تصل إلى 0 بعد (المتبقي: {rem_hp} من أصل {rabel_hp}).",
+                "remaining_hp": rem_hp,
+            }
+
+        self.log(
+            f"👑 [قاعة القيادة] بدء مهمة فيلق الغزاة #{task_index} (ID: {task_id} | ضرر: {hurt_hp}/{rabel_hp} | الحالة: {statue})..."
+        )
+
+        attack_resp = None
+        # 4. إذا لم يكن الفيلق قد قضي عليه رسمياً بعد (statue != 3)، نرسل أمر القضاء على الفيلق
+        if statue != 3:
+            self.log(f"⚔️ [قاعة القيادة] إرسال أمر القضاء على فيلق الغزاة (SubCMD=7)...")
+            attack_resp = await self.safe_query(
+                CMD_COMMAND_HALL_MODULE,
+                REQ_COMMAND_HALL_ATTACK_ARMY_GROUP,
+                {},
+                min_delay=0.4,
+                max_delay=0.8,
+            )
+            if not isinstance(attack_resp, dict) or str(attack_resp.get("err", attack_resp.get("code", "0"))).strip() not in ("0", "Err_None"):
+                err_msg = attack_resp.get("err") if isinstance(attack_resp, dict) else "فشل الاتصال بالسيرفر"
+                self.log(f"⚠️ [قاعة القيادة] تعذر القضاء على فيلق الغزاة #{task_index} (الخطأ: {err_msg}).")
+                return {
+                    "success": False,
+                    "reason": f"فشل أمر القضاء على فيلق الغزاة: {err_msg}",
+                    "response": attack_resp,
+                }
+
+            # محاكاة فترة تفاعل وعرض مشهد النصر الطبيعي
+            await asyncio.sleep(wait_seconds + random.uniform(0.3, 0.7))
+
+        # 5. استلام وتسليم جوائز فيلق الغزاة وتجديد المهام تلقائياً (SubCMD=8, commitType=1)
+        self.log(f"🎁 [قاعة القيادة] إرسال طلب استلام جوائز فيلق الغزاة وتجديد المهام (SubCMD=8, commitType=1)...")
+        commit_payload = {"commitType": 1, "index": task_index}
+        commit_resp = await self.safe_query(
+            CMD_COMMAND_HALL_MODULE,
+            REQ_COMMAND_HALL_COMMIT_TASK,
+            commit_payload,
+            min_delay=0.5,
+            max_delay=1.0,
+        )
+
+        if not isinstance(commit_resp, dict) or str(commit_resp.get("err", commit_resp.get("code", "0"))).strip() not in ("0", "Err_None"):
+            err_msg = commit_resp.get("err") if isinstance(commit_resp, dict) else "فشل الاتصال بالسيرفر"
+            self.log(f"⚠️ [قاعة القيادة] تعذر استلام جوائز فيلق الغزاة #{task_index} (الخطأ: {err_msg}).")
+            return {
+                "success": False,
+                "reason": f"فشل استلام جوائز فيلق الغزاة: {err_msg}",
+                "commit_response": commit_resp,
+            }
+
+        # 6. استخراج الجوائز ودمج حالة تجديد المهام في الذاكرة الحية فورياً
+        rspdata = commit_resp.get("rspdata", {})
+        raw_rewards = rspdata.get("reward") or []
+        all_rewards = []
+        if isinstance(raw_rewards, list):
+            for r in raw_rewards:
+                if isinstance(r, dict) and r.get("id"):
+                    all_rewards.append({"id": self._safe_int(r.get("id")), "count": self._safe_int(r.get("count"), 1)})
+
+        new_init = rspdata.get("initData")
+        if isinstance(new_init, dict):
+            cached_hall = self.get_ctrl("commandHall")
+            if isinstance(cached_hall, dict):
+                cached_hall.update(new_init)
+            elif hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
+                self.conn.init_data["commandHall"] = new_init
+
+        new_legion_id = new_init.get("armyGroupID") if isinstance(new_init, dict) else "محدث"
+        new_tasks_count = len(new_init.get("commonTaskData", [])) if isinstance(new_init, dict) else 0
+
+        self.record_daily_quest_event(33, 1)
+        self.log(
+            f"🎉 [قاعة القيادة] تم القضاء على فيلق الغزاة #{task_index} بنجاح! استلام {len(all_rewards)} جوائز "
+            f"وتجديد {new_tasks_count} مهمة جديدة للفيلق القادم (المستوى {new_legion_id})!"
+        )
+
+        return {
+            "success": True,
+            "task_id": task_id,
+            "index": task_index,
+            "task_type": 1,
+            "rewards": all_rewards,
+            "rewards_count": len(all_rewards),
+            "new_tasks_count": new_tasks_count,
+            "new_army_group_id": new_legion_id,
+            "message": f"تم القضاء على فيلق الغزاة #{task_index} بنجاح وتجديد {new_tasks_count} مهمة جديدة.",
+            "attack_response": attack_resp,
+            "commit_response": commit_resp,
+        }
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 12.5 ترقية مستوى قاعة القيادة تلقائياً (Command Hall Level Upgrade)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    async def execute_command_hall_upgrade_level(
+        self,
+        max_upgrades: int = 5,
+        wait_seconds: float = 1.0,
+    ) -> Dict[str, Any]:
+        """
+        تنفيذ الترقية التلقائية لمستوى قاعة القيادة (Command Hall Level Upgrade) الرسمية:
+        1. فحص الذاكرة الحية المسبق (0-Network Pre-flight):
+           - قراءة commandLv و commandExp من commandHall.
+           - فحص شرط الترقية: commandExp >= needExp و commandLv < COMMAND_HALL_MAX_LEVEL.
+        2. إرسال طلب الترقية الرسمي:
+           - REQ_COMMAND_HALL_UPGRADE_COMMAND_LV (CMD 2274, SubCMD 2, payload {}).
+        3. دمج البيانات والجوائز الحية فورياً:
+           - تحديث initData في الذاكرة الحية (commandLv الجديد والخبرة المتبقية).
+           - استلام وتجميع جوائز الترقية المكتسبة.
+        4. دعم الترقيات المتتالية (Multi-level upgrade) عند توفر نقاط خبرة كافية لأكثر من مستوى.
+        """
+        hall_data = self.get_ctrl("commandHall")
+        if not isinstance(hall_data, dict):
+            return {"success": False, "reason": "بيانات قاعة القيادة غير متوفرة في الذاكرة الحية."}
+
+        initial_lv = self._safe_int(hall_data.get("commandLv"), 1)
+        cur_lv = initial_lv
+        upgrades_done = 0
+        all_rewards: List[Dict[str, Any]] = []
+
+        for _ in range(max(1, max_upgrades)):
+            cur_exp = self._safe_int(hall_data.get("commandExp"), 0)
+            need_exp = COMMAND_HALL_EXP_BY_LV.get(cur_lv, 0)
+
+            # شرط الترقية
+            if cur_lv >= COMMAND_HALL_MAX_LEVEL:
+                break
+            if need_exp <= 0 or cur_exp < need_exp:
+                break
+
+            self.log(
+                f"🏛️ [قاعة القيادة] نقاط الخبرة مكتملة للترقية ({cur_exp}/{need_exp}) — "
+                f"إرسال طلب ترقية مستوى قاعة القيادة من Lv.{cur_lv} إلى Lv.{cur_lv + 1} (SubCMD=2)..."
+            )
+
+            resp = await self.safe_query(CMD_COMMAND_HALL_MODULE, REQ_COMMAND_HALL_UPGRADE_COMMAND_LV, {})
+            if not isinstance(resp, dict):
+                return {
+                    "success": False,
+                    "reason": "لم يتم استلام أي استجابة من الخادم لترقية قاعة القيادة.",
+                    "upgrades_done": upgrades_done,
+                    "initial_lv": initial_lv,
+                    "current_lv": cur_lv,
+                }
+
+            err = resp.get("err")
+            if err not in (0, "0", None) and str(err) != "0":
+                err_msg = resp.get("msg") or resp.get("reason") or f"رمز الخطأ: {err}"
+                self.log(f"⚠️ [قاعة القيادة] فشل ترقية قاعة القيادة: {err_msg}")
+                break
+
+            rspdata = resp.get("rspdata") or {}
+            raw_rewards = rspdata.get("reward") or []
+            if isinstance(raw_rewards, list):
+                for r in raw_rewards:
+                    if isinstance(r, dict) and r.get("id"):
+                        all_rewards.append({
+                            "id": self._safe_int(r.get("id")),
+                            "count": self._safe_int(r.get("count"), 1),
+                        })
+
+            # دمج initData الجديد فورياً في الذاكرة الحية
+            new_init = rspdata.get("initData")
+            if isinstance(new_init, dict):
+                cached_hall = self.get_ctrl("commandHall")
+                if isinstance(cached_hall, dict):
+                    cached_hall.update(new_init)
+                    hall_data = cached_hall
+                elif hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
+                    self.conn.init_data["commandHall"] = new_init
+                    hall_data = new_init
+                cur_lv = self._safe_int(hall_data.get("commandLv"), cur_lv + 1)
+            else:
+                cur_lv += 1
+                hall_data["commandLv"] = cur_lv
+                hall_data["commandExp"] = max(0, cur_exp - need_exp)
+
+            upgrades_done += 1
+            self.log(
+                f"🎉 [قاعة القيادة] تمت ترقية قاعة القيادة بنجاح إلى المستوى Lv.{cur_lv}! "
+                f"واستلام {len(raw_rewards)} جوائز ترقية."
+            )
+
+            if wait_seconds > 0:
+                await asyncio.sleep(wait_seconds)
+
+        if upgrades_done > 0:
+            return {
+                "success": True,
+                "upgrades_done": upgrades_done,
+                "initial_lv": initial_lv,
+                "new_lv": cur_lv,
+                "rewards": all_rewards,
+                "rewards_count": len(all_rewards),
+                "message": f"تمت ترقية قاعة القيادة بنجاح من Lv.{initial_lv} إلى Lv.{cur_lv} ({upgrades_done} مستوى).",
+            }
+
+        return {
+            "success": False,
+            "reason": "نقاط الخبرة الحالية لا تكفي للترقية أو أن القاعة في أقصى مستوى.",
+            "upgrades_done": 0,
+            "initial_lv": initial_lv,
+            "current_lv": cur_lv,
+            "rewards": [],
+        }
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 13. معمل المواد (Material Workshop / stuffWorkshopCtrl)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    @classmethod
+    def resolve_material_info(cls, mid: Any) -> Dict[str, Any]:
+        """
+        استخراج تفاصيل المادة ومستواها واسمها العربي بذكاء.
+        يقبل:
+          - معرف المادة المباشر (مثل 200101 أو 200302)
+          - المعرف الأساسي (مثل 2001 أو 10)
+        """
+        try:
+            m_id = int(str(mid).strip())
+        except (ValueError, TypeError):
+            return {
+                "id": mid,
+                "name": str(mid),
+                "base_id": 0,
+                "base_name": "مادة غير معروفة",
+                "quality": 0,
+                "quality_name": "غير معروف",
+                "refine_time": 0,
+            }
+
+        if m_id in MATERIAL_WORKSHOP_CATALOG:
+            item = dict(MATERIAL_WORKSHOP_CATALOG[m_id])
+            item["id"] = m_id
+            return item
+
+        # استنتاج ذكي للمعرفات المركبة (200101 -> base 2001, quality 1)
+        if m_id > 100000:
+            base_id = m_id // 100
+            quality = m_id % 100
+            base_name = MATERIAL_BASE_NAMES.get(base_id, f"مادة {base_id}")
+            q_name = MATERIAL_QUALITY_NAMES.get(quality, f"مستوى {quality}")
+            return {
+                "id": m_id,
+                "name": f"{base_name} المستوى {quality}",
+                "base_id": base_id,
+                "base_name": base_name,
+                "quality": quality,
+                "quality_name": q_name,
+                "refine_time": 14400 * (1 if quality == 1 else (3 if quality == 2 else 6)),
+            }
+
+        # معرف أساسي بسيط (10..15 أو 2001..2006)
+        base_name = MATERIAL_BASE_NAMES.get(m_id, f"مادة {m_id}")
+        return {
+            "id": m_id,
+            "name": base_name,
+            "base_id": m_id,
+            "base_name": base_name,
+            "quality": 1,
+            "quality_name": "أبيض (عادي)",
+            "refine_time": 14400,
+        }
+
+    def get_material_workshop_status(self) -> Dict[str, Any]:
+        """
+        فحص حالة معمل المواد (stuffWorkshopCtrl) اعتماداً حصرياً على الذاكرة الحية الحالية (0-Network Direct Read).
+        يجلب:
+          1. المواد التي تعامل حالياً في المعمل (سواء قيد التكرير الفعلي أو في قائمة الانتظار).
+          2. السعة الكلية للمعمل المفتوحة للقلعة (كم مادة يمكن إضافتها أصلاً للقلعة).
+          3. هل توجد خانة شاغرة لإضافة منتج، وكم عدد الخانات الشاغرة ومواقعها بدقة.
+          4. حالة المادة الجاهزة للاستلام (doneID).
+          5. طابور التكرير النشط والوقت المتبقي (queueType 1238).
+        """
+        stuff_data = self.get_ctrl("stuffWorkshopCtrl")
+        if not isinstance(stuff_data, dict) or not stuff_data or "list" not in stuff_data:
+            return {
+                "has_workshop": False,
+                "total_slots": 7,
+                "total_unlocked_slots": 0,
+                "locked_slots_count": 7,
+                "locked_slots": [],
+                "currently_producing_count": 0,
+                "vacant_slots_count": 0,
+                "has_vacant_slot": False,
+                "vacant_positions": [],
+                "materials_in_process": [],
+                "done_material_id": 0,
+                "has_finished_material": False,
+                "finished_material": None,
+                "daily_speedup_count": 0,
+                "discount": 1.0,
+                "active_refining_queue": None,
+                "message": "معمل المواد غير موجود في الذاكرة الحية للقلعة.",
+            }
+
+        slots_list = stuff_data.get("list") or []
+        if not isinstance(slots_list, list):
+            slots_list = []
+
+        done_id = self._safe_int(stuff_data.get("doneID", 0))
+        daily_speedup = self._safe_int(stuff_data.get("count", 0))
+        discount = float(stuff_data.get("discount", 1.0) or 1.0)
+
+        # فحص طابور تكرير المواد النشط (queue 1238)
+        now_ts = int(time.time())
+        refining_queue_info = None
+        queue_ctrl = self.get_ctrl("queueCtrl")
+        queues_to_search: List[Dict[str, Any]] = []
+        if isinstance(queue_ctrl, dict):
+            queues_to_search.extend(queue_ctrl.values())
+        elif isinstance(queue_ctrl, list):
+            queues_to_search.extend(queue_ctrl)
+
+        # البحث في طوابير السيرفر الحية
+        conn = getattr(self, "conn", None)
+        if conn:
+            live_local_queues = self._read_live_local_queues(conn)
+            queues_to_search.extend(live_local_queues)
+
+        for q in queues_to_search:
+            if not isinstance(q, dict):
+                continue
+            q_type = str(q.get("queueType") or q.get("type") or "")
+            if q_type == str(QUEUE_TYPE_STUFF_WORKSHOP):
+                total_time = self._safe_int(q.get("totaltime") or q.get("ottime") or 0)
+                finish_time = self._safe_int(q.get("finishTime") or q.get("endTime") or 0)
+                begin_time = self._safe_int(q.get("begintime") or q.get("startTime") or 0)
+                if finish_time == 0 and begin_time > 0 and total_time > 0:
+                    finish_time = begin_time + total_time
+                remaining = max(0, finish_time - now_ts) if finish_time > 0 else 0
+                refining_queue_info = {
+                    "queue_type": QUEUE_TYPE_STUFF_WORKSHOP,
+                    "begin_time": begin_time,
+                    "finish_time": finish_time,
+                    "total_time": total_time,
+                    "remaining_seconds": remaining,
+                    "is_active": remaining > 0 or finish_time > 0,
+                    "queue_raw": q,
+                }
+                break
+
+        total_unlocked_slots = 0
+        locked_slots: List[Dict[str, Any]] = []
+        materials_in_process: List[Dict[str, Any]] = []
+        vacant_positions: List[int] = []
+
+        for idx, slot in enumerate(slots_list):
+            if not isinstance(slot, dict):
+                continue
+            pos = idx + 1
+            slot_type = self._safe_int(slot.get("type", 0))
+            is_unlocked = (slot_type == 0)
+
+            if is_unlocked:
+                total_unlocked_slots += 1
+                mid = slot.get("mid")
+                if mid is not None:
+                    mid_int = self._safe_int(mid)
+                    mat_info = self.resolve_material_info(mid_int)
+                    is_currently_refining = (pos == 1)
+
+                    mat_entry = {
+                        "position": pos,
+                        "material_id": mid_int,
+                        "name": mat_info.get("name"),
+                        "base_name": mat_info.get("base_name"),
+                        "quality": mat_info.get("quality"),
+                        "quality_name": mat_info.get("quality_name"),
+                        "status": "refining" if is_currently_refining else "queued",
+                        "status_ar": "قيد التكرير الفعلي" if is_currently_refining else "في قائمة الانتظار",
+                        "remaining_seconds": refining_queue_info["remaining_seconds"] if (is_currently_refining and refining_queue_info) else None,
+                        "finish_time": refining_queue_info["finish_time"] if (is_currently_refining and refining_queue_info) else None,
+                        "slot_raw": slot,
+                    }
+                    materials_in_process.append(mat_entry)
+                else:
+                    vacant_positions.append(pos)
+            else:
+                locked_slots.append({
+                    "position": pos,
+                    "gold_cost": slot.get("gold", 500),
+                    "vip_required": slot.get("vip", 0),
+                    "slot_raw": slot,
+                })
+
+        currently_producing_count = len(materials_in_process)
+        vacant_slots_count = len(vacant_positions)
+        has_vacant_slot = vacant_slots_count > 0
+
+        # فحص المادة المكتملة الجاهزة للاستلام
+        has_finished_material = done_id > 0
+        finished_material_info = None
+        if has_finished_material:
+            done_mat = self.resolve_material_info(done_id)
+            finished_material_info = {
+                "material_id": done_id,
+                "name": done_mat.get("name"),
+                "base_name": done_mat.get("base_name"),
+                "quality": done_mat.get("quality"),
+                "quality_name": done_mat.get("quality_name"),
+                "ready_to_collect": True,
+            }
+
+        return {
+            "has_workshop": True,
+            "total_slots": len(slots_list),
+            "total_unlocked_slots": total_unlocked_slots,
+            "locked_slots_count": len(locked_slots),
+            "locked_slots": locked_slots,
+            "currently_producing_count": currently_producing_count,
+            "vacant_slots_count": vacant_slots_count,
+            "has_vacant_slot": has_vacant_slot,
+            "vacant_positions": vacant_positions,
+            "materials_in_process": materials_in_process,
+            "done_material_id": done_id,
+            "has_finished_material": has_finished_material,
+            "finished_material": finished_material_info,
+            "daily_speedup_count": daily_speedup,
+            "discount": discount,
+            "active_refining_queue": refining_queue_info,
+            "message": (
+                f"معمل المواد: السعة الكلية {total_unlocked_slots} خانات مفتوحة، "
+                f"المواد قيد المعالجة: {currently_producing_count}، "
+                f"الخانات الشاغرة: {vacant_slots_count} ({'توجد خانة شاغرة' if has_vacant_slot else 'المعمل ممتلئ'})"
+            ),
+        }
+
+    async def collect_material_workshop_finished(self, timeout: float = 5.0) -> Dict[str, Any]:
+        """
+        استلام المواد المكتملة في معمل المواد (REQ_GET_STUFF) مع فحص مسبق 0-Network.
+        """
+        status = self.get_material_workshop_status()
+        if not status.get("has_finished_material"):
+            return {
+                "success": False,
+                "code": "NO_FINISHED_MATERIAL",
+                "message": "لا توجد مواد جاهزة للاستلام في معمل المواد حالياً.",
+            }
+
+        done_id = status.get("done_material_id", 0)
+        self.log(f"🏭 [معمل المواد] جاري استلام المادة المكتملة #{done_id}...")
+
+        resp = await self.safe_query(CMD_STUFF_WORKSHOP_MODULE, REQ_STUFF_WORKSHOP_GET, {})
+        if not resp or not self._is_resp_ok(resp):
+            return {
+                "success": False,
+                "code": "COLLECT_FAILED",
+                "message": f"فشل استلام المادة المكتملة من السيرفر (كود الخطأ: {resp.get('err') if resp else 'None'}).",
+                "response": resp,
+            }
+
+        # مزامنة الذاكرة الحية فورياً: تصفير doneID
+        stuff_ctrl = self.get_ctrl("stuffWorkshopCtrl")
+        if isinstance(stuff_ctrl, dict):
+            stuff_ctrl["doneID"] = 0
+
+        self.log(f"✅ [معمل المواد] تم استلام المادة المكتملة #{done_id} بنجاح!")
+        return {
+            "success": True,
+            "code": "SUCCESS",
+            "material_id": done_id,
+            "items_collected": resp.get("result", []),
+            "message": "تم استلام المواد بنجاح.",
+            "response": resp,
+        }
+
+    async def refine_material_workshop(self, material_id: Any, timeout: float = 5.0) -> Dict[str, Any]:
+        """
+        بدء تكرير مادة جديدة في معمل المواد مع فحص السعة المتاحة مسبقاً (0-Network Pre-flight).
+        """
+        mat_info = self.resolve_material_info(material_id)
+        mat_id = mat_info.get("id")
+        status = self.get_material_workshop_status()
+
+        if not status.get("has_vacant_slot"):
+            return {
+                "success": False,
+                "code": "NO_VACANT_SLOTS",
+                "message": f"لا توجد خانات شاغرة في معمل المواد (السعة المفتوحة: {status.get('total_unlocked_slots')}, المشغولة: {status.get('currently_producing_count')}).",
+            }
+
+        self.log(f"🏭 [معمل المواد] جاري بدء تكرير '{mat_info.get('name')}' (ID: {mat_id})...")
+        resp = await self.safe_query(CMD_STUFF_WORKSHOP_MODULE, REQ_STUFF_WORKSHOP_REFINERY, {"id": mat_id})
+        if not resp or not self._is_resp_ok(resp):
+            return {
+                "success": False,
+                "code": "REFINERY_FAILED",
+                "message": f"فشل بدء تكرير المادة من السيرفر (كود الخطأ: {resp.get('err') if resp else 'None'}).",
+                "response": resp,
+            }
+
+        # مزامنة الذاكرة الحية فورياً
+        res_data = resp.get("result")
+        if isinstance(res_data, dict):
+            stuff_ctrl = self.get_ctrl("stuffWorkshopCtrl")
+            if isinstance(stuff_ctrl, dict):
+                stuff_ctrl.update(res_data)
+            elif hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
+                self.conn.init_data["stuffWorkshopCtrl"] = res_data
+
+        self.log(f"✅ [معمل المواد] تم بدء تكرير '{mat_info.get('name')}' بنجاح!")
+        return {
+            "success": True,
+            "code": "SUCCESS",
+            "material_id": mat_id,
+            "material_name": mat_info.get("name"),
+            "message": f"تم بدء تكرير '{mat_info.get('name')}' بنجاح.",
+            "response": resp,
+        }
+
+    async def cancel_material_workshop_slot(self, pos: int, timeout: float = 5.0) -> Dict[str, Any]:
+        """
+        إلغاء إنتاج مادة في موقع معين بالمعمل (REQ_CANCEL_REFINERY).
+        """
+        if pos <= 0:
+            return {"success": False, "code": "INVALID_POS", "message": "رقم الخانة غير صالح."}
+
+        status = self.get_material_workshop_status()
+        producing_positions = [m["position"] for m in status.get("materials_in_process", [])]
+        if pos not in producing_positions:
+            return {"success": False, "code": "SLOT_EMPTY", "message": f"الخانة #{pos} لا تحتوي على مادة قيد المعالجة."}
+
+        self.log(f"🏭 [معمل المواد] جاري إلغاء معالجة المادة في الخانة #{pos}...")
+        resp = await self.safe_query(CMD_STUFF_WORKSHOP_MODULE, REQ_STUFF_WORKSHOP_CANCEL, {"pos": pos})
+        if not resp or not self._is_resp_ok(resp):
+            return {
+                "success": False,
+                "code": "CANCEL_FAILED",
+                "message": f"فشل إلغاء معالجة المادة من السيرفر (كود الخطأ: {resp.get('err') if resp else 'None'}).",
+                "response": resp,
+            }
+
+        res_data = resp.get("result")
+        if isinstance(res_data, dict):
+            stuff_ctrl = self.get_ctrl("stuffWorkshopCtrl")
+            if isinstance(stuff_ctrl, dict):
+                stuff_ctrl.update(res_data)
+
+        self.log(f"✅ [معمل المواد] تم إلغاء معالجة المادة في الخانة #{pos} بنجاح!")
+        return {
+            "success": True,
+            "code": "SUCCESS",
+            "position": pos,
+            "message": f"تم إلغاء معالجة المادة في الخانة #{pos} بنجاح.",
+            "response": resp,
+        }
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 17. محرك تسريعات إنتاج الموارد والتسريعات العامة (Resource Boost & Speedups Engine)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    def get_resource_boost_speedups(self, resource_type: Optional[str | int] = None) -> Union[int, Dict[str, Any]]:
+        """
+        جلب التسريعات المتوفرة لمضاعفة إنتاج حقول ومناجم القلعة (0-Network Direct Read).
+        تعتمد بنسبة 100% على فحص الحقيبة (backpackCtrl / bagCtrl) في الذاكرة الحية المشحونة مسبقاً.
+
+        المعاملات:
+        ----------
+        resource_type : Optional[str | int]
+            - عند تمرير نوع مورد محدد (مثل: "wheat", "farm", "قمح", "مزرعة", "wood", "خشب",
+              "iron", "حديد", "silver", "فضة", "crystal", "بلور", "الماس", "general", "عام"):
+              تُرجع فوراً إجمالي الثواني المتاحة كرقم صحيح نقي (int).
+            - عند عدم تمريره (None):
+              تُرجع قاموساً شاملاً يحوي إجمالي الثواني لكل مورد كأرقام صحيحة (int)،
+              مع قسم منفصل ومعزول تماماً للتسريعات العامة، بالإضافة إلى تفاصيل البنود.
+
+        القيم المرجعة:
+        -------------
+        - في حالة تحديد المورد: int (عدد الثواني المتاحة)
+        - في الحالة الشاملة (None): Dict[str, Any] يحوي:
+            "wheat": int,
+            "wood": int,
+            "iron": int,
+            "silver": int,
+            "crystal": int,
+            "total_boost_seconds": int,
+            "general": int,
+            "details": Dict[...]
+        """
+        backpack = self.get_ctrl("backpackCtrl") or self.get_ctrl("bagCtrl")
+        if not isinstance(backpack, dict):
+            backpack = {}
+
+        def _read_count(item_id: int | str) -> int:
+            entry = backpack.get(str(item_id)) or backpack.get(int(item_id))
+            if isinstance(entry, dict):
+                try:
+                    return int(entry.get("count", 0))
+                except (ValueError, TypeError):
+                    return 0
+            elif isinstance(entry, (int, str)):
+                try:
+                    return int(entry)
+                except (ValueError, TypeError):
+                    return 0
+            return 0
+
+        # 1. حساب تسريعات مضاعفة إنتاج الحقول والمناجم لكل نوع
+        boost_seconds: Dict[str, int] = {}
+        boost_details: Dict[str, Any] = {}
+        total_boost_sec = 0
+
+        for r_key, cfg in RESOURCE_BOOST_CATALOG.items():
+            iid = cfg["item_id"]
+            cnt = _read_count(iid)
+            sec = cnt * cfg["duration_seconds"]
+            boost_seconds[r_key] = sec
+            total_boost_sec += sec
+            boost_details[r_key] = {
+                "item_id": iid,
+                "name": cfg["name_ar"],
+                "name_en": cfg["name_en"],
+                "count": cnt,
+                "duration_per_item": cfg["duration_seconds"],
+                "total_seconds": sec,
+                "total_hours": round(sec / 3600.0, 2),
+                "total_days": round(sec / 86400.0, 2),
+            }
+
+        # 2. حساب التسريعات العامة ومعالجتها في قسم منفصل ومعزول
+        general_total_sec = 0
+        general_items_detail: List[Dict[str, Any]] = []
+
+        for iid, g_cfg in GENERAL_SPEEDUP_CATALOG.items():
+            cnt = _read_count(iid)
+            if cnt > 0:
+                sec = cnt * g_cfg["seconds"]
+                general_total_sec += sec
+                general_items_detail.append({
+                    "item_id": iid,
+                    "name": g_cfg["name_ar"],
+                    "name_en": g_cfg["name_en"],
+                    "count": cnt,
+                    "seconds_per_item": g_cfg["seconds"],
+                    "total_seconds": sec,
+                    "total_hours": round(sec / 3600.0, 2),
+                })
+
+        # 3. إذا تم تمرير مورد محدد، إرجاع الثواني فقط كرقم صحيح (int)
+        if resource_type is not None:
+            raw_target = str(resource_type).strip()
+            # تجريد "ال" التعريف للبحث المرن بالعربية
+            target_clean = raw_target[2:] if raw_target.startswith("ال") and len(raw_target) > 2 else raw_target
+            matched_key = (
+                RESOURCE_BOOST_KEY_MAP.get(raw_target)
+                or RESOURCE_BOOST_KEY_MAP.get(raw_target.lower())
+                or RESOURCE_BOOST_KEY_MAP.get(target_clean)
+                or RESOURCE_BOOST_KEY_MAP.get(target_clean.lower())
+            )
+
+            if matched_key == "general":
+                return int(general_total_sec)
+            elif matched_key in boost_seconds:
+                return int(boost_seconds[matched_key])
+            elif raw_target.lower() in ("total", "all", "المجموع", "إجمالي", "الكل"):
+                return int(total_boost_sec)
+            return 0
+
+        # 4. النمط الشامل (قاموس مع قيم int صريحة وقسم عام معزول)
+        return {
+            "wheat": int(boost_seconds.get("wheat", 0)),
+            "wood": int(boost_seconds.get("wood", 0)),
+            "iron": int(boost_seconds.get("iron", 0)),
+            "silver": int(boost_seconds.get("silver", 0)),
+            "crystal": int(boost_seconds.get("crystal", 0)),
+            "total_boost_seconds": int(total_boost_sec),
+            "general": int(general_total_sec),
+            "details": {
+                **boost_details,
+                "general": {
+                    "total_seconds": int(general_total_sec),
+                    "total_hours": round(general_total_sec / 3600.0, 2),
+                    "items": general_items_detail,
+                },
+            },
+        }
+
+    def get_resource_buildings_boost_status(self, resource_type: Optional[str | int] = None) -> Dict[str, Any]:
+        """
+        جلب حالة حقول ومناشر ومناجم القلعة المحدثة بالكامل مع تحديد الحقول المدعومة (المفعل فيها تسريع)
+        وغير المدعومة وتفاصيل الثواني المتبقية ومؤشر مهارة اللورد العامة (0-Network Direct Read).
+
+        المعاملات:
+        ----------
+        resource_type : Optional[str | int]
+            - عند تمرير نوع مورد محدد (مثل: "wheat", "farm", "قمح", "مزرعة", "wood", "خشب",
+              "iron", "حديد", "silver", "فضة", "crystal", "بلور"):
+              تُرجع حصراً حقول هذا النوع فقط مع ملخص وإحصائيات دقيقة لها.
+            - عند عدم تمريره (None) أو تمرير "all" أو "الكل":
+              تُرجع تقريراً شاملاً بكافة الحقول والمناجم لجميع الموارد الخمسة.
+
+        القيم المرجعة:
+        -------------
+        Dict[str, Any] يحوي:
+            - target_resource: نوع المورد المفحوص ("all" أو المورد المحدد).
+            - total_fields: إجمالي عدد الحقول المفحوصة.
+            - boosted_count: عدد الحقول المدعومة (مفعل فيها تسريع).
+            - unboosted_count: عدد الحقول غير المدعومة (جاهزة للتسريع).
+            - has_any_boosted: هل يوجد أي حقل مدعوم حالياً؟
+            - global_production_skill: مؤشر مهارة اللورد العامة (إنتاج سريع 12031 / باف 5129).
+            - summary_by_type: ملخص إحصائي تفصيلي لكل نوع حقل ومورد.
+            - fields: قائمة تفصيلية بكافة الحقول مع حالة is_boosted والمستوى والثواني المتبقية.
+            - boosted_fields: قائمة بالحقول المدعومة حالياً فقط.
+            - unboosted_fields: قائمة بالحقول غير المدعومة الجاهزة للتسريع.
+        """
+        now_ts = int(time.time())
+
+        # 1. استخراج وقراءة بافات الذاكرة الحية (buffCtrl و newBuffCtrl)
+        raw_buffs: List[Dict[str, Any]] = []
+        for ctrl_name in ("buffCtrl", "newBuffCtrl"):
+            ctrl_val = self.get_ctrl(ctrl_name)
+            if isinstance(ctrl_val, list):
+                raw_buffs.extend([b for b in ctrl_val if isinstance(b, dict)])
+            elif isinstance(ctrl_val, dict):
+                raw_buffs.extend([b for b in ctrl_val.values() if isinstance(b, dict)])
+
+        active_buffs: List[Dict[str, Any]] = []
+        is_global_skill_active = False
+        global_skill_remaining = 0
+
+        for b in raw_buffs:
+            b_id = int(b.get("id") or b.get("buffId") or b.get("buffID") or 0)
+            item_id = int(b.get("itemId") or b.get("itemID") or 0)
+            begin_t = int(b.get("beginTime") or 0)
+            dur = int(b.get("time") or b.get("duration") or 0)
+            end_t = int(b.get("endTime") or b.get("finishTime") or (begin_t + dur))
+            rem = max(0, end_t - now_ts) if end_t > 0 else 0
+
+            # فحص مهارة اللورد العامة (إنتاج سريع 12031 / باف 5129)
+            if b_id == 5129:
+                if rem > 0 or end_t > now_ts:
+                    is_global_skill_active = True
+                    global_skill_remaining = max(global_skill_remaining, rem)
+
+            if rem <= 0 and end_t > 0:
+                continue
+
+            extra = b.get("extra", {})
+            b_bid = None
+            b_iid = None
+            if isinstance(extra, dict):
+                b_bid = extra.get("bid")
+                b_iid = extra.get("iid")
+            elif isinstance(extra, str):
+                m = re.search(r'bid_(\d+)_iid_(\d+)', extra)
+                if m:
+                    b_bid = int(m.group(1))
+                    b_iid = int(m.group(2))
+
+            if b_bid is None and "bid" in b:
+                b_bid = b["bid"]
+            if b_iid is None and "iid" in b:
+                b_iid = b["iid"]
+
+            active_buffs.append({
+                "buff_id": b_id,
+                "item_id": item_id,
+                "begin_time": begin_t,
+                "duration": dur,
+                "finish_time": end_t,
+                "remaining_seconds": rem,
+                "bid": int(b_bid) if b_bid is not None else None,
+                "iid": int(b_iid) if b_iid is not None else None,
+            })
+
+        # فحص إضافي لمهارة اللورد إنتاج سريع عبر get_lord_skill_status
+        if not is_global_skill_active:
+            try:
+                skill_st = self.get_lord_skill_status(12031)
+                if isinstance(skill_st, dict) and skill_st.get("is_buff_active"):
+                    is_global_skill_active = True
+                    global_skill_remaining = int(skill_st.get("buff_remaining_seconds", 0) or 0)
+            except Exception:
+                pass
+
+        # 2. تحديد الفلتر المطلوب للمورد إن وجد
+        filter_res: Optional[str] = None
+        if resource_type is not None:
+            raw_s = str(resource_type).strip()
+            if raw_s.lower() not in ("all", "*", "الكل", "كل", "جميع"):
+                clean_s = raw_s[2:] if raw_s.startswith("ال") and len(raw_s) > 2 else raw_s
+                filter_res = (
+                    RESOURCE_BOOST_KEY_MAP.get(raw_s)
+                    or RESOURCE_BOOST_KEY_MAP.get(raw_s.lower())
+                    or RESOURCE_BOOST_KEY_MAP.get(clean_s)
+                    or RESOURCE_BOOST_KEY_MAP.get(clean_s.lower())
+                )
+
+        # 3. قراءة مباني وحقول المدينة (cityCtrl.blist)
+        city = self.get_ctrl("cityCtrl")
+        blist = city.get("blist", []) if isinstance(city, dict) else []
+        if not isinstance(blist, list):
+            blist = []
+
+        all_fields: List[Dict[str, Any]] = []
+
+        for b_entry in blist:
+            if not isinstance(b_entry, dict):
+                continue
+            binfo = b_entry.get("binfo", {})
+            if not isinstance(binfo, dict):
+                continue
+
+            bid = int(binfo.get("bid", 0) or 0)
+            if bid not in RESOURCE_BUILDING_METADATA:
+                continue
+
+            meta = RESOURCE_BUILDING_METADATA[bid]
+            r_type = meta["resource"]
+            if filter_res is not None and r_type != filter_res:
+                continue
+
+            iid = int(binfo.get("iid", 0) or 0)
+            lv = int(binfo.get("lv", 0) or 0)
+            star_lv = int(binfo.get("starLv", 0) or 0)
+            idx = int(binfo.get("index", 0) or 0)
+            cur_res = float(binfo.get("curres", 0) or 0.0)
+            state = int(binfo.get("state", 0) or 0)
+
+            # مطابقة الباف الخاص بالحقل
+            is_boosted = False
+            remaining_sec = 0
+            finish_t = 0
+            matched_buff_id = 0
+
+            for buff in active_buffs:
+                if buff["remaining_seconds"] <= 0:
+                    continue
+                # فحص مطابقة الباف لهذا النوع من المباني
+                is_type_match = (
+                    buff["buff_id"] == meta["boost_buff_id"]
+                    or buff["item_id"] == meta["boost_item_id"]
+                    or buff["bid"] == bid
+                )
+                if is_type_match:
+                    if buff["iid"] is not None:
+                        if buff["iid"] == iid:
+                            is_boosted = True
+                            remaining_sec = max(remaining_sec, buff["remaining_seconds"])
+                            finish_t = max(finish_t, buff["finish_time"])
+                            matched_buff_id = buff["buff_id"]
+                    else:
+                        # باف بدون تحديد خانة الحقل (يُطبق على الحقل الأكبر أو كافة حقول النوع)
+                        is_boosted = True
+                        remaining_sec = max(remaining_sec, buff["remaining_seconds"])
+                        finish_t = max(finish_t, buff["finish_time"])
+                        matched_buff_id = buff["buff_id"]
+
+            all_fields.append({
+                "bid": bid,
+                "iid": iid,
+                "index": idx,
+                "resource": r_type,
+                "type_name": meta["name_ar"],
+                "level": lv,
+                "star_level": star_lv,
+                "is_boosted": is_boosted,
+                "remaining_seconds": remaining_sec,
+                "remaining_hours": round(remaining_sec / 3600.0, 2),
+                "finish_time": finish_t,
+                "boost_item_name": meta["boost_item_name"],
+                "boost_item_id": meta["boost_item_id"],
+                "boost_buff_id": matched_buff_id or meta["boost_buff_id"],
+                "cur_res": cur_res,
+                "state": state,
+                "global_skill_active": is_global_skill_active,
+                "effective_boosted": (is_boosted or is_global_skill_active),
+            })
+
+        # ترتيب الحقول: أولاً بنوع المورد، ثم تنازلياً حسب المستوى، ثم حسب رقم الخانة iid
+        all_fields.sort(key=lambda f: (f["bid"], -f["level"], f["iid"]))
+
+        boosted_fields = [f for f in all_fields if f["is_boosted"]]
+        unboosted_fields = [f for f in all_fields if not f["is_boosted"]]
+
+        # 4. إعداد الملخص الإحصائي لكل نوع مورد
+        summary_by_type: Dict[str, Dict[str, Any]] = {}
+        for bid_key, meta in RESOURCE_BUILDING_METADATA.items():
+            r_key = meta["resource"]
+            if filter_res is not None and r_key != filter_res:
+                continue
+            if r_key in summary_by_type:
+                continue
+
+            matching = [f for f in all_fields if f["resource"] == r_key]
+            b_cnt = sum(1 for f in matching if f["is_boosted"])
+            u_cnt = len(matching) - b_cnt
+            max_lv = max([f["level"] for f in matching], default=0)
+
+            summary_by_type[r_key] = {
+                "resource": r_key,
+                "name_ar": meta["plural_ar"],
+                "bid": meta["bid"],
+                "total": len(matching),
+                "boosted": b_cnt,
+                "unboosted": u_cnt,
+                "max_level": max_lv,
+                "boost_item_name": meta["boost_item_name"],
+                "boost_item_id": meta["boost_item_id"],
+            }
+
+        return {
+            "resource_type": filter_res or "all",
+            "total_fields": len(all_fields),
+            "boosted_count": len(boosted_fields),
+            "unboosted_count": len(unboosted_fields),
+            "has_any_boosted": (len(boosted_fields) > 0),
+            "global_production_skill": {
+                "is_active": is_global_skill_active,
+                "remaining_seconds": global_skill_remaining,
+                "remaining_minutes": round(global_skill_remaining / 60.0, 1),
+                "skill_id": 12031,
+                "buff_id": 5129,
+                "name_ar": "إنتاج سريع",
+            },
+            "summary_by_type": summary_by_type,
+            "fields": all_fields,
+            "boosted_fields": boosted_fields,
+            "unboosted_fields": unboosted_fields,
+        }
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 18. محرك حزم وباقات طاقة اللورد (Stamina Packs Engine)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    def get_available_stamina_packs(
+        self, pack_type: Optional[str | int] = None
+    ) -> Union[int, Dict[str, Any]]:
+        """
+        جلب حزم وباقات طاقة اللورد المتاحة في حقيبة القلعة (0-Network Direct Read).
+        تعتمد بنسبة 100% على فحص الحقيبة (backpackCtrl / bagCtrl) في الذاكرة الحية المشحونة مسبقاً.
+
+        المعاملات:
+        ----------
+        pack_type : Optional[str | int]
+            - عند تمرير فئة محددة ("10", "50", "100", 10, 50, 100, "300401", "10 طاقة", إلخ):
+              تُرجع إجمالي نقاط الطاقة المتاحة من هذه الفئة كرقم صحيح نقي (int).
+            - عند تمرير "total", "all", "المجموع", "إجمالي", "الكل", "طاقة":
+              تُرجع إجمالي نقاط الطاقة المتاحة عبر كافة الحزم كرقم صحيح نقي (int).
+            - عند عدم تمريره (None):
+              تُرجع قاموساً شاملاً يحوي:
+                "total_stamina": int (مجموع نقاط الطاقة لكافة الحزم)
+                "total_packs": int (مجموع عدد الحزم كقطع)
+                "10": int (مجموع نقاط الطاقة من حزم الـ 10)
+                "50": int (مجموع نقاط الطاقة من حزم الـ 50)
+                "100": int (مجموع نقاط الطاقة من حزم الـ 100)
+                "details": Dict مع "10", "50", "100" يحوي (item_id, name, name_en, stamina_per_item, count, total_stamina)
+            - إذا كان النوع غير معروف أو غير متوفر: تُرجع 0.
+        """
+        backpack = self.get_ctrl("backpackCtrl") or self.get_ctrl("bagCtrl")
+        if not isinstance(backpack, dict):
+            backpack = {}
+
+        def _read_count(item_id: int | str) -> int:
+            entry = backpack.get(str(item_id)) or backpack.get(int(item_id))
+            if isinstance(entry, dict):
+                try:
+                    return int(entry.get("count", 0))
+                except (ValueError, TypeError):
+                    return 0
+            elif isinstance(entry, (int, str)):
+                try:
+                    return int(entry)
+                except (ValueError, TypeError):
+                    return 0
+            return 0
+
+        total_stamina = 0
+        total_packs = 0
+        tier_stamina: Dict[str, int] = {}
+        details: Dict[str, Dict[str, Any]] = {}
+
+        for tier in ("10", "50", "100"):
+            cfg = STAMINA_PACKS_CATALOG[tier]
+            iid = cfg["item_id"]
+            cnt = _read_count(iid)
+            val = cfg["stamina_value"]
+            tier_pts = cnt * val
+
+            tier_stamina[tier] = tier_pts
+            total_stamina += tier_pts
+            total_packs += cnt
+
+            details[tier] = {
+                "item_id": iid,
+                "name": cfg["name"],
+                "name_en": cfg["name_en"],
+                "stamina_per_item": val,
+                "count": cnt,
+                "total_stamina": tier_pts,
+            }
+
+        # إذا تم تمرير pack_type محدد
+        if pack_type is not None:
+            raw_target = str(pack_type).strip() if not isinstance(pack_type, int) else pack_type
+            matched_key = (
+                STAMINA_PACKS_KEY_MAP.get(pack_type)
+                or STAMINA_PACKS_KEY_MAP.get(raw_target)
+                or STAMINA_PACKS_KEY_MAP.get(str(raw_target).lower())
+            )
+            if not matched_key and isinstance(raw_target, str):
+                target_clean = raw_target[2:] if raw_target.startswith("ال") and len(raw_target) > 2 else raw_target
+                matched_key = (
+                    STAMINA_PACKS_KEY_MAP.get(target_clean)
+                    or STAMINA_PACKS_KEY_MAP.get(target_clean.lower())
+                )
+
+            if matched_key == "total":
+                return int(total_stamina)
+            elif matched_key in tier_stamina:
+                return int(tier_stamina[matched_key])
+            return 0
+
+        # النمط الشامل (pack_type is None)
+        return {
+            "total_stamina": int(total_stamina),
+            "total_packs": int(total_packs),
+            "10": int(tier_stamina.get("10", 0)),
+            "50": int(tier_stamina.get("50", 0)),
+            "100": int(tier_stamina.get("100", 0)),
+            "details": details,
+        }
+
+
+
 
 

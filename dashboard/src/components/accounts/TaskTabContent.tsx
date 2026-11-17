@@ -5,7 +5,7 @@ import { Toggle } from '../ui/Toggle'
 import { TaskTabs, TABS } from './TaskTabs'
 import { useUpdateCastleConfig } from '../../hooks/useCastles'
 import { updateCastle } from '../../lib/botApi'
-import type { Castle, TaskTab, CastleConfig, AbraConfig } from '../../types'
+import type { Castle, TaskTab, CastleConfig, AbraConfig, StaminaConfig } from '../../types'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { localizeApiError } from '../../lib/localize'
@@ -543,18 +543,16 @@ export const PET_TARGETS = [
   { id: 1268, name: 'الغوريلا',            emoji: '🦍' },
 ] as const
 
-const STAMINA_GOLD_OPTIONS = [
-  { count: 1,  gold: 60 },
-  { count: 2,  gold: 150 },
-  { count: 3,  gold: 270 },
-  { count: 4,  gold: 420 },
-  { count: 5,  gold: 600 },
-  { count: 6,  gold: 810 },
-  { count: 7,  gold: 1050 },
-  { count: 8,  gold: 1320 },
-  { count: 9,  gold: 1620 },
-  { count: 10, gold: 1950 },
-]
+const WORKSHOP_MATERIALS = [
+  { id: 200101, labelKey: 'tasks.herb',       img: '/images/materials/2001.png' },
+  { id: 200201, labelKey: 'tasks.purpleWood', img: '/images/materials/2002.png' },
+  { id: 200301, labelKey: 'tasks.bronze',     img: '/images/materials/2003.png' },
+  { id: 200401, labelKey: 'tasks.ruby',       img: '/images/materials/2004.png' },
+  { id: 200501, labelKey: 'tasks.fur',        img: '/images/materials/2005.png' },
+  { id: 200601, labelKey: 'tasks.horn',       img: '/images/materials/2006.png' },
+] as const
+
+const DEFAULT_WORKSHOP_MATERIAL_IDS = WORKSHOP_MATERIALS.map(m => m.id)
 
 export const EQUIPMENT_CATEGORIES = [
   { key: 'weapon',   labelKey: 'tasks.equipWeapon',   img: '/images/daily/equip/weapon.png' },
@@ -564,6 +562,37 @@ export const EQUIPMENT_CATEGORIES = [
   { key: 'shoes',    labelKey: 'tasks.equipShoes',    img: '/images/daily/equip/shoes.png' },
   { key: 'ring',     labelKey: 'tasks.equipRing',     img: '/images/daily/equip/ring.png' },
 ] as const
+
+export interface LordSkillDef {
+  id: string
+  img: string
+  labelKey: string
+  category: 'battle' | 'develop' | 'auxiliary'
+}
+
+export const LORD_SKILLS: LordSkillDef[] = [
+  // ⚔️ قتال (Battle - 6)
+  { id: '11011', img: '/images/skills/lord/Battle_11.png', labelKey: 'tasks.skill11011', category: 'battle' },
+  { id: '11028', img: '/images/skills/lord/Battle_28.png', labelKey: 'tasks.skill11028', category: 'battle' },
+  { id: '11029', img: '/images/skills/lord/Battle_29.png', labelKey: 'tasks.skill11029', category: 'battle' },
+  { id: '11042', img: '/images/skills/lord/Battle_42.png', labelKey: 'tasks.skill11042', category: 'battle' },
+  { id: '11056', img: '/images/skills/lord/Battle_44.png', labelKey: 'tasks.skill11056', category: 'battle' },
+  { id: '11057', img: '/images/skills/lord/Battle_45.png', labelKey: 'tasks.skill11057', category: 'battle' },
+
+  // 🌾 تطوير (Develop - 5)
+  { id: '12008', img: '/images/skills/lord/Develop_8.png', labelKey: 'tasks.skill12008', category: 'develop' },
+  { id: '12022', img: '/images/skills/lord/Develop_22.png', labelKey: 'tasks.skill12022', category: 'develop' },
+  { id: '12023', img: '/images/skills/lord/Develop_23.png', labelKey: 'tasks.skill12023', category: 'develop' },
+  { id: '12031', img: '/images/skills/lord/Develop_31.png', labelKey: 'tasks.skill12031', category: 'develop' },
+  { id: '12042', img: '/images/skills/lord/Develop_42.png', labelKey: 'tasks.skill12042', category: 'develop' },
+
+  // 🛡️ دعم (Auxiliary - 5)
+  { id: '13020', img: '/images/skills/lord/Assist_20.png', labelKey: 'tasks.skill13020', category: 'auxiliary' },
+  { id: '13021', img: '/images/skills/lord/Assist_21.png', labelKey: 'tasks.skill13021', category: 'auxiliary' },
+  { id: '13022', img: '/images/skills/lord/Assist_22.png', labelKey: 'tasks.skill13022', category: 'auxiliary' },
+  { id: '13032', img: '/images/skills/lord/Assist_32.png', labelKey: 'tasks.skill13032', category: 'auxiliary' },
+  { id: '13040', img: '/images/skills/lord/Assist_33.png', labelKey: 'tasks.skill13040', category: 'auxiliary' },
+]
 
 // ─── Style constants ─────────────────────────────────────────────────────────
 
@@ -609,6 +638,7 @@ function TaskTabContentInner({
   const [internalTab, setInternalTab] = useState<TaskTab>(externalTab || initialTab)
   const [coordsError, setCoordsError] = useState(false)
   const [isSavingBatch, setIsSavingBatch] = useState(false)
+  const [activeSkillCategory, setActiveSkillCategory] = useState<'all' | 'battle' | 'develop' | 'auxiliary'>('all')
 
   // حالة القائمة المنسدلة: مهمة واحدة فقط يمكن فتح خياراتها في الوقت نفسه
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>('fountain')
@@ -686,6 +716,9 @@ function TaskTabContentInner({
     const heroTrialDraft = (currentDraft as any)?.hero_trial
     const commandHallDraft = (currentDraft as any)?.command_hall
     const watermillDraft = (currentDraft as any)?.watermill
+    const skillsDraft = (currentDraft as any)?.skills
+    const materialWorkshopDraft = (currentDraft as any)?.material_workshop
+    const staminaDraft = (currentDraft as any)?.stamina
     isSavingRef.current = true
     setSaveStatus('saving')
     try {
@@ -708,6 +741,9 @@ function TaskTabContentInner({
         hero_trial: heroTrialDraft,
         command_hall: commandHallDraft,
         watermill: watermillDraft,
+        skills: skillsDraft,
+        material_workshop: materialWorkshopDraft,
+        stamina: staminaDraft,
       } as any)
       lastSavedConfigRef.current = JSON.parse(JSON.stringify(currentDraft))
       setSavedConfig(JSON.parse(JSON.stringify(currentDraft)))
@@ -896,6 +932,9 @@ function TaskTabContentInner({
     const heroTrialConfig = (draftConfig as any)?.hero_trial
     const commandHallConfig = (draftConfig as any)?.command_hall
     const watermillConfig = (draftConfig as any)?.watermill
+    const skillsConfig = (draftConfig as any)?.skills
+    const materialWorkshopConfig = (draftConfig as any)?.material_workshop
+    const staminaConfig = (draftConfig as any)?.stamina
     const payloadToSave = {
       ...(fountainConfig !== undefined ? { fountain: fountainConfig } : {}),
       ...(trainConfig !== undefined ? { train: trainConfig } : {}),
@@ -915,6 +954,9 @@ function TaskTabContentInner({
       ...(heroTrialConfig !== undefined ? { hero_trial: heroTrialConfig } : {}),
       ...(commandHallConfig !== undefined ? { command_hall: commandHallConfig } : {}),
       ...(watermillConfig !== undefined ? { watermill: watermillConfig } : {}),
+      ...(skillsConfig !== undefined ? { skills: skillsConfig } : {}),
+      ...(materialWorkshopConfig !== undefined ? { material_workshop: materialWorkshopConfig } : {}),
+      ...(staminaConfig !== undefined ? { stamina: staminaConfig } : {}),
     }
     try {
       if (isBatchMode) {
@@ -1266,7 +1308,7 @@ function TaskTabContentInner({
             </div>
 
             {/* شبكة بطاقات الموارد الأربعة */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="gap-2 grid grid-cols-2 sm:grid-cols-4">
               {WATERMILL_BOOST_RESOURCES.map(r => {
                 const isSelected = selectedRes.includes(r.key)
                 return (
@@ -1415,64 +1457,202 @@ function TaskTabContentInner({
           </div>
         </TaskRow>
 
-        {/* القدرة على التحمل (Stamina) */}
+        {/* طاقة القلعة (Stamina Management) */}
         {(() => {
-          const currentCount = (cfg.stamina.gold_buys && cfg.stamina.gold_buys >= 1) ? cfg.stamina.gold_buys : 1
+          const rawStamina = (cfg.stamina || {}) as Partial<StaminaConfig>
+          const staminaCfg = {
+            enabled: Boolean(rawStamina.enabled),
+            min_stamina: typeof rawStamina.min_stamina === 'number' ? rawStamina.min_stamina : 100,
+            mode: (rawStamina.mode === 'manual' ? 'manual' : 'auto') as 'auto' | 'manual',
+            pack_tier: (['10', '50', '100'].includes(String(rawStamina.pack_tier)) ? String(rawStamina.pack_tier) : '50') as '10' | '50' | '100',
+            pack_count: typeof rawStamina.pack_count === 'number' ? rawStamina.pack_count : 1,
+            allow_buy: Boolean(rawStamina.allow_buy),
+            max_gold_daily: typeof rawStamina.max_gold_daily === 'number' ? rawStamina.max_gold_daily : 1000,
+          }
 
           return (
             <TaskRow
+              id="stamina"
               img="/images/daily/dayaniklilik_2.png"
-              label={t('tasks.staminaManagement')}
-              enabled={cfg.stamina.enabled}
+              label={t('tasks.stamina.title', 'طاقة القلعة')}
+              description={t('tasks.stamina.desc', 'إدارة وتعبئة طاقة القلعة تلقائياً بالحزم أو الذهب')}
+              enabled={staminaCfg.enabled}
               onToggle={toggle('stamina')}
+              comingSoon={false}
             >
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                paddingTop: '2px',
-              }}>
-                <img
-                  src="/images/daily/dayaniklilik_1.png"
-                  alt=""
-                  style={{ width: '26px', height: '26px', objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 0 6px rgba(var(--theme-primary-rgb),0.4))' }}
-                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                />
-                <select
-                  value={currentCount}
-                  className="task-stamina-select"
-                  onChange={e => update('stamina', { gold_buys: Number(e.target.value) })}
-                  style={{
-                    flex: 1,
-                    background: '#0d130e',
-                    border: '1.5px solid #f59e0b',
-                    borderRadius: '8px',
-                    padding: '6px 10px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    color: '#ffffff',
-                    outline: 'none',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    boxShadow: '0 0 8px rgba(245, 158, 11, 0.15)',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {STAMINA_GOLD_OPTIONS.map(opt => (
-                    <option
-                      key={opt.count}
-                      value={opt.count}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
+                {/* الحد الأدنى لطاقة القلعة */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <span style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 500 }}>
+                    {t('tasks.stamina.minStaminaLabel', 'الحد الأدنى لطاقة القلعة')}
+                  </span>
+                  <Stepper
+                    value={staminaCfg.min_stamina}
+                    min={10}
+                    max={500}
+                    step={10}
+                    onChange={v => update('stamina', { min_stamina: v })}
+                  />
+                </div>
+
+                {/* نمط التعبئة (تلقائي / يدوي) */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <span style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 500 }}>
+                    {t('tasks.stamina.modeLabel', 'نمط التعبئة')}
+                  </span>
+                  <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '2px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <button
+                      type="button"
+                      onClick={() => update('stamina', { mode: 'auto' }, 150)}
                       style={{
-                        background: '#121a14',
-                        color: '#ffffff',
-                        fontSize: '12px',
-                        padding: '6px',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: staminaCfg.mode !== 'manual' ? 600 : 400,
+                        background: staminaCfg.mode !== 'manual' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                        border: staminaCfg.mode !== 'manual' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid transparent',
+                        color: staminaCfg.mode !== 'manual' ? '#60a5fa' : '#94a3b8',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
                       }}
                     >
-                      {t('tasks.staminaOption', { count: opt.count, gold: opt.gold })}
-                    </option>
-                  ))}
-                </select>
+                      {t('tasks.stamina.modeAuto', 'تلقائي (حسب العجز)')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => update('stamina', { mode: 'manual' }, 150)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: staminaCfg.mode === 'manual' ? 600 : 400,
+                        background: staminaCfg.mode === 'manual' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                        border: staminaCfg.mode === 'manual' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid transparent',
+                        color: staminaCfg.mode === 'manual' ? '#60a5fa' : '#94a3b8',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {t('tasks.stamina.modeManual', 'يدوي (حزمة محددة)')}
+                    </button>
+                  </div>
+                </div>
+
+                {/* خيارات النمط اليدوي: فئة الحزمة وعدد الحزم */}
+                {staminaCfg.mode === 'manual' && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    padding: '8px 10px',
+                    background: 'rgba(59, 130, 246, 0.05)',
+                    border: '1px solid rgba(59, 130, 246, 0.15)',
+                    borderRadius: '8px',
+                  }}>
+                    {/* اختيار فئة الحزمة */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 500 }}>
+                        {t('tasks.stamina.packTierLabel', 'فئة حزمة الطاقة')}
+                      </span>
+                      <div style={{ display: 'inline-flex', gap: '4px' }}>
+                        {(['10', '50', '100'] as const).map(tier => {
+                          const isSelected = staminaCfg.pack_tier === tier
+                          return (
+                            <button
+                              key={tier}
+                              type="button"
+                              onClick={() => update('stamina', { pack_tier: tier }, 150)}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                fontWeight: isSelected ? 600 : 400,
+                                background: isSelected ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255,255,255,0.04)',
+                                border: isSelected ? '1px solid rgba(59, 130, 246, 0.5)' : '1px solid rgba(255,255,255,0.08)',
+                                color: isSelected ? '#93c5fd' : '#94a3b8',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              {tier === '10' && t('tasks.stamina.tier10', '10 طاقة')}
+                              {tier === '50' && t('tasks.stamina.tier50', '50 طاقة')}
+                              {tier === '100' && t('tasks.stamina.tier100', '100 طاقة')}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* عدد الحزم للاستهلاك */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      <span style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 500 }}>
+                        {t('tasks.stamina.packCountLabel', 'عدد الحزم للاستهلاك')}
+                      </span>
+                      <Stepper
+                        value={staminaCfg.pack_count}
+                        min={1}
+                        max={50}
+                        step={1}
+                        onChange={v => update('stamina', { pack_count: v })}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* خيار الشراء بالذهب وسقف الذهب اليومي */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  padding: '6px 10px',
+                  background: staminaCfg.allow_buy ? 'rgba(234, 179, 8, 0.08)' : 'rgba(255,255,255,0.03)',
+                  border: staminaCfg.allow_buy ? '1px solid rgba(234, 179, 8, 0.25)' : '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '8px',
+                  transition: 'all 0.15s ease',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <img
+                        src="/images/fountain/gold.png"
+                        alt="Gold"
+                        style={{
+                          width: '18px',
+                          height: '18px',
+                          objectFit: 'contain',
+                          filter: staminaCfg.allow_buy ? 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.6))' : 'grayscale(70%) opacity(0.6)',
+                        }}
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                      <span style={{
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        color: staminaCfg.allow_buy ? '#fbbf24' : '#e2e8f0',
+                      }}>
+                        {t('tasks.stamina.allowBuyLabel', 'السماح بالشراء بالذهب عند نفاذ الحزم')}
+                      </span>
+                    </div>
+                    <Toggle
+                      value={staminaCfg.allow_buy}
+                      onChange={v => update('stamina', { allow_buy: v })}
+                      size="sm"
+                    />
+                  </div>
+
+                  {staminaCfg.allow_buy && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', paddingTop: '4px', borderTop: '1px solid rgba(234, 179, 8, 0.12)' }}>
+                      <span style={{ fontSize: '11px', color: '#fde68a', fontWeight: 500 }}>
+                        {t('tasks.stamina.maxGoldDailyLabel', 'سقف الذهب اليومي')}
+                      </span>
+                      <Stepper
+                        value={staminaCfg.max_gold_daily}
+                        min={100}
+                        max={10000}
+                        step={100}
+                        onChange={v => update('stamina', { max_gold_daily: v })}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </TaskRow>
           )
@@ -2002,13 +2182,13 @@ function TaskTabContentInner({
           emoji="🏛️"
           img="/images/daily/command_hall.png"
           label={t('tasks.command_hall.title', 'مهام قاعة القيادة')}
-          description={t('tasks.command_hall.desc', 'إنجاز مهام قاعة القيادة الفورية المجانية واستلام الجوائز لإتمام مهمة النشاط اليومي')}
+          description={t('tasks.command_hall.desc', 'إنجاز مهام قاعة القيادة واستلام الجوائز لإتمام مهمة النشاط اليومي وترقية القاعة')}
           enabled={Boolean(ch.enabled)}
           onToggle={toggle('command_hall' as any)}
           comingSoon={false}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '2px' }}>
-            {/* نمط التنفيذ: النشاط اليومي فقط (3 مهام) أو دورة كاملة */}
+            {/* نمط التنفيذ: النشاط اليومي (دورة واحدة يومياً) أو دورة كاملة مستمرة */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
               <span style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 500 }}>
                 {t('tasks.command_hall.modeLabel', 'نمط التنفيذ')}
@@ -2029,7 +2209,7 @@ function TaskTabContentInner({
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  {t('tasks.command_hall.modeDaily', 'النشاط اليومي (3 مهام)')}
+                  {t('tasks.command_hall.modeDaily', 'النشاط اليومي (دورة واحدة يومياً)')}
                 </button>
                 <button
                   type="button"
@@ -2046,39 +2226,64 @@ function TaskTabContentInner({
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  {t('tasks.command_hall.modeFull', 'دورة كاملة')}
+                  {t('tasks.command_hall.modeFull', 'دورة كاملة مستمرة')}
                 </button>
               </div>
             </div>
 
-            {/* خيار السماح بالمسير القتالي يظهر فقط عند اختيار دورة كاملة */}
-            {ch.mode === 'full' && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '6px 10px',
-                background: ch.allow_marches ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.03)',
-                border: ch.allow_marches ? '1px solid rgba(239,68,68,0.25)' : '1px solid rgba(255,255,255,0.06)',
-                borderRadius: '8px',
-                transition: 'all 0.15s ease',
-              }}>
-                <div>
-                  <div style={{
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    color: ch.allow_marches ? '#f87171' : '#e2e8f0',
-                  }}>
-                    {t('tasks.command_hall.allowMarches', 'السماح بإرسال فيالق للمهام القتالية عند توفر جنود وطوابير')}
-                  </div>
+            {/* خيار السماح بالمسير القتالي للمعارك */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '6px 10px',
+              background: ch.allow_marches ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.03)',
+              border: ch.allow_marches ? '1px solid rgba(239,68,68,0.25)' : '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '8px',
+              transition: 'all 0.15s ease',
+            }}>
+              <div>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: ch.allow_marches ? '#f87171' : '#e2e8f0',
+                }}>
+                  {t('tasks.command_hall.allowMarches', 'السماح بإرسال فيالق للمهام القتالية عند توفر جنود وطوابير')}
                 </div>
-                <Toggle
-                  value={Boolean(ch.allow_marches)}
-                  onChange={v => update('command_hall' as any, { allow_marches: v })}
-                  size="sm"
-                />
               </div>
-            )}
+              <Toggle
+                value={Boolean(ch.allow_marches)}
+                onChange={v => update('command_hall' as any, { allow_marches: v })}
+                size="sm"
+              />
+            </div>
+
+            {/* خيار الترقية التلقائية لمستوى قاعة القيادة */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '6px 10px',
+              background: ch.auto_upgrade_hall !== false ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.03)',
+              border: ch.auto_upgrade_hall !== false ? '1px solid rgba(59,130,246,0.25)' : '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '8px',
+              transition: 'all 0.15s ease',
+            }}>
+              <div>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: ch.auto_upgrade_hall !== false ? '#60a5fa' : '#e2e8f0',
+                }}>
+                  {t('tasks.command_hall.autoUpgradeHall', 'ترقية مستوى قاعة القيادة تلقائياً عند اكتمال النقاط المطلوبة')}
+                </div>
+              </div>
+              <Toggle
+                value={Boolean(ch.auto_upgrade_hall !== false)}
+                onChange={v => update('command_hall' as any, { auto_upgrade_hall: v })}
+                size="sm"
+              />
+            </div>
           </div>
         </TaskRow>
 
@@ -2101,21 +2306,76 @@ function TaskTabContentInner({
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'building') {
     const bld = cfg.building
-    const sk = cfg.skills
+    const sk = cfg.skills || { enabled: false, target_skills: [] }
+    const targetSkills = Array.isArray(sk.target_skills) ? sk.target_skills : []
 
-    const toggleSkill = (skill: string) => {
-      const current = sk.target_skills
-      const next = current.includes(skill) ? current.filter(x => x !== skill) : [...current, skill]
+    const mw = (cfg as any).material_workshop || { enabled: false, selected_materials: DEFAULT_WORKSHOP_MATERIAL_IDS }
+    const selectedMaterials: number[] = Array.isArray(mw.selected_materials) && mw.selected_materials.length > 0
+      ? mw.selected_materials
+      : DEFAULT_WORKSHOP_MATERIAL_IDS
+
+    const toggleMaterial = (id: number) => {
+      let next: number[]
+      if (selectedMaterials.includes(id)) {
+        if (selectedMaterials.length <= 1) {
+          return
+        }
+        next = selectedMaterials.filter((x: number) => x !== id)
+      } else {
+        next = [...selectedMaterials, id]
+      }
+      update('material_workshop' as any, { selected_materials: next })
+    }
+
+    const selectAllMaterials = () => {
+      update('material_workshop' as any, { selected_materials: [...DEFAULT_WORKSHOP_MATERIAL_IDS] })
+    }
+
+    const isSkillSelected = (id: string) => {
+      if (targetSkills.includes(id)) return true
+      if (id === '12008' && (targetSkills.includes('harvest') || targetSkills.includes('warehouse'))) return true
+      if (id === '12022' && (targetSkills.includes('gather') || targetSkills.includes('fast_dig'))) return true
+      if (id === '13021' && targetSkills.includes('stamina')) return true
+      return false
+    }
+
+    const toggleLordSkill = (id: string) => {
+      const selected = isSkillSelected(id)
+      let next: string[]
+      if (selected) {
+        next = targetSkills.filter(x => x !== id && x !== 'harvest' && x !== 'gather' && x !== 'warehouse' && x !== 'stamina' && x !== 'fast_dig')
+      } else {
+        next = [...targetSkills, id]
+      }
       update('skills', { target_skills: next })
     }
 
-    const skillDefs = [
-      { key: 'harvest',   img: '/images/development/hasatet.png',        labelKey: 'tasks.harvestBonus' },
-      { key: 'gather',    img: '/images/development/hizlitopla.png',     labelKey: 'tasks.rapidGatherBonus' },
-      { key: 'warehouse', img: '/images/development/tamponhasat.png',    labelKey: 'tasks.warehouseHarvestBonus' },
-      { key: 'stamina',   img: '/images/development/ikincil_ruzgar.png', labelKey: 'tasks.abundantStaminaBonus' },
-      { key: 'fast_dig',  img: '/images/development/hizlikazi.png',       labelKey: 'tasks.fastDig' },
-    ]
+    const filteredSkills = activeSkillCategory === 'all'
+      ? LORD_SKILLS
+      : LORD_SKILLS.filter(s => s.category === activeSkillCategory)
+
+    const selectAllFilteredSkills = () => {
+      const idsToAdd = filteredSkills.map(s => s.id)
+      const merged = Array.from(new Set([...targetSkills, ...idsToAdd]))
+      update('skills', { target_skills: merged })
+    }
+
+    const deselectAllFilteredSkills = () => {
+      const idsToRemove = new Set(filteredSkills.map(s => s.id))
+      if (activeSkillCategory === 'all' || activeSkillCategory === 'develop') {
+        idsToRemove.add('harvest')
+        idsToRemove.add('gather')
+        idsToRemove.add('warehouse')
+        idsToRemove.add('fast_dig')
+      }
+      if (activeSkillCategory === 'all' || activeSkillCategory === 'auxiliary') {
+        idsToRemove.add('stamina')
+      }
+      const next = targetSkills.filter(x => !idsToRemove.has(x))
+      update('skills', { target_skills: next })
+    }
+
+    const selectedSkillsCount = LORD_SKILLS.filter(s => isSkillSelected(s.id)).length
 
     const targetBuildings = bld.target_buildings ?? {
       farm: true,
@@ -2476,19 +2736,375 @@ function TaskTabContentInner({
           comingSoon={false}
         />
 
-        {/* Skills (مكافآت) */}
-        {skillDefs.map(s => (
-          <TaskRow
-            key={s.key}
-            img={s.img}
-            label={t(s.labelKey)}
-            enabled={sk.enabled && sk.target_skills.includes(s.key)}
-            onToggle={v => {
-              if (!sk.enabled) update('skills', { enabled: true })
-              toggleSkill(s.key)
+        {/* مهارات الأمير (Lord Skills) */}
+        <TaskRow
+          id="skills"
+          img="/images/skills/lord/Develop_8.png"
+          label={t('tasks.lordSkills', 'مهارات الأمير')}
+          description={t('tasks.lordSkillsDesc', 'تفعيل المهارات النشطة تلقائياً مع التبديل الذكي للأطقم')}
+          enabled={Boolean(sk.enabled)}
+          onToggle={v => update('skills', { enabled: v })}
+          comingSoon={false}
+        >
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              paddingTop: '4px',
             }}
-          />
-        ))}
+          >
+            {/* بار التصنيفات وأزرار تحديد الكل */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '8px',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                paddingBottom: '8px',
+              }}
+            >
+              {/* تصنيفات المهارات: الكل، قتال، تطوير، دعم */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                {[
+                  { key: 'all', label: t('common.all', 'الكل'), emoji: '🌟', count: 16 },
+                  { key: 'battle', label: t('tasks.skillCategoryBattle', 'قتال'), emoji: '⚔️', count: 6 },
+                  { key: 'develop', label: t('tasks.skillCategoryDevelop', 'تطوير'), emoji: '🌾', count: 5 },
+                  { key: 'auxiliary', label: t('tasks.skillCategoryAuxiliary', 'دعم'), emoji: '🛡️', count: 5 },
+                ].map(cat => {
+                  const isActive = activeSkillCategory === cat.key
+                  return (
+                    <button
+                      key={cat.key}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveSkillCategory(cat.key as any)
+                      }}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '11px',
+                        fontWeight: isActive ? 600 : 400,
+                        borderRadius: '6px',
+                        border: isActive ? '1px solid rgba(var(--theme-primary-rgb),0.5)' : '1px solid rgba(255,255,255,0.08)',
+                        background: isActive ? 'rgba(var(--theme-primary-rgb),0.15)' : 'rgba(255,255,255,0.03)',
+                        color: isActive ? 'var(--theme-primary-light)' : '#9ca3af',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>{cat.emoji}</span>
+                      <span>{cat.label}</span>
+                      <span style={{ opacity: 0.7, fontSize: '10px' }}>({cat.count})</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* عداد المهارات المختارة وأزرار التحديد السريع */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+                  ({selectedSkillsCount}/16)
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (!sk.enabled) update('skills', { enabled: true })
+                    selectAllFilteredSkills()
+                  }}
+                  style={{
+                    padding: '3px 8px',
+                    fontSize: '11px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(var(--theme-primary-rgb),0.3)',
+                    background: 'rgba(var(--theme-primary-rgb),0.08)',
+                    color: 'var(--theme-primary-light)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('common.selectAll', 'تحديد الكل')}
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    deselectAllFilteredSkills()
+                  }}
+                  style={{
+                    padding: '3px 8px',
+                    fontSize: '11px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: 'rgba(255,255,255,0.04)',
+                    color: '#9ca3af',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('common.deselectAll', 'إلغاء الكل')}
+                </button>
+              </div>
+            </div>
+
+            {/* شبكة كروت المهارات */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                gap: '8px',
+              }}
+            >
+              {filteredSkills.map(skill => {
+                const selected = isSkillSelected(skill.id)
+                return (
+                  <button
+                    key={skill.id}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (!sk.enabled) update('skills', { enabled: true })
+                      toggleLordSkill(skill.id)
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '10px 8px',
+                      borderRadius: '10px',
+                      border: selected
+                        ? '1.5px solid rgba(var(--theme-primary-rgb),0.6)'
+                        : '1px solid rgba(255,255,255,0.08)',
+                      background: selected
+                        ? 'rgba(var(--theme-primary-rgb),0.12)'
+                        : 'rgba(255,255,255,0.03)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      position: 'relative',
+                    }}
+                  >
+                    {/* أيقونة المهارة */}
+                    <img
+                      src={skill.img}
+                      alt={t(skill.labelKey)}
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        objectFit: 'contain',
+                        filter: selected ? 'none' : 'grayscale(30%) opacity(0.85)',
+                      }}
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+
+                    {/* اسم المهارة */}
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: selected ? 600 : 400,
+                        color: selected ? 'var(--theme-primary-light)' : '#9ca3af',
+                        textAlign: 'center',
+                        lineHeight: '1.2',
+                      }}
+                    >
+                      {t(skill.labelKey)}
+                    </span>
+
+                    {/* علامة التحديد الصغيرة */}
+                    {selected && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '4px',
+                          width: '14px',
+                          height: '14px',
+                          borderRadius: '50%',
+                          background: 'var(--theme-primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          fontSize: '9px',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        ✓
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </TaskRow>
+
+        {/* معمل المواد (Material Workshop) — قائمة قابلة للطي والفتح (مغلقة افتراضياً) */}
+        <TaskRow
+          id="material_workshop"
+          img="/images/materials/2003.png"
+          label={t('tasks.materialWorkshop', 'معمل المواد')}
+          description={t('tasks.materialWorkshopDesc', 'تكرير وإنتاج المواد وتعبئة الخانات الشاغرة تلقائياً')}
+          enabled={Boolean(mw.enabled)}
+          onToggle={v => update('material_workshop' as any, { enabled: v })}
+          comingSoon={false}
+          badge={
+            <span
+              style={{
+                fontSize: '11px',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                background: selectedMaterials.length > 0 ? 'rgba(var(--theme-primary-rgb),0.15)' : 'rgba(255,255,255,0.06)',
+                color: selectedMaterials.length > 0 ? 'var(--theme-primary-light)' : '#9ca3af',
+                border: '1px solid rgba(var(--theme-primary-rgb),0.2)',
+                fontWeight: 600,
+              }}
+            >
+              {selectedMaterials.length} / {WORKSHOP_MATERIALS.length}
+            </span>
+          }
+        >
+          {/* محتوى القائمة القابلة للفتح والغلق (المواد المراد إنتاجها) */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              paddingTop: '4px',
+            }}
+          >
+            {/* بار الرأس وزر تحديد الكل */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '8px',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                paddingBottom: '8px',
+              }}
+            >
+              <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+                {t('tasks.selectedMaterials', 'المواد المراد إنتاجها وتكريرها')}
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  selectAllMaterials()
+                }}
+                style={{
+                  padding: '3px 8px',
+                  fontSize: '11px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(var(--theme-primary-rgb),0.3)',
+                  background: 'rgba(var(--theme-primary-rgb),0.08)',
+                  color: 'var(--theme-primary-light)',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('common.selectAll', 'تحديد الكل')}
+              </button>
+            </div>
+
+            {/* شبكة كروت المواد */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                gap: '8px',
+              }}
+            >
+              {WORKSHOP_MATERIALS.map(mat => {
+                const selected = selectedMaterials.includes(mat.id)
+                return (
+                  <button
+                    key={mat.id}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (!mw.enabled) update('material_workshop' as any, { enabled: true })
+                      toggleMaterial(mat.id)
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '10px 8px',
+                      borderRadius: '10px',
+                      border: selected
+                        ? '1.5px solid rgba(var(--theme-primary-rgb),0.6)'
+                        : '1px solid rgba(255,255,255,0.08)',
+                      background: selected
+                        ? 'rgba(var(--theme-primary-rgb),0.12)'
+                        : 'rgba(255,255,255,0.03)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      position: 'relative',
+                    }}
+                  >
+                    {/* أيقونة المادة */}
+                    <img
+                      src={mat.img}
+                      alt={t(mat.labelKey)}
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        objectFit: 'contain',
+                        filter: selected ? 'none' : 'grayscale(30%) opacity(0.85)',
+                      }}
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+
+                    {/* اسم المادة */}
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: selected ? 600 : 400,
+                        color: selected ? 'var(--theme-primary-light)' : '#9ca3af',
+                        textAlign: 'center',
+                        lineHeight: '1.2',
+                      }}
+                    >
+                      {t(mat.labelKey)}
+                    </span>
+
+                    {/* شارة التحديد */}
+                    {selected && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '4px',
+                          width: '14px',
+                          height: '14px',
+                          borderRadius: '50%',
+                          background: 'var(--theme-primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          fontSize: '9px',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        ✓
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </TaskRow>
       </div>
     )
   }

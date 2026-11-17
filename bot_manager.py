@@ -65,6 +65,9 @@ from tasks import (
     HeroTrialTask,
     CommandHallTask,
     DailyQuestTask,
+    SkillsTask,
+    MaterialWorkshopTask,
+    StaminaTask,
 )
 
 # قائمة المهام المسجلة في دورة البوت التلقائية
@@ -79,6 +82,7 @@ REGISTERED_TASKS = [
     FlowerTask,
     WonderMerchantTask,
     MaterialSynthesisTask,
+    MaterialWorkshopTask,
     ForgeEquipmentTask,
     CureWoundedTask,
     AllianceTask,
@@ -89,8 +93,10 @@ REGISTERED_TASKS = [
     TrainTask,
     ArenaTask,
     HeroTrialTask,
+    StaminaTask,
     CommandHallTask,
     DailyQuestTask,
+    SkillsTask,
 ]
 
 log = logging.getLogger("bot_manager")
@@ -200,6 +206,10 @@ DEFAULT_BOT_CONFIG: Dict[str, Any] = {
             "enabled": False,
             "mode": "daily",                  # "daily" أو "full"
             "allow_marches": True,            # السماح بالمسير القتالي
+            "allow_snipe": True,              # السماح بمهام القناص الصامت
+            "allow_rescue": True,             # السماح بمهام إنقاذ القرويين
+            "allow_dialogue": True,           # السماح بمهام المعلومات العسكرية
+            "allow_army_group": True,         # القضاء على فيلق الغزاة وتجديد المهام تلقائياً
             "auto_claim_rewards": True,       # استلام جوائز المهام المكتملة
             "auto_upgrade_hall": True,        # ترقية مستوى قاعة القيادة تلقائياً
             "min_safety_stamina": 10,         # حد أمان طاقة اللورد بالقلعة
@@ -211,6 +221,23 @@ DEFAULT_BOT_CONFIG: Dict[str, Any] = {
             "enabled": False,
             "resources": ["food", "wood", "iron", "silver"],
             "types": "all",
+        },
+        "skills": {                           # مهارات الأمير الـ 16 (تفعيل المواهب النشطة التلقائية)
+            "enabled": False,
+            "target_skills": [],
+        },
+        "material_workshop": {                # معمل المواد: تكرير المواد تلقائياً
+            "enabled": False,
+            "selected_materials": [200101, 200201, 200301, 200401, 200501, 200601],
+        },
+        "stamina": {                          # تعويض طاقة اللورد
+            "enabled": False,
+            "min_stamina": 100,
+            "mode": "auto",                   # "auto" أو "manual"
+            "pack_tier": "50",                # "10", "50", "100" (في النمط اليدوي)
+            "pack_count": 1,                  # عدد الحزم (في النمط اليدوي)
+            "allow_buy": False,               # الشراء بالذهب عند نفاذ الحزم
+            "max_gold_daily": 1000,           # سقف صرف الذهب اليومي
         },
     }
 }
@@ -301,12 +328,12 @@ class CastleBot:
                 tasks_cfg.update(saved_cfg["tasks"])
 
             # إعدادات المهام المباشرة في جذر config هي صاحبة الأولوية المطلقة (تعديلات المستخدم في الواجهة)
-            for t_name in ("fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest"):
+            for t_name in ("fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "material_workshop", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest", "watermill", "skills", "stamina"):
                 if t_name in saved_cfg:
                     tasks_cfg[t_name] = saved_cfg[t_name]
 
             for k, v in saved_cfg.items():
-                if k not in ("tasks", "fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest"):
+                if k not in ("tasks", "fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "material_workshop", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest", "watermill", "skills", "stamina"):
                     self.config[k] = v
         except Exception:
             pass

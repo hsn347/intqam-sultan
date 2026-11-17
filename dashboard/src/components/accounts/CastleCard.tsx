@@ -398,7 +398,12 @@ function CastleCardInner({
                   loading="lazy"
                 />
               ) : (
-                displayLordName[0]?.toUpperCase() || '🏰'
+                <img
+                  src="/images/castles/main_castle_square.png"
+                  alt={displayLordName}
+                  className="w-full h-full object-contain p-1 select-none drop-shadow-sm"
+                  loading="lazy"
+                />
               )}
             </div>
           </div>
@@ -407,6 +412,21 @@ function CastleCardInner({
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <span className="font-bold text-gray-900 dark:text-white text-sm sm:text-base truncate tracking-wide castle-lord-name">
                 {displayLordName}
+              </span>
+
+              <span
+                className="inline-flex items-center gap-1 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 dark:from-amber-400/10 dark:to-orange-400/10 px-1.5 sm:px-2 py-0.5 border border-amber-500/35 dark:border-amber-500/25 rounded-md font-bold text-[10px] sm:text-xs text-amber-800 dark:text-amber-300 shadow-xs castle-badge select-none"
+                title={t('accounts.castleLevelTitle', 'القلعة الرئيسية - المستوى: {{level}}', { level: info.castle_level || 1 })}
+              >
+                <img
+                  src="/images/castles/main_castle_square.png"
+                  alt={t('accounts.mainCastle', 'القلعة الرئيسية')}
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain shrink-0 drop-shadow-sm select-none"
+                  loading="lazy"
+                />
+                <span>
+                  {info.castle_level > 0 ? `${t('accounts.castleLevelPrefix', 'قلعة')} ${info.castle_level}` : t('accounts.mainCastle', 'القلعة الرئيسية')}
+                </span>
               </span>
 
               {info.alliance_name && (
