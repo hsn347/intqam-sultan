@@ -1,9 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-tools/migrate_stamina_config.py — ترحيل قاعدة البيانات لإضافة إعدادات تعويض طاقة اللورد (stamina)
+tools/migrate_stamina_config.py — ترحيل قاعدة البيانات لتحديث إعدادات تعويض طاقة اللورد (stamina)
 ══════════════════════════════════════════════════════════════════════════════════════════════
 يضمن هذا السكربت تحديث كافة سجلات القلاع في جدول castle_states داخل قاعدة البيانات
-المحلية database/castles.db بإدراج مفتاح stamina وقيمه الافتراضية لمنع أي فقدان للبيانات.
+المحلية database/castles.db بالهيكل الجديد لمهمة stamina:
+{
+    "enabled": False,
+    "gold_buy_enabled": False,
+    "gold_trigger_stamina": 50,
+    "gold_buy_stamina_amount": 50
+}
+مع تنظيف أي حقول قديمة وتطبيق بروتوكول حماية قاعدة البيانات (Rule 5 Zero-Loss Protocol).
 """
 
 import json
@@ -15,12 +22,9 @@ DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 DEFAULT_STAMINA_CONFIG = {
     "enabled": False,
-    "min_stamina": 100,
-    "mode": "auto",
-    "pack_tier": "50",
-    "pack_count": 1,
-    "allow_buy": False,
-    "max_gold_daily": 1000,
+    "gold_buy_enabled": False,
+    "gold_trigger_stamina": 50,
+    "gold_buy_stamina_amount": 50,
 }
 
 
@@ -47,30 +51,43 @@ def migrate():
 
         needs_update = False
 
-        if "stamina" not in cfg:
-            cfg["stamina"] = dict(DEFAULT_STAMINA_CONFIG)
-            needs_update = True
-        else:
-            # التأكد من اكتمال كافة الحقول الافتراضية
-            for k, v in DEFAULT_STAMINA_CONFIG.items():
-                if k not in cfg["stamina"]:
-                    cfg["stamina"][k] = v
-                    needs_update = True
+        # معالجة كائن stamina في الجذر
+        old_root = cfg.get("stamina", {})
+        if not isinstance(old_root, dict):
+            old_root = {}
 
+        new_stamina_root = {
+            "enabled": bool(old_root.get("enabled", DEFAULT_STAMINA_CONFIG["enabled"])),
+            "gold_buy_enabled": bool(old_root.get("gold_buy_enabled", DEFAULT_STAMINA_CONFIG["gold_buy_enabled"])),
+            "gold_trigger_stamina": int(old_root.get("gold_trigger_stamina", DEFAULT_STAMINA_CONFIG["gold_trigger_stamina"])),
+            "gold_buy_stamina_amount": int(old_root.get("gold_buy_stamina_amount", DEFAULT_STAMINA_CONFIG["gold_buy_stamina_amount"])),
+        }
+
+        if old_root != new_stamina_root:
+            cfg["stamina"] = new_stamina_root
+            needs_update = True
+
+        # معالجة كائن stamina داخل tasks الفرعي
         tasks_dict = cfg.setdefault("tasks", {})
         if not isinstance(tasks_dict, dict):
             tasks_dict = {}
             cfg["tasks"] = tasks_dict
             needs_update = True
 
-        if "stamina" not in tasks_dict:
-            tasks_dict["stamina"] = dict(DEFAULT_STAMINA_CONFIG)
+        old_tasks_stamina = tasks_dict.get("stamina", {})
+        if not isinstance(old_tasks_stamina, dict):
+            old_tasks_stamina = {}
+
+        new_stamina_tasks = {
+            "enabled": bool(old_tasks_stamina.get("enabled", new_stamina_root["enabled"])),
+            "gold_buy_enabled": bool(old_tasks_stamina.get("gold_buy_enabled", new_stamina_root["gold_buy_enabled"])),
+            "gold_trigger_stamina": int(old_tasks_stamina.get("gold_trigger_stamina", new_stamina_root["gold_trigger_stamina"])),
+            "gold_buy_stamina_amount": int(old_tasks_stamina.get("gold_buy_stamina_amount", new_stamina_root["gold_buy_stamina_amount"])),
+        }
+
+        if old_tasks_stamina != new_stamina_tasks:
+            tasks_dict["stamina"] = new_stamina_tasks
             needs_update = True
-        else:
-            for k, v in DEFAULT_STAMINA_CONFIG.items():
-                if k not in tasks_dict["stamina"]:
-                    tasks_dict["stamina"][k] = v
-                    needs_update = True
 
         if needs_update:
             cursor.execute(
@@ -78,7 +95,7 @@ def migrate():
                 (json.dumps(cfg, ensure_ascii=False), castle_id),
             )
             updated_count += 1
-            print(f"✓ Updated castle: {email} ({castle_id})")
+            print(f"✓ Updated castle: {email} ({castle_id}) -> {new_stamina_root}")
 
     conn.commit()
     conn.close()
@@ -86,7 +103,7 @@ def migrate():
 
 
 def verify():
-    """فحص فعلي مباشر للتأكد بنسبة 100% أن مفتاح stamina موجود في كل القلاع (Rule 5)."""
+    """فحص فعلي مباشر للتأكد بنسبة 100% أن مفتاح stamina موجود بالهيكل الجديد في كل القلاع (Rule 5)."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT castle_id, email, config FROM castle_states")
@@ -97,11 +114,19 @@ def verify():
         cfg = json.loads(config_raw) if config_raw else {}
         has_root = "stamina" in cfg
         has_tasks = "stamina" in cfg.get("tasks", {})
-        if has_root and has_tasks:
-            stamina_cfg = cfg["stamina"]
+        stamina_cfg = cfg.get("stamina", {})
+        tasks_stamina = cfg.get("tasks", {}).get("stamina", {})
+
+        is_valid = True
+        for k in ("enabled", "gold_buy_enabled", "gold_trigger_stamina", "gold_buy_stamina_amount"):
+            if k not in stamina_cfg or k not in tasks_stamina:
+                is_valid = False
+                break
+
+        if has_root and has_tasks and is_valid:
             print(f"✓ Castle '{email}' [{castle_id}] stamina config verified: {stamina_cfg}")
         else:
-            print(f"❌ Castle '{email}' [{castle_id}] MISSING stamina config! root={has_root}, tasks={has_tasks}")
+            print(f"❌ Castle '{email}' [{castle_id}] INVALID stamina config! root={stamina_cfg}, tasks={tasks_stamina}")
             all_valid = False
     conn.close()
     return all_valid

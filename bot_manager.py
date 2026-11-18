@@ -232,12 +232,9 @@ DEFAULT_BOT_CONFIG: Dict[str, Any] = {
         },
         "stamina": {                          # تعويض طاقة اللورد
             "enabled": False,
-            "min_stamina": 100,
-            "mode": "auto",                   # "auto" أو "manual"
-            "pack_tier": "50",                # "10", "50", "100" (في النمط اليدوي)
-            "pack_count": 1,                  # عدد الحزم (في النمط اليدوي)
-            "allow_buy": False,               # الشراء بالذهب عند نفاذ الحزم
-            "max_gold_daily": 1000,           # سقف صرف الذهب اليومي
+            "gold_buy_enabled": False,        # السماح بالشراء بالذهب عند نفاذ الحزم المجانية
+            "gold_trigger_stamina": 50,       # سقف طاقة القلعة لتفعيل الشراء بالذهب
+            "gold_buy_stamina_amount": 50,    # كمية الطاقة للشراء في المرة الواحدة بالذهب
         },
     }
 }

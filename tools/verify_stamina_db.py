@@ -14,12 +14,9 @@ DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 REQUIRED_STAMINA_FIELDS = {
     "enabled": bool,
-    "min_stamina": int,
-    "mode": str,
-    "pack_tier": str,
-    "pack_count": int,
-    "allow_buy": bool,
-    "max_gold_daily": int,
+    "gold_buy_enabled": bool,
+    "gold_trigger_stamina": int,
+    "gold_buy_stamina_amount": int,
 }
 
 def verify():
@@ -75,7 +72,6 @@ def verify():
             if field not in stamina_cfg:
                 missing_fields.append(field)
             elif not isinstance(stamina_cfg[field], expected_type):
-                # Allow int for float or bool if type matches expected loosely, but check rigorously
                 if expected_type is int and isinstance(stamina_cfg[field], (int, float)):
                     pass
                 else:

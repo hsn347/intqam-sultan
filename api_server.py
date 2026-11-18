@@ -411,24 +411,9 @@ class MaterialWorkshopConfigModel(BaseModel):
 
 class StaminaConfigModel(BaseModel):
     enabled: bool = False
-    min_stamina: int = Field(default=100, ge=0)
-    mode: Literal["auto", "manual"] = "auto"
-    pack_tier: Literal["10", "50", "100"] = "50"
-    pack_count: int = Field(default=1, ge=1)
-    allow_buy: bool = False
-    max_gold_daily: int = Field(default=1000, ge=0)
-
-    @field_validator("mode", mode="before")
-    @classmethod
-    def normalize_mode(cls, v: Any) -> str:
-        val = str(v or "auto").lower().strip()
-        return val if val in ("auto", "manual") else "auto"
-
-    @field_validator("pack_tier", mode="before")
-    @classmethod
-    def normalize_tier(cls, v: Any) -> str:
-        val = str(v or "50").strip()
-        return val if val in ("10", "50", "100") else "50"
+    gold_buy_enabled: bool = False
+    gold_trigger_stamina: int = Field(default=50, ge=0)
+    gold_buy_stamina_amount: int = Field(default=50, ge=1)
 
 class CastleConfigModel(BaseModel):
     fountain: Optional[FountainConfig] = None

@@ -90,12 +90,18 @@ export function mergeCastleConfig(fcConfig: Record<string, unknown>): CastleConf
     stamina: {
       ...def.stamina,
       ...((fc.stamina as Record<string, unknown>) || {}),
-      mode: ((fc.stamina as Record<string, unknown>)?.mode === 'manual' ? 'manual' : 'auto') as 'auto' | 'manual',
-      pack_tier: (['10', '50', '100'].includes(String((fc.stamina as Record<string, unknown>)?.pack_tier)) ? String((fc.stamina as Record<string, unknown>)?.pack_tier) : '50') as '10' | '50' | '100',
-      min_stamina: typeof (fc.stamina as Record<string, unknown>)?.min_stamina === 'number' ? Number((fc.stamina as Record<string, unknown>)?.min_stamina) : (def.stamina?.min_stamina ?? 100),
-      pack_count: typeof (fc.stamina as Record<string, unknown>)?.pack_count === 'number' ? Number((fc.stamina as Record<string, unknown>)?.pack_count) : (def.stamina?.pack_count ?? 1),
-      allow_buy: typeof (fc.stamina as Record<string, unknown>)?.allow_buy === 'boolean' ? Boolean((fc.stamina as Record<string, unknown>)?.allow_buy) : (def.stamina?.allow_buy ?? false),
-      max_gold_daily: typeof (fc.stamina as Record<string, unknown>)?.max_gold_daily === 'number' ? Number((fc.stamina as Record<string, unknown>)?.max_gold_daily) : (def.stamina?.max_gold_daily ?? 1000),
+      enabled: typeof (fc.stamina as Record<string, unknown>)?.enabled === 'boolean'
+        ? Boolean((fc.stamina as Record<string, unknown>)?.enabled)
+        : (def.stamina?.enabled ?? false),
+      gold_buy_enabled: typeof (fc.stamina as Record<string, unknown>)?.gold_buy_enabled === 'boolean'
+        ? Boolean((fc.stamina as Record<string, unknown>)?.gold_buy_enabled)
+        : (def.stamina?.gold_buy_enabled ?? false),
+      gold_trigger_stamina: typeof (fc.stamina as Record<string, unknown>)?.gold_trigger_stamina === 'number'
+        ? Number((fc.stamina as Record<string, unknown>)?.gold_trigger_stamina)
+        : (def.stamina?.gold_trigger_stamina ?? 50),
+      gold_buy_stamina_amount: typeof (fc.stamina as Record<string, unknown>)?.gold_buy_stamina_amount === 'number'
+        ? Number((fc.stamina as Record<string, unknown>)?.gold_buy_stamina_amount)
+        : (def.stamina?.gold_buy_stamina_amount ?? 50),
     },
     skills:             { ...def.skills,             ...((fc.skills             as Record<string, unknown>) || {}), target_skills: (fc.skills as Record<string, unknown>)?.target_skills as string[] || def.skills.target_skills },
     hero_draw:          { ...def.hero_draw,          ...((fc.hero_draw          as Record<string, unknown>) || {}) },

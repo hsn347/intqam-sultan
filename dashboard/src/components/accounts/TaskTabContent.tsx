@@ -523,24 +523,24 @@ const BARRACKS_TYPES = [
 ]
 
 export const PET_TARGETS = [
-  { id: 1251, name: 'الحصان',              emoji: '🐎' },
-  { id: 1252, name: 'الفهد',               emoji: '🐆' },
-  { id: 1253, name: 'الصقر',               emoji: '🦅' },
-  { id: 1254, name: 'جمل عربي',            emoji: '🐪' },
-  { id: 1255, name: 'ذئب عربي',            emoji: '🐺' },
-  { id: 1256, name: 'أسد عربي',            emoji: '🦁' },
-  { id: 1257, name: 'الوشق',               emoji: '🐱' },
-  { id: 1258, name: 'أيّل',                emoji: '🦌' },
-  { id: 1259, name: 'فيل',                 emoji: '🐘' },
-  { id: 1260, name: 'دب',                  emoji: '🐻' },
-  { id: 1261, name: 'المها',               emoji: '🦌' },
-  { id: 1262, name: 'ثعبان',               emoji: '🐍' },
-  { id: 1263, name: 'اللآما',              emoji: '🦙' },
-  { id: 1264, name: 'الضب',                emoji: '🦎' },
-  { id: 1265, name: 'النمر الأبيض',         emoji: '🐅' },
-  { id: 1266, name: 'طائر حورس',           emoji: '🦅' },
-  { id: 1267, name: 'تنين المجد التليد',    emoji: '🐉' },
-  { id: 1268, name: 'الغوريلا',            emoji: '🦍' },
+  { id: 1251, name: 'الحصان',              labelKey: 'tasks.pet_1251', emoji: '🐎', img: '/images/pets/1251.png' },
+  { id: 1252, name: 'الفهد',               labelKey: 'tasks.pet_1252', emoji: '🐆', img: '/images/pets/1252.png' },
+  { id: 1253, name: 'الصقر',               labelKey: 'tasks.pet_1253', emoji: '🦅', img: '/images/pets/1253.png' },
+  { id: 1254, name: 'جمل عربي',            labelKey: 'tasks.pet_1254', emoji: '🐪', img: '/images/pets/1254.png' },
+  { id: 1255, name: 'ذئب عربي',            labelKey: 'tasks.pet_1255', emoji: '🐺', img: '/images/pets/1255.png' },
+  { id: 1256, name: 'أسد عربي',            labelKey: 'tasks.pet_1256', emoji: '🦁', img: '/images/pets/1256.png' },
+  { id: 1257, name: 'الوشق',               labelKey: 'tasks.pet_1257', emoji: '🐱', img: '/images/pets/1257.png' },
+  { id: 1258, name: 'أيّل',                labelKey: 'tasks.pet_1258', emoji: '🦌', img: '/images/pets/1258.png' },
+  { id: 1259, name: 'فيل',                 labelKey: 'tasks.pet_1259', emoji: '🐘', img: '/images/pets/1259.png' },
+  { id: 1260, name: 'دب',                  labelKey: 'tasks.pet_1260', emoji: '🐻', img: '/images/pets/1260.png' },
+  { id: 1261, name: 'المها',               labelKey: 'tasks.pet_1261', emoji: '🦌', img: '/images/pets/1261.png' },
+  { id: 1262, name: 'ثعبان',               labelKey: 'tasks.pet_1262', emoji: '🐍', img: '/images/pets/1262.png' },
+  { id: 1263, name: 'اللآما',              labelKey: 'tasks.pet_1263', emoji: '🦙', img: '/images/pets/1263.png' },
+  { id: 1264, name: 'الضب',                labelKey: 'tasks.pet_1264', emoji: '🦎', img: '/images/pets/1264.png' },
+  { id: 1265, name: 'النمر الأبيض',         labelKey: 'tasks.pet_1265', emoji: '🐅', img: '/images/pets/1265.png' },
+  { id: 1266, name: 'طائر حورس',           labelKey: 'tasks.pet_1266', emoji: '🦅', img: '/images/pets/1266.png' },
+  { id: 1267, name: 'تنين المجد التليد',    labelKey: 'tasks.pet_1267', emoji: '🐉', img: '/images/pets/1267.png' },
+  { id: 1268, name: 'الغوريلا',            labelKey: 'tasks.pet_1268', emoji: '🦍', img: '/images/pets/1268.png' },
 ] as const
 
 const WORKSHOP_MATERIALS = [
@@ -1437,8 +1437,9 @@ function TaskTabContentInner({
                     <button key={p.id} type="button"
                       className={clsx('task-pet-btn', isSelected ? 'selected' : 'unselected')}
                       onClick={() => update('pet', { target_pet: p.id })}
+                      title={t(p.labelKey, p.name)}
                       style={{
-                        display: 'flex', alignItems: 'center', gap: '4px',
+                        display: 'flex', alignItems: 'center', gap: '5px',
                         padding: '3px 8px', borderRadius: '7px', fontFamily: 'inherit',
                         border: isSelected ? '1.5px solid rgba(var(--theme-primary-rgb),0.6)' : '1px solid rgba(255,255,255,0.10)',
                         background: isSelected ? 'rgba(var(--theme-primary-rgb),0.12)' : 'rgba(255,255,255,0.04)',
@@ -1447,8 +1448,13 @@ function TaskTabContentInner({
                         cursor: 'pointer', transition: 'all 0.15s',
                       }}
                     >
-                      <span>{p.emoji}</span>
-                      <span>{p.name}</span>
+                      <img
+                        src={p.img}
+                        alt={p.name}
+                        loading="lazy"
+                        style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
+                      />
+                      <span>{t(p.labelKey, p.name)}</span>
                     </button>
                   )
                 })}
@@ -1462,12 +1468,9 @@ function TaskTabContentInner({
           const rawStamina = (cfg.stamina || {}) as Partial<StaminaConfig>
           const staminaCfg = {
             enabled: Boolean(rawStamina.enabled),
-            min_stamina: typeof rawStamina.min_stamina === 'number' ? rawStamina.min_stamina : 100,
-            mode: (rawStamina.mode === 'manual' ? 'manual' : 'auto') as 'auto' | 'manual',
-            pack_tier: (['10', '50', '100'].includes(String(rawStamina.pack_tier)) ? String(rawStamina.pack_tier) : '50') as '10' | '50' | '100',
-            pack_count: typeof rawStamina.pack_count === 'number' ? rawStamina.pack_count : 1,
-            allow_buy: Boolean(rawStamina.allow_buy),
-            max_gold_daily: typeof rawStamina.max_gold_daily === 'number' ? rawStamina.max_gold_daily : 1000,
+            gold_buy_enabled: Boolean(rawStamina.gold_buy_enabled),
+            gold_trigger_stamina: typeof rawStamina.gold_trigger_stamina === 'number' ? rawStamina.gold_trigger_stamina : 50,
+            gold_buy_stamina_amount: typeof rawStamina.gold_buy_stamina_amount === 'number' ? rawStamina.gold_buy_stamina_amount : 50,
           }
 
           return (
@@ -1475,138 +1478,20 @@ function TaskTabContentInner({
               id="stamina"
               img="/images/daily/dayaniklilik_2.png"
               label={t('tasks.stamina.title', 'طاقة القلعة')}
-              description={t('tasks.stamina.desc', 'إدارة وتعبئة طاقة القلعة تلقائياً بالحزم أو الذهب')}
+              description={t('tasks.stamina.desc', 'استخدام كافة حزم الطاقة المجانية المتوفرة بالحقيبة')}
               enabled={staminaCfg.enabled}
               onToggle={toggle('stamina')}
               comingSoon={false}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
-                {/* الحد الأدنى لطاقة القلعة */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                  <span style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 500 }}>
-                    {t('tasks.stamina.minStaminaLabel', 'الحد الأدنى لطاقة القلعة')}
-                  </span>
-                  <Stepper
-                    value={staminaCfg.min_stamina}
-                    min={10}
-                    max={500}
-                    step={10}
-                    onChange={v => update('stamina', { min_stamina: v })}
-                  />
-                </div>
-
-                {/* نمط التعبئة (تلقائي / يدوي) */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                  <span style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 500 }}>
-                    {t('tasks.stamina.modeLabel', 'نمط التعبئة')}
-                  </span>
-                  <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '2px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <button
-                      type="button"
-                      onClick={() => update('stamina', { mode: 'auto' }, 150)}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        fontWeight: staminaCfg.mode !== 'manual' ? 600 : 400,
-                        background: staminaCfg.mode !== 'manual' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
-                        border: staminaCfg.mode !== 'manual' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid transparent',
-                        color: staminaCfg.mode !== 'manual' ? '#60a5fa' : '#94a3b8',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {t('tasks.stamina.modeAuto', 'تلقائي (حسب العجز)')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => update('stamina', { mode: 'manual' }, 150)}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        fontWeight: staminaCfg.mode === 'manual' ? 600 : 400,
-                        background: staminaCfg.mode === 'manual' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
-                        border: staminaCfg.mode === 'manual' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid transparent',
-                        color: staminaCfg.mode === 'manual' ? '#60a5fa' : '#94a3b8',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {t('tasks.stamina.modeManual', 'يدوي (حزمة محددة)')}
-                    </button>
-                  </div>
-                </div>
-
-                {/* خيارات النمط اليدوي: فئة الحزمة وعدد الحزم */}
-                {staminaCfg.mode === 'manual' && (
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    padding: '8px 10px',
-                    background: 'rgba(59, 130, 246, 0.05)',
-                    border: '1px solid rgba(59, 130, 246, 0.15)',
-                    borderRadius: '8px',
-                  }}>
-                    {/* اختيار فئة الحزمة */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 500 }}>
-                        {t('tasks.stamina.packTierLabel', 'فئة حزمة الطاقة')}
-                      </span>
-                      <div style={{ display: 'inline-flex', gap: '4px' }}>
-                        {(['10', '50', '100'] as const).map(tier => {
-                          const isSelected = staminaCfg.pack_tier === tier
-                          return (
-                            <button
-                              key={tier}
-                              type="button"
-                              onClick={() => update('stamina', { pack_tier: tier }, 150)}
-                              style={{
-                                padding: '3px 8px',
-                                borderRadius: '6px',
-                                fontSize: '11px',
-                                fontWeight: isSelected ? 600 : 400,
-                                background: isSelected ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255,255,255,0.04)',
-                                border: isSelected ? '1px solid rgba(59, 130, 246, 0.5)' : '1px solid rgba(255,255,255,0.08)',
-                                color: isSelected ? '#93c5fd' : '#94a3b8',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease',
-                              }}
-                            >
-                              {tier === '10' && t('tasks.stamina.tier10', '10 طاقة')}
-                              {tier === '50' && t('tasks.stamina.tier50', '50 طاقة')}
-                              {tier === '100' && t('tasks.stamina.tier100', '100 طاقة')}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    {/* عدد الحزم للاستهلاك */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                      <span style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 500 }}>
-                        {t('tasks.stamina.packCountLabel', 'عدد الحزم للاستهلاك')}
-                      </span>
-                      <Stepper
-                        value={staminaCfg.pack_count}
-                        min={1}
-                        max={50}
-                        step={1}
-                        onChange={v => update('stamina', { pack_count: v })}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* خيار الشراء بالذهب وسقف الذهب اليومي */}
+                {/* خيار الشراء بالذهب عند نفاذ الحزم المجانية */}
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '8px',
                   padding: '6px 10px',
-                  background: staminaCfg.allow_buy ? 'rgba(234, 179, 8, 0.08)' : 'rgba(255,255,255,0.03)',
-                  border: staminaCfg.allow_buy ? '1px solid rgba(234, 179, 8, 0.25)' : '1px solid rgba(255,255,255,0.06)',
+                  background: staminaCfg.gold_buy_enabled ? 'rgba(234, 179, 8, 0.08)' : 'rgba(255,255,255,0.03)',
+                  border: staminaCfg.gold_buy_enabled ? '1px solid rgba(234, 179, 8, 0.25)' : '1px solid rgba(255,255,255,0.06)',
                   borderRadius: '8px',
                   transition: 'all 0.15s ease',
                 }}>
@@ -1614,42 +1499,65 @@ function TaskTabContentInner({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <img
                         src="/images/fountain/gold.png"
-                        alt="Gold"
+                        alt=""
                         style={{
                           width: '18px',
                           height: '18px',
                           objectFit: 'contain',
-                          filter: staminaCfg.allow_buy ? 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.6))' : 'grayscale(70%) opacity(0.6)',
+                          filter: staminaCfg.gold_buy_enabled ? 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.6))' : 'grayscale(70%) opacity(0.6)',
                         }}
                         onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
                       <span style={{
                         fontSize: '12px',
                         fontWeight: 600,
-                        color: staminaCfg.allow_buy ? '#fbbf24' : '#e2e8f0',
+                        color: staminaCfg.gold_buy_enabled ? '#fbbf24' : '#e2e8f0',
                       }}>
-                        {t('tasks.stamina.allowBuyLabel', 'السماح بالشراء بالذهب عند نفاذ الحزم')}
+                        {t('tasks.stamina.goldBuyEnabledLabel', 'السماح بالشراء بالذهب عند نفاذ الحزم المجانية')}
                       </span>
                     </div>
                     <Toggle
-                      value={staminaCfg.allow_buy}
-                      onChange={v => update('stamina', { allow_buy: v })}
+                      value={staminaCfg.gold_buy_enabled}
+                      onChange={v => update('stamina', { gold_buy_enabled: v })}
                       size="sm"
                     />
                   </div>
 
-                  {staminaCfg.allow_buy && (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', paddingTop: '4px', borderTop: '1px solid rgba(234, 179, 8, 0.12)' }}>
-                      <span style={{ fontSize: '11px', color: '#fde68a', fontWeight: 500 }}>
-                        {t('tasks.stamina.maxGoldDailyLabel', 'سقف الذهب اليومي')}
-                      </span>
-                      <Stepper
-                        value={staminaCfg.max_gold_daily}
-                        min={100}
-                        max={10000}
-                        step={100}
-                        onChange={v => update('stamina', { max_gold_daily: v })}
-                      />
+                  {staminaCfg.gold_buy_enabled && (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      paddingTop: '6px',
+                      borderTop: '1px solid rgba(234, 179, 8, 0.12)',
+                    }}>
+                      {/* سقف الطاقة لتفعيل الشراء بالذهب */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: '#fde68a', fontWeight: 500 }}>
+                          {t('tasks.stamina.goldTriggerStaminaLabel', 'سقف الطاقة لتفعيل الشراء بالذهب')}
+                        </span>
+                        <Stepper
+                          value={staminaCfg.gold_trigger_stamina}
+                          min={10}
+                          max={200}
+                          step={10}
+                          onChange={v => update('stamina', { gold_trigger_stamina: v })}
+                        />
+                      </div>
+
+                      {/* كمية الطاقة للشراء في المرة الواحدة */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: '#fde68a', fontWeight: 500 }}>
+                          {t('tasks.stamina.goldBuyStaminaAmountLabel', 'كمية الطاقة للشراء في المرة الواحدة')}
+                        </span>
+                        <Stepper
+                          value={staminaCfg.gold_buy_stamina_amount}
+                          min={50}
+                          max={500}
+                          step={50}
+                          onChange={v => update('stamina', { gold_buy_stamina_amount: v })}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

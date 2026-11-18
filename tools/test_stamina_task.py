@@ -3,15 +3,17 @@
 tools/test_stamina_task.py — اختبارات شاملة غير متصلة ومحاكاة لمهمة تعويض طاقة اللورد (StaminaTask)
 ══════════════════════════════════════════════════════════════════════════════════════════════
 يختبر:
-1. الفحص القبلي (0-Network Pre-flight): تخطي المهمة إذا كانت الطاقة كافية دون أي طلبات شبكية.
-2. النمط التلقائي الذكي (Auto Mode): توزيع الاستهلاك على حزم 100 و 50 و 10 مع تقليل الهدر.
-3. النمط اليدوي (Manual Mode): استهلاك الفئة والعدد المحددين.
-4. الشراء بالذهب (Gold Shop Purchase): حزمة 50 طاقة (1034/2) والسقف اليومي للذهب.
-5. تحديث الذاكرة اللحظية (backpackCtrl / lordInfoCtrl).
+1. استهلاك كافة حزم وباقات الطاقة المجانية المتوفرة بالحقيبة بالكامل (100، 50، 10).
+2. الفحص القبلي (0-Network Pre-flight): تخطي المهمة بصفر طلبات شبكية عند نفاذ الحزم وعدم تفعيل الشراء بالذهب.
+3. التخطي عند عدم توفر حزم مجانية وكون الطاقة أعلى من سقف تفعيل الشراء بالذهب.
+4. التخطي والتوقف الكامل عند عدم كفاية رصيد الذهب لكامل الكمية المطلوبة (منع الشراء الجزئي).
+5. الشراء بالذهب من المتجر الرسمي (باقات 50 طاقة - 1034/2) وتحديث الذاكرة الحية (الذهب والطاقة).
+6. اختبار الحساب الحي بنمط المحاكاة الآمنة.
 """
 
 import asyncio
 import json
+import math
 import os
 import sys
 import unittest
@@ -39,152 +41,175 @@ class MockConnection:
 
 class TestStaminaTask(unittest.IsolatedAsyncioTestCase):
 
-    def setUp(self):
-        # تصفير متتبع الذهب لكل اختبار
-        StaminaTask._daily_gold_tracker.clear()
-
-    async def test_0_network_preflight_sufficient_stamina(self):
-        """اختبار 0-Network: إذا كانت طاقة القلعة >= الحد الأدنى يتم التخطي بصفر طلبات شبكية."""
+    async def test_0_network_preflight_disabled(self):
+        """اختبار التخطي بصفر طلبات شبكية عند تعطيل المهمة."""
         init_data = {
-            "lordInfoCtrl": {"base": {"health": 120, "gold": 500, "uid": "123456"}},
-            "backpackCtrl": {
-                "300401": {"count": 10},
-                "300402": {"count": 5},
-            },
+            "lordInfoCtrl": {"base": {"health": 30, "gold": 1000, "uid": "123456"}},
+            "backpackCtrl": {"300401": {"count": 5}},
         }
         conn = MockConnection(init_data)
-        cfg = {"enabled": True, "min_stamina": 100, "mode": "auto"}
+        cfg = {"enabled": False, "gold_buy_enabled": False, "gold_trigger_stamina": 50, "gold_buy_stamina_amount": 50}
         task = StaminaTask(conn, None, cfg)
 
         can_run, reason = await task.can_run()
         self.assertFalse(can_run)
-        self.assertIn("طاقة القلعة كافية", reason)
+        self.assertIn("معطلة", reason)
 
         res = await task.safe_execute()
         self.assertTrue(res.skipped)
-        self.assertIn("طاقة القلعة كافية", res.message)
-        self.assertEqual(len(conn.sent_queries), 0, "يجب عدم إرسال أي طلبات شبكية إطلاقاً!")
+        self.assertEqual(len(conn.sent_queries), 0)
 
-    async def test_auto_mode_consumption(self):
-        """اختبار النمط التلقائي: عجز 65 نقطة مع وجود حزم متنوعة."""
+    async def test_consume_all_free_packs_in_bag(self):
+        """اختبار استهلاك كافة حزم الطاقة المتوفرة في الحقيبة بالكامل (100s, 50s, 10s)."""
         init_data = {
-            "lordInfoCtrl": {"base": {"health": 35, "gold": 500, "uid": "123456"}},
+            "lordInfoCtrl": {"base": {"health": 20, "gold": 100, "uid": "123456"}},
             "backpackCtrl": {
-                "300401": {"count": 10},  # 10 Stamina packs
-                "300402": {"count": 2},   # 50 Stamina packs
-                "300403": {"count": 0},   # 100 Stamina packs
+                "300401": {"count": 4},  # 4x 10 = 40 stamina
+                "300402": {"count": 2},  # 2x 50 = 100 stamina
+                "300403": {"count": 1},  # 1x 100 = 100 stamina
             },
         }
         conn = MockConnection(init_data)
-        cfg = {"enabled": True, "min_stamina": 100, "mode": "auto", "allow_buy": False}
+        cfg = {
+            "enabled": True,
+            "gold_buy_enabled": False,
+            "gold_trigger_stamina": 50,
+            "gold_buy_stamina_amount": 50,
+        }
         task = StaminaTask(conn, None, cfg)
 
-        # العجز: 100 - 35 = 65
-        # الخطة التلقائية: 1x50 (يتبقى 15) -> 2x10 (يغطي الـ 15 مع زيادة 5)
+        can_run, reason = await task.can_run()
+        self.assertTrue(can_run)
+
         res = await task.run()
         self.assertTrue(res.success)
         self.assertFalse(res.skipped)
 
-        # التحقق من الطلبات المرسلة: استهلاك 1 من 50 (300402) و 2 من 10 (300401)
-        self.assertEqual(len(conn.sent_queries), 2)
-        q1 = conn.sent_queries[0]
-        q2 = conn.sent_queries[1]
-        self.assertEqual(q1["cmd"], "1004")
-        self.assertEqual(q1["sub_cmd"], "2")
-        self.assertEqual(q1["payload"], {"itemID": 300402, "count": 1})
+        # استهلاك 3 فئات: 100 ثم 50 ثم 10
+        self.assertEqual(len(conn.sent_queries), 3)
+        self.assertEqual(conn.sent_queries[0]["payload"], {"itemID": 300403, "count": 1})
+        self.assertEqual(conn.sent_queries[1]["payload"], {"itemID": 300402, "count": 2})
+        self.assertEqual(conn.sent_queries[2]["payload"], {"itemID": 300401, "count": 4})
 
-        self.assertEqual(q2["cmd"], "1004")
-        self.assertEqual(q2["sub_cmd"], "2")
-        self.assertEqual(q2["payload"], {"itemID": 300401, "count": 2})
+        # التحقق من تفريغ الحقيبة بالكامل
+        backpack = init_data["backpackCtrl"]
+        self.assertNotIn("300403", backpack)
+        self.assertNotIn("300402", backpack)
+        self.assertNotIn("300401", backpack)
 
-        # التحقق من تحديث الذاكرة الحية (backpackCtrl / lordInfoCtrl)
-        self.assertEqual(init_data["backpackCtrl"]["300402"]["count"], 1)  # 2 - 1 = 1
-        self.assertEqual(init_data["backpackCtrl"]["300401"]["count"], 8)  # 10 - 2 = 8
-        self.assertEqual(init_data["lordInfoCtrl"]["base"]["health"], 35 + 50 + 20)  # 105
+        # الطاقة: 20 + 100 + 100 + 40 = 260
+        self.assertEqual(init_data["lordInfoCtrl"]["base"]["health"], 260)
+        self.assertEqual(res.data["gained"], 240)
+        self.assertEqual(res.data["gold_spent"], 0)
+        self.assertEqual(res.data["bought_packs"], 0)
 
-    async def test_manual_mode_consumption(self):
-        """اختبار النمط اليدوي: طلب استهلاك 2 من فئة 50 طاقة."""
+    async def test_0_network_skip_when_no_free_packs_and_gold_buy_disabled(self):
+        """اختبار التخطي بصفر شبكة عند عدم توفر حزم مجانية وتعطيل الشراء بالذهب."""
         init_data = {
-            "lordInfoCtrl": {"base": {"health": 40, "gold": 500, "uid": "123456"}},
-            "backpackCtrl": {
-                "300402": {"count": 5},
-            },
+            "lordInfoCtrl": {"base": {"health": 20, "gold": 1000, "uid": "123456"}},
+            "backpackCtrl": {},  # لا حزم
         }
         conn = MockConnection(init_data)
         cfg = {
             "enabled": True,
-            "min_stamina": 120,
-            "mode": "manual",
-            "pack_tier": "50",
-            "pack_count": 2,
-            "allow_buy": False,
+            "gold_buy_enabled": False,
+            "gold_trigger_stamina": 50,
+            "gold_buy_stamina_amount": 50,
         }
         task = StaminaTask(conn, None, cfg)
 
-        res = await task.run()
-        self.assertTrue(res.success)
-        self.assertEqual(len(conn.sent_queries), 1)
-        self.assertEqual(conn.sent_queries[0]["payload"], {"itemID": 300402, "count": 2})
-        self.assertEqual(init_data["backpackCtrl"]["300402"]["count"], 3)
-        self.assertEqual(init_data["lordInfoCtrl"]["base"]["health"], 40 + 100)  # 140
+        can_run, reason = await task.can_run()
+        self.assertFalse(can_run)
+        self.assertIn("لا توجد حزم طاقة مجانية", reason)
 
-    async def test_gold_shop_buy_within_daily_limit(self):
-        """اختبار الشراء بالذهب عند نفاذ الحزم وضمن السقف اليومي."""
+        res = await task.safe_execute()
+        self.assertTrue(res.skipped)
+        self.assertEqual(len(conn.sent_queries), 0)
+
+    async def test_0_network_skip_when_stamina_above_gold_trigger(self):
+        """اختبار التخطي بصفر شبكة عند نفاذ الحزم ولكن الطاقة أعلى من سقف تفعيل الذهب."""
         init_data = {
-            "lordInfoCtrl": {"base": {"health": 20, "gold": 800, "uid": "123456"}},
-            "backpackCtrl": {},  # لا توجد حزم إطلاقاً
+            "lordInfoCtrl": {"base": {"health": 80, "gold": 1000, "uid": "123456"}},
+            "backpackCtrl": {},  # لا حزم
         }
         conn = MockConnection(init_data)
         cfg = {
             "enabled": True,
-            "min_stamina": 100,
-            "mode": "auto",
-            "allow_buy": True,
-            "max_gold_daily": 600,
+            "gold_buy_enabled": True,
+            "gold_trigger_stamina": 50,  # 80 > 50 -> لا يشتري
+            "gold_buy_stamina_amount": 50,
         }
         task = StaminaTask(conn, None, cfg)
 
-        # العجز: 100 - 20 = 80
-        # لا حزم بالحقيبة -> شراء باقتين 50 بالذهب (200 + 200 = 400 ذهب <= 600)
-        res = await task.run()
-        self.assertTrue(res.success)
-        self.assertEqual(len(conn.sent_queries), 2)
-        for q in conn.sent_queries:
-            self.assertEqual(q["cmd"], "1034")
-            self.assertEqual(q["sub_cmd"], "2")
-            self.assertEqual(q["payload"], {"shopItemID": 1000046, "num": 1, "use": True})
+        can_run, reason = await task.can_run()
+        self.assertFalse(can_run)
+        self.assertIn("أعلى من سقف", reason)
 
-        # فحص خصم الذهب وزيادة الطاقة بالذاكرة
-        self.assertEqual(init_data["lordInfoCtrl"]["base"]["gold"], 800 - 400)  # 400
-        self.assertEqual(init_data["lordInfoCtrl"]["base"]["health"], 20 + 100)  # 120
-        self.assertEqual(res.data["gold_spent"], 400)
-        self.assertEqual(res.data["bought_packs"], 2)
+        res = await task.safe_execute()
+        self.assertTrue(res.skipped)
+        self.assertEqual(len(conn.sent_queries), 0)
 
-    async def test_gold_shop_daily_limit_enforced(self):
-        """اختبار الالتزام الصارم بالسقف اليومي للذهب وعدم تجاوزه."""
+    async def test_skip_when_gold_insufficient_no_partial_buy(self):
+        """اختبار التوقف والتخطي الكامل عند عدم كفاية الذهب للكمية المطلوبة (منع الشراء الجزئي)."""
         init_data = {
-            "lordInfoCtrl": {"base": {"health": 10, "gold": 5000, "uid": "123456"}},
+            "lordInfoCtrl": {"base": {"health": 30, "gold": 350, "uid": "123456"}},
             "backpackCtrl": {},
         }
         conn = MockConnection(init_data)
+        # المطلوب: 100 طاقة = باقتين 50 = 400 ذهب. الرصيد: 350 ذهب (< 400)
         cfg = {
             "enabled": True,
-            "min_stamina": 200,
-            "mode": "auto",
-            "allow_buy": True,
-            "max_gold_daily": 200,  # سقف يكفي لشراء باقة واحدة فقط (200 ذهب)
+            "gold_buy_enabled": True,
+            "gold_trigger_stamina": 50,
+            "gold_buy_stamina_amount": 100,
         }
         task = StaminaTask(conn, None, cfg)
 
+        can_run, reason = await task.can_run()
+        self.assertFalse(can_run)
+        self.assertIn("لا يكفي", reason)
+
+        res = await task.safe_execute()
+        self.assertTrue(res.skipped)
+        self.assertEqual(len(conn.sent_queries), 0, "يجب عدم شراء أي باقة جزئياً عند عدم كفاية الذهب للكمية الكاملة!")
+
+    async def test_gold_buy_success(self):
+        """اختبار الشراء بالذهب بنجاح عند استيفاء كافة الشروط وتحديث الذاكرة الحية."""
+        init_data = {
+            "lordInfoCtrl": {"base": {"health": 25, "gold": 1000, "uid": "123456"}},
+            "backpackCtrl": {},
+        }
+        conn = MockConnection(init_data)
+        # المطلوب: 100 طاقة = باقتين 50 = 400 ذهب
+        cfg = {
+            "enabled": True,
+            "gold_buy_enabled": True,
+            "gold_trigger_stamina": 50,
+            "gold_buy_stamina_amount": 100,
+        }
+        task = StaminaTask(conn, None, cfg)
+
+        can_run, reason = await task.can_run()
+        self.assertTrue(can_run)
+
         res = await task.run()
         self.assertTrue(res.success)
-        # تم شراء 1 فقط لأن الباقة الثانية ستصل إلى 400 > 200
-        self.assertEqual(len(conn.sent_queries), 1)
-        self.assertEqual(res.data["gold_spent"], 200)
-        self.assertEqual(res.data["bought_packs"], 1)
-        self.assertEqual(init_data["lordInfoCtrl"]["base"]["health"], 10 + 50)
+        self.assertFalse(res.skipped)
 
-    async def test_live_castle_beetoo2_read_only(self):
+        self.assertEqual(len(conn.sent_queries), 1)
+        q = conn.sent_queries[0]
+        self.assertEqual(q["cmd"], "1034")
+        self.assertEqual(q["sub_cmd"], "2")
+        self.assertEqual(q["payload"], {"shopItemID": 1000046, "num": 2, "use": True})
+
+        # التحقق من خصم الذهب وزيادة الطاقة بالذاكرة الحية
+        self.assertEqual(init_data["lordInfoCtrl"]["base"]["gold"], 1000 - 400)  # 600
+        self.assertEqual(init_data["lordInfoCtrl"]["base"]["health"], 25 + 100)  # 125
+        self.assertEqual(res.data["gold_spent"], 400)
+        self.assertEqual(res.data["bought_packs"], 2)
+        self.assertEqual(res.data["gained"], 100)
+
+    async def test_live_castle_beetoo2_simulation(self):
         """اختبار القلعة الحية (beetoo2@hotmail.com) بنمط القراءة والمحاكاة الآمنة (0 مخاطر)."""
         import core.database as db
         from bot_manager import CastleBot
@@ -208,39 +233,29 @@ class TestStaminaTask(unittest.IsolatedAsyncioTestCase):
             self.skipTest("الاتصال بحساب beetoo2 غير متاح حالياً")
 
         try:
-            # 1. اختبار الفحص المسبق لطاقة القلعة الحالية (0-network)
-            cfg = {"enabled": True, "min_stamina": 100, "mode": "auto", "allow_buy": False}
-            task = StaminaTask(conn, None, cfg)
-            current_stamina = task.stamina
-            self.assertGreater(current_stamina, 0)
+            # 1. قراءة الذاكرة الحية بصفر شبكة
+            task = StaminaTask(conn, None, {"enabled": True, "gold_buy_enabled": False})
+            stamina_val = task.stamina
+            gold_val = task.gold
+            self.assertGreater(stamina_val, 0)
+            self.assertGreaterEqual(gold_val, 0)
 
-            # إذا كانت الطاقة الحالية >= 100 يتم التخطي بصفر طلبات شبكية
-            if current_stamina >= 100:
-                can_run, reason = await task.can_run()
-                self.assertFalse(can_run)
-                res = await task.safe_execute()
-                self.assertTrue(res.skipped)
-                self.assertIn("طاقة القلعة كافية", res.message)
-
-            # 2. فحص قراءة الحزم من الذاكرة الحية (0-network)
             packs = task.get_available_stamina_packs()
             self.assertIsInstance(packs, dict)
-            self.assertIn("total_stamina", packs)
+            self.assertIn("total_packs", packs)
             self.assertIn("details", packs)
-            self.assertGreater(packs["total_stamina"], 0)
 
-            # 3. اختبار المحاكاة الآمنة لاستهلاك الحزم (Read-Only Mock Interceptor لحماية الحساب من أي استهلاك حقيقي)
+            # 2. محاكاة آمنة في الذاكرة المعزولة (0 مخاطر على الحساب)
             sim_init_data = json.loads(json.dumps(conn.init_data))
             mock_conn = MockConnection(sim_init_data)
             sim_task = StaminaTask(mock_conn, None, {
                 "enabled": True,
-                "min_stamina": current_stamina + 75,
-                "mode": "auto",
-                "allow_buy": False
+                "gold_buy_enabled": False,
+                "gold_trigger_stamina": 50,
+                "gold_buy_stamina_amount": 50
             })
             sim_res = await sim_task.run()
-            self.assertTrue(sim_res.success)
-            self.assertGreater(len(mock_conn.sent_queries), 0)
+            self.assertTrue(sim_res.success or sim_res.skipped)
         finally:
             if conn:
                 await conn.close()

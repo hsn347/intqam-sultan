@@ -45,12 +45,9 @@ def test_stage_2_bot_manager():
 
     def_cfg = DEFAULT_BOT_CONFIG["tasks"]["stamina"]
     assert def_cfg.get("enabled") is False
-    assert def_cfg.get("min_stamina") == 100
-    assert def_cfg.get("mode") == "auto"
-    assert def_cfg.get("pack_tier") == "50"
-    assert def_cfg.get("pack_count") == 1
-    assert def_cfg.get("allow_buy") is False
-    assert def_cfg.get("max_gold_daily") == 1000
+    assert def_cfg.get("gold_buy_enabled") is False
+    assert def_cfg.get("gold_trigger_stamina") == 50
+    assert def_cfg.get("gold_buy_stamina_amount") == 50
     print("  ✅ Stage 2 passed: bot_manager registration and default configs verified.")
 
 
@@ -61,12 +58,9 @@ def test_stage_3_api_whitelist():
     test_input = {
         "stamina": {
             "enabled": True,
-            "min_stamina": 120,
-            "mode": "manual",
-            "pack_tier": "100",
-            "pack_count": 3,
-            "allow_buy": True,
-            "max_gold_daily": 2000,
+            "gold_buy_enabled": True,
+            "gold_trigger_stamina": 40,
+            "gold_buy_stamina_amount": 100,
         }
     }
     model = CastleConfigModel(**test_input)
@@ -74,12 +68,9 @@ def test_stage_3_api_whitelist():
     assert "stamina" in dumped, "'stamina' dropped by CastleConfigModel!"
     s = dumped["stamina"]
     assert s["enabled"] is True
-    assert s["min_stamina"] == 120
-    assert s["mode"] == "manual"
-    assert s["pack_tier"] == "100"
-    assert s["pack_count"] == 3
-    assert s["allow_buy"] is True
-    assert s["max_gold_daily"] == 2000
+    assert s["gold_buy_enabled"] is True
+    assert s["gold_trigger_stamina"] == 40
+    assert s["gold_buy_stamina_amount"] == 100
     print("  ✅ Stage 3 passed: api_server schema and whitelist verified.")
 
 

@@ -103,13 +103,11 @@ export interface CommandHallConfig extends BaseTaskConfig {
   min_safety_stamina?: number
 }
 
-export interface StaminaConfig extends BaseTaskConfig {
-  min_stamina: number
-  mode: 'auto' | 'manual'
-  pack_tier: '10' | '50' | '100'
-  pack_count: number
-  allow_buy: boolean
-  max_gold_daily: number
+export interface StaminaConfig {
+  enabled: boolean
+  gold_buy_enabled: boolean
+  gold_trigger_stamina: number
+  gold_buy_stamina_amount: number
 }
 
 export type EquipmentCategory = 'weapon' | 'clothes' | 'helmet' | 'trousers' | 'shoes' | 'ring'
@@ -251,12 +249,9 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
   command_hall: { enabled: false, mode: 'daily', allow_marches: true, allow_snipe: true, allow_rescue: true, allow_dialogue: true, allow_army_group: true, auto_claim_rewards: true, auto_upgrade_hall: true, min_safety_stamina: 10 },
   stamina: {
     enabled: false,
-    min_stamina: 100,
-    mode: 'auto',
-    pack_tier: '50',
-    pack_count: 1,
-    allow_buy: false,
-    max_gold_daily: 1000,
+    gold_buy_enabled: false,
+    gold_trigger_stamina: 50,
+    gold_buy_stamina_amount: 50,
   },
   skills: { enabled: false, target_skills: [] },
   hero_draw: { enabled: false },
@@ -363,12 +358,9 @@ export const FIXED_PRESET_CONFIG: CastleConfig = {
   forge_equipment: { enabled: false, category: 'weapon' },
   stamina: {
     enabled: false,
-    min_stamina: 100,
-    mode: 'auto',
-    pack_tier: '50',
-    pack_count: 1,
-    allow_buy: false,
-    max_gold_daily: 1000,
+    gold_buy_enabled: false,
+    gold_trigger_stamina: 50,
+    gold_buy_stamina_amount: 50,
   },
   hero_draw: { enabled: false },
   treasure_pavilion: { enabled: true },
