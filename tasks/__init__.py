@@ -3,7 +3,7 @@
 tasks — حزمة مهام البوت المستقلة للعبة انتقام السلاطين
 """
 
-from tasks.base_task import BaseTask, TaskResult
+from tasks.base_task import BaseTask, TaskResult, ConnectionCircuitBreakerError
 from tasks.port import PortTask
 from tasks.merchant_ship import MerchantShipTask
 from tasks.treasure import TreasureTask
@@ -29,10 +29,12 @@ from tasks.daily_quest import DailyQuestTask
 from tasks.skills import SkillsTask
 from tasks.material_workshop import MaterialWorkshopTask
 from tasks.stamina import StaminaTask
+from tasks.watermill import WatermillTask
 
 __all__ = [
     "BaseTask",
     "TaskResult",
+    "ConnectionCircuitBreakerError",
     "PortTask",
     "MerchantShipTask",
     "TreasureTask",
@@ -58,4 +60,5 @@ __all__ = [
     "SkillsTask",
     "MaterialWorkshopTask",
     "StaminaTask",
+    "WatermillTask",
 ]

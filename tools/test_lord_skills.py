@@ -175,12 +175,15 @@ def run_tests():
         assert return_status["can_activate"] is True
 
     # ─────────────────────────────────────────────────────────────────
-    # الاختبار 4: محاكاة فترات التبريد (Cooldown) والبافات النشطة (Buffs)
+    # الاختبار 4: محاكاة فترات التبريد (Cooldown) والبافات النشطة (Buffs) بجميع صيغ السيرفر الواقعية
     # ─────────────────────────────────────────────────────────────────
-    print("\n⏱️ [اختبار 4] محاكاة فترات التبريد وسريان البافات الحية:")
+    print("\n⏱️ [اختبار 4] محاكاة فترات التبريد وسريان البافات الحية (قوائم، قواميس، وبافات معركة دائمة time=0):")
     now_ts = int(time.time())
 
-    # تجهيز ذاكرة افتراضية مع تبريد لمهارة 12008 (حصاد وافر) وباف نشط لمهارة 11028 (الإنقاذ)
+    # تجهيز ذاكرة واقعية:
+    # 1. buffCtrl كقائمة (List) تطابق الواقع الحي بدلاً من القواميس المصطنعة
+    # 2. باف الإنقاذ 4501 ذو مدة time=0 (باف معركة دائم حتى حدوث معركة)
+    # 3. باف زيادة المسيرة 4506 محدد المدة عبر beginTime + time
     sim_data = {
         "lordSkillCtrl": {
             "activeSetID": "1",
@@ -193,6 +196,7 @@ def run_tests():
                     "list": {
                         "12008": 1,  # حصاد وافر متعلم
                         "11028": 1,  # الإنقاذ متعلم
+                        "11029": 1,  # زيادة المسيرة متعلم
                         "13020": 1,  # عامل ماهر متعلم
                     }
                 }
@@ -205,12 +209,20 @@ def run_tests():
                 }
             }
         },
-        "buffCtrl": {
-            # باف الإنقاذ (buff_id 4501) نشط ومتبقي له 3600 ثانية
-            "4501": {
-                "endTime": now_ts + 3600,
+        "buffCtrl": [
+            # باف الإنقاذ (buff_id 4501) كعنصر داخل قائمة، بمدة time=0 (باف معركة حقيقي)
+            {
+                "id": 4501,
+                "beginTime": now_ts - 500,
+                "time": 0,
+            },
+            # باف زيادة المسيرة (4506) كعنصر داخل قائمة، بمدة 3600 ثانية وبدء قبل 600 ثانية
+            {
+                "id": 4506,
+                "beginTime": now_ts - 600,
+                "time": 3600,
             }
-        },
+        ],
         "queueCtrl": {},
         "vipCtrl": {"vipLv": 10},
     }
@@ -227,19 +239,34 @@ def run_tests():
     assert 13350 <= cd_test["cd_remaining_seconds"] <= 13450
     assert cd_test["can_activate"] is False
 
-    # ب. فحص مهارة بافها نشط وسارٍ حالياً (11028 - الإنقاذ)
-    buff_test = sim_task.get_lord_skill_status(11028)
-    print("\n  🛡️ فحص مهارة بافها سارٍ حالياً (11028 - الإنقاذ):")
-    print(f"     - is_active: {buff_test['is_active']}")
-    print(f"     - is_buff_active: {buff_test['is_buff_active']}")
-    print(f"     - buff_remaining_seconds: {buff_test['buff_remaining_seconds']}s")
-    print(f"     - can_activate: {buff_test['can_activate']}")
-    assert buff_test["is_active"] is True
-    assert buff_test["is_buff_active"] is True
-    assert 3550 <= buff_test["buff_remaining_seconds"] <= 3650
-    assert buff_test["can_activate"] is False
+    # ب. فحص مهارة الإنقاذ (11028) كباف معركة حقيقي (time=0) داخل قائمة (List)
+    buff_rescue = sim_task.get_lord_skill_status(11028)
+    print("\n  🛡️ فحص مهارة الإنقاذ 11028 الحقيقية (باف 4501 مع time=0 داخل قائمة):")
+    print(f"     - is_active: {buff_rescue['is_active']}")
+    print(f"     - is_buff_active: {buff_rescue['is_buff_active']}")
+    print(f"     - is_untimed_buff: {buff_rescue['is_untimed_buff']}")
+    print(f"     - buff_remaining_seconds: {buff_rescue['buff_remaining_seconds']}s")
+    print(f"     - can_activate: {buff_rescue['can_activate']}")
+    assert buff_rescue["is_active"] is True
+    assert buff_rescue["is_buff_active"] is True
+    assert buff_rescue["is_untimed_buff"] is True
+    assert buff_rescue["can_activate"] is False
+    print("  ✅ نجح اكتشاف باف الإنقاذ 4501 الواقعي كباف معركة دائم ومنع إرسال طلب التفعيل بنسبة 100%!")
 
-    # ج. فحص مهارة جاهزة تماماً للتفعيل (13020 - عامل ماهر)
+    # ج. فحص مهارة زيادة المسيرة (11029) كباف محدد المدة داخل قائمة
+    buff_march = sim_task.get_lord_skill_status(11029)
+    print("\n  🛡️ فحص مهارة زيادة المسيرة 11029 (باف 4506 محدد المدة داخل قائمة):")
+    print(f"     - is_active: {buff_march['is_active']}")
+    print(f"     - is_buff_active: {buff_march['is_buff_active']}")
+    print(f"     - buff_remaining_seconds: {buff_march['buff_remaining_seconds']}s")
+    print(f"     - can_activate: {buff_march['can_activate']}")
+    assert buff_march["is_active"] is True
+    assert buff_march["is_buff_active"] is True
+    assert 2950 <= buff_march["buff_remaining_seconds"] <= 3050
+    assert buff_march["can_activate"] is False
+    print("  ✅ نجح اكتشاف باف زيادة المسيرة 4506 وحساب الوقت المتبقي بالثواني بدقة!")
+
+    # د. فحص مهارة جاهزة تماماً للتفعيل (13020 - عامل ماهر)
     ready_test = sim_task.get_lord_skill_status(13020)
     print("\n  ⚡ فحص مهارة جاهزة للتفعيل الفوري (13020 - عامل ماهر):")
     print(f"     - is_available: {ready_test['is_available']}")
@@ -252,6 +279,25 @@ def run_tests():
     assert ready_test["in_cooldown"] is False
     assert ready_test["is_active"] is False
     assert ready_test["can_activate"] is True
+
+    # هـ. فحص صيغة باف كقاموس يحتوي على buffList
+    dict_buff_data = copy.deepcopy(sim_data)
+    dict_buff_data["buffCtrl"] = {"buffList": [{"id": 4501, "time": 0}]}
+    dict_task = DummyTask(MockConn(dict_buff_data))
+    buff_dict_test = dict_task.get_lord_skill_status(11028)
+    assert buff_dict_test["is_buff_active"] is True
+    assert buff_dict_test["can_activate"] is False
+    print("  ✅ نجح اكتشاف الباف من صيغة القاموس المحتوي على buffList!")
+
+    # و. فحص صيغة الطابور في queueCtrl (مثل طابور 1214 لمهارة الإنقاذ)
+    queue_data = copy.deepcopy(sim_data)
+    queue_data["buffCtrl"] = []
+    queue_data["queueCtrl"] = {"1214": {"starttime": now_ts - 200, "totaltime": 0}}
+    queue_task = DummyTask(MockConn(queue_data))
+    buff_queue_test = queue_task.get_lord_skill_status(11028)
+    assert buff_queue_test["is_buff_active"] is True
+    assert buff_queue_test["can_activate"] is False
+    print("  ✅ نجح اكتشاف المهارة النشطة عبر طابور queueCtrl (1214)!")
 
     # ─────────────────────────────────────────────────────────────────
     # الاختبار 5: فحص دورة التبديل الذكي التلقائي والرجوع للطقم الأصلي (Weave & Revert)
@@ -345,6 +391,8 @@ def run_tests():
         import copy
         fresh_weave_data = copy.deepcopy(weave_data)
         fresh_weave_data["lordSkillCtrl"]["CDData"] = {}
+        fresh_weave_data["queueCtrl"] = {}
+        fresh_weave_data["buffCtrl"] = []
         task_str_zero = MockTaskWithStringZero(MockConn(fresh_weave_data))
         ok_str, msg_str = await task_str_zero.use_lord_skill(12008, auto_revert=True, step_delay=0.01)
         print(f"  ✅ سيناريو استجابة السيرفر بـ '0' نصية: {ok_str} | {msg_str}")
@@ -362,6 +410,40 @@ def run_tests():
         assert DummyTask._is_resp_ok({"err": "1001"}) is False
         assert DummyTask._is_resp_ok(None) is False
         print("  ✓ تم التحقق بنجاح من حصانة دالة _is_resp_ok مع كافة أنماط الردود (نصوص، أرقام، ورموز).")
+
+        # هـ. سيناريو استقبال كود 3012 (Err_SKILL_IS_ACTIVITY): المهارة سارية بالفعل على السيرفر
+        class MockTaskWith3012(DummyTask):
+            async def safe_query(self, cmd, req_type, data=None, **kwargs):
+                if str(req_type) == "22":
+                    return {"err": 3012, "msg": "Skill is already active"}
+                return {"err": 0, "data": {}}
+
+        rescue_test_data = {
+            "lordSkillCtrl": {
+                "activeSetID": 1,
+                "pointTotal": 300,
+                "setListData": {"1": {"title": "حرب", "usedPoint": 150, "list": {"11028": 1}}},
+                "CDData": {},
+            },
+            "buffCtrl": [],
+            "queueCtrl": {},
+            "vipCtrl": {"vipLv": 10},
+        }
+        task_3012 = MockTaskWith3012(MockConn(rescue_test_data))
+        ok_3012, msg_3012 = await task_3012.use_lord_skill(11028, auto_revert=True, step_delay=0.01)
+        print(f"  ✅ سيناريو التعامل مع كود 3012: {ok_3012} | {msg_3012}")
+        assert ok_3012 is True
+        assert "سارية" in msg_3012
+        # التأكد من حقن باف 4501 تلقائياً في buffCtrl وطابور 1214 في queueCtrl
+        buff_ids_in_mem = [str(b.get("id")) for b in task_3012.conn.init_data["buffCtrl"]]
+        assert "4501" in buff_ids_in_mem
+        assert "1214" in task_3012.conn.init_data["queueCtrl"]
+        # التأكد من أن الفحص اللاحق بـ 0 شبكة يكتشف فوراً أن المهارة سارية دون ملامسة السيرفر
+        next_check = task_3012.get_lord_skill_status(11028)
+        assert next_check["is_active"] is True
+        assert next_check["is_buff_active"] is True
+        assert next_check["can_activate"] is False
+        print("  ✓ تم التحقق بنجاح من حقن الباف بالذاكرة فور استلام 3012 ومنع أي طلبات شبكية تالية نهائياً!")
 
     asyncio.run(run_weave_tests())
 
@@ -469,6 +551,26 @@ def run_tests():
         print(f"  🛡️ تم التأكد من تحديث الذاكرة: المهارة سارية (is_active={after_st['is_active']}) والمتبقي {after_st['remaining_uses_today']} استخدامات.")
 
     asyncio.run(run_rally_activation_test())
+
+    # ─────────────────────────────────────────────────────────────────
+    # الاختبار 7: فحص معالج إشعارات السيرفر NOTIFY_BUFF (7) وإغلاق الباف وبدء التبريد
+    # ─────────────────────────────────────────────────────────────────
+    print("\n🔔 [اختبار 7] فحص معالج NOTIFY_BUFF عند انتهاء باف الإنقاذ وبدء التبريد تلقائياً:")
+    from core.live_memory import LiveMemoryEngine
+    mem_engine = LiveMemoryEngine()
+    mem_engine.init_data = {
+        "buffCtrl": [{"id": 4501, "time": 0}],
+        "lordSkillCtrl": {"CDData": {}},
+    }
+    # محاكاة إشعار السيرفر بانتهاء باف 4501 إثر خوض معركة
+    mem_engine._handle_notify_buff({"syncType": "closeBuff", "list": [4501]})
+    # التحقق من حذف الباف
+    assert len(mem_engine.init_data["buffCtrl"]) == 0
+    # التحقق من بدء التبريد لمهارة الإنقاذ 11028 (28800 ثانية = 8 ساعات)
+    cd_entry = mem_engine.init_data["lordSkillCtrl"]["CDData"].get("11028")
+    assert cd_entry is not None
+    assert cd_entry["CD"] == 28800
+    print("  ✅ تم التأكد من حذف باف 4501 وبدء تبريد 8 ساعات لمهارة الإنقاذ 11028 فور إغلاق الباف!")
 
     print("\n" + "=" * 70)
     print("🎉 كافة الاختبارات والتحققات الميدانية لمحرك المهارات والتبديل اكتملت بنجاح 100%!")

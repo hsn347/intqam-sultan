@@ -18,6 +18,14 @@ from typing import Any, Dict, List, Optional, Tuple
 from tasks.base_task import BaseTask, TaskResult, STAMINA_PACKS_CATALOG
 
 
+# الحد الأقصى الرسمي المسموح باستهلاكه في الطلب الواحد بسيرفر اللعبة لتفادي كود الخطأ 2004 (Err_ITEM_USE_COUNT_IS_LIMIT)
+STAMINA_USE_BATCH_LIMITS: Dict[str, int] = {
+    "100": 10,  # 10 * 100 = 1000 نقطة طاقة كحد أقصى للطلب الواحد
+    "50": 20,   # 20 * 50  = 1000 نقطة طاقة كحد أقصى للطلب الواحد
+    "10": 50,   # 50 * 10  = 500  نقطة طاقة كحد أقصى للطلب الواحد
+}
+
+
 class StaminaTask(BaseTask):
     """مهمة فحص وتعويض طاقة اللورد بالقلعة بصفر طلبات شبكية عند عدم الحاجة."""
 
@@ -139,20 +147,36 @@ class StaminaTask(BaseTask):
                 val = STAMINA_PACKS_CATALOG[tier]["stamina_value"]
                 name_ar = STAMINA_PACKS_CATALOG[tier]["name"]
 
-                self.log(f"📦 جاري استخدام كافة حزم {name_ar} المتوفرة ({count} حزمة)...")
-                payload = {"itemID": item_id, "count": count}
-                r = await self.safe_query("1004", "2", payload, min_delay=0.3, max_delay=0.6)
-                err_code = str(r.get("err", "0")) if isinstance(r, dict) else "0"
+                batch_limit = STAMINA_USE_BATCH_LIMITS.get(tier, 10)
+                remaining_to_use = count
+                used_in_tier = 0
 
-                if err_code in ("0", "Err_None", "None") or not r:
-                    self._deduct_backpack_item(item_id, count)
-                    pts = count * val
-                    self._add_stamina(pts)
-                    total_stamina_gained += pts
-                    consumed_packs.append(f"{count}x{name_ar}")
-                    self.log(f"⚡ تم استخدام {count} حزمة من {name_ar} بنجاح (+{pts} طاقة)")
-                else:
-                    self.log(f"⚠️ فشل استخدام حزم {name_ar} (كود: {err_code})")
+                self.log(
+                    f"📦 جاري استخدام كافة حزم {name_ar} المتوفرة ({count} حزمة) "
+                    f"على دفعات رسمية (سقف الدفعة: {batch_limit})..."
+                )
+
+                while remaining_to_use > 0:
+                    batch_count = min(remaining_to_use, batch_limit)
+                    payload = {"itemID": item_id, "count": batch_count}
+                    r = await self.safe_query("1004", "2", payload, min_delay=0.3, max_delay=0.6)
+                    err_code = str(r.get("err", "0")) if isinstance(r, dict) else "0"
+
+                    if err_code in ("0", "Err_None", "None") or not r:
+                        self._deduct_backpack_item(item_id, batch_count)
+                        pts = batch_count * val
+                        self._add_stamina(pts)
+                        total_stamina_gained += pts
+                        used_in_tier += batch_count
+                        remaining_to_use -= batch_count
+                    else:
+                        self.log(f"⚠️ فشل استخدام دفعة من حزم {name_ar} ({batch_count} حزمة) - كود: {err_code}")
+                        break
+
+                if used_in_tier > 0:
+                    tier_pts = used_in_tier * val
+                    consumed_packs.append(f"{used_in_tier}x{name_ar}")
+                    self.log(f"⚡ تم استخدام {used_in_tier} حزمة من {name_ar} بنجاح (+{tier_pts} طاقة)")
 
         # ── الخطوة 2: الشراء بالذهب من المتجر الرسمي (Gold Purchase) ──
         # يُفعّل فقط إذا كانت الحزم المجانية بالحقيبة 0، والشراء بالذهب مفعل، والطاقة <= سقف التفعيل

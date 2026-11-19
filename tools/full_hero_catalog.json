@@ -1,0 +1,515 @@
+{
+  "1700": {
+    "hero_id": 1700,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1700",
+    "name_ar": "امير الصحراء",
+    "rarity": 1
+  },
+  "1701": {
+    "hero_id": 1701,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1701",
+    "name_ar": "قاهرة الاعداء",
+    "rarity": 1
+  },
+  "1702": {
+    "hero_id": 1702,
+    "hero_type": 2,
+    "type_name_en": "chariots",
+    "type_name_ar": "عربات",
+    "name_code": "heroname_1702",
+    "name_ar": "أمير الشرق",
+    "rarity": 1
+  },
+  "1703": {
+    "hero_id": 1703,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1703",
+    "name_ar": "الفاتح",
+    "rarity": 1
+  },
+  "1704": {
+    "hero_id": 1704,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1704",
+    "name_ar": "امير الظلام",
+    "rarity": 1
+  },
+  "1705": {
+    "hero_id": 1705,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1705",
+    "name_ar": "البارق",
+    "rarity": 1
+  },
+  "1706": {
+    "hero_id": 1706,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1706",
+    "name_ar": "صقر المملكه",
+    "rarity": 1
+  },
+  "1707": {
+    "hero_id": 1707,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1707",
+    "name_ar": "المرعب",
+    "rarity": 1
+  },
+  "1708": {
+    "hero_id": 1708,
+    "hero_type": 2,
+    "type_name_en": "chariots",
+    "type_name_ar": "عربات",
+    "name_code": "heroname_1708",
+    "name_ar": "اميرة الحرب",
+    "rarity": 1
+  },
+  "1709": {
+    "hero_id": 1709,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1709",
+    "name_ar": "الاسطورة",
+    "rarity": 1
+  },
+  "1710": {
+    "hero_id": 1710,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1710",
+    "name_ar": "أمير الحرب",
+    "rarity": 1
+  },
+  "1711": {
+    "hero_id": 1711,
+    "hero_type": 1,
+    "type_name_en": "ancillary",
+    "type_name_ar": "مساعد",
+    "name_code": "heroname_1711",
+    "name_ar": "الانيق",
+    "rarity": 1
+  },
+  "1712": {
+    "hero_id": 1712,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1712",
+    "name_ar": "الغضنفر",
+    "rarity": 1
+  },
+  "1713": {
+    "hero_id": 1713,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1713",
+    "name_ar": "السفاح",
+    "rarity": 1
+  },
+  "1714": {
+    "hero_id": 1714,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1714",
+    "name_ar": "الزعيم",
+    "rarity": 1
+  },
+  "1716": {
+    "hero_id": 1716,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1716",
+    "name_ar": "أميرة الرماة",
+    "rarity": 1
+  },
+  "1717": {
+    "hero_id": 1717,
+    "hero_type": 1,
+    "type_name_en": "ancillary",
+    "type_name_ar": "مساعد",
+    "name_code": "heroname_1717",
+    "name_ar": "المزيونة",
+    "rarity": 1
+  },
+  "1718": {
+    "hero_id": 1718,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1718",
+    "name_ar": "المفترس",
+    "rarity": 1
+  },
+  "1719": {
+    "hero_id": 1719,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1719",
+    "name_ar": "المستبدة",
+    "rarity": 1
+  },
+  "1720": {
+    "hero_id": 1720,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1720",
+    "name_ar": "الكاسر",
+    "rarity": 5
+  },
+  "1721": {
+    "hero_id": 1721,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1721",
+    "name_ar": "صائد الفرسان",
+    "rarity": 5
+  },
+  "1722": {
+    "hero_id": 1722,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1722",
+    "name_ar": "الهمام",
+    "rarity": 5
+  },
+  "1723": {
+    "hero_id": 1723,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1723",
+    "name_ar": "الأمير القناص",
+    "rarity": 5
+  },
+  "1724": {
+    "hero_id": 1724,
+    "hero_type": 1,
+    "type_name_en": "ancillary",
+    "type_name_ar": "مساعد",
+    "name_code": "heroname_1724",
+    "name_ar": "الضرغام",
+    "rarity": 5
+  },
+  "1725": {
+    "hero_id": 1725,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1725",
+    "name_ar": "اليمامة",
+    "rarity": 5
+  },
+  "1726": {
+    "hero_id": 1726,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1726",
+    "name_ar": "جسار",
+    "rarity": 5
+  },
+  "1727": {
+    "hero_id": 1727,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1727",
+    "name_ar": "المُهاب",
+    "rarity": 5
+  },
+  "1728": {
+    "hero_id": 1728,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1728",
+    "name_ar": "الصارم المقدام",
+    "rarity": 5
+  },
+  "1729": {
+    "hero_id": 1729,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1729",
+    "name_ar": "الباسلة",
+    "rarity": 5
+  },
+  "1730": {
+    "hero_id": 1730,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1730",
+    "name_ar": "جساس",
+    "rarity": 5
+  },
+  "1731": {
+    "hero_id": 1731,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1731",
+    "name_ar": "الحازم البتار",
+    "rarity": 5
+  },
+  "1732": {
+    "hero_id": 1732,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1732",
+    "name_ar": "الإمبراطور",
+    "rarity": 5
+  },
+  "1733": {
+    "hero_id": 1733,
+    "hero_type": 1,
+    "type_name_en": "ancillary",
+    "type_name_ar": "مساعد",
+    "name_code": "heroname_1733",
+    "name_ar": "صخر",
+    "rarity": 5
+  },
+  "1734": {
+    "hero_id": 1734,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1734",
+    "name_ar": "العنيد",
+    "rarity": 5
+  },
+  "1735": {
+    "hero_id": 1735,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1735",
+    "name_ar": "العنقاء",
+    "rarity": 5
+  },
+  "1736": {
+    "hero_id": 1736,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1736",
+    "name_ar": "العاصوف",
+    "rarity": 5
+  },
+  "1737": {
+    "hero_id": 1737,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1737",
+    "name_ar": "الصنديد",
+    "rarity": 5
+  },
+  "1738": {
+    "hero_id": 1738,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1738",
+    "name_ar": "الشنفرى",
+    "rarity": 5
+  },
+  "1739": {
+    "hero_id": 1739,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1739",
+    "name_ar": "الباشق",
+    "rarity": 5
+  },
+  "1740": {
+    "hero_id": 1740,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1740",
+    "name_ar": "الجليلة",
+    "rarity": 5
+  },
+  "1741": {
+    "hero_id": 1741,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1741",
+    "name_ar": "فارس الهيجاء",
+    "rarity": 5
+  },
+  "1742": {
+    "hero_id": 1742,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1742",
+    "name_ar": "الملاك الساهرة",
+    "rarity": 5
+  },
+  "1743": {
+    "hero_id": 1743,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1743",
+    "name_ar": "أميرة وحيد القرن",
+    "rarity": 5
+  },
+  "1744": {
+    "hero_id": 1744,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1744",
+    "name_ar": "المدمّر",
+    "rarity": 5
+  },
+  "1745": {
+    "hero_id": 1745,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1745",
+    "name_ar": "أُسيد",
+    "rarity": 5
+  },
+  "1746": {
+    "hero_id": 1746,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1746",
+    "name_ar": "الماجدة",
+    "rarity": 5
+  },
+  "1747": {
+    "hero_id": 1747,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1747",
+    "name_ar": "هدير اللهب",
+    "rarity": 5
+  },
+  "1748": {
+    "hero_id": 1748,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1748",
+    "name_ar": "السهم الصاعق",
+    "rarity": 5
+  },
+  "1749": {
+    "hero_id": 1749,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1749",
+    "name_ar": "سلطان عاصفة الصحراء",
+    "rarity": 5
+  },
+  "1750": {
+    "hero_id": 1750,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1750",
+    "name_ar": "قُصي",
+    "rarity": 5
+  },
+  "1751": {
+    "hero_id": 1751,
+    "hero_type": 3,
+    "type_name_en": "cavalry",
+    "type_name_ar": "فرسان",
+    "name_code": "heroname_1751",
+    "name_ar": "زُهير",
+    "rarity": 5
+  },
+  "1752": {
+    "hero_id": 1752,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1752",
+    "name_ar": "سليل الصوارم",
+    "rarity": 5
+  },
+  "1753": {
+    "hero_id": 1753,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1753",
+    "name_ar": "شاهين",
+    "rarity": 5
+  },
+  "1754": {
+    "hero_id": 1754,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1754",
+    "name_ar": "وقاص",
+    "rarity": 5
+  },
+  "1755": {
+    "hero_id": 1755,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1755",
+    "name_ar": "ملكة الغابة",
+    "rarity": 5
+  },
+  "1756": {
+    "hero_id": 1756,
+    "hero_type": 5,
+    "type_name_en": "infantry",
+    "type_name_ar": "مشاة",
+    "name_code": "heroname_1756",
+    "name_ar": "صياد الصحراء",
+    "rarity": 5
+  },
+  "1757": {
+    "hero_id": 1757,
+    "hero_type": 4,
+    "type_name_en": "archer",
+    "type_name_ar": "رماة",
+    "name_code": "heroname_1757",
+    "name_ar": "العاصف الرعدي",
+    "rarity": 5
+  }
+}

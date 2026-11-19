@@ -1,23 +1,26 @@
 # -*- coding: utf-8 -*-
 """
-tasks/research.py — مهمة إجراء الأبحاث الموصى بها تلقائياً في المعهد (College Research Task)
-════════════════════════════════════════════════════════════════════════════════════════════
+tasks/research.py — مهمة إجراء أبحاث المعهد بيقين 100% وبصفر تخمين (Zero-Guessing Research Task)
+══════════════════════════════════════════════════════════════════════════════════════════════════
 المزايا الرئيسية:
-  1. صفر استهلاك للشبكة (0-Network Direct Read):
-     - قراءة حالة طابور أبحاث المعهد (1212) مباشرة من الذاكرة الحية queueCtrl.
-     - قراءة مستويات الأبحاث المكتسبة من technologyCtrl ومستوى المعهد (bid 113) من cityCtrl.
-  2. تحديد البحث الموصى به تلقائياً بدون تدخل المستخدم:
-     - التوافق مع مهمة الدليل الرسمية للعبة (Guide Quest) إن وجدت.
-     - اعتماد سلم الأولويات الاستراتيجية (العسكرية -> الدفاع -> تنمية المدينة -> الموارد).
-     - ترقية الأبحاث الأقل مستوى لضمان استمرار الدوران ورفع قوة القلعة بأعلى كفاءة.
-  3. تنفيذ مباشر وآمن لطلب البحث بالسيرفر عبر (CMD 1017 / SUBCMD 2).
+  1. صفر تخمين ومحاكاة دقيقة لشروط اللعبة (Zero-Guessing Pre-flight):
+     - فحص مستوى المعهد (College Level / bid 113) المطلوب للبحث بالدقة الكاملة.
+     - فحص كافة الأبحاث المسبقة (Prerequisites) ومستوياتها المطلوبة من الذاكرة الحية.
+     - فحص الموارد الحرة الحالية في القلعة ومطابقتها التامة قبل إرسال أي طلب.
+  2. صفر استهلاك شبكي زائد (0-Network Guarantee):
+     - لا توجد أي محاولات تجريبية أو أخطاء شبكية (Zero Trial-and-Error).
+     - يتم إرسال طلب واحد فقط للبحث المؤهل قطعياً، والتوقف الآمن إذا لم تتوفر الشروط.
+  3. سلم الأولويات الاستراتيجية الهجينة:
+     - مهمة الدليل الرسمية (Guide Quest) أولاً إن كانت مستوفية للشروط بنسبة 100%.
+     - الشؤون العسكرية -> الدفاع والتحصينات -> تنمية المدينة -> الموارد.
+     - تفضيل الأبحاث الأقل مستوى والأقصر وقتاً لتسريع دوران الطابور ونقاط النشاط.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import os
-import random
 import sys
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -39,36 +42,41 @@ from tasks.base_task import BaseTask, TaskResult
 COLLEGE_BUILDING_ID = 113
 RESEARCH_QUEUE_ID = "1212"
 
-# تصنيف أشجار الأبحاث حسب الأولوية الاستراتيجية في اللعبة
-RESEARCH_TREES: List[Dict[str, Any]] = [
-    {
-        "tree": "military",
-        "name": "⚔️ الشؤون العسكرية",
-        "root_ids": ["24011", "24001", "24101"],
-        "tech_ids": [str(x) for x in range(24001, 24049)] + [str(x) for x in range(24101, 24119)],
-    },
-    {
-        "tree": "defense",
-        "name": "🛡️ الدفاع والتحصينات",
-        "root_ids": ["23001"],
-        "tech_ids": [str(x) for x in range(23001, 23019)],
-    },
-    {
-        "tree": "city",
-        "name": "🏛️ تنمية وتطوير المدينة",
-        "root_ids": ["22001"],
-        "tech_ids": [str(x) for x in range(22001, 22015)],
-    },
-    {
-        "tree": "resources",
-        "name": "🌾 الموارد والإنتاج",
-        "root_ids": ["21001", "21002"],
-        "tech_ids": [str(x) for x in range(21001, 21021)],
-    },
-]
-
-# قاموس التخزين المؤقت لأسماء الأبحاث بالعربية
+# قاموس التخزين المؤقت لقواعد الأبحاث وأسمائها بالعربية
+_TECH_RULES_CACHE: Dict[str, Dict[str, Any]] = {}
 _TECH_NAMES_CACHE: Dict[str, str] = {}
+
+# ترتيب أولويات أشجار الأبحاث في اللعبة
+TREE_PRIORITY: Dict[str, int] = {
+    "military": 1,
+    "defense": 2,
+    "city": 3,
+    "resources": 4,
+}
+
+TREE_TITLES_AR: Dict[str, str] = {
+    "military": "⚔️ الشؤون العسكرية",
+    "defense": "🛡️ الدفاع والتحصينات",
+    "city": "🏛️ تنمية وتطوير المدينة",
+    "resources": "🌾 الموارد والإنتاج",
+}
+
+
+def _load_tech_rules() -> Dict[str, Dict[str, Any]]:
+    """تحميل قواعد ومتطلبات أبحاث اللعبة من core/technology_rules.json مرة واحدة في الذاكرة."""
+    global _TECH_RULES_CACHE
+    if _TECH_RULES_CACHE:
+        return _TECH_RULES_CACHE
+
+    rules_path = os.path.join(_ROOT_DIR, "core", "technology_rules.json")
+    if os.path.exists(rules_path):
+        try:
+            with open(rules_path, "r", encoding="utf-8") as f:
+                _TECH_RULES_CACHE = json.load(f)
+        except Exception:
+            _TECH_RULES_CACHE = {}
+
+    return _TECH_RULES_CACHE
 
 
 def _load_arabic_tech_names() -> Dict[str, str]:
@@ -90,7 +98,6 @@ def _load_arabic_tech_names() -> Dict[str, str]:
                             k_raw = parts[0].strip().strip(b"[").strip(b"]").strip(b"\"")
                             v_raw = parts[1].strip().strip(b",").strip(b"\"")
                             k = k_raw.decode("ascii", "ignore")
-                            # استخراج المعرف الرقمي من technology_name_24011
                             tid = k.replace("technology_name_", "").strip()
                             if tid.isdigit():
                                 _TECH_NAMES_CACHE[tid] = v_raw.decode("utf-8", "ignore")
@@ -117,13 +124,14 @@ def format_duration(seconds: float) -> str:
 
 class ResearchTask(BaseTask):
     """
-    مهمة إجراء الأبحاث الموصى بها تلقائياً في مبنى المعهد.
+    مهمة إجراء أبحاث المعهد بيقين 100% وبصفر تخمين.
     """
     name = "research"
     alias = "research"
 
     def __init__(self, conn: Any, log_func: Optional[Any] = None, config: Optional[Dict[str, Any]] = None):
         super().__init__(conn, log_func, config)
+        self.tech_rules = _load_tech_rules()
         self.tech_names = _load_arabic_tech_names()
 
     def get_tech_title(self, tech_id: Any) -> str:
@@ -135,9 +143,7 @@ class ResearchTask(BaseTask):
         return f"بحث #{s_id}"
 
     def _get_queue_status(self) -> Dict[str, Any]:
-        """
-        فحص حالة طابور أبحاث المعهد (1212) بصفر استهلاك شبكي من الذاكرة الحية.
-        """
+        """فحص حالة طابور أبحاث المعهد (1212) بصفر استهلاك شبكي من الذاكرة الحية."""
         queue_ctrl = self.get_ctrl("queueCtrl")
         if not isinstance(queue_ctrl, dict):
             return {"is_busy": False, "remain_time": 0}
@@ -172,9 +178,7 @@ class ResearchTask(BaseTask):
         return {"is_busy": False, "remain_time": 0}
 
     def _get_learned_techs(self) -> Dict[str, int]:
-        """
-        استخراج الأبحاث المكتسبة ومستوياتها بصفر استهلاك شبكي من الذاكرة الحية.
-        """
+        """استخراج الأبحاث المكتسبة ومستوياتها الحالية بصفر استهلاك شبكي من الذاكرة الحية."""
         learned: Dict[str, int] = {}
         tech_ctrl = self.get_ctrl("technologyCtrl")
         if isinstance(tech_ctrl, dict):
@@ -193,9 +197,7 @@ class ResearchTask(BaseTask):
         return learned
 
     def _get_college_level(self) -> int:
-        """
-        استخراج مستوى مبنى المعهد (bid 113) من الذاكرة الحية.
-        """
+        """استخراج مستوى مبنى المعهد (bid 113) من الذاكرة الحية."""
         city_ctrl = self.get_ctrl("cityCtrl")
         if isinstance(city_ctrl, dict):
             blist = city_ctrl.get("blist", [])
@@ -208,11 +210,19 @@ class ResearchTask(BaseTask):
                         return int(binfo.get("lv", 0) or 0)
         return 0
 
+    def _get_current_resources(self) -> Dict[str, int]:
+        """استخراج الموارد الحرة الحالية في القلعة من الذاكرة الحية بصفر استهلاك شبكي."""
+        city = self.get_ctrl("cityCtrl")
+        res_raw = city.get("resList", {}) or city.get("reslist", {}) if isinstance(city, dict) else {}
+        return {
+            "food": int(float(res_raw.get("1002", res_raw.get("food", 0)))),
+            "wood": int(float(res_raw.get("1003", res_raw.get("wood", 0)))),
+            "iron": int(float(res_raw.get("1004", res_raw.get("iron", 0)))),
+            "silver": int(float(res_raw.get("1005", res_raw.get("silver", 0)))),
+        }
+
     def _get_guide_quest_tech(self) -> Optional[Tuple[str, int]]:
-        """
-        فحص مهمة الدليل الحالية في اللعبة (Guide Quest):
-        إذا كانت تطلب إجراء بحث معين، يتم اعتماده كأعلى أولوية.
-        """
+        """فحص مهمة الدليل الحالية في اللعبة (Guide Quest) إن وجدت."""
         quest_ctrl = self.get_ctrl("questCtrl")
         if isinstance(quest_ctrl, dict):
             guide = quest_ctrl.get("guideQuest") or quest_ctrl.get("pGuideQuest")
@@ -226,46 +236,100 @@ class ResearchTask(BaseTask):
                         return str(tid), int(tlv)
         return None
 
-    def determine_candidate_techs(self, learned_techs: Dict[str, int]) -> List[Tuple[str, int, str]]:
+    def find_best_qualified_research(
+        self,
+        college_lv: int,
+        learned_techs: Dict[str, int],
+        resources: Dict[str, int],
+        guide_quest: Optional[Tuple[str, int]],
+    ) -> Tuple[Optional[Dict[str, Any]], Dict[str, int]]:
         """
-        توليد قائمة الأبحاث المرشحة مرتبة حسب الأولوية الذكية للتوصية.
-        تعيد قائمة من: [(tech_id, target_level, tree_name)]
+        محرك الفحص المسبق الشامل بيقين 100% (Zero-Guessing Engine):
+        يفحص كافة الأبحاث ويتحقق من:
+          1. مستوى المعهد المطلوب.
+          2. الأبحاث المسبقة ومستوياتها المطلوبة.
+          3. الموارد الحرة المتوفرة.
+        يرتب المؤهلين بنسبة 100% فقط ويختار أفضل بحث قطعي النجاح.
         """
-        candidates: List[Tuple[str, int, str]] = []
+        qualified: List[Tuple[Tuple[int, int, int, int], Dict[str, Any]]] = []
+        stats = {"total_evaluated": 0, "blocked_college": 0, "blocked_prepose": 0, "blocked_resources": 0, "max_reached": 0}
 
-        # 1. إذا وجدت مهمة دليل تطالب ببحث معين
-        guide_rec = self._get_guide_quest_tech()
-        if guide_rec:
-            g_tid, g_tlv = guide_rec
-            candidates.append((g_tid, g_tlv, "🌟 مهمة الدليل الموصى بها"))
+        for base_id, levels_map in self.tech_rules.items():
+            stats["total_evaluated"] += 1
+            cur_lv = learned_techs.get(base_id, 0)
+            next_lv = cur_lv + 1
+            rule = levels_map.get(str(next_lv))
 
-        # 2. فحص الأشجار حسب الأولوية الاستراتيجية (العسكرية -> الدفاع -> التنمية -> الموارد)
-        for tree_info in RESEARCH_TREES:
-            t_name = tree_info["name"]
-            tech_ids = tree_info["tech_ids"]
-            root_ids = tree_info.get("root_ids", [])
+            if not rule:
+                stats["max_reached"] += 1
+                continue
 
-            # أ) الأبحاث المفتوحة سابقاً ومستواها أقل من الحد الأقصى (الأقل مستوى أولاً)
-            tree_learned = [
-                (tid, learned_techs[tid] + 1)
-                for tid in tech_ids
-                if tid in learned_techs and learned_techs[tid] < 30
-            ]
-            tree_learned.sort(key=lambda item: item[1])
-            for tid, next_lv in tree_learned:
-                candidates.append((tid, next_lv, t_name))
+            # 1. فحص مستوى المعهد
+            req_college_lv = int(rule.get("college_lv", 1))
+            if college_lv < req_college_lv:
+                stats["blocked_college"] += 1
+                continue
 
-            # ب) الأبحاث الجذرية المتاحة كبداية للشجرة إذا لم تُبحث بعد
-            for root_id in root_ids:
-                if root_id not in learned_techs:
-                    candidates.append((root_id, 1, t_name))
+            # 2. فحص الأبحاث المسبقة
+            preposes = rule.get("prepose", [])
+            prepose_ok = True
+            for pre in preposes:
+                p_id = str(pre.get("tech_id", ""))
+                p_req_lv = int(pre.get("level", 1))
+                if learned_techs.get(p_id, 0) < p_req_lv:
+                    prepose_ok = False
+                    break
 
-            # ج) باقي أبحاث الشجرة المتبقية
-            for tid in tech_ids:
-                if tid not in learned_techs and tid not in root_ids:
-                    candidates.append((tid, 1, t_name))
+            if not prepose_ok:
+                stats["blocked_prepose"] += 1
+                continue
 
-        return candidates
+            # 3. فحص الموارد الحرة بالقلعة
+            req_res = rule.get("res", {})
+            req_food = int(req_res.get("food", 0))
+            req_wood = int(req_res.get("wood", 0))
+            req_iron = int(req_res.get("iron", 0))
+            req_silver = int(req_res.get("silver", 0))
+
+            if (
+                resources["food"] < req_food
+                or resources["wood"] < req_wood
+                or resources["iron"] < req_iron
+                or resources["silver"] < req_silver
+            ):
+                stats["blocked_resources"] += 1
+                continue
+
+            # البحث مستوفٍ للشروط بنسبة 100% ويقين تام!
+            tree = rule.get("tree", "military")
+            tree_rank = TREE_PRIORITY.get(tree, 99)
+            res_time = int(rule.get("time", 60))
+
+            is_guide = False
+            if guide_quest:
+                g_tid, g_tlv = guide_quest
+                if str(g_tid) == str(base_id) and int(g_tlv) == next_lv:
+                    is_guide = True
+
+            # معيار الفرز: (مهمة الدليل، أولوية الشجرة، المستوى الأقل، الوقت الأقصر)
+            score_tuple = (0 if is_guide else 1, tree_rank, next_lv, res_time)
+            candidate_item = {
+                "tech_id": base_id,
+                "target_level": next_lv,
+                "tree": tree,
+                "tree_title": TREE_TITLES_AR.get(tree, tree),
+                "rule": rule,
+                "is_guide": is_guide,
+            }
+            qualified.append((score_tuple, candidate_item))
+
+        if not qualified:
+            return None, stats
+
+        # ترتيب تصاعدي لأفضل بحث مؤهل
+        qualified.sort(key=lambda x: x[0])
+        best_candidate = qualified[0][1]
+        return best_candidate, stats
 
     async def can_run(self) -> Tuple[bool, str]:
         """فحص قبلي سريع من الذاكرة الحية لتجنب أي استهلاك غير ضروري."""
@@ -286,7 +350,7 @@ class ResearchTask(BaseTask):
         return True, ""
 
     async def run(self) -> TaskResult:
-        self.log("🔬 بدء فحص أبحاث المعهد التلقائية (البحث الموصى به)...")
+        self.log("🔬 بدء فحص أبحاث المعهد (نظام اليقين التام 0-Guessing)...")
 
         # 1. التأكد من حالة الطابور
         queue_status = self._get_queue_status()
@@ -297,61 +361,86 @@ class ResearchTask(BaseTask):
             self.log(msg)
             return TaskResult.skip(msg)
 
-        # 2. التأكد من وجود مبنى المعهد ومستواه
+        # 2. التأكد من مستوى مبنى المعهد
         college_lv = self._get_college_level()
         if college_lv <= 0:
             msg = "⚠️ مبنى المعهد (College) غير موجود في القلعة بعد."
             self.log(msg)
             return TaskResult.skip(msg)
 
-        # 3. جلب الأبحاث المكتسبة وتوليد المرشحين
+        # 3. قراءة كائنات الذاكرة الحية (0-Network)
         learned_techs = self._get_learned_techs()
-        candidates = self.determine_candidate_techs(learned_techs)
+        current_res = self._get_current_resources()
+        guide_quest = self._get_guide_quest_tech()
 
-        if not candidates:
-            msg = "🎉 تم إكمال كافة الأبحاث المتاحة بالمعهد حالياً."
-            self.log(msg)
-            return TaskResult.ok(msg)
+        # 4. محرك الفحص المسبق الشامل واختيار البحث المؤهل بيقين
+        best_tech, stats = self.find_best_qualified_research(
+            college_lv=college_lv,
+            learned_techs=learned_techs,
+            resources=current_res,
+            guide_quest=guide_quest,
+        )
 
-        # 4. محاولة إجراء البحث الموصى به الأنسب
-        # يجرب المرشحين حتى يوافق السيرفر على الشروط والموارد
-        max_attempts = min(len(candidates), 5)
-        for i in range(max_attempts):
-            tech_id, target_lv, tree_title = candidates[i]
-            tech_title = self.get_tech_title(tech_id)
-
-            payload = {
-                "type": 1,
-                "technologyId": str(tech_id),
-                "rtype": 1,
-            }
-
-            resp = await self.conn.query(
-                "1017",
-                "2",
-                payload,
-                timeout=7,
+        if not best_tech:
+            detail_msg = (
+                f"لا توجد أبحاث مكتملة الشروط حالياً (المعهد Lv.{college_lv} | "
+                f"حجب معهد: {stats['blocked_college']}، حجب متطلبات سابقة: {stats['blocked_prepose']}، "
+                f"حجب موارد حرة: {stats['blocked_resources']}) — تخطي بأمان."
             )
+            self.log(f"ℹ️ [الأكاديمية] {detail_msg}")
+            return TaskResult.skip(detail_msg)
 
-            err = str(resp.get("err", "-1")) if isinstance(resp, dict) else "-1"
-            if err == "0":
-                # تحديث الذاكرة الحية لطابور الأبحاث فوراً
-                queue_ctrl = self.get_ctrl("queueCtrl")
-                if isinstance(queue_ctrl, dict):
-                    queue_ctrl[RESEARCH_QUEUE_ID] = {
-                        "starttime": time.time(),
-                        "totaltime": 3600,
-                        "data": {str(tech_id): [str(tech_id), target_lv]},
-                    }
+        tech_id = best_tech["tech_id"]
+        target_lv = best_tech["target_level"]
+        tree_title = best_tech["tree_title"]
+        tech_title = self.get_tech_title(tech_id)
+        req_res = best_tech["rule"].get("res", {})
+        res_time = best_tech["rule"].get("time", 60)
 
-                msg = f"✅ تم بدء بحث {tech_title} (مستوى {target_lv}) بنجاح! | الشجرة: {tree_title} 🎉"
-                self.log(msg)
-                return TaskResult.ok(msg, data={"tech_id": tech_id, "level": target_lv})
+        guide_tag = " [🌟 مهمة دليل]" if best_tech["is_guide"] else ""
+        self.log(
+            f"🎯 [يقين 100%] تم التحقق واختيار البحث: {tech_title} (مستوى {target_lv}){guide_tag} | "
+            f"الشجرة: {tree_title} | المدة: {format_duration(res_time)} — جاري إرسال أمر البدء..."
+        )
 
-            # إذا كان الخطأ نقص موارد أو متطلبات مسبقة، يجرب المرشح التالي
-            await asyncio.sleep(0.4)
+        # 5. إرسال الطلب الرسمي الوحيد المؤكد النجاح بنسبة 100%
+        payload = {
+            "type": 1,
+            "technologyId": str(tech_id),
+            "rtype": 1,
+        }
 
-        msg = f"⚠️ تعذر بدء البحث الموصى به حالياً (قد تلزم ترقية المعهد Lv.{college_lv} أو توفير موارد إضافية)."
-        self.log(msg)
-        return TaskResult.skip(msg)
+        resp = await self.conn.query("1017", "2", payload, timeout=7)
+        err = str(resp.get("err", "-1")) if isinstance(resp, dict) else "-1"
 
+        if err == "0":
+            # تحديث الذاكرة الحية فوراً (الطابور، مستوى البحث، خصم الموارد محلياً)
+            queue_ctrl = self.get_ctrl("queueCtrl")
+            if isinstance(queue_ctrl, dict):
+                queue_ctrl[RESEARCH_QUEUE_ID] = {
+                    "starttime": time.time(),
+                    "totaltime": res_time,
+                    "data": {str(tech_id): [str(tech_id), target_lv]},
+                }
+
+            tech_ctrl = self.get_ctrl("technologyCtrl")
+            if isinstance(tech_ctrl, dict):
+                tech_ctrl[str(tech_id)] = [str(tech_id), target_lv]
+
+            city_ctrl = self.get_ctrl("cityCtrl")
+            if isinstance(city_ctrl, dict):
+                res_raw = city_ctrl.get("resList", {}) or city_ctrl.get("reslist", {})
+                if isinstance(res_raw, dict):
+                    res_raw["1002"] = max(0, current_res["food"] - int(req_res.get("food", 0)))
+                    res_raw["1003"] = max(0, current_res["wood"] - int(req_res.get("wood", 0)))
+                    res_raw["1004"] = max(0, current_res["iron"] - int(req_res.get("iron", 0)))
+                    res_raw["1005"] = max(0, current_res["silver"] - int(req_res.get("silver", 0)))
+
+            msg = f"✅ تم بدء بحث {tech_title} (مستوى {target_lv}){guide_tag} بنجاح! | الشجرة: {tree_title} 🎉"
+            self.log(msg)
+            return TaskResult.ok(msg, data={"tech_id": tech_id, "level": target_lv})
+
+        # في حال وجود أي رد غير متوقع من السيرفر، يتم تسجيله وعزله بأمان
+        err_msg = f"❌ تعذر بدء البحث {tech_title} من السيرفر (كود: {err})"
+        self.log(err_msg)
+        return TaskResult.fail(err_msg)

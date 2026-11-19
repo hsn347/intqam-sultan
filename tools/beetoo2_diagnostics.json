@@ -1,0 +1,747 @@
+{
+  "technology_keys": [
+    "24021",
+    "24018",
+    "24004",
+    "24033",
+    "24027",
+    "24104",
+    "24017",
+    "24016",
+    "24002",
+    "25009",
+    "24112",
+    "24116",
+    "24117",
+    "24011",
+    "24001",
+    "22003",
+    "24006",
+    "24022",
+    "24019",
+    "21002",
+    "24009",
+    "25002",
+    "25029",
+    "22005",
+    "25007",
+    "24111",
+    "24106",
+    "25003",
+    "22004",
+    "21001",
+    "21006",
+    "25001",
+    "25006",
+    "24101",
+    "24115",
+    "24010",
+    "25030",
+    "22002",
+    "24032",
+    "22007",
+    "24110",
+    "25005",
+    "24023",
+    "24012",
+    "24014",
+    "25004",
+    "24103",
+    "24107",
+    "22001",
+    "24015",
+    "22006",
+    "21004",
+    "24003",
+    "24007",
+    "21005",
+    "25010",
+    "22009",
+    "21003",
+    "24020",
+    "22008",
+    "24105",
+    "25008",
+    "24008",
+    "24114",
+    "25011",
+    "24113",
+    "24109",
+    "24005",
+    "24013",
+    "24108"
+  ],
+  "tech_list": [],
+  "buff_ctrl": [
+    {
+      "beginTime": 1795030237,
+      "itemId": 300701,
+      "id": 5001,
+      "time": 28800
+    }
+  ],
+  "hero_sys_keys": [
+    "lastFreeReshapeTime",
+    "isJudgePowerSkill",
+    "defendList",
+    "heroList",
+    "isJudgeDefendList",
+    "lastShareTime"
+  ],
+  "hero_count": 17,
+  "heroes": [
+    {
+      "key": "1712",
+      "id": 1712,
+      "level": 60,
+      "quality": 5,
+      "state": 1,
+      "isAwake": true,
+      "powerSkill": {
+        "17120601": {
+          "skillID": 17120601,
+          "buffValue": 0
+        },
+        "17120603": {
+          "skillID": 17120603,
+          "buffValue": 0
+        },
+        "17120602": {
+          "skillID": 17120602,
+          "buffValue": 0
+        },
+        "17120604": {
+          "skillID": 17120604,
+          "buffValue": 0
+        }
+      },
+      "masterySkill": {
+        "171205": {
+          "skillType": 171205,
+          "unlockTime": 1733480465
+        }
+      },
+      "skillList": {
+        "171204": {
+          "isActive": true,
+          "activeLevel": 60,
+          "skillType": 171204
+        },
+        "171201": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 171201
+        },
+        "171202": {
+          "isActive": true,
+          "activeLevel": 20,
+          "skillType": 171202
+        },
+        "171203": {
+          "isActive": true,
+          "activeLevel": 40,
+          "skillType": 171203
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1706",
+      "id": 1706,
+      "level": 1,
+      "quality": 3,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "170604": {
+          "isActive": false,
+          "activeLevel": 60,
+          "skillType": 170604
+        },
+        "170601": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 170601
+        },
+        "170603": {
+          "isActive": false,
+          "activeLevel": 40,
+          "skillType": 170603
+        },
+        "170602": {
+          "isActive": false,
+          "activeLevel": 20,
+          "skillType": 170602
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1711",
+      "id": 1711,
+      "level": 60,
+      "quality": 4,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "171103": {
+          "isActive": true,
+          "activeLevel": 40,
+          "skillType": 171103
+        },
+        "171102": {
+          "isActive": true,
+          "activeLevel": 20,
+          "skillType": 171102
+        },
+        "171101": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 171101
+        },
+        "171104": {
+          "isActive": true,
+          "activeLevel": 60,
+          "skillType": 171104
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1709",
+      "id": 1709,
+      "level": 52,
+      "quality": 5,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "170904": {
+          "isActive": false,
+          "activeLevel": 60,
+          "skillType": 170904
+        },
+        "170902": {
+          "isActive": true,
+          "activeLevel": 20,
+          "skillType": 170902
+        },
+        "170903": {
+          "isActive": true,
+          "activeLevel": 40,
+          "skillType": 170903
+        },
+        "170901": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 170901
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1707",
+      "id": 1707,
+      "level": 60,
+      "quality": 3,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "170701": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 170701
+        },
+        "170704": {
+          "isActive": true,
+          "activeLevel": 60,
+          "skillType": 170704
+        },
+        "170702": {
+          "isActive": true,
+          "activeLevel": 20,
+          "skillType": 170702
+        },
+        "170703": {
+          "isActive": true,
+          "activeLevel": 40,
+          "skillType": 170703
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1703",
+      "id": 1703,
+      "level": 59,
+      "quality": 2,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "170302": {
+          "isActive": true,
+          "activeLevel": 20,
+          "skillType": 170302
+        },
+        "170304": {
+          "isActive": false,
+          "activeLevel": 60,
+          "skillType": 170304
+        },
+        "170303": {
+          "isActive": true,
+          "activeLevel": 40,
+          "skillType": 170303
+        },
+        "170301": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 170301
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1702",
+      "id": 1702,
+      "level": 1,
+      "quality": 2,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "170204": {
+          "isActive": false,
+          "activeLevel": 60,
+          "skillType": 170204
+        },
+        "170202": {
+          "isActive": false,
+          "activeLevel": 20,
+          "skillType": 170202
+        },
+        "170201": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 170201
+        },
+        "170203": {
+          "isActive": false,
+          "activeLevel": 40,
+          "skillType": 170203
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1713",
+      "id": 1713,
+      "level": 1,
+      "quality": 1,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "171301": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 171301
+        },
+        "171304": {
+          "isActive": false,
+          "activeLevel": 60,
+          "skillType": 171304
+        },
+        "171303": {
+          "isActive": false,
+          "activeLevel": 40,
+          "skillType": 171303
+        },
+        "171302": {
+          "isActive": false,
+          "activeLevel": 20,
+          "skillType": 171302
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1718",
+      "id": 1718,
+      "level": 1,
+      "quality": 2,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "171804": {
+          "isActive": false,
+          "activeLevel": 60,
+          "skillType": 171804
+        },
+        "171801": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 171801
+        },
+        "171802": {
+          "isActive": false,
+          "activeLevel": 20,
+          "skillType": 171802
+        },
+        "171803": {
+          "isActive": false,
+          "activeLevel": 40,
+          "skillType": 171803
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1714",
+      "id": 1714,
+      "level": 1,
+      "quality": 1,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "171402": {
+          "isActive": false,
+          "activeLevel": 20,
+          "skillType": 171402
+        },
+        "171403": {
+          "isActive": false,
+          "activeLevel": 40,
+          "skillType": 171403
+        },
+        "171404": {
+          "isActive": false,
+          "activeLevel": 60,
+          "skillType": 171404
+        },
+        "171401": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 171401
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1717",
+      "id": 1717,
+      "level": 60,
+      "quality": 5,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "171704": {
+          "isActive": true,
+          "activeLevel": 60,
+          "skillType": 171704
+        },
+        "171701": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 171701
+        },
+        "171703": {
+          "isActive": true,
+          "activeLevel": 40,
+          "skillType": 171703
+        },
+        "171702": {
+          "isActive": true,
+          "activeLevel": 20,
+          "skillType": 171702
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1710",
+      "id": 1710,
+      "level": 1,
+      "quality": 1,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "171001": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 171001
+        },
+        "171002": {
+          "isActive": false,
+          "activeLevel": 20,
+          "skillType": 171002
+        },
+        "171003": {
+          "isActive": false,
+          "activeLevel": 40,
+          "skillType": 171003
+        },
+        "171004": {
+          "isActive": false,
+          "activeLevel": 60,
+          "skillType": 171004
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1708",
+      "id": 1708,
+      "level": 60,
+      "quality": 3,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "170803": {
+          "isActive": true,
+          "activeLevel": 40,
+          "skillType": 170803
+        },
+        "170804": {
+          "isActive": true,
+          "activeLevel": 60,
+          "skillType": 170804
+        },
+        "170801": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 170801
+        },
+        "170802": {
+          "isActive": true,
+          "activeLevel": 20,
+          "skillType": 170802
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1704",
+      "id": 1704,
+      "level": 1,
+      "quality": 3,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "170401": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 170401
+        },
+        "170404": {
+          "isActive": false,
+          "activeLevel": 60,
+          "skillType": 170404
+        },
+        "170403": {
+          "isActive": false,
+          "activeLevel": 40,
+          "skillType": 170403
+        },
+        "170402": {
+          "isActive": false,
+          "activeLevel": 20,
+          "skillType": 170402
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1705",
+      "id": 1705,
+      "level": 1,
+      "quality": 3,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "170502": {
+          "isActive": false,
+          "activeLevel": 20,
+          "skillType": 170502
+        },
+        "170503": {
+          "isActive": false,
+          "activeLevel": 40,
+          "skillType": 170503
+        },
+        "170504": {
+          "isActive": false,
+          "activeLevel": 60,
+          "skillType": 170504
+        },
+        "170501": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 170501
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1700",
+      "id": 1700,
+      "level": 60,
+      "quality": 5,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "170002": {
+          "isActive": true,
+          "activeLevel": 20,
+          "skillType": 170002
+        },
+        "170003": {
+          "isActive": true,
+          "activeLevel": 40,
+          "skillType": 170003
+        },
+        "170004": {
+          "isActive": true,
+          "activeLevel": 60,
+          "skillType": 170004
+        },
+        "170001": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 170001
+        }
+      },
+      "dressList": null
+    },
+    {
+      "key": "1701",
+      "id": 1701,
+      "level": 1,
+      "quality": 4,
+      "state": 1,
+      "isAwake": false,
+      "powerSkill": {},
+      "masterySkill": {},
+      "skillList": {
+        "170103": {
+          "isActive": false,
+          "activeLevel": 40,
+          "skillType": 170103
+        },
+        "170101": {
+          "isActive": true,
+          "activeLevel": 1,
+          "skillType": 170101
+        },
+        "170102": {
+          "isActive": false,
+          "activeLevel": 20,
+          "skillType": 170102
+        },
+        "170104": {
+          "isActive": false,
+          "activeLevel": 60,
+          "skillType": 170104
+        }
+      },
+      "dressList": null
+    }
+  ],
+  "lord_info_keys": [
+    "fcInfo",
+    "flowerSysInfo",
+    "hegemonTitle",
+    "onlineInfo",
+    "vipDailyGift",
+    "skill",
+    "base",
+    "maxLordLev",
+    "nebulaOfficialID",
+    "abbr",
+    "legendTitle",
+    "achieveInfo",
+    "npc",
+    "userDebugdataUpload",
+    "militaryRankInfo",
+    "vip",
+    "emperorOfficial",
+    "legendForSepTitle",
+    "atlantisOfficialType",
+    "userAgreementPop",
+    "hegemonBid",
+    "nebulaOfficialID2",
+    "aid"
+  ],
+  "vip_info": null,
+  "achieve_info": {
+    "showMetalID": 9003005,
+    "isShow": true,
+    "showAchieveID": 5305017,
+    "metalNum": 18,
+    "doneRatio": 35.84
+  },
+  "rank_info": null,
+  "title_info": null,
+  "army_ctrl_keys": [
+    "fightingArmy",
+    "compileArms",
+    "exceptionWoundedArmy",
+    "compileDivineBeast",
+    "defCompileInfo",
+    "activeDefCompile",
+    "compileHero",
+    "woundedArmy",
+    "trainArmy",
+    "isJudgeCompileHero",
+    "compileArmy",
+    "exceptionArmy",
+    "lastCalcuTime",
+    "totalArmy"
+  ],
+  "army_compile": null,
+  "team_info": null,
+  "equipment_ctrl_keys": [
+    "nebulaExchangeInfo",
+    "isShow",
+    "ringStore",
+    "countOfFreeRemaking",
+    "attributeGroupInfo",
+    "setData",
+    "overdueEquipments",
+    "equipment_array"
+  ],
+  "pet_ctrl_keys": [
+    "petList",
+    "petFeeder",
+    "isJudgePetSkillCD",
+    "queue",
+    "feedInfo"
+  ]
+}

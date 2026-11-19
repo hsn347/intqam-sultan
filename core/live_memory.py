@@ -704,6 +704,8 @@ class LiveMemoryEngine:
         "1070": ("_handle_notify_meritorious", ("meritoriousTaskCtrl",), True),
         "MERITORIOUS_TASK": ("_handle_notify_meritorious", ("meritoriousTaskCtrl",), True),
         "NOTIFY_MERITORIOUS_TASK": ("_handle_notify_meritorious", ("meritoriousTaskCtrl",), True),
+        "SERVER_STATUS": ("_handle_notify_server_status", ("serverStatus",), False),
+        "NOTIFY_SERVER_STATUS": ("_handle_notify_server_status", ("serverStatus",), False),
 
         # --- Feature & Base Tasks Controllers (0-Network Direct Merge) ---
         "55": ("_handle_notify_generic_controller", ("everydayTaskCtrl",), True),
@@ -1815,6 +1817,20 @@ class LiveMemoryEngine:
                         b for b in target_list
                         if not (isinstance(b, dict) and (str(b.get("id")) in to_remove or str(b.get("effectType")) in to_remove))
                     ]
+                    # محاكاة سلوك العميل الرسمي (lordSkillModule callback): بدء تبريد مهارة الإنقاذ فور انتهاء الباف بعد المعركة
+                    now_ts = int(time.time())
+                    if "4501" in to_remove or "26" in to_remove:
+                        lord_skills = self.init_data.setdefault("lordSkillCtrl", {})
+                        if isinstance(lord_skills, dict):
+                            cd_data = lord_skills.setdefault("CDData", {})
+                            if isinstance(cd_data, dict):
+                                cd_data["11028"] = {"beginTime": now_ts, "CD": 28800}
+                    if "5425" in to_remove:
+                        lord_skills = self.init_data.setdefault("lordSkillCtrl", {})
+                        if isinstance(lord_skills, dict):
+                            cd_data = lord_skills.setdefault("CDData", {})
+                            if isinstance(cd_data, dict):
+                                cd_data["13040"] = {"beginTime": now_ts, "CD": 86400}
             elif sync_type == "closeSource":
                 src = str(item.get("source", ""))
                 if src:
@@ -2065,6 +2081,24 @@ class LiveMemoryEngine:
                     if isinstance(target_cat, dict) and isinstance(task_map, dict):
                         for tid in task_map.keys():
                             target_cat.pop(str(tid), None)
+
+    def _handle_notify_server_status(self, notify_data: Any) -> Dict[str, Any]:
+        """
+        Synchronizes NOTIFY_SERVER_STATUS (مطابق لسورس اللعبة الرسمي GameTop:onServerStatus):
+        - status == 'kick': طرد لتسجيل الدخول من جهاز آخر (userKickOutType_otherDeviceLogin).
+        - status == 'seal': إغلاق أو حظر الحساب (userKickOutType_accountBeClosed).
+        - status == 'server_maintenance': صيانة السيرفر (userKickOutType_serverRepair).
+        """
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        res: Dict[str, Any] = {}
+        for item in items:
+            if isinstance(item, dict):
+                st = str(item.get("status", "")).lower().strip()
+                if st:
+                    res["status"] = st
+                if "sealType" in item:
+                    res["sealType"] = item.get("sealType")
+        return res
 
     # ──────────────────────────────────────────────────────────────────────────
     # Memory Readiness Gate

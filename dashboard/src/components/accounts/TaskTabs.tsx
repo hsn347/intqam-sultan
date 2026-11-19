@@ -5,14 +5,13 @@ import type { TaskTab } from '../../types'
 
 // مطابق للموقع المرجعي بالضبط
 export const TABS: { id: TaskTab; emoji?: string; img?: string; label: string }[] = [
-  { id: 'gather',    emoji: '🌾', label: 'جمع الموارد'       },
+  { id: 'gather',    img: '/images/gather/icon_middle_food.png', label: 'جمع الموارد' },
   { id: 'train',     img: '/images/soldiers/icon_building_training_finish.png', label: 'التدريب العسكري' },
-  { id: 'combat',    emoji: '🗡️', label: 'الهجوم'            },
+  { id: 'combat',    img: '/images/combat/icon_map_attack.png', label: 'الهجوم' },
   { id: 'watermill', img: '/images/watermill/uretimbonusust.png', label: 'مكافأة الطاحونة' },
   { id: 'transport', img: '/images/transport/transport.png', label: 'مساعدة الموارد' },
   { id: 'daily',     img: '/images/daily/quest_button.png', label: 'النشاط اليومي' },
-  { id: 'building',  emoji: '🔼', label: 'التطوير والمكافآت' },
-  { id: 'events',    emoji: '🏆', label: 'الفعاليات'         },
+  { id: 'building',  img: '/images/development/icon_building_levelup.png', label: 'التطوير والمكافآت' },
 ]
 
 interface TaskTabsProps {

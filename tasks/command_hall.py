@@ -15,6 +15,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from tasks.base_task import (
     BaseTask,
     TaskResult,
+    ConnectionCircuitBreakerError,
     CMD_COMMAND_HALL_MODULE,
     REQ_COMMAND_HALL_INIT,
     REQ_COMMAND_HALL_COMMIT_TASK,
@@ -114,11 +115,19 @@ class CommandHallTask(BaseTask):
     async def can_run(self) -> Tuple[bool, str]:
         """
         الفحص القبلي الصارم للأمان والجاهزية (0-Network Pre-flight):
+        - التحقق من قاطع الاتصال وتوفر اتصال نشط بالبوابة.
         - التحقق من تفعيل المهمة في الإعدادات وقاعدة البيانات.
         - في نمط النشاط اليومي (mode == 'daily'): فحص إنجاز مهمة قاعة القيادة (33) في الذاكرة الحية
           (everydayTaskCtrl) والتجاوز فوراً لحفظ طاقة اللورد والفيالق إن كانت منجزة مسبقاً اليوم.
         - في نمط الدورة الكاملة (mode == 'full'): لا يتم التجاوز وتنفذ الدورة في كل استدعاء.
         """
+        # 1. فحص قاطع الاتصال والجاهزية الشبكية والذاكرة الحية (0-Network Pre-flight)
+        if not self.conn or not getattr(self.conn, "is_connected", False):
+            return False, "قاطع الاتصال: لا يوجد اتصال نشط بالبوابة."
+
+        if not self.init_data:
+            return False, "بيانات الذاكرة الحية غير متوفرة."
+
         if not self.is_active:
             return False, "المهمة غير مفعلة في الإعدادات."
 
@@ -191,24 +200,29 @@ class CommandHallTask(BaseTask):
 
         all_rewards_collected: List[Dict[str, Any]] = []
         total_stamina_spent = 0
+        circuit_broken = False
 
         # ======================================================================
         # المرحلة 0: الترقية التلقائية الاستباقية لمستوى قاعة القيادة (إن توفرت نقاط الخبرة)
         # ======================================================================
         initial_upgrades = 0
-        if self.auto_upgrade_hall and summary.get("can_upgrade"):
-            upg_res = await self.execute_command_hall_upgrade_level(max_upgrades=5, wait_seconds=1.0)
-            if upg_res.get("success"):
-                initial_upgrades = upg_res.get("upgrades_done", 0)
-                upg_rewards = upg_res.get("rewards") or []
-                if upg_rewards:
-                    all_rewards_collected.extend(upg_rewards)
-                # تحديث ملخص المستوى والخبرة محلياً بعد الترقية
-                tasks_data = await self.get_command_hall_tasks(force_sync=False)
-                summary = tasks_data.get("summary", summary)
-                hall_lv = summary.get("command_lv", hall_lv)
-                hall_exp = summary.get("command_exp", hall_exp)
-                need_exp = summary.get("need_exp", need_exp)
+        if not circuit_broken and self.auto_upgrade_hall and summary.get("can_upgrade"):
+            try:
+                upg_res = await self.execute_command_hall_upgrade_level(max_upgrades=5, wait_seconds=1.0)
+                if upg_res.get("success"):
+                    initial_upgrades = upg_res.get("upgrades_done", 0)
+                    upg_rewards = upg_res.get("rewards") or []
+                    if upg_rewards:
+                        all_rewards_collected.extend(upg_rewards)
+                    # تحديث ملخص المستوى والخبرة محلياً بعد الترقية
+                    tasks_data = await self.get_command_hall_tasks(force_sync=False)
+                    summary = tasks_data.get("summary", summary)
+                    hall_lv = summary.get("command_lv", hall_lv)
+                    hall_exp = summary.get("command_exp", hall_exp)
+                    need_exp = summary.get("need_exp", need_exp)
+            except ConnectionCircuitBreakerError as e:
+                self.log(f"⚡ [قاطع الاتصال] تم اعتراض الترقية الاستباقية لقاعة القيادة لانقطاع الاتصال: {e}")
+                circuit_broken = True
 
         # ======================================================================
         # المرحلة 1: تنفيذ مهام القناص الصامت (Sniper Hunter Tasks - Type 6)
@@ -217,7 +231,7 @@ class CommandHallTask(BaseTask):
         failed_snipe_count = 0
 
         eligible_snipe_tasks: List[Dict[str, Any]] = []
-        if self.allow_snipe:
+        if not circuit_broken and self.allow_snipe:
             eligible_snipe_tasks = [
                 t for t in tasks_data.get("executable_tasks", [])
                 if self._safe_int(t.get("type")) == TASK_TYPE_SNIPE
@@ -226,9 +240,15 @@ class CommandHallTask(BaseTask):
             # فرز بالأعلى جودة أولاً
             eligible_snipe_tasks.sort(key=lambda x: self._safe_int(x.get("quality"), 0), reverse=True)
 
-        if eligible_snipe_tasks:
+        if not circuit_broken and eligible_snipe_tasks:
             self.log(f"🎯 [قاعة القيادة] المرحلة 1: رصد {len(eligible_snipe_tasks)} مهمة قناص صامت جاهزة للتنفيذ (استهلاك طاقة: 0).")
             for s_idx, s_task in enumerate(eligible_snipe_tasks, 1):
+                # فحص قاطع الاتصال قبل تنفيذ المهمة
+                if not self.conn or not getattr(self.conn, "is_connected", False):
+                    self.log("⚡ [قاطع الاتصال] تم رصد انقطاع الاتصال بالسيرفر — إيقاف مهام القناص فوراً.")
+                    circuit_broken = True
+                    break
+
                 task_id = self._safe_int(s_task.get("task_id"), 0)
                 task_index = self._safe_int(s_task.get("index"), 0)
                 quality_name = s_task.get("quality_name_ar", str(s_task.get("quality", "")))
@@ -238,7 +258,13 @@ class CommandHallTask(BaseTask):
                     f"(ID: {task_id} | جودة: {quality_name})..."
                 )
 
-                snipe_res = await self.execute_command_hall_snipe_task(s_task, wait_seconds=2.5)
+                try:
+                    snipe_res = await self.execute_command_hall_snipe_task(s_task, wait_seconds=2.5)
+                except ConnectionCircuitBreakerError as e:
+                    self.log(f"⚡ [قاطع الاتصال] تم اعتراض مهمة القناص الصامت #{task_index} لانقطاع الاتصال: {e}")
+                    circuit_broken = True
+                    break
+
                 if snipe_res.get("success"):
                     completed_snipe_count += 1
                     s_rewards = snipe_res.get("rewards") or []
@@ -261,7 +287,7 @@ class CommandHallTask(BaseTask):
         failed_rescue_count = 0
 
         eligible_rescue_tasks: List[Dict[str, Any]] = []
-        if self.allow_rescue:
+        if not circuit_broken and self.allow_rescue:
             eligible_rescue_tasks = [
                 t for t in tasks_data.get("executable_tasks", [])
                 if self._safe_int(t.get("type")) == TASK_TYPE_RESCUE
@@ -269,12 +295,18 @@ class CommandHallTask(BaseTask):
             ]
             # فرز بالأعلى جودة أولاً
             eligible_rescue_tasks.sort(key=lambda x: self._safe_int(x.get("quality"), 0), reverse=True)
-        else:
+        elif not self.allow_rescue:
             self.log("ℹ️ [قاعة القيادة] تم تخطي مهام إنقاذ القرويين (خيار allow_rescue غير مفعل في إعدادات القلعة).")
 
-        if eligible_rescue_tasks:
+        if not circuit_broken and eligible_rescue_tasks:
             self.log(f"🤝 [قاعة القيادة] المرحلة 2: رصد {len(eligible_rescue_tasks)} مهمة إنقاذ قرويين جاهزة للتنفيذ (استهلاك 5 طاقة).")
             for r_idx, r_task in enumerate(eligible_rescue_tasks, 1):
+                # فحص قاطع الاتصال قبل تنفيذ المهمة
+                if not self.conn or not getattr(self.conn, "is_connected", False):
+                    self.log("⚡ [قاطع الاتصال] تم رصد انقطاع الاتصال بالسيرفر — إيقاف مهام الإنقاذ فوراً.")
+                    circuit_broken = True
+                    break
+
                 task_id = self._safe_int(r_task.get("task_id"), 0)
                 task_index = self._safe_int(r_task.get("index"), 0)
                 quality_name = r_task.get("quality_name_ar", str(r_task.get("quality", "")))
@@ -293,9 +325,15 @@ class CommandHallTask(BaseTask):
                     f"(ID: {task_id} | جودة: {quality_name} | استهلاك 5 طاقة)..."
                 )
 
-                rescue_res = await self.execute_command_hall_rescue_task(
-                    r_task, wait_seconds=2.2, min_safety_stamina=self.min_safety_stamina
-                )
+                try:
+                    rescue_res = await self.execute_command_hall_rescue_task(
+                        r_task, wait_seconds=2.2, min_safety_stamina=self.min_safety_stamina
+                    )
+                except ConnectionCircuitBreakerError as e:
+                    self.log(f"⚡ [قاطع الاتصال] تم اعتراض مهمة إنقاذ القرويين #{task_index} لانقطاع الاتصال: {e}")
+                    circuit_broken = True
+                    break
+
                 if rescue_res.get("success"):
                     completed_rescue_count += 1
                     total_stamina_spent += rescue_res.get("stamina_spent", 5)
@@ -319,7 +357,7 @@ class CommandHallTask(BaseTask):
         failed_dialogue_count = 0
 
         eligible_dialogue_tasks: List[Dict[str, Any]] = []
-        if self.allow_dialogue:
+        if not circuit_broken and self.allow_dialogue:
             eligible_dialogue_tasks = [
                 t for t in tasks_data.get("executable_tasks", [])
                 if self._safe_int(t.get("type")) == TASK_TYPE_DIALOGUE
@@ -327,12 +365,18 @@ class CommandHallTask(BaseTask):
             ]
             # فرز بالأعلى جودة أولاً
             eligible_dialogue_tasks.sort(key=lambda x: self._safe_int(x.get("quality"), 0), reverse=True)
-        else:
+        elif not self.allow_dialogue:
             self.log("ℹ️ [قاعة القيادة] تم تخطي مهام المعلومات العسكرية (خيار allow_dialogue غير مفعل في إعدادات القلعة).")
 
-        if eligible_dialogue_tasks:
+        if not circuit_broken and eligible_dialogue_tasks:
             self.log(f"📜 [قاعة القيادة] المرحلة 3: رصد {len(eligible_dialogue_tasks)} مهمة معلومات عسكرية جاهزة للتنفيذ (استهلاك 5 طاقة).")
             for d_idx, d_task in enumerate(eligible_dialogue_tasks, 1):
+                # فحص قاطع الاتصال قبل تنفيذ المهمة
+                if not self.conn or not getattr(self.conn, "is_connected", False):
+                    self.log("⚡ [قاطع الاتصال] تم رصد انقطاع الاتصال بالسيرفر — إيقاف مهام المعلومات العسكرية فوراً.")
+                    circuit_broken = True
+                    break
+
                 task_id = self._safe_int(d_task.get("task_id"), 0)
                 task_index = self._safe_int(d_task.get("index"), 0)
                 quality_name = d_task.get("quality_name_ar", str(d_task.get("quality", "")))
@@ -351,9 +395,15 @@ class CommandHallTask(BaseTask):
                     f"(ID: {task_id} | جودة: {quality_name} | استهلاك 5 طاقة)..."
                 )
 
-                dialogue_res = await self.execute_command_hall_dialogue_task(
-                    d_task, wait_seconds=1.5, min_safety_stamina=self.min_safety_stamina
-                )
+                try:
+                    dialogue_res = await self.execute_command_hall_dialogue_task(
+                        d_task, wait_seconds=1.5, min_safety_stamina=self.min_safety_stamina
+                    )
+                except ConnectionCircuitBreakerError as e:
+                    self.log(f"⚡ [قاطع الاتصال] تم اعتراض مهمة المعلومات العسكرية #{task_index} لانقطاع الاتصال: {e}")
+                    circuit_broken = True
+                    break
+
                 if dialogue_res.get("success"):
                     completed_dialogue_count += 1
                     total_stamina_spent += dialogue_res.get("stamina_spent", 5)
@@ -377,7 +427,7 @@ class CommandHallTask(BaseTask):
         failed_battle_count = 0
 
         eligible_battle_tasks: List[Dict[str, Any]] = []
-        if self.allow_marches:
+        if not circuit_broken and self.allow_marches:
             march_tasks = tasks_data.get("march_tasks", [])
             eligible_battle_tasks = [
                 t for t in march_tasks
@@ -386,13 +436,19 @@ class CommandHallTask(BaseTask):
             ]
             # فرز بالأعلى جودة أولاً (Quality Descending: 6 ذهبي -> 5 برتقالي -> 4 بنفسجي -> 3 أزرق)
             eligible_battle_tasks.sort(key=lambda x: self._safe_int(x.get("quality"), 0), reverse=True)
-        else:
+        elif not self.allow_marches:
             self.log("ℹ️ [قاعة القيادة] تم تخطي مهام المعارك والمسير (خيار allow_marches غير مفعل في إعدادات القلعة).")
 
-        if eligible_battle_tasks:
+        if not circuit_broken and eligible_battle_tasks:
             self.log(f"⚔️ [قاعة القيادة] المرحلة 4: رصد {len(eligible_battle_tasks)} مهام قتالية جاهزة للتنفيذ (مرتبة بالأعلى جودة أولاً).")
 
             for task_idx, task_item in enumerate(eligible_battle_tasks, 1):
+                # فحص قاطع الاتصال قبل تنفيذ المهمة
+                if not self.conn or not getattr(self.conn, "is_connected", False):
+                    self.log("⚡ [قاطع الاتصال] تم رصد انقطاع الاتصال بالسيرفر — إيقاف مهام المعارك والمسير فوراً.")
+                    circuit_broken = True
+                    break
+
                 task_id = self._safe_int(task_item.get("task_id"), 0)
                 task_index = self._safe_int(task_item.get("index"), 0)
                 task_type = self._safe_int(task_item.get("type"), 5)
@@ -416,8 +472,14 @@ class CommandHallTask(BaseTask):
                     self.log("⏳ [قاعة القيادة] انتظار عودة الفيالق النشطة بالخارج...")
                     waited = 0
                     while self.get_available_marches_count() <= 0 and waited < 10:
+                        if not self.conn or not getattr(self.conn, "is_connected", False):
+                            circuit_broken = True
+                            break
                         await asyncio.sleep(2.0)
                         waited += 2
+
+                    if circuit_broken:
+                        break
 
                     if self.get_available_marches_count() <= 0:
                         self.log("⚠️ [قاعة القيادة] تعذر استكمال باقي المعارك لعدم توفر فيالق شاغرة.")
@@ -434,7 +496,12 @@ class CommandHallTask(BaseTask):
                 )
 
                 # د) استدعاء دالة تنفيذ المعركة الرسمية الموثقة في BaseTask
-                exec_res = await self.execute_command_hall_battle_task(task_item, wait_seconds=7.0)
+                try:
+                    exec_res = await self.execute_command_hall_battle_task(task_item, wait_seconds=7.0)
+                except ConnectionCircuitBreakerError as e:
+                    self.log(f"⚡ [قاطع الاتصال] تم اعتراض مهمة {type_name} #{task_index} لانقطاع الاتصال: {e}")
+                    circuit_broken = True
+                    break
 
                 if exec_res.get("success"):
                     completed_battle_count += 1
@@ -460,56 +527,73 @@ class CommandHallTask(BaseTask):
         completed_army_group_count = 0
         failed_army_group_count = 0
 
-        if self.allow_army_group:
-            # قراءة حالة فيلق الغزاة من الذاكرة الحية (0-Network)
-            hall_info = self.get_ctrl("commandHall")
-            ag_task = hall_info.get("armyGroupTaskData") if isinstance(hall_info, dict) else None
+        if not circuit_broken and self.allow_army_group:
+            if not self.conn or not getattr(self.conn, "is_connected", False):
+                self.log("⚡ [قاطع الاتصال] تم رصد انقطاع الاتصال — تخطي هجوم فيلق الغزاة فوراً.")
+                circuit_broken = True
+            else:
+                # قراءة حالة فيلق الغزاة من الذاكرة الحية (0-Network)
+                hall_info = self.get_ctrl("commandHall")
+                ag_task = hall_info.get("armyGroupTaskData") if isinstance(hall_info, dict) else None
 
-            if isinstance(ag_task, dict) and ag_task.get("index"):
-                r_hp = self._safe_int(ag_task.get("rabelHp"), 1000)
-                h_hp = self._safe_int(ag_task.get("hurtHp"), 0)
-                st = self._safe_int(ag_task.get("statue"), 2)
-                p_count = self._safe_int(hall_info.get("armyPioneerTaskCount"), 0)
+                if isinstance(ag_task, dict) and ag_task.get("index"):
+                    r_hp = self._safe_int(ag_task.get("rabelHp"), 1000)
+                    h_hp = self._safe_int(ag_task.get("hurtHp"), 0)
+                    st = self._safe_int(ag_task.get("statue"), 2)
+                    p_count = self._safe_int(hall_info.get("armyPioneerTaskCount"), 0)
 
-                # شرط القضاء على الفيلق: صحة الفيلق 0 (أو statue == 3) وعدم وجود مهام طليعة معلقة
-                if (h_hp >= r_hp or st == 3) and p_count == 0:
-                    self.log(
-                        f"👑 [قاعة القيادة] المرحلة 5: رصد جاهزية فيلق الغزاة للقضاء عليه وتجديد المهام "
-                        f"(ضرر: {h_hp}/{r_hp} | طليعة متبقية: {p_count})."
-                    )
-                    ag_res = await self.execute_command_hall_army_group_task(ag_task, wait_seconds=1.5)
-                    if ag_res.get("success"):
-                        completed_army_group_count += 1
-                        ag_rewards = ag_res.get("rewards") or []
-                        if ag_rewards:
-                            all_rewards_collected.extend(ag_rewards)
-                        self.log(f"🎉 [قاعة القيادة] اكتمل القضاء على فيلق الغزاة بنجاح وتجددت حزمة المهام الجديدة!")
-                    else:
-                        failed_army_group_count += 1
-                        self.log(f"⚠️ [قاعة القيادة] تعذر القضاء على فيلق الغزاة: {ag_res.get('reason')}")
-                elif (h_hp >= r_hp or st == 3) and p_count > 0:
-                    self.log(f"ℹ️ [قاعة القيادة] تأجيل القضاء على فيلق الغزاة لحين إنجاز {p_count} مهمة طليعة غزاة أولاً لمنع ضياع جوائزها.")
+                    # شرط القضاء على الفيلق: صحة الفيلق 0 (أو statue == 3) وعدم وجود مهام طليعة معلقة
+                    if (h_hp >= r_hp or st == 3) and p_count == 0:
+                        self.log(
+                            f"👑 [قاعة القيادة] المرحلة 5: رصد جاهزية فيلق الغزاة للقضاء عليه وتجديد المهام "
+                            f"(ضرر: {h_hp}/{r_hp} | طليعة متبقية: {p_count})."
+                        )
+                        try:
+                            ag_res = await self.execute_command_hall_army_group_task(ag_task, wait_seconds=1.5)
+                        except ConnectionCircuitBreakerError as e:
+                            self.log(f"⚡ [قاطع الاتصال] تم اعتراض القضاء على فيلق الغزاة لانقطاع الاتصال: {e}")
+                            circuit_broken = True
+                            ag_res = {"success": False, "reason": str(e)}
+
+                        if ag_res.get("success"):
+                            completed_army_group_count += 1
+                            ag_rewards = ag_res.get("rewards") or []
+                            if ag_rewards:
+                                all_rewards_collected.extend(ag_rewards)
+                            self.log(f"🎉 [قاعة القيادة] اكتمل القضاء على فيلق الغزاة بنجاح وتجددت حزمة المهام الجديدة!")
+                        elif not circuit_broken:
+                            failed_army_group_count += 1
+                            self.log(f"⚠️ [قاعة القيادة] تعذر القضاء على فيلق الغزاة: {ag_res.get('reason')}")
+                    elif (h_hp >= r_hp or st == 3) and p_count > 0:
+                        self.log(f"ℹ️ [قاعة القيادة] تأجيل القضاء على فيلق الغزاة لحين إنجاز {p_count} مهمة طليعة غزاة أولاً لمنع ضياع جوائزها.")
 
         # ======================================================================
         # المرحلة 5.5: الترقية الختامية لمستوى قاعة القيادة (لاستيعاب أي نقاط خبرة اكتسبت حديثاً)
         # ======================================================================
         final_upgrades = 0
-        if self.auto_upgrade_hall:
-            hall_info_end = self.get_ctrl("commandHall")
-            if isinstance(hall_info_end, dict):
-                end_lv = self._safe_int(hall_info_end.get("commandLv"), 1)
-                end_exp = self._safe_int(hall_info_end.get("commandExp"), 0)
-                end_need = COMMAND_HALL_EXP_BY_LV.get(end_lv, 0)
-                if end_lv < COMMAND_HALL_MAX_LEVEL and end_need > 0 and end_exp >= end_need:
-                    upg_res_end = await self.execute_command_hall_upgrade_level(max_upgrades=5, wait_seconds=1.0)
-                    if upg_res_end.get("success"):
-                        final_upgrades = upg_res_end.get("upgrades_done", 0)
-                        upg_rewards_end = upg_res_end.get("rewards") or []
-                        if upg_rewards_end:
-                            all_rewards_collected.extend(upg_rewards_end)
-                        # تحديث الملخص الختامي بعد الترقية
-                        tasks_data = await self.get_command_hall_tasks(force_sync=False)
-                        summary = tasks_data.get("summary", summary)
+        if not circuit_broken and self.auto_upgrade_hall:
+            if not self.conn or not getattr(self.conn, "is_connected", False):
+                circuit_broken = True
+            else:
+                hall_info_end = self.get_ctrl("commandHall")
+                if isinstance(hall_info_end, dict):
+                    end_lv = self._safe_int(hall_info_end.get("commandLv"), 1)
+                    end_exp = self._safe_int(hall_info_end.get("commandExp"), 0)
+                    end_need = COMMAND_HALL_EXP_BY_LV.get(end_lv, 0)
+                    if end_lv < COMMAND_HALL_MAX_LEVEL and end_need > 0 and end_exp >= end_need:
+                        try:
+                            upg_res_end = await self.execute_command_hall_upgrade_level(max_upgrades=5, wait_seconds=1.0)
+                            if upg_res_end.get("success"):
+                                final_upgrades = upg_res_end.get("upgrades_done", 0)
+                                upg_rewards_end = upg_res_end.get("rewards") or []
+                                if upg_rewards_end:
+                                    all_rewards_collected.extend(upg_rewards_end)
+                                # تحديث الملخص الختامي بعد الترقية
+                                tasks_data = await self.get_command_hall_tasks(force_sync=False)
+                                summary = tasks_data.get("summary", summary)
+                        except ConnectionCircuitBreakerError as e:
+                            self.log(f"⚡ [قاطع الاتصال] تم اعتراض الترقية الختامية لقاعة القيادة لانقطاع الاتصال: {e}")
+                            circuit_broken = True
 
         total_hall_upgrades = initial_upgrades + final_upgrades
 
@@ -535,8 +619,9 @@ class CommandHallTask(BaseTask):
             if completed_army_group_count > 0:
                 details.append(f"{completed_army_group_count} فيلق غزاة (تجديد المهام)")
             details_str = " و ".join(details)
+            breaker_note = " (تم تفعيل قاطع الاتصال وتوقف باقي المهام لانقطاع الاتصال بالسيرفر)" if circuit_broken else ""
             result_msg = (
-                f"تم إنجاز {details_str} بنجاح بقاعة القيادة "
+                f"تم إنجاز {details_str} بنجاح بقاعة القيادة{breaker_note} "
                 f"(إجمالي المهام المكتملة: {total_completed} | ترقيات القاعة: {total_hall_upgrades} | استهلاك طاقة: {total_stamina_spent} | فاشل: {total_failed})."
             )
             return TaskResult.ok(
@@ -551,12 +636,16 @@ class CommandHallTask(BaseTask):
                     "completed_army_group": completed_army_group_count,
                     "failed_tasks": total_failed,
                     "stamina_spent": total_stamina_spent,
+                    "circuit_broken": circuit_broken,
                     "rewards_count": len(all_rewards_collected),
                     "rewards": all_rewards_collected,
                     "summary": summary,
                 },
                 exec_time=exec_duration,
             )
+
+        if circuit_broken or not self.conn or not getattr(self.conn, "is_connected", False):
+            raise ConnectionCircuitBreakerError("تم إيقاف مهمة قاعة القيادة فوراً بواسطة قاطع الاتصال لعدم توفر اتصال نشط بالخادم.")
 
         if total_failed > 0:
             return TaskResult.fail(

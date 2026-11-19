@@ -12,11 +12,10 @@ tasks/flower.py — مهمة إهداء الزهور التلقائية لإتم
      - إرسال كامل الكمية المطلوبة دفعة واحدة في طلب شبكي موحد (flowerNum = N).
      - تقليل طلبات الشبكة بنسبة 90% وتقليص زمن التنفيذ من 15 ثانية إلى أقل من ثانية واحدة.
      - حلقة تحقق ذاتي بعدية (Feedback Loop) للتأكد من وصول عداد النشاط اليومي إلى 10/10.
-  3. استهداف هجين ومرن للأمراء (Multi-tier Target Resolution):
-     - المستوى 1: أعضاء التحالف (Alliance Members) عبر CMD 1010/1 و 1010/6.
-     - المستوى 2: لوحة "ترتيب الزهور" في المملكة (Kingdom Flower Rankings) عبر CMD 1029/2 (type=10).
-     - المستوى 3: لوحة نشاط الزهور العام (Flower Activity Rankings) عبر CMD 2030/10.
-     - المستوى 4: قلاع المستخدم الأخرى داخل نفس المملكة.
+  3. استهداف مباشر وموثوق من لوحة المملكة (Kingdom Rankings Only):
+     - المستوى 1: لوحة "ترتيب الزهور" في المملكة (Kingdom Flower Rankings) عبر CMD 1029/2 (type=10) حصراً.
+     - المستوى 2: لوحة نشاط الزهور العام (Flower Activity Rankings) عبر CMD 2030/10 احتياطياً.
+     - المستوى 3: قلاع المستخدم الأخرى داخل نفس المملكة احتياطياً.
   4. فحص شفاف وصفر-شبكة لمخزون الحقيبة (0-Network Cache Read & Update):
      - قراءة وتحديث أرصدة كافة حزم الزهور مباشرة في الذاكرة الحية لمنع أي تعارض.
 """
@@ -187,122 +186,16 @@ class FlowerTask(BaseTask):
 
         return inventory
 
-    async def _resolve_alliance_id(self) -> Tuple[str, str]:
-        """
-        استخراج معرف التحالف واسمه بدقة.
-        1. فحص الذاكرة الحية (0-Network من allianceCtrl و lordInfoCtrl).
-        2. إذا لم يكن متوفراً، استعلام السيرفر رسمياً عبر CMD 1010 / 1 (REQ_INIT_ALLIANCEDATA).
-        """
-        alliance_ctrl = self.get_ctrl("allianceCtrl") or {}
-        lord_info = self.get_ctrl("lordInfoCtrl") or {}
-        lord_base = lord_info.get("base", {}) if isinstance(lord_info, dict) else {}
-
-        minfo = alliance_ctrl.get("memberinfo", {}).get("minfo", {}) if isinstance(alliance_ctrl, dict) else {}
-        prop = alliance_ctrl.get("allianceInfo", {}).get("property", {}) if isinstance(alliance_ctrl, dict) else {}
-
-        aid = str(
-            minfo.get("aid")
-            or prop.get("aid")
-            or alliance_ctrl.get("aid")
-            or alliance_ctrl.get("allianceId")
-            or lord_base.get("aid")
-            or ""
-        ).strip()
-
-        aname = str(
-            prop.get("name")
-            or alliance_ctrl.get("allianceName")
-            or alliance_ctrl.get("name")
-            or lord_base.get("alliancename")
-            or ""
-        ).strip()
-
-        if aid and aid not in ("0", "-1"):
-            return aid, aname
-
-        # استعلام السيرفر رسمياً عبر CMD 1010 / SUBCMD 1
-        try:
-            r = await self.safe_query("1010", "1", {}, min_delay=0.3, max_delay=0.6)
-            if r and isinstance(r, dict):
-                data = r.get("data", {})
-                ret = data.get("retdata", {}) if isinstance(data, dict) else {}
-                if isinstance(ret, dict):
-                    ainfo = ret.get("allianceInfo", {})
-                    if isinstance(ainfo, dict):
-                        p = ainfo.get("property", {}) if isinstance(ainfo.get("property"), dict) else {}
-                        aid = str(ainfo.get("aid") or p.get("aid") or "").strip()
-                        aname = str(p.get("name") or ainfo.get("allianceName") or ainfo.get("name") or "").strip()
-
-                        # تحديث كائن allianceInfo بأمان دون مسح باقي المتحكم allianceCtrl
-                        if getattr(self.conn, "init_data", None) is not None:
-                            ac = self.conn.init_data.setdefault("allianceCtrl", {})
-                            if isinstance(ac, dict):
-                                ac["allianceInfo"] = ainfo
-
-                    if not aid or aid in ("0", "-1"):
-                        owner = ret.get("ownermemberinfo", {})
-                        if isinstance(owner, dict):
-                            minfo = owner.get("minfo", {})
-                            if isinstance(minfo, dict) and minfo.get("aid"):
-                                aid = str(minfo.get("aid")).strip()
-        except Exception:
-            pass
-
-        if not aid or aid in ("0", "-1"):
-            return "", ""
-        return aid, aname
-
-    async def _get_alliance_members(self, my_uid: str, aid: str) -> List[Dict[str, str]]:
-        """
-        جلب قائمة بأعضاء التحالف المتاحين لإهدائهم الزهور عبر CMD 1010 / SUBCMD 6.
-        يستبعد لورد القلعة نفسها لضمان صحة الإهداء.
-        """
-        members: List[Dict[str, str]] = []
-        try:
-            r_members = await self.safe_query("1010", "6", {"aid": aid}, min_delay=0.3, max_delay=0.6)
-            if not r_members or not isinstance(r_members, dict):
-                return members
-
-            retdata = r_members.get("data", {}).get("retdata", [])
-            raw_list = retdata if isinstance(retdata, list) else (
-                list(retdata.values()) if isinstance(retdata, dict) else []
-            )
-
-            for item in raw_list:
-                if not isinstance(item, dict):
-                    continue
-                uinfo = item.get("uinfo", item)
-                uid = str(uinfo.get("uid", item.get("uid", ""))).strip()
-                name = str(uinfo.get("nickName", uinfo.get("name", "عضو تحالف"))).strip()
-
-                if uid and uid != my_uid and uid != "0":
-                    members.append({"uid": uid, "name": name})
-
-        except Exception as e:
-            self.log(f"⚠️ تعذر جلب قائمة أعضاء التحالف: {e}")
-
-        return members
-
     async def _resolve_targets(self, my_uid: str) -> Tuple[List[Dict[str, str]], str]:
         """
-        تحديد قائمة اللوردات المؤهلين للإهداء وفق استراتيجية هجينة ومرنة متعددة المستويات:
-        المستوى 1: أعضاء التحالف (Alliance Members) عبر CMD 1010 / 6
-        المستوى 2: لوحة ترتيب الزهور داخل المملكة (Kingdom Flower Rankings) عبر CMD 1029 / 2 (type=10)
-        المستوى 3: لوحة نشاط الزهور العام (Flower Activity Rankings) عبر CMD 2030 / 10
-        المستوى 4: قلاع المستخدم الأخرى المسجلة في نفس المملكة
+        تحديد قائمة اللوردات المؤهلين للإهداء بالاعتماد المباشر على لوحة ترتيب المملكة (CMD 1029):
+        المستوى 1: لوحة "ترتيب الزهور" في المملكة (Kingdom Flower Rankings) عبر CMD 1029 / 2 (type=10).
+        المستوى 2 (احتياطي): لوحة نشاط الزهور العام (Flower Activity Rankings) عبر CMD 2030 / 10.
+        المستوى 3 (احتياطي): قلاع المستخدم الأخرى داخل نفس المملكة.
         """
         targets: List[Dict[str, str]] = []
 
-        # المستوى 1: أعضاء التحالف
-        aid, aname = await self._resolve_alliance_id()
-        if aid:
-            self.log(f"👥 القلعة منضمة للتحالف '{aname or aid}'. جلب قائمة الأعضاء...")
-            members = await self._get_alliance_members(my_uid, aid)
-            if members:
-                self.log(f"✓ تم العثور على {len(members)} عضواً في التحالف.")
-                return members, "أعضاء التحالف"
-
-        # المستوى 2: لوحة ترتيب الزهور في المملكة (Flower Rankings - CMD 1029 / 2 / type 10)
+        # المستوى 1: لوحة ترتيب الزهور في المملكة (Flower Rankings - CMD 1029 / 2 / type 10)
         self.log("🌸 جلب مرشحين من لوحة 'ترتيب الزهور' داخل المملكة (CMD 1029)...")
         try:
             r_rank = await self.safe_query("1029", "2", {"type": 10}, min_delay=0.3, max_delay=0.6)

@@ -324,10 +324,23 @@ def test_available_troops(task: BaseTask) -> Dict[str, Any]:
     prop_count = task.available_troops_count
     prop_troops = task.available_troops
     troops_list_helper = task.get_available_troops_list(exclude_fortress=True)
+
+    # دوال سورس كود اللعبة المطابقة حرفياً (armyCtrl.lua / armyltCtrl.lua / serviceFunctions.lua)
+    army_list = task.get_army_list()
+    trap_list = task.get_trap_list()
+    trap_total = task.get_trap_total_count()
+    inner_city_count = task.get_inner_city_normal_army()
+
+    # التحقق من دقة armyltCtrl.is_army_id و serviceFunctions.is_trap_id
+    assert task.is_trap_id(801) is True, "فحص 801 يجب أن يكون فخاً (Trap ID)"
+    assert task.is_trap_id(401) is False, "فحص 401 يجب ألا يكون فخاً"
+    assert task.is_army_id(401) is True, "فحص 401 يجب أن يكون جندياً مقاتلاً"
+    assert task.is_army_id(801) is False, "فحص 801 يجب ألا يكون جندياً مقاتلاً"
+
     t_elapsed_ms = (time.perf_counter() - t0) * 1000
 
-    # إحصائيات الأفخاخ المستبعدة لحصن الحرب (800..899)
-    fortress_count = sum(v for k, v in all_units.items() if 800 <= k <= 899)
+    # إحصائيات الأفخاخ المستبعدة لحصن الحرب (800..899 / BUILDID 120)
+    fortress_count = trap_total
 
     # تصنيف القوات المتاحة حسب الصنف الرسمي للعبة
     type_names = {
@@ -338,15 +351,15 @@ def test_available_troops(task: BaseTask) -> Dict[str, Any]:
         9: "⭐ نخبة (Elite)",
     }
     categorized: Dict[str, int] = {}
-    for uid, cnt in troops_dict.items():
+    for uid, cnt in army_list.items():
         cat_key = type_names.get(uid // 100, f"وحدات ({uid // 100})")
         categorized[cat_key] = categorized.get(cat_key, 0) + cnt
 
     print("\n" + "═" * 70)
-    print(" ⚔️ [Available Troops] القوات والجنود الشاغرين في القلعة (0-Network)")
+    print(" ⚔️ [Available Troops & ArmyList] القوات والجنود الشاغرين في القلعة (0-Network)")
     print("═" * 70)
-    print(f"   • إجمالي الجنود المتاحين والشاغرين : {total_count:,} جندي (Property: {prop_count:,})")
-    print(f"   • وحدات حصن الحرب المستبعدة (الأفخاخ) : {fortress_count:,} فخ (ID: 800..899)")
+    print(f"   • إجمالي الجنود المتاحين والشاغرين : {total_count:,} جندي (InnerCityNormalArmy: {inner_city_count:,})")
+    print(f"   • وحدات حصن الحرب المستبعدة (الأفخاخ) : {fortress_count:,} فخ (Trap Total: {trap_total:,})")
     print(f"   • تفصيل القوات حسب الصنف:")
     if categorized:
         for cat_name, cat_cnt in categorized.items():
@@ -369,6 +382,9 @@ def test_available_troops(task: BaseTask) -> Dict[str, Any]:
         "total_available_troops": total_count,
         "fortress_traps_excluded": fortress_count,
         "troops_dict": troops_dict,
+        "army_list": army_list,
+        "trap_list": trap_list,
+        "inner_city_count": inner_city_count,
         "troops_list": troops_list,
         "categorized": categorized,
         "time_ms": t_elapsed_ms,
@@ -752,6 +768,128 @@ async def test_command_hall_dialogue(task: BaseTask) -> Dict[str, Any]:
     return {"success": exec_res.get("success", False), "result": exec_res, "time_ms": t_elapsed_ms}
 
 
+def test_single_march_capacity(task: BaseTask) -> Dict[str, Any]:
+    """اختبار دالة حساب سعة المسيرة القصوى للفيلق الواحد get_max_march_capacity بدقة وميدانياً."""
+    t0 = time.perf_counter()
+
+    # 1. حساب السعة المجردة للقلعة بدون أبطال (Bare Castle Capacity)
+    bare_cap_int = task.get_max_march_capacity(heroes="none", breakdown=False)
+    bare_breakdown = task.get_max_march_capacity(heroes="none", breakdown=True)
+
+    # 2. حساب السعة القصوى الممكنة مع أفضل أبطال القلعة تلقائياً (Max Possible March Capacity)
+    max_cap_int = task.get_max_march_capacity(heroes=None, breakdown=False)
+    max_breakdown = task.get_max_march_capacity(heroes=None, breakdown=True)
+
+    # 3. استخراج الأبطال المتوفرين بالقلعة لتجربة تمريرهم يدوياً
+    hero_sys = task.get_ctrl("heroSysCtrl") or {}
+    hl = hero_sys.get("heroList", {}) if isinstance(hero_sys, dict) else {}
+    sample_heroes = list(hl.keys())[:2]
+
+    hero_cap_int = None
+    hero_breakdown = None
+    if sample_heroes:
+        hero_cap_int = task.get_max_march_capacity(heroes=sample_heroes, breakdown=False)
+        hero_breakdown = task.get_max_march_capacity(heroes=sample_heroes, breakdown=True)
+
+    t_elapsed_ms = (time.perf_counter() - t0) * 1000
+
+    print("\n" + "═" * 70)
+    print(" 🛡️ [March Capacity Engine] سعة المسيرة القصوى للفيلق الواحد (Single March)")
+    print("═" * 70)
+    print(f"   • السعة القصوى الممكنة للفيلق (مع أفضل الأبطال) : {max_cap_int:,} جندي")
+    print(f"   • سعة القلعة الأساسية المجردة (بدون أبطال)      : {bare_cap_int:,} جندي")
+    dg = bare_breakdown.get("drill_grounds", {})
+    print(f"       - مبنى ميدان العرض (BID 121)               : Lv.{dg.get('level')} (نجوم: {dg.get('star_level')}) -> {dg.get('total_building_capacity', 0):,} جندي")
+    print(f"       - السعة الافتراضية للعبة                   : +{bare_breakdown.get('game_default', 1000):,} جندي")
+    tech_info = bare_breakdown.get("technology", {})
+    print(f"       - أبحاث معهد القيادة (#240xx)             : +{tech_info.get('tech_add', 0):,} جندي (مضاعف: +{round(tech_info.get('tech_group_multiplier', 0)*100, 1)}%)")
+    buff_info = bare_breakdown.get("buffs", {})
+    print(f"       - بافات المسيرة النشطة                     : نسبة +{round(buff_info.get('percent_add', 0)*100, 1)}% (+{buff_info.get('percent_bonus_troops', 0):,} جندي) | ثابت: +{buff_info.get('flat_add', 0):,}")
+
+    max_h_info = max_breakdown.get("heroes", {})
+    unlocked_slots = max_breakdown.get("unlocked_hero_slots", 5)
+    print(f"\n   👑 مساهمة أفضل {unlocked_slots} أبطال متاحين بالقلعة (Auto-Selected): +{max_h_info.get('total_hero_add', 0):,} جندي")
+    for h in max_h_info.get("details", []):
+        print(f"       - بطل #{h.get('hero_id')} ({h.get('name')}): Lv.{h.get('level')} (ندرة {h.get('rarity')}) -> سعة أساسية: +{h.get('level_march_add'):,} | مهارات: +{h.get('skill_march_add'):,} (إجمالي: +{h.get('total_hero_add'):,})")
+
+    if sample_heroes and hero_breakdown:
+        h_info = hero_breakdown.get("heroes", {})
+        print(f"\n   • سعة الفيلق عند تمرير أبطال محددين {sample_heroes}: {hero_cap_int:,} جندي (زيادة الأبطال: +{h_info.get('total_hero_add', 0):,})")
+
+    print(f"\n   ⚡ زمن الحساب بالذاكرة الحية                    : {t_elapsed_ms:.3f} ms (0-Network)")
+    print("═" * 70)
+
+    return {
+        "success": bool(max_cap_int > 0),
+        "max_capacity": max_cap_int,
+        "bare_capacity": bare_cap_int,
+        "with_sample_heroes": hero_cap_int,
+        "breakdown": max_breakdown,
+        "time_ms": t_elapsed_ms,
+    }
+
+
+def test_available_heroes_cli(
+    task: BaseTask,
+    hero_type: str = "all",
+    include_defend: bool = False,
+    detailed: bool = True,
+    limit: Optional[int] = None,
+) -> Dict[str, Any]:
+    """فحص واختبار دالة get_available_heroes الجديدة بمطابقتها لسورس كود اللعبة."""
+    t0 = time.perf_counter()
+    all_heroes = task.get_available_heroes(hero_type="all", include_defend=include_defend, detailed=detailed)
+    combat_heroes = task.get_available_heroes(hero_type="combat", include_defend=include_defend, detailed=detailed)
+    infantry_heroes = task.get_available_heroes(hero_type="infantry", include_defend=include_defend, detailed=detailed)
+    cavalry_heroes = task.get_available_heroes(hero_type="cavalry", include_defend=include_defend, detailed=detailed)
+    archer_heroes = task.get_available_heroes(hero_type="archer", include_defend=include_defend, detailed=detailed)
+    chariot_heroes = task.get_available_heroes(hero_type="chariots", include_defend=include_defend, detailed=detailed)
+    support_heroes = task.get_available_heroes(hero_type="support", include_defend=include_defend, detailed=detailed)
+
+    t_elapsed_ms = (time.perf_counter() - t0) * 1000
+
+    print("\n" + "═" * 70)
+    print(" 👑 [Available Heroes Engine] جلب الأبطال المتاحين والشاغرين في القلعة")
+    print(f"   • إجمالي الأبطال المتاحين (all)                 : {len(all_heroes)} بطل")
+    print(f"   • أبطال القتال والعسكر (combat)               : {len(combat_heroes)} بطل")
+    print(f"       - مشاة (Infantry)                          : {len(infantry_heroes)} بطل")
+    print(f"       - فرسان (Cavalry)                          : {len(cavalry_heroes)} بطل")
+    print(f"       - رماة (Archer)                            : {len(archer_heroes)} بطل")
+    print(f"       - عربات (Chariots)                         : {len(chariot_heroes)} بطل")
+    print(f"   • أبطال التنمية والدعم (Support/Ancillary)     : {len(support_heroes)} بطل")
+
+    specific_heroes = task.get_available_heroes(hero_type=hero_type, include_defend=include_defend, detailed=detailed, limit=limit)
+    if hero_type and hero_type != "all":
+        print(f"\n   🎯 الأبطال المتاحون للفئة المطلوبة [{hero_type}] (العدد: {len(specific_heroes)}):")
+        for idx, h in enumerate(specific_heroes, start=1):
+            if isinstance(h, dict):
+                print(f"       {idx}. بطل #{h.get('heroID')} ({h.get('name_ar')}) - نوع: {h.get('type_name_ar')} | Lv.{h.get('level')} | ندرة {h.get('rarity')} | سعة مسيرة: +{h.get('march_num'):,} | نائب: {h.get('own_l')}")
+            else:
+                print(f"       {idx}. بطل #{h}")
+    elif combat_heroes:
+        print("\n   ⚔️ أفضل أبطال القتال مرتبين تنازلياً (سورس اللعبة: sortDispatchHerosID):")
+        for idx, h in enumerate(combat_heroes[:5], start=1):
+            if isinstance(h, dict):
+                print(f"       {idx}. بطل #{h.get('heroID')} ({h.get('name_ar')}) - نوع: {h.get('type_name_ar')} | Lv.{h.get('level')} | ندرة {h.get('rarity')} | سعة مسيرة: +{h.get('march_num'):,} | نائب: {h.get('own_l')}")
+            else:
+                print(f"       {idx}. بطل #{h}")
+
+    print(f"\n   ⚡ زمن الفحص بالذاكرة الحية                    : {t_elapsed_ms:.3f} ms (0-Network)")
+    print("═" * 70)
+
+    return {
+        "success": True,
+        "total_available": len(all_heroes),
+        "combat_count": len(combat_heroes),
+        "infantry_count": len(infantry_heroes),
+        "cavalry_count": len(cavalry_heroes),
+        "archer_count": len(archer_heroes),
+        "chariot_count": len(chariot_heroes),
+        "support_count": len(support_heroes),
+        "time_ms": t_elapsed_ms,
+    }
+
+
 # ════════════════════════════════════════════════════════════════════
 # 5. الفحص الشامل لجميع المكونات (All-in-One Benchmark)
 # ════════════════════════════════════════════════════════════════════
@@ -770,6 +908,8 @@ async def run_all_benchmarks(task: BaseTask) -> Dict[str, Any]:
     results["gather_types"] = test_gather_resource_types(task)
     results["ruins_march"] = test_ruins_march(task)
     results["available_troops"] = test_available_troops(task)
+    results["single_march_capacity"] = test_single_march_capacity(task)
+    results["available_heroes"] = test_available_heroes_cli(task)
     results["stamina_packs"] = test_stamina_packs(task)
     results["lifecycle"] = await test_lifecycle_and_safety(task)
     results["safe_query"] = await test_safe_query_and_jitter(task)
@@ -957,6 +1097,8 @@ async def main_async():
     parser.add_argument("--fn", type=str, default=None, help="اسم الدالة أو الخاصية المراد فحصها تحديداً")
     parser.add_argument("--skill", "--skill-id", dest="skill", type=str, default=None, help="معرف أو اسم المهارة المراد فحصها (مثل 12008 أو 'حصاد وافر')")
     parser.add_argument("--pack", "--pack-type", dest="pack", type=str, default=None, help="نوع أو فئة حزمة الطاقة المراد فحصها (10, 50, 100, total, all...)")
+    parser.add_argument("--heroes", "--hero", dest="heroes", type=str, default=None, help="قائمة معرفات الأبطال مفصولة بفواصل لحساب سعة المسيرة (مثل 1712,1706)")
+    parser.add_argument("--breakdown", "-b", "--detail", action="store_true", help="طلب تفصيل شامل لمصادر سعة المسيرة (ميدان العرض، أبحاث، بافات، أبطال)")
     parser.add_argument("--all", action="store_true", help="تشغيل الفحص الشامل الميداني (All-in-One Benchmark)")
     parser.add_argument("-i", "--interactive", action="store_true", help="فتح القائمة التفاعلية في التيرمنال")
 
@@ -965,6 +1107,11 @@ async def main_async():
     parser.add_argument("--amount", type=int, default=100_000, help="الكمية المطلوبة لتوفير الموارد")
     parser.add_argument("--multiplier", type=int, default=2, help="مضاعف الاحتياط لتوفير الموارد (افتراضياً 2x)")
     parser.add_argument("--force-open", action="store_true", help="فتح الصناديق إجبارياً حتى لو كان الرصيد كافياً")
+
+    # معاملات فحص الأبطال (get_available_heroes)
+    parser.add_argument("--type", "--hero-type", "-t", dest="hero_type", type=str, default="all", help="نوع الأبطال المراد جلبه (combat, infantry, cavalry, archer, chariots, support, all)")
+    parser.add_argument("--include-defend", dest="include_defend", action="store_true", help="تضمين حماة السور مع الأبطال المتاحين")
+    parser.add_argument("--limit", "-l", dest="limit", type=int, default=None, help="الحد الأقصى لعدد الأبطال المطلوب إرجاعه")
 
     args = parser.parse_args()
 
@@ -992,9 +1139,13 @@ async def main_async():
             task = BaseTaskHarness(bot_fn.conn, log_func=lambda m: None, config=bot_fn.config)
             if any(k in fn_name.lower() for k in ("march", "queue", "gather", "ruin")):
                 await task.sync_local_queues(timeout=3.0)
+                if "capacity" in fn_name.lower() and hasattr(task, "sync_achievements"):
+                    await task.sync_achievements(timeout=3.0)
                 await asyncio.sleep(0.5)
 
-            if hasattr(task, fn_name):
+            if fn_name.lower() in ("march_capacity", "single_march", "test_single_march_capacity"):
+                res_fn = test_single_march_capacity(task)
+            elif hasattr(task, fn_name):
                 attr = getattr(task, fn_name)
                 if callable(attr):
                     is_async = asyncio.iscoroutinefunction(attr)
@@ -1005,7 +1156,23 @@ async def main_async():
                         params = []
 
                     # إذا كانت الدالة هي get_lord_skill_status أو تتطلب معامل المهارة
-                    if "skill" in fn_name.lower():
+                    if fn_name.lower() in ("march_capacity", "single_march", "test_single_march_capacity"):
+                        res_fn = test_single_march_capacity(task)
+                    elif fn_name.lower() == "get_max_march_capacity":
+                        breakdown_flag = any(a in ("--breakdown", "-b", "--detail") for a in sys.argv)
+                        heroes_arg: Any = None
+                        for idx_a, a in enumerate(sys.argv):
+                            if a in ("--heroes", "--hero") and idx_a + 1 < len(sys.argv):
+                                val_raw = sys.argv[idx_a + 1].strip()
+                                if val_raw.lower() in ("none", "bare", "0", "false"):
+                                    heroes_arg = "none"
+                                elif val_raw.isdigit() and int(val_raw) <= 5:
+                                    heroes_arg = int(val_raw)
+                                else:
+                                    heroes_arg = [h.strip() for h in val_raw.split(",") if h.strip()]
+                        need_avail = any(a in ("--available", "--need-available") for a in sys.argv)
+                        res_fn = task.get_max_march_capacity(heroes=heroes_arg, breakdown=breakdown_flag, need_available=need_avail)
+                    elif "skill" in fn_name.lower():
                         res_fn = await attr(args.skill) if is_async else attr(args.skill)
                     elif any(k in fn_name.lower() for k in ("boost", "speedup")):
                         res_arg = args.resource if any(a.startswith("--resource") for a in sys.argv) else None
@@ -1013,6 +1180,13 @@ async def main_async():
                     elif any(k in fn_name.lower() for k in ("stamina_pack", "stamina_packs")):
                         pack_arg = args.pack if any(a.startswith(("--pack", "--pack-type")) for a in sys.argv) else None
                         res_fn = await attr(pack_arg) if is_async else attr(pack_arg)
+                    elif any(k in fn_name.lower() for k in ("available_hero", "get_available_heroes")):
+                        res_fn = task.get_available_heroes(
+                            hero_type=args.hero_type or "all",
+                            include_defend=args.include_defend,
+                            detailed=args.breakdown,
+                            limit=args.limit,
+                        )
                     elif len(params) > 0:
                         res_fn = await attr(args.skill) if is_async else attr(args.skill)
                     else:
@@ -1116,6 +1290,18 @@ async def main_async():
 
         elif cmd in ("stamina_packs", "stamina_pack", "get_available_stamina_packs", "packs", "stamina_boxes"):
             test_stamina_packs(task, pack_type=args.pack)
+
+        elif cmd in ("single_march", "march_capacity", "get_max_march_capacity", "max_march", "march_size", "march_limit"):
+            test_single_march_capacity(task)
+
+        elif cmd in ("heroes", "available_heroes", "get_available_heroes"):
+            test_available_heroes_cli(
+                task,
+                hero_type=args.hero_type or "all",
+                include_defend=args.include_defend,
+                detailed=True,
+                limit=args.limit,
+            )
 
         elif hasattr(task, cmd):
             # فحص مرن لأي دالة أو خاصية أخرى في BaseTask

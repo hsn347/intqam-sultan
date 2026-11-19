@@ -129,6 +129,241 @@ SEAL_TYPES = {
     "99": "حظر بصمة الجهاز (Device Signature Blocked)",
 }
 
+# ═════════════════════════════════════════════════════════════════════════════
+# خريطة الأوامر والطلبات الشبكية الرسمية (CMD & SubCMD Metadata Map)
+# مع الإيموجي والوصف الدقيق والموجز جداً لظهورها الشفاف في التيرمنال
+# ═════════════════════════════════════════════════════════════════════════════
+
+CMD_METADATA_MAP: Dict[Tuple[str, str], Tuple[str, str]] = {
+    # ── 1. التهيئة والمزامنة (Init & Sync) ──
+    ("1000", "1"): ("🌐", "تهيئة اللعبة"),
+    ("1000", "2"): ("🔄", "مزامنة الحساب"),
+    ("1007", "1000"): ("🏇", "مزامنة الفيالق"),
+    ("1007", "2"): ("🔄", "مزامنة المسيرات"),
+    ("1007", "1"): ("🏇", "إرسال مسير"),
+    ("1008", "1"): ("🗺️", "خريطة العالم"),
+
+    # ── 2. الموارد والمدينة والبناء (City & Resources) ──
+    ("1001", "8"): ("🌾", "حصد الموارد"),
+    ("1001", "2"): ("⏩", "تسريع بناء"),
+    ("1001", "3"): ("❌", "إلغاء بناء"),
+    ("1003", "1"): ("🏰", "ترقية مبنى"),
+    ("1003", "2"): ("🏗️", "استعلام المباني"),
+    ("1003", "4"): ("⏩", "تسريع بناء"),
+    ("1003", "8"): ("🔨", "إتمام بناء مجاني"),
+    ("1004", "1"): ("🌾", "استعلام الموارد"),
+    ("1004", "2"): ("📦", "استخدام عنصر"),
+
+    # ── 3. الجيش والقتال والمستشفى (Army & Hospital) ──
+    ("1005", "2"): ("⚔️", "تدريب الجنود"),
+    ("1005", "5"): ("🎖️", "استلام الجنود"),
+    ("1005", "4"): ("🏥", "علاج الجرحى"),
+    ("1012", "1"): ("⚔️", "تدريب الجنود"),
+    ("1012", "2"): ("🎖️", "استلام الجنود"),
+    ("1012", "4"): ("⏩", "تسريع التدريب"),
+    ("1014", "1"): ("🏥", "علاج الجرحى"),
+
+    # ── 4. التحالف والعلوم والمساعدات (Alliance & Science) ──
+    ("1010", "1"): ("🤝", "بيانات التحالف"),
+    ("1010", "6"): ("🤝", "أعضاء التحالف"),
+    ("1010", "44"): ("🤝", "مساعدة التحالف"),
+    ("1010", "45"): ("🤝", "طلب مساعدة التحالف"),
+    ("1010", "47"): ("🤝", "مساعدة الكل"),
+    ("1010", "48"): ("🔬", "تبرع علوم التحالف"),
+    ("1010", "49"): ("🔬", "بحث علوم التحالف"),
+    ("1010", "51"): ("🏆", "ترتيب متبرعي التحالف"),
+    ("2015", "1"): ("💎", "استعلام كنز التحالف"),
+    ("2015", "3"): ("⛏️", "حفر كنز التحالف"),
+    ("2015", "4"): ("🤝", "طلب مساعدة كنز التحالف"),
+    ("2015", "5"): ("🤝", "مساعدة كنز عضو التحالف"),
+    ("2015", "6"): ("🎁", "استلام كنز التحالف"),
+
+    # ── 5. الأبحاث والأكاديمية (Academy Research) ──
+    ("1011", "1"): ("🔬", "بحث الأكاديمية"),
+    ("1011", "4"): ("⏩", "تسريع البحث"),
+    ("1017", "2"): ("🔬", "بحث الأكاديمية"),
+
+    # ── 6. الميناء وسفينة التجار والعجلة (Port, Ship, Wheel) ──
+    ("1033", "2"): ("⚓", "استلام الميناء"),
+    ("1032", "2"): ("🚢", "تبادل سفينة التجار"),
+    ("1018", "2"): ("🎰", "تدوير عجلة الحظ"),
+    ("1021", "2"): ("🎰", "تدوير عجلة الحظ"),
+
+    # ── 7. المتجر والدروع والطاقة (Shop, Shield, Stamina) ──
+    ("1034", "2"): ("🪙", "شراء من المتجر"),
+    ("1002", "1"): ("🛡️", "درع السلام"),
+
+    # ── 8. مهارات اللورد ودمج الأبطال (Lord Skills & Combo) ──
+    ("1002", "20"): ("⚡", "ترقية مهارة اللورد"),
+    ("1002", "21"): ("⚡", "إعادة تعيين مهارات اللورد"),
+    ("1002", "22"): ("⚡", "استخدام مهارة اللورد"),
+    ("1002", "23"): ("🔄", "تبديل طقم المهارات"),
+    ("1002", "24"): ("🏷️", "تسمية طقم المهارات"),
+    ("2235", "1"): ("🌟", "استعلام دمج الأبطال"),
+    ("2235", "2"): ("🌟", "تفعيل دمج الأبطال"),
+
+    # ── 9. الحدادة والورش والعتاد (Forge & Workshop) ──
+    ("1047", "1"): ("🔨", "ورشة الحدادة"),
+    ("1047", "2"): ("🔨", "تصنيع عتاد"),
+    ("1047", "3"): ("💎", "دمج المواد"),
+    ("1047", "10"): ("💎", "دمج المواد"),
+    ("2021", "1"): ("🧵", "ورشة المواد"),
+    ("2021", "2"): ("🧵", "جمع مواد الورشة"),
+    ("2021", "4"): ("🧵", "استلام مواد الورشة"),
+
+    # ── 10. محاكمة الأبطال والضريح والحلبة (Trials, Mausoleum, Arena) ──
+    ("1059", "1"): ("🗡️", "محاكمة الأبطال"),
+    ("1059", "2"): ("🗡️", "غارة محاكمة الأبطال"),
+    ("1059", "3"): ("🗡️", "فتح محاكمة الأبطال"),
+    ("1059", "4"): ("🗡️", "بدء محاكمة الأبطال"),
+    ("1045", "1"): ("🏛️", "استعلام الضريح"),
+    ("1045", "3"): ("🎲", "رمي نرد الضريح"),
+    ("1045", "5"): ("🎁", "جوائز الضريح"),
+    ("2056", "1"): ("🏟️", "استعلام الحلبة"),
+    ("2056", "2"): ("🏟️", "تحدي الحلبة"),
+    ("2056", "4"): ("🏟️", "تحدي الحلبة"),
+    ("2056", "5"): ("🔄", "تجديد خصوم الحلبة"),
+    ("2056", "6"): ("🏆", "جوائز الحلبة"),
+
+    # ── 11. قاعة القيادة (Command Hall) ──
+    ("2274", "1"): ("🏛️", "استعلام قاعة القيادة"),
+    ("2274", "2"): ("⬆️", "ترقية قاعة القيادة"),
+    ("2274", "3"): ("⚡", "ترقية قوة القيادة"),
+    ("2274", "5"): ("📜", "إنجاز مهمة القيادة"),
+    ("2274", "6"): ("🛡️", "تعيين دفاع القيادة"),
+    ("2274", "7"): ("⚔️", "هجوم فيلق القيادة"),
+    ("2274", "8"): ("🎁", "استلام جوائز مهمة القيادة"),
+    ("2274", "9"): ("🗺️", "تحديث موقع هدف القيادة"),
+    ("2274", "10"): ("🗺️", "مزامنة موقع هدف القيادة"),
+
+    # ── 12. المهام اليومية والوحش الأليف والزهور والوسام وتاجر العجائب ──
+    ("2027", "1"): ("📋", "المهام اليومية"),
+    ("2027", "2"): ("🎁", "صندوق المهام اليومية"),
+    ("2027", "4"): ("📋", "استلام المهمة اليومية"),
+    ("2027", "5"): ("🎁", "صندوق المهام اليومية"),
+    ("2036", "1"): ("🦅", "استعلام الوحش الأليف"),
+    ("2036", "2"): ("🦅", "مداعبة الوحش الأليف"),
+    ("2036", "4"): ("🦅", "مكافأة الوحش الأليف"),
+    ("1024", "2"): ("👳", "شراء تاجر العجائب"),
+    ("1024", "3"): ("👳", "استعلام تاجر العجائب"),
+    ("1029", "2"): ("🌸", "إرسال زهور"),
+    ("2030", "10"): ("🌸", "بستان الزهور"),
+    ("1067", "2"): ("🎖️", "ترقية ميدالية الحرب"),
+    ("1040", "1"): ("👑", "استعلام VIP"),
+    ("1040", "2"): ("👑", "استلام نقاط VIP"),
+}
+
+CMD_MODULE_MAP: Dict[str, Tuple[str, str]] = {
+    "1000": ("🌐", "تهيئة اللعبة"),
+    "1001": ("🏰", "مباني المدينة"),
+    "1002": ("⚡", "شؤون اللورد"),
+    "1003": ("🏰", "طابور البناء"),
+    "1004": ("🌾", "الموارد والحقيبة"),
+    "1005": ("⚔️", "الثكنات والجيش"),
+    "1007": ("🏇", "طوابير المسير"),
+    "1008": ("🗺️", "خريطة العالم"),
+    "1010": ("🤝", "شؤون التحالف"),
+    "1011": ("🔬", "الأكاديمية والبحوث"),
+    "1012": ("⚔️", "تدريب الجنود"),
+    "1014": ("🏥", "مشفى القلعة"),
+    "1015": ("🎒", "حقيبة العناصر"),
+    "1017": ("🔬", "أبحاث الأكاديمية"),
+    "1018": ("🎰", "عجلة الحظ"),
+    "1020": ("🚢", "سفينة التجار"),
+    "1021": ("🎰", "عجلة الحظ"),
+    "1024": ("👳", "تاجر العجائب"),
+    "1029": ("🌸", "إرسال زهور"),
+    "1032": ("🚢", "سفينة التجار"),
+    "1033": ("⚓", "مكافأة الميناء"),
+    "1034": ("🪙", "المتجر والدروع"),
+    "1040": ("👑", "امتيازات VIP"),
+    "1045": ("🏛️", "الضريح الإمبراطوري"),
+    "1047": ("🔨", "ورشة الحدادة"),
+    "1059": ("🗡️", "محاكمة الأبطال"),
+    "1067": ("🎖️", "ميدالية الحرب"),
+    "2015": ("💎", "كنز التحالف"),
+    "2021": ("🧵", "ورشة المواد"),
+    "2027": ("📋", "المهام اليومية"),
+    "2030": ("🌸", "بستان الزهور"),
+    "2036": ("🦅", "الوحش الأليف"),
+    "2056": ("🏟️", "حلبة الفرسان"),
+    "2235": ("🌟", "دمج الأبطال"),
+    "2274": ("🏛️", "قاعة القيادة"),
+}
+
+
+def get_cmd_metadata(cmd: str, subcmd: str, data: Optional[dict] = None) -> Tuple[str, str]:
+    """
+    استخراج الإيموجي المعبر والوصف العربي الموجز جداً لأي طلب يرسل عبر البوت.
+    """
+    c_str = str(cmd).strip()
+    s_str = str(subcmd).strip()
+
+    if isinstance(data, dict):
+        if c_str == "1034" and s_str == "2":
+            shop_id = str(data.get("shopItemID", ""))
+            if shop_id == "1000046":
+                return ("⚡", "شراء طاقة بالذهب")
+            if any(k in shop_id for k in ("100001", "100002", "100003")):
+                return ("🛡️", "شراء درع بالذهب")
+            return ("🪙", "شراء من المتجر")
+        elif c_str == "1004" and s_str == "2":
+            item_id = str(data.get("itemID", ""))
+            if any(item_id.startswith(p) for p in ("1002", "1003", "1004", "1005", "1006")):
+                return ("🌾", "فتح صناديق موارد")
+            if item_id in ("200001", "200002", "200003", "200004", "200005"):
+                return ("⚡", "استخدام حزم الطاقة")
+            if item_id in ("100001", "100002", "100003"):
+                return ("🛡️", "تفعيل درع السلام")
+            return ("📦", "استخدام عنصر")
+        elif c_str == "1001" and s_str == "8":
+            return ("🌾", "حصد الموارد")
+        elif c_str == "1001" and s_str == "2":
+            return ("⏩", "تسريع بناء")
+        elif c_str == "1005" and s_str == "2":
+            return ("⚔️", "تدريب الجنود")
+        elif c_str == "1005" and s_str == "4":
+            return ("🏥", "علاج الجرحى")
+        elif c_str == "1005" and s_str == "5":
+            return ("🎖️", "استلام الجنود")
+        elif c_str == "1010" and s_str == "48":
+            return ("🔬", "تبرع علوم التحالف")
+        elif c_str == "2015" and s_str == "6":
+            return ("🎁", "استلام كنز التحالف")
+
+    if (c_str, s_str) in CMD_METADATA_MAP:
+        return CMD_METADATA_MAP[(c_str, s_str)]
+    if c_str in CMD_MODULE_MAP:
+        return CMD_MODULE_MAP[c_str]
+    return ("📡", "أمر سيرفر")
+
+
+def is_query_success(res: Any) -> Tuple[bool, Optional[str]]:
+    """
+    فحص نجاح استجابة السيرفر:
+    يعتبر ناجحاً إذا كان قاموساً ولم يحتوي على كود خطأ (err / code) يخالف الصفر.
+    """
+    if not isinstance(res, dict):
+        return False, "timeout"
+    if res.get("_ok") is False:
+        return False, "packet_err"
+    err = res.get("err")
+    if err is None:
+        err = res.get("code")
+    if err is None:
+        inner_d = res.get("data")
+        if isinstance(inner_d, dict):
+            err = inner_d.get("err")
+            if err is None:
+                err = inner_d.get("code")
+    if err is None:
+        return True, None
+    err_str = str(err).strip()
+    if err_str in ("0", "Err_None", "None"):
+        return True, None
+    return False, err_str
+
+
 
 def build_platform_string(
     device_id: str,
@@ -1213,7 +1448,27 @@ class GameConnection:
         self.is_other_device: bool = False
         self.controllers_ready: asyncio.Event = asyncio.Event()
         self.notify_log_callback: Optional[Callable[[str], None]] = None
+        self.brief_log_callback: Optional[Callable[[str], None]] = None
         self._seen_unhandled_notifies: Set[str] = set()
+
+    @property
+    def account_short_name(self) -> str:
+        """اسم الحساب المختصر النظيف بدون نطاق الإيميل"""
+        em = getattr(self.account, "email", "") or getattr(self.account, "user_id", "Bot")
+        if "@" in str(em):
+            return str(em).split("@")[0]
+        return str(em)
+
+    def emit_brief_log(self, line: str) -> None:
+        """
+        طباعة سطر الطلب الموجز في التيرمنال فوراً وتمريره لموجه السجلات إن وجد
+        """
+        print(line, flush=True)
+        if hasattr(self, "brief_log_callback") and callable(self.brief_log_callback):
+            try:
+                self.brief_log_callback(line)
+            except Exception:
+                pass
 
     @property
     def local_queues(self) -> list:
@@ -1386,6 +1641,7 @@ class GameConnection:
 
             try:
                 await asyncio.wait_for(self.controllers_ready.wait(), timeout=12.0)
+                self.emit_brief_log(f"🌐 [{self.account_short_name}] تهيئة اللعبة والذاكرة الحية (1000/1) ✅")
                 log.info(f"[{self.account.email}] ✓ تم تحميل كامل متحكمات القلعة بنجاح ({len(self.init_data)} متحكم متوفر).")
 
                 # إرسال تفعيل نبض القلب الرسمي المطابق لـ linkCtrl:sendHeartbeatSwitch (CMD 1037 SUBCMD 2)
@@ -1398,6 +1654,7 @@ class GameConnection:
                     except Exception:
                         pass
             except asyncio.TimeoutError:
+                self.emit_brief_log(f"🌐 [{self.account_short_name}] تهيئة اللعبة والذاكرة الحية (1000/1) ❌")
                 log.warning(f"[{self.account.email}] لم يتم استلام حزمة session 0 خلال 12 ثانية.")
         except Exception as e:
             log.error(f"[{self.account.email}] خطأ في تدفق التهيئة: {e}")
@@ -1426,6 +1683,24 @@ class GameConnection:
                         init_data, report = self.memory_engine.ingest_packet_with_report(parsed)
                         if report.get("is_notification"):
                             self._log_notification(report)
+                            n_id = str(report.get("notify_id", "")).upper()
+                            if "SERVER_STATUS" in n_id:
+                                n_items = report.get("notify_data") or []
+                                items_list = n_items if isinstance(n_items, list) else [n_items]
+                                for itm in items_list:
+                                    if isinstance(itm, dict):
+                                        st_val = str(itm.get("status", "")).lower().strip()
+                                        if st_val == "kick":
+                                            self.is_other_device = True
+                                            log.warning(f"[{self.account.email}] ⚠️ تم رصد طرد من السيرفر بسبب دخول متزامن من جهاز آخر (NOTIFY_SERVER_STATUS: kick).")
+                                            self._alive = False
+                                        elif st_val == "seal":
+                                            self.is_sealed = True
+                                            log.error(f"[{self.account.email}] 🛑 تم رصد إشعار إغلاق أو حظر الحساب من اللعبة (NOTIFY_SERVER_STATUS: seal).")
+                                            self._alive = False
+                                        elif st_val == "server_maintenance":
+                                            log.warning(f"[{self.account.email}] 🛠️ تم رصد إشعار صيانة السيرفر (NOTIFY_SERVER_STATUS: server_maintenance).")
+                                            self._alive = False
 
                         # إشعار اكتمال تحميل المتحكمات الأساسية
                         if sess_id == 0 or cmd_s in ('1000', 'onemt_1000'):
@@ -1457,6 +1732,12 @@ class GameConnection:
                 log.error(f"[{self.account.email}] استثناء في حلقة الاستقبال: {e}", exc_info=True)
                 break
         self._alive = False
+        # إلغاء كافة الطلبات المعلقة فوراً دون انتظار التايم أوت (Fast Fail on Disconnect)
+        for sess_num, entry in list(self._pending.items()):
+            fut = entry[1] if isinstance(entry, tuple) else entry
+            if not fut.done():
+                fut.set_exception(ConnectionResetError("انقطع اتصال البوابة (EOF / Server Disconnect)"))
+        self._pending.clear()
 
     def send_request(self, cmd: str, subcmd: str = "1", data: dict = None, session: Optional[int] = None):
         if not self.is_connected or not self._writer:
@@ -1501,17 +1782,16 @@ class GameConnection:
         self.creds = new_creds
         return await self.connect()
 
-    async def query(self, cmd: str, subcmd: str = "2", data: dict = None, timeout: float = 8.0) -> Optional[dict]:
+    async def query(
+        self,
+        cmd: str,
+        subcmd: str = "2",
+        data: dict = None,
+        timeout: float = 8.0,
+        action: Optional[str] = None,
+    ) -> Optional[dict]:
         if not self.is_connected:
-            ok = await self.connect()
-            if not ok:
-                # إذا رفضت البوابة الجلسة القديمة (404 User Not Found)، نجدد جلسة الدخول تلقائياً
-                log.info(f"[{self.account.email}] جاري تجديد جلسة الدخول وإعادة الاتصال بالبوابة...")
-                if getattr(self, "is_other_device", False):
-                    raise ConcurrentLoginError("تم رصد تسجيل دخول للقلعة من جهاز آخر (404 User Not Found)")
-                ok = await self.reconnect_full()
-                if not ok:
-                    return None
+            raise ConnectionResetError(f"[{self.account.email}] لا يوجد اتصال نشط بالبوابة لإرسال الاستعلام ({cmd}/{subcmd})")
 
         sess_id = self._session
         self._session += 1
@@ -1523,11 +1803,31 @@ class GameConnection:
         self._writer.write(pkt)
         await self._writer.drain()
 
+        res = None
         try:
-            return await asyncio.wait_for(fut, timeout=timeout)
+            res = await asyncio.wait_for(fut, timeout=timeout)
         except asyncio.TimeoutError:
             self._pending.pop(sess_id, None)
-            return None
+            res = None
+        except Exception:
+            self._pending.pop(sess_id, None)
+            res = None
+            raise
+        finally:
+            # استثناء نبض القلب الدوري التلقائي (Heartbeat 1037) من الطباعة تماماً
+            if str(cmd) != "1037":
+                try:
+                    success, err_code = is_query_success(res)
+                    emoji, default_desc = get_cmd_metadata(str(cmd), str(subcmd), data)
+                    desc = action if action else default_desc
+                    status_mark = "✅" if success else (f"❌ (كود: {err_code})" if err_code and err_code != "timeout" else "❌")
+                    acc_name = self.account_short_name
+                    line = f"{emoji} [{acc_name}] {desc} ({cmd}/{subcmd}) {status_mark}"
+                    self.emit_brief_log(line)
+                except Exception:
+                    pass
+
+        return res
 
     async def close(self):
         """إغلاق الاتصال النظيف الحتمي: إلغاء المهام الفرعية وإغلاق مقبس الويندوز بأمان"""

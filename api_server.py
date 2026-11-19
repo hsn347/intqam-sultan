@@ -521,11 +521,18 @@ def get_manifest():
     return {
         "name": "Empire Bot",
         "short_name": "Empire Bot",
-        "start_url": ".",         # تم التعديل هنا (نقطة بدلاً من شرطة)
-        "scope": "/",             # اترك هذا كما هو
+        "start_url": "/",
+        "scope": "/",
         "display": "standalone",
+        "orientation": "portrait-primary",
         "background_color": "#0a0f0a",
-        "theme_color": "#16a34a",
+        "theme_color": "#10b981",
+        "icons": [
+            {"src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": "/pwa-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": "/pwa-maskable-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+            {"src": "/pwa-maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ]
     }
 # ══════════════════════════════════════════════════════════════════
 # 2. إدارة المستخدمين والملف الشخصي (Users APIs)
@@ -727,11 +734,14 @@ def update_castle(castle_id: str, req: CastleUpdateRequest, current_user: Dict[s
         # استخراج الحقول المرسلة فقط بعد فحصها وتصفيتها تلقائياً عبر Pydantic
         validated_updates = req.config.model_dump(exclude_none=True)
         clean_config.update(validated_updates)
+        # ضمان وجود مهمة استلام صناديق النشاط اليومي الإلزامية دائماً في الإعدادات
+        clean_config.setdefault("daily_quest", {"enabled": True})
         # مزامنة كائن tasks الفرعي إن وجد لمنع أي تعارض مع الإعدادات المحدثة
         if "tasks" in clean_config and isinstance(clean_config["tasks"], dict):
             for t_k, t_v in validated_updates.items():
                 if t_k in clean_config["tasks"]:
                     clean_config["tasks"][t_k] = t_v
+            clean_config["tasks"].setdefault("daily_quest", {"enabled": True})
         updates["config"] = clean_config
 
     updated = db.update_castle_db(castle_id, updates, None if is_admin else current_user["uid"])

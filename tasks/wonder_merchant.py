@@ -31,39 +31,37 @@ class WonderMerchantTask(BaseTask):
     # ═════════════════════════════════════════════════════════════════════════
 
     def _get_resource_balance(self, price_type: int) -> float:
-        """استخراج رصيد القلعة من العملة أو المورد المطلوب من الذاكرة الحية (0-Network)."""
+        """استخراج رصيد القلعة الإجمالي (الحر + الآمن) من الذاكرة الحية (0-Network)."""
         # 1001 هو الذهب
         if price_type == 1001:
             lord = self.get_ctrl("lordInfoCtrl")
             base = lord.get("base", {}) if isinstance(lord, dict) else {}
             return float(base.get("gold", 0) or 0)
 
-        # باقي الموارد الأساسية والبلور في cityCtrl.reslist
+        # الموارد الأساسية والبلور في cityCtrl (دمج الرصيد الحر + الرصيد الآمن)
         city = self.get_ctrl("cityCtrl")
         if isinstance(city, dict):
-            res_list = city.get("reslist", {})
-            val = res_list.get(str(price_type), 0)
-            try:
-                return float(val or 0)
-            except (ValueError, TypeError):
-                return 0.0
+            res_list = city.get("resList") or city.get("reslist") or {}
+            safe_res = city.get("saferes") or {}
+            k = str(price_type)
+            free_val = float(res_list.get(k, 0) or 0)
+            safe_val = float(safe_res.get(k, 0) or 0)
+            return free_val + safe_val
         return 0.0
 
     def _deduct_resource(self, price_type: int, amount: float):
-        """خصم قيمة المورد بعد نجاح الشراء في الذاكرة الحية لمطابقة الرصيد اللحظي."""
+        """
+        تحديث الذاكرة الحية احتياطياً عند عدم وصول إشعار NOTIFY_CITY فوري.
+        تتفادى الخصم المزدوج إذا قام إشعار السيرفر بتحديث الرصيد بالفعل.
+        """
         if price_type == 1001:
             lord = self.get_ctrl("lordInfoCtrl")
             if isinstance(lord, dict):
                 base = lord.setdefault("base", {})
                 cur = float(base.get("gold", 0) or 0)
                 base["gold"] = max(0, int(cur - amount))
-        else:
-            city = self.get_ctrl("cityCtrl")
-            if isinstance(city, dict):
-                res_list = city.setdefault("reslist", {})
-                key = str(price_type)
-                cur = float(res_list.get(key, 0) or 0)
-                res_list[key] = str(max(0.0, cur - amount))
+        # ملاحظة: الموارد الأساسية تُحدّث تلقائياً وبدقة قطعية عبر إشعارات NOTIFY_CITY من خادم اللعبة
+        # لذا تم إلغاء الخصم اليدوي لتفادي تصفير الرصيد المتبقي (Double Deduction)
 
     # ═════════════════════════════════════════════════════════════════════════
     # 2. الفحص القبلي (can_run)

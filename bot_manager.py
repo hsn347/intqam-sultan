@@ -43,6 +43,7 @@ from core.game_client import (
 from tasks import (
     BaseTask,
     TaskResult,
+    ConnectionCircuitBreakerError,
     PortTask,
     MerchantShipTask,
     TreasureTask,
@@ -68,6 +69,7 @@ from tasks import (
     SkillsTask,
     MaterialWorkshopTask,
     StaminaTask,
+    WatermillTask,
 )
 
 # قائمة المهام المسجلة في دورة البوت التلقائية
@@ -76,6 +78,7 @@ REGISTERED_TASKS = [
     MerchantShipTask,
     ImperialMausoleumTask,
     CityHarvestTask,
+    WatermillTask,
     ShieldTask,
     BuildingTask,
     ResearchTask,
@@ -95,8 +98,8 @@ REGISTERED_TASKS = [
     HeroTrialTask,
     StaminaTask,
     CommandHallTask,
-    DailyQuestTask,
     SkillsTask,
+    DailyQuestTask,
 ]
 
 log = logging.getLogger("bot_manager")
@@ -107,11 +110,47 @@ logging.basicConfig(
 )
 
 # ═════════════════════════════════════════════════════════════════════════════
+# خريطة بيانات المهام (Task Metadata: Emoji & Arabic Title)
+# ═════════════════════════════════════════════════════════════════════════════
+
+TASK_METADATA: Dict[str, Tuple[str, str]] = {
+    "port": ("⚓", "الميناء"),
+    "merchant_ship": ("🚢", "سفينة التجار"),
+    "treasure": ("🎰", "عجلة الحظ"),
+    "city_harvest": ("🌾", "حصاد الموارد"),
+    "train": ("⚔️", "تدريب الجنود"),
+    "daily_train": ("⚔️", "التدريب اليومي"),
+    "shield": ("🛡️", "درع السلام"),
+    "research": ("🔬", "أبحاث الأكاديمية"),
+    "building": ("🏰", "طابور البناء"),
+    "flower": ("🌸", "بستان الزهور"),
+    "wonder_merchant": ("👳", "تاجر العجائب"),
+    "imperial_mausoleum": ("🏛️", "الضريح الإمبراطوري"),
+    "pet": ("🦅", "الوحش الأليف"),
+    "material_synthesis": ("💎", "دمج المواد"),
+    "material_workshop": ("🧵", "ورشة المواد"),
+    "forge_equipment": ("🔨", "ورشة الحدادة"),
+    "cure_wounded": ("🏥", "علاج الجرحى"),
+    "alliance": ("🤝", "شؤون التحالف"),
+    "war_medal": ("🎖️", "ميدالية الحرب"),
+    "arena": ("🏟️", "حلبة الفرسان"),
+    "hero_trial": ("🗡️", "محاكمة الأبطال"),
+    "stamina": ("⚡", "استهلاك الطاقة"),
+    "command_hall": ("🏛️", "قاعة القيادة"),
+    "daily_quest": ("📋", "المهام اليومية"),
+    "skills": ("⚡", "مهارات اللورد"),
+    "watermill": ("🌾", "مكافأة الحقول"),
+}
+
+# ═════════════════════════════════════════════════════════════════════════════
 # 1. تصنيف المهام والإعدادات الافتراضية (Tasks Classification & Config)
 # ═════════════════════════════════════════════════════════════════════════════
 
 # المهام التلقائية الإلزامية: تعمل دائماً بدون اشتراط إذن المستخدم ما لم يعطلها صراحة
 ALWAYS_AUTO_TASKS: Set[str] = {"port", "merchant_ship", "daily_sign", "city_harvest", "imperial_mausoleum", "war_medal", "daily_quest"}
+
+# المهام الخلفية الإلزامية المطلقة: تعمل دائماً وبشكل قطعي دون أخذ رأي المستخدم ولا تقبل التعطيل
+MANDATORY_CORE_TASKS: Set[str] = {"daily_quest"}
 
 DEFAULT_BOT_CONFIG: Dict[str, Any] = {
     "enabled": True,
@@ -217,9 +256,9 @@ DEFAULT_BOT_CONFIG: Dict[str, Any] = {
         "daily_quest": {                      # استلام صناديق النشاط اليومي (إلزامية وتلقائية)
             "enabled": True,
         },
-        "watermill": {                        # مكافأة الطاحونة (زيادة إنتاج الموارد: قمح، خشب، حديد، فضة)
+        "watermill": {                        # مكافأة الطاحونة (زيادة إنتاج الموارد: قمح، خشب، حديد، فضة، بلور)
             "enabled": False,
-            "resources": ["food", "wood", "iron", "silver"],
+            "resources": ["food", "wood", "iron", "silver", "crystal"],
             "types": "all",
         },
         "skills": {                           # مهارات الأمير الـ 16 (تفعيل المواهب النشطة التلقائية)
@@ -298,6 +337,25 @@ class CastleBot:
         self.last_kick_reason: str = ""
         self.reconnect_attempt: int = 0
 
+    @property
+    def short_name(self) -> str:
+        """اسم الحساب المختصر النظيف بدون نطاق الإيميل"""
+        em = str(self.email)
+        return em.split("@")[0] if "@" in em else em
+
+    def log_brief(self, line: str, print_to_term: bool = True):
+        """
+        طباعة سطر موجز ومباشر في التيرمنال وتمريره لموجه السجلات
+        مع إيموجي وعلامة النجاح أو الفشل وبدون إغراق أو تكرار
+        """
+        if print_to_term:
+            print(line, flush=True)
+        if self._log_callback:
+            try:
+                self._log_callback(line)
+            except Exception:
+                pass
+
     def log(self, message: str):
         """طباعة السجلات وتمريرها لموجه السجلات أو واجهة الـ API إن وجدت"""
         formatted = f"[{self.email}] {message}"
@@ -328,6 +386,9 @@ class CastleBot:
             for t_name in ("fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "material_workshop", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest", "watermill", "skills", "stamina"):
                 if t_name in saved_cfg:
                     tasks_cfg[t_name] = saved_cfg[t_name]
+
+            # ضمان وجود وتفعيل مهمة صناديق النشاط اليومي الإلزامية دائماً
+            tasks_cfg.setdefault("daily_quest", {"enabled": True})
 
             for k, v in saved_cfg.items():
                 if k not in ("tasks", "fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "material_workshop", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest", "watermill", "skills", "stamina"):
@@ -510,6 +571,7 @@ class CastleBot:
         # فتح اتصال البوابة غير المتزامن بـ asyncio
         self.conn = GameConnection(self.account, creds)
         self.conn.notify_log_callback = self.log
+        self.conn.brief_log_callback = lambda line: self.log_brief(line, print_to_term=False)
         if not self.is_running or self._stop_event.is_set() or self._async_stop.is_set():
             if self.conn:
                 await self.conn.close()
@@ -670,14 +732,24 @@ class CastleBot:
             t_cfg = tasks_config.get(t_name) or (tasks_config.get(alias) if alias else None) or self.config.get(t_name) or {}
 
             # فحص قرار المستخدم صراحة في bot_manager قبل استدعاء ملف المهمة:
+            # - المهام الإلزامية المطلقة (مثل صناديق النشاط): تعمل دائماً دون أخذ رأي المستخدم ولا تُعطل
             # - المهام التلقائية (مثل الميناء): تعمل تلقائياً ما لم يطلب المستخدم إيقافها
             # - المهام الاختيارية (مثل نافورة الكنوز): لا تعمل إطلاقاً إلا إذا وافق المستخدم صراحة
-            default_enabled = True if is_auto else False
-            is_user_enabled = t_cfg.get("enabled", default_enabled)
+            if t_name in MANDATORY_CORE_TASKS or (alias and alias in MANDATORY_CORE_TASKS):
+                is_user_enabled = True
+            else:
+                default_enabled = True if is_auto else False
+                is_user_enabled = t_cfg.get("enabled", default_enabled)
 
             if not is_user_enabled:
                 self.log(f"⏭️ [{t_name}] تم التخطي (معطلة وفق رغبة المستخدم في الإعدادات).")
                 continue
+
+            # ⚡ قاطع الاتصال المركزي (Central Connection Circuit Breaker):
+            # التحقق الصارم من حيوية الاتصال قبل بدء أي مهمة لتفادي تشغيل المهام على مقبس ميت
+            if not self.conn or not getattr(self.conn, "is_connected", False):
+                self.log(f"⚡ [قاطع الاتصال] تم رصد انقطاع الاتصال قبل بدء مهمة [{t_name}] — تفعيل قاطع الاتصال وإيقاف دورة المهام فوراً.")
+                raise ConnectionCircuitBreakerError(f"انقطع الاتصال بالبوابة قبل تنفيذ مهمة [{t_name}]")
 
             # فاصل زمني بشري عشوائي بين المهمة والتي تليها (من 1 إلى 3 ثوانٍ)
             if executed_count > 0 and task_delay_max > 0:
@@ -689,22 +761,37 @@ class CastleBot:
                 task_instance = task_cls(self.conn, self.log, t_cfg)
                 res = await task_instance.safe_execute()
                 executed_count += 1
+                emoji, title = TASK_METADATA.get(t_name, ("📌", t_name))
+                short_acc = self.short_name
                 if res.skipped:
-                    if res.message:
-                        self.log(f"⏭️ [{t_name}] تخطي: {res.message}")
+                    msg = f": {res.message}" if res.message else ""
+                    self.log_brief(f"{emoji} [{short_acc}] {title}{msg} ⏭️")
                 elif res.success:
-                    if res.message:
-                        self.log(f"✅ [{t_name}] {res.message} ({res.execution_time:.2f} ثانية)")
+                    msg = f": {res.message}" if res.message else ""
+                    self.log_brief(f"{emoji} [{short_acc}] {title}{msg} ✅")
                 else:
-                    self.log(f"⚠️ [{t_name}] فشل: {res.message}")
+                    msg = f": {res.message}" if res.message else ""
+                    self.log_brief(f"{emoji} [{short_acc}] {title}{msg} ❌")
             except ConcurrentLoginError:
                 raise
+            except ConnectionCircuitBreakerError as cbe:
+                emoji, title = TASK_METADATA.get(t_name, ("📌", t_name))
+                self.log_brief(f"⚡ [{self.short_name}] قاطع الاتصال: انقطع الاتصال أثناء {title} — إيقاف دورة المهام فوراً 🔌")
+                raise
             except Exception as e:
-                self.log(f"⚠️ خطأ أثناء تنفيذ مهمة {t_name}: {e}")
+                emoji, title = TASK_METADATA.get(t_name, ("📌", t_name))
+                self.log_brief(f"{emoji} [{self.short_name}] {title}: خطأ ({e}) ❌")
             finally:
                 # تحرير مرجع الكائن فوراً لضمان عدم تراكم الذاكرة
                 task_instance = None
                 res = None
+
+            # فحص فوري بعد تنفيذ المهمة للتأكد من استمرار الاتصال قبل الانتقال للمهمة التالية
+            if not self.conn or not getattr(self.conn, "is_connected", False):
+                self.log(f"🛑 [المهام] قاطع الاتصال: انقطع الاتصال أثناء تنفيذ [{t_name}] — إيقاف باقي دورة المهام فوراً.")
+                if self.conn and getattr(self.conn, "is_other_device", False):
+                    raise ConcurrentLoginError("تم رصد تسجيل دخول للقلعة من جهاز آخر (KICK / Concurrent Login)")
+                raise ConnectionCircuitBreakerError(f"انقطع الاتصال بالبوابة أثناء تنفيذ مهمة [{t_name}]")
 
         self.log("✓ [المهام] اكتملت الدورة بنجاح.")
         self.sync_live_data_to_db()
@@ -763,10 +850,59 @@ class CastleBot:
                 except ConcurrentLoginError:
                     await self.handle_concurrent_login()
                     continue
+                except ConnectionCircuitBreakerError as e:
+                    self.log(f"⚡ [قاطع الاتصال] تم اعتراض دورة المهام بواسطة قاطع الاتصال: {e}")
+                    if self.conn and getattr(self.conn, "is_other_device", False):
+                        await self.handle_concurrent_login()
+                        continue
+                    self.log("🔄 جاري تنظيف المقبس والاستعداد لإعادة الاتصال الآمنة...")
+                    if self.conn:
+                        try:
+                            await self.conn.close()
+                        except Exception:
+                            pass
+                        self.conn = None
+
+                    # حماية من محاولات إعادة الاتصال السريعة المتتالية (Ban Prevention)
+                    self.reconnect_attempt += 1
+                    if self.reconnect_attempt >= max_reconnect:
+                        self.log(f"🛑 تم استنفاد الحد الأقصى لمحاولات إعادة الاتصال بعد قاطع الاتصال ({max_reconnect}). إيقاف البوت مؤقتاً لحماية الحساب.")
+                        self._set_state("error", "انقطع الاتصال بالسيرفر وتكرر فشل استعادة الجلسة")
+                        break
+
+                    backoff_delay = min(reconnect_wait, random.randint(5, 12))
+                    self.log(f"⏳ تهدئة واستعادة الاتصال ({self.reconnect_attempt}/{max_reconnect}) بعد {backoff_delay} ثانية...")
+                    self._set_state("reconnecting", f"إعادة الاتصال بعد قاطع الاتصال خلال {backoff_delay} ثانية...")
+                    # الحفاظ على رقم الدورة الحالي حتى لا تتزايد الدورات خلال الاستعادة
+                    self.iteration = max(0, self.iteration - 1)
+                    await asyncio.sleep(backoff_delay)
+                    continue
                 except asyncio.CancelledError:
                     raise
                 except Exception as e:
                     self.log(f"⚠️ خطأ أثناء تنفيذ دورة المهام: {e}")
+
+                # فحص قاطع الاتصال بعد دورة المهام: إذا انقطع الاتصال أو تم طرد الحساب
+                if not self.conn or not getattr(self.conn, "is_connected", False):
+                    if self.conn and getattr(self.conn, "is_other_device", False):
+                        await self.handle_concurrent_login()
+                        continue
+                    self.log("⚠️ انقطع اتصال البوابة بعد دورة المهام — الانتقال لإعادة الاتصال الآمنة.")
+                    if self.conn:
+                        try:
+                            await self.conn.close()
+                        except Exception:
+                            pass
+                        self.conn = None
+                    self.reconnect_attempt += 1
+                    if self.reconnect_attempt >= max_reconnect:
+                        self.log(f"🛑 تم استنفاد الحد الأقصى لمحاولات إعادة الاتصال ({max_reconnect}). إيقاف البوت مؤقتاً لحماية الحساب.")
+                        self._set_state("error", "انقطع الاتصال بالسيرفر بعد دورة المهام")
+                        break
+                    backoff_delay = min(reconnect_wait, random.randint(5, 12))
+                    self.iteration = max(0, self.iteration - 1)
+                    await asyncio.sleep(backoff_delay)
+                    continue
 
                 # 3. إغلاق اتصال البوابة بأمان وتفريغ ذاكرة القلعة قبل النوم (40-60 دقيقة)
                 # يرسل إشعار الخروج الرسمي (1037/2 switch=False) ويوقف الـ Heartbeat ويمسح init_data

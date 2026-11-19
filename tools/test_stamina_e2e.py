@@ -109,17 +109,9 @@ def test_stage_5_and_6_frontend():
     expected_stamina_keys = [
         "title",
         "desc",
-        "minStaminaLabel",
-        "modeLabel",
-        "modeAuto",
-        "modeManual",
-        "packTierLabel",
-        "tier10",
-        "tier50",
-        "tier100",
-        "packCountLabel",
-        "allowBuyLabel",
-        "maxGoldDailyLabel",
+        "goldBuyEnabledLabel",
+        "goldTriggerStaminaLabel",
+        "goldBuyStaminaAmountLabel",
     ]
     for loc_file in locales:
         p = os.path.join(loc_dir, loc_file)
@@ -128,7 +120,7 @@ def test_stage_5_and_6_frontend():
         tasks_stamina = data.get("tasks", {}).get("stamina", {})
         for k in expected_stamina_keys:
             assert k in tasks_stamina, f"Missing key '{k}' in {loc_file} under tasks.stamina!"
-    print("  -> Trilingual localization (ar, en, tr) verified with 13/13 matching keys.")
+    print("  -> Trilingual localization (ar, en, tr) verified with 5/5 matching keys.")
     print("  ✅ Stage 5 & 6 passed: Frontend defaults, dual-save and trilingual locales verified.")
 
 

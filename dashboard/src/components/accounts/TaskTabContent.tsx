@@ -512,6 +512,7 @@ const WATERMILL_BOOST_RESOURCES = [
   { key: 'wood',   resKey: 'resources.wood',   img: '/images/boosts/icon_building_up_wood.png' },
   { key: 'iron',   resKey: 'resources.iron',   img: '/images/boosts/icon_building_up_iron.png' },
   { key: 'silver', resKey: 'resources.silver', img: '/images/boosts/icon_building_up_silver.png' },
+  { key: 'crystal', resKey: 'resources.crystal', img: '/images/boosts/icon_building_up_crystal.png' },
 ] as const
 
 // أنواع القوات والتدريب العسكري
@@ -626,7 +627,7 @@ interface Props {
 
 function TaskTabContentInner({
   tab: externalTab,
-  initialTab = 'daily',
+  initialTab = 'gather',
   castle,
   userId,
   onTabChange,
@@ -735,7 +736,7 @@ function TaskTabContentInner({
         pet: petDraft,
         forge_equipment: forgeEquipmentDraft,
         daily_train: dailyTrainDraft,
-        daily_quest: dailyQuestDraft,
+        daily_quest: dailyQuestDraft || { enabled: true },
         building: buildingDraft,
         arena: arenaDraft,
         hero_trial: heroTrialDraft,
@@ -948,7 +949,7 @@ function TaskTabContentInner({
       ...(petConfig !== undefined ? { pet: petConfig } : {}),
       ...(forgeEquipmentConfig !== undefined ? { forge_equipment: forgeEquipmentConfig } : {}),
       ...(dailyTrainConfig !== undefined ? { daily_train: dailyTrainConfig } : {}),
-      ...(dailyQuestConfig !== undefined ? { daily_quest: dailyQuestConfig } : {}),
+      ...(dailyQuestConfig !== undefined ? { daily_quest: dailyQuestConfig } : { daily_quest: { enabled: true } }),
       ...(buildingConfig !== undefined ? { building: buildingConfig } : {}),
       ...(arenaConfig !== undefined ? { arena: arenaConfig } : {}),
       ...(heroTrialConfig !== undefined ? { hero_trial: heroTrialConfig } : {}),
@@ -1202,7 +1203,7 @@ function TaskTabContentInner({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <TaskRow
-          emoji="🗡️"
+          img="/images/combat/icon_map_attack.png"
           label={t('tasks.attack')}
           enabled={false}
           onToggle={() => {}}
@@ -1228,12 +1229,12 @@ function TaskTabContentInner({
   // 4. مكافأة الطاحونة (Watermill)
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'watermill') {
-    const wm = (cfg as any).watermill || { enabled: false, resources: ['food', 'wood', 'iron', 'silver'] }
+    const wm = (cfg as any).watermill || { enabled: false, resources: ['food', 'wood', 'iron', 'silver', 'crystal'] }
     const selectedRes: string[] = Array.isArray(wm.resources)
       ? wm.resources
       : (typeof wm.types === 'string' && wm.types === 'all'
-          ? ['food', 'wood', 'iron', 'silver']
-          : (typeof wm.types === 'string' && wm.types ? [wm.types] : ['food', 'wood', 'iron', 'silver']))
+          ? ['food', 'wood', 'iron', 'silver', 'crystal']
+          : (typeof wm.types === 'string' && wm.types ? [wm.types] : ['food', 'wood', 'iron', 'silver', 'crystal']))
 
     const activeCount = WATERMILL_BOOST_RESOURCES.filter(r => selectedRes.includes(r.key)).length
 
@@ -1307,8 +1308,8 @@ function TaskTabContentInner({
               </div>
             </div>
 
-            {/* شبكة بطاقات الموارد الأربعة */}
-            <div className="gap-2 grid grid-cols-2 sm:grid-cols-4">
+            {/* شبكة بطاقات الموارد الخمسة */}
+            <div className="gap-2 grid grid-cols-2 sm:grid-cols-5">
               {WATERMILL_BOOST_RESOURCES.map(r => {
                 const isSelected = selectedRes.includes(r.key)
                 return (
@@ -1390,7 +1391,6 @@ function TaskTabContentInner({
     const cw = (cfg as any).cure_wounded || { enabled: false, mode: 'daily' }
     const fe = (cfg as any).forge_equipment || { enabled: false, category: 'weapon' }
     const dt = (cfg as any).daily_train || { enabled: false }
-    const dq = (cfg as any).daily_quest || { enabled: true }
     const ar = (cfg as any).arena || { enabled: false, arena_type: 'kingdom', auto_claim_rewards: true }
     const ht = (cfg as any).hero_trial || { enabled: false }
     const ch = (cfg as any).command_hall || { enabled: false, mode: 'daily', allow_marches: false, auto_claim_rewards: true, auto_upgrade_hall: true }
@@ -1428,33 +1428,34 @@ function TaskTabContentInner({
 
             {/* الحيوان المستهدف للإطعام المجاني */}
             <div>
-
-              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+              <div className="gap-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 pt-1">
                 {PET_TARGETS.map(p => {
                   const isSelected = (cfg.pet?.target_pet === p.id) ||
                                      (!cfg.pet?.target_pet && (p.id as number) === 1256)
                   return (
-                    <button key={p.id} type="button"
-                      className={clsx('task-pet-btn', isSelected ? 'selected' : 'unselected')}
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={clsx(
+                        'flex items-center gap-2 px-2.5 py-2 rounded-xl text-start transition-all select-none task-pet-btn',
+                        isSelected
+                          ? 'border-[1.5px] border-primary-500/80 bg-primary-500/15 text-primary-600 dark:text-primary-300 ring-1 ring-primary-500/40 shadow-xs font-semibold'
+                          : 'border border-gray-200 dark:border-white/10 bg-gray-50/70 dark:bg-white/[0.03] hover:bg-gray-100 dark:hover:bg-white/[0.07] text-gray-700 dark:text-gray-300 font-normal'
+                      )}
                       onClick={() => update('pet', { target_pet: p.id })}
                       title={t(p.labelKey, p.name)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: '5px',
-                        padding: '3px 8px', borderRadius: '7px', fontFamily: 'inherit',
-                        border: isSelected ? '1.5px solid rgba(var(--theme-primary-rgb),0.6)' : '1px solid rgba(255,255,255,0.10)',
-                        background: isSelected ? 'rgba(var(--theme-primary-rgb),0.12)' : 'rgba(255,255,255,0.04)',
-                        color: isSelected ? 'var(--theme-primary-light)' : '#9ca3af',
-                        fontSize: '11px', fontWeight: isSelected ? 600 : 400,
-                        cursor: 'pointer', transition: 'all 0.15s',
-                      }}
                     >
-                      <img
-                        src={p.img}
-                        alt={p.name}
-                        loading="lazy"
-                        style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
-                      />
-                      <span>{t(p.labelKey, p.name)}</span>
+                      <div className="flex justify-center items-center bg-black/5 dark:bg-black/25 p-0.5 rounded-lg w-7 sm:w-8 h-7 sm:h-8 shrink-0">
+                        <img
+                          src={p.img}
+                          alt={p.name}
+                          loading="lazy"
+                          className="drop-shadow-xs w-full h-full object-contain select-none filter"
+                        />
+                      </div>
+                      <span className="flex-1 text-xs truncate leading-tight">
+                        {t(p.labelKey, p.name)}
+                      </span>
                     </button>
                   )
                 })}
@@ -2194,17 +2195,6 @@ function TaskTabContentInner({
             </div>
           </div>
         </TaskRow>
-
-        {/* استلام صناديق النشاط اليومي (Daily Activity Quest Chests) */}
-        <TaskRow
-          id="daily_quest"
-          emoji="🎁"
-          img="/images/daily/goldenchest.png"
-          label={t('tasks.dailyQuest', 'استلام صناديق النشاط اليومي')}
-          enabled={Boolean(dq.enabled)}
-          onToggle={toggle('daily_quest' as any)}
-          comingSoon={false}
-        />
       </div>
     )
   }
@@ -3013,260 +3003,6 @@ function TaskTabContentInner({
             </div>
           </div>
         </TaskRow>
-      </div>
-    )
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // 9. الفعاليات (Events)
-  // ─────────────────────────────────────────────────────────────────────────
-  if (tab === 'events') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {/* كنز طروادة (troy_treasure) — معطلة وباهتة (غير متوفرة حالياً) */}
-        <TaskRow
-          emoji="🏛️"
-          label={t('tasks.troyEvent')}
-          enabled={false}
-          onToggle={() => {}}
-          comingSoon
-        />
-
-        {/* الزنزانة الأساسية (port_delegate) */}
-        {(() => {
-          const dungeonShopProducts = [
-            { id: '1', nameKey: 'tasks.dungeonMorale',        num: '#1', price: '', img: '/images/events/basic_dungeon/1.png' },
-            { id: '2', nameKey: 'tasks.dungeonCaesarSpirit',  num: '#2', price: '', img: '/images/events/basic_dungeon/2.png' },
-            { id: '3', nameKey: 'tasks.dungeonRecruitCard',   num: '#3', price: '', img: '/images/events/basic_dungeon/3.png' },
-            { id: '4', nameKey: 'tasks.dungeonResourceChest', num: '#4', price: '', img: '/images/events/basic_dungeon/4.png' },
-            { id: '5', nameKey: 'tasks.dungeonExpBook',       num: '#5', price: '', img: '/images/events/basic_dungeon/5.png' },
-            { id: '6', nameKey: 'tasks.dungeonTechStone',     num: '#6', price: '', img: '/images/events/basic_dungeon/6.png' },
-            { id: '7', nameKey: 'tasks.dungeonEnhanceStone',  num: '#7', price: '', img: '/images/events/basic_dungeon/7.png' },
-          ]
-
-          // استخراج معرفات المنتجات المحددة حالياً (دعم 1، عدة خيارات كـ 2,4,6 أو الكل)
-          const parseSelected = (raw: unknown): string[] => {
-            if (!raw) return ['7']
-            if (Array.isArray(raw)) {
-              if (raw.includes('all') || raw.includes('الكل') || raw.length === 7) return ['1', '2', '3', '4', '5', '6', '7']
-              if (raw.includes('none')) return []
-              return raw.map(String)
-            }
-            const s = String(raw).trim().toLowerCase()
-            if (s === 'all' || s === 'الكل' || s === 'all_items') return ['1', '2', '3', '4', '5', '6', '7']
-            if (s === 'none' || s === 'لا_شيء' || s === '0' || s === '') return []
-            return s.split(',').map(x => x.trim()).filter(Boolean)
-          }
-
-          const selectedIds = parseSelected(cfg.port_delegate.shop_item)
-          const isAll = selectedIds.length === 7
-          const isNone = selectedIds.length === 0
-
-          const toggleProduct = (id: string) => {
-            let next: string[]
-            if (selectedIds.includes(id)) {
-              next = selectedIds.filter(x => x !== id)
-            } else {
-              next = [...selectedIds, id].sort((a, b) => Number(a) - Number(b))
-            }
-
-            if (next.length === 0) {
-              update('port_delegate', { shop_item: 'none' })
-            } else if (next.length === 7) {
-              update('port_delegate', { shop_item: 'all' })
-            } else {
-              update('port_delegate', { shop_item: next.join(',') })
-            }
-          }
-
-          const selectAll = () => update('port_delegate', { shop_item: 'all' })
-          const deselectAll = () => update('port_delegate', { shop_item: 'none' })
-
-          return (
-            <TaskRow
-              img="/images/events/temel_zindan.png"
-              label={t('tasks.basicDungeon')}
-              enabled={cfg.port_delegate.enabled}
-              onToggle={toggle('port_delegate')}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {/* شريط علوي بسيط ونظيف مع أزرار التحكم السريعة */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '8px',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: '10px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      background: isNone ? 'rgba(239,68,68,0.15)' : 'rgba(var(--theme-primary-rgb),0.15)',
-                      border: isNone ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(var(--theme-primary-rgb),0.3)',
-                      color: isNone ? '#f87171' : '#4ade80',
-                    }}>
-                      {isAll ? t('tasks.allSelected7') : isNone ? t('tasks.delegationOnly') : t('tasks.selectedDungeonRatio', { count: selectedIds.length })}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <button
-                      type="button"
-                      onClick={selectAll}
-                      style={{
-                        background: isAll ? 'rgba(var(--theme-primary-rgb),0.2)' : 'rgba(var(--theme-primary-rgb),0.08)',
-                        border: '1px solid rgba(var(--theme-primary-rgb),0.25)',
-                        borderRadius: '6px',
-                        padding: '2px 8px',
-                        color: '#86efac',
-                        fontSize: '11px',
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {t('common.selectAll')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={deselectAll}
-                      style={{
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: '6px',
-                        padding: '2px 8px',
-                        color: '#9ca3af',
-                        fontSize: '11px',
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {t('common.cancelAll')}
-                    </button>
-                  </div>
-                </div>
-
-                {/* شبكة بسيطة ومباشرة للمنتجات السبعة */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))',
-                  gap: '6px',
-                }}>
-                  {dungeonShopProducts.map(item => {
-                    const isSelected = selectedIds.includes(item.id)
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={clsx('task-dungeon-product', isSelected ? 'selected' : 'unselected')}
-                        onClick={() => toggleProduct(item.id)}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          padding: '5px 4px',
-                          background: isSelected
-                            ? 'linear-gradient(135deg, rgba(var(--theme-primary-rgb),0.14) 0%, rgba(var(--theme-primary-rgb),0.08) 100%)'
-                            : 'rgba(255,255,255,0.02)',
-                          border: isSelected
-                            ? '1.5px solid rgba(var(--theme-primary-rgb),0.45)'
-                            : '1px solid rgba(255,255,255,0.06)',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          position: 'relative',
-                          transition: 'all 0.15s ease',
-                          boxShadow: isSelected ? '0 0 10px rgba(var(--theme-primary-rgb),0.12)' : 'none',
-                          opacity: isSelected ? 1 : 0.5,
-                          fontFamily: 'inherit',
-                          gap: '3px',
-                        }}
-                      >
-                        {/* الأيقونة الرسمية */}
-                        <div style={{
-                          width: '28px',
-                          height: '28px',
-                          marginTop: '2px',
-                          background: isSelected ? 'rgba(var(--theme-primary-rgb),0.12)' : 'rgba(255,255,255,0.03)',
-                          borderRadius: '6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          filter: isSelected ? 'drop-shadow(0 0 4px rgba(var(--theme-primary-rgb),0.3))' : 'grayscale(40%)',
-                        }}>
-                          <img
-                            src={item.img}
-                            alt={t(item.nameKey)}
-                            style={{ width: '22px', height: '22px', objectFit: 'contain' }}
-                          />
-                        </div>
-
-                        {/* اسم المنتج */}
-                        <span style={{
-                          color: isSelected ? '#f0fdf4' : '#9ca3af',
-                          fontSize: '10.5px',
-                          fontWeight: isSelected ? 600 : 500,
-                          textAlign: 'center',
-                          lineHeight: 1.2,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          maxWidth: '100%',
-                        }}>
-                          {t(item.nameKey)}
-                        </span>
-
-                        {/* السعر */}
-                        <span style={{
-                          color: isSelected ? '#34d399' : '#6b7280',
-                          fontSize: '9px',
-                          fontWeight: 500,
-                        }}>
-                          {item.price}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </TaskRow>
-          )
-        })()}
-
-        {/* التوسع الإقليمي */}
-        <TaskRow
-          img="/images/events/bolgesel_genisleme.png" label={t('tasks.territoryExpansion')}
-          enabled={cfg.territory_expansion.enabled} onToggle={toggle('territory_expansion')}
-        />
-
-        {/* صندوق مشعل رويال (شراء) */}
-        <TaskRow
-          img="/images/events/mesale.png"
-          label={t('tasks.torchChest')}
-          enabled={cfg.torch_chest?.enabled ?? false}
-          onToggle={toggle('torch_chest')}
-        />
-
-        {/* فتح صندوق مشعل رويال */}
-        <TaskRow
-          img="/images/events/mesale.png"
-          label={t('tasks.openTorchChest')}
-          enabled={cfg.open_torch_chest?.enabled ?? false}
-          onToggle={toggle('open_torch_chest')}
-        />
-
-        {/* الرحلات البطولية (hero_consign) */}
-        <TaskRow
-          img="/images/events/hero_voyage.png"
-          label={t('tasks.heroConsign')}
-          enabled={cfg.hero_consign?.enabled ?? false}
-          onToggle={toggle('hero_consign')}
-        />
       </div>
     )
   }

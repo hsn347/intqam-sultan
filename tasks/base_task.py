@@ -19,18 +19,25 @@ python tools/test_base_task.py --email beetoo2 --fn get_material_workshop_status
 
 python tools/test_base_task.py --email beetoo1 --fn get_resource_buildings_boost_status
 
+python tools/test_base_task.py --email beetoo1@hotmail.com --fn get_max_march_capacity
+
+
+python tools/test_base_task.py --email beetoo1 --fn get_market_transport_capacity
+
 """
 
 from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
+import json
 import math
+import os
 import random
 import re
 import sys
 import time
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, FrozenSet, List, Optional, Set, Tuple, Union
 
 if sys.platform == "win32":
     try:
@@ -38,6 +45,15 @@ if sys.platform == "win32":
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
+
+
+class ConnectionCircuitBreakerError(Exception):
+    """
+    استثناء قاطع الاتصال (Connection Circuit Breaker Exception):
+    يتم إطلاقه فور رصد انقطاع الاتصال بالسيرفر أو موت المقبس لمنع تكرار
+    الاستعلامات الفاشلة على مقبس ميت وحماية حساب القلعة.
+    """
+    pass
 
 
 class TaskResult:
@@ -369,7 +385,7 @@ LORD_ACTIVE_SKILLS_CATALOG: Dict[int, Dict[str, Any]] = {
         "name_en": "General Mobilization",
         "type": LORD_SKILL_TYPE_BATTLE,
         "type_name": "battle",
-        "queue_type": None,
+        "queue_type": 1233,
         "buff_id": 4506,
         "base_cd": 57600,  # 16 ساعة
         "is_active_skill": True,
@@ -434,7 +450,7 @@ LORD_ACTIVE_SKILLS_CATALOG: Dict[int, Dict[str, Any]] = {
         "name_en": "Crazy Gather",
         "type": LORD_SKILL_TYPE_DEVELOP,
         "type_name": "develop",
-        "queue_type": 1216,
+        "queue_type": 1234,
         "buff_id": 4507,
         "base_cd": 86400,  # 24 ساعة
         "is_active_skill": True,
@@ -447,7 +463,7 @@ LORD_ACTIVE_SKILLS_CATALOG: Dict[int, Dict[str, Any]] = {
         "name_en": "Gather Protect",
         "type": LORD_SKILL_TYPE_DEVELOP,
         "type_name": "develop",
-        "queue_type": 1217,
+        "queue_type": 1235,
         "buff_id": 4504,
         "base_cd": 28800,  # 8 ساعات
         "is_active_skill": True,
@@ -499,7 +515,7 @@ LORD_ACTIVE_SKILLS_CATALOG: Dict[int, Dict[str, Any]] = {
         "name_en": "Physical Abundant",
         "type": LORD_SKILL_TYPE_AUXILIARY,
         "type_name": "auxiliary",
-        "queue_type": None,
+        "queue_type": 1237,
         "buff_id": None,
         "base_cd": 14400,  # 4 ساعات
         "is_active_skill": True,
@@ -512,7 +528,7 @@ LORD_ACTIVE_SKILLS_CATALOG: Dict[int, Dict[str, Any]] = {
         "name_en": "Rapid March",
         "type": LORD_SKILL_TYPE_AUXILIARY,
         "type_name": "auxiliary",
-        "queue_type": None,
+        "queue_type": 1236,
         "buff_id": 4505,
         "base_cd": 86400,  # 24 ساعة
         "is_active_skill": True,
@@ -632,6 +648,156 @@ for _rsid, _rmeta in HERO_RALLY_SKILLS_CATALOG.items():
         HERO_RALLY_SKILL_ALIAS_TO_ID[str(_sub_id)] = _rsid
     for _ralias in _rmeta.get("aliases", []):
         HERO_RALLY_SKILL_ALIAS_TO_ID[_ralias.lower().strip()] = _rsid
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# ثوابت وتصنيفات الأبطال الرسمية (Official Game Hero Standards)
+# مطابقة 100% لسورس كود العميل الأصلي (heroDef.lua / heroCtrl.lua / heroltCtrl.lua)
+# ═════════════════════════════════════════════════════════════════════════
+
+# أنواع الأبطال الرسمية (gHeroType في heroDef.lua)
+G_HERO_TYPE_ANCILLARY = 1  # مساعد / تنمية / دعم (Ancillary / Support)
+G_HERO_TYPE_CHARIOTS = 2   # عربات (Chariots / Siege)
+G_HERO_TYPE_CAVALRY = 3    # فرسان (Cavalry)
+G_HERO_TYPE_ARCHER = 4     # رماة (Archer)
+G_HERO_TYPE_INFANTRY = 5   # مشاة (Infantry)
+
+G_HERO_TYPE: Dict[str, int] = {
+    "ANCILLARY": 1,
+    "CHARIOTS": 2,
+    "CAVALRY": 3,
+    "ARCHER": 4,
+    "INFANTRY": 5,
+}
+
+# حالات الأبطال الرسمية (gHeroState في heroDef.lua)
+G_HERO_STATE_NORMAL = 1    # شاغر / متفرغ داخل القلعة (Normal / Available / Idle)
+G_HERO_STATE_DEAD = 2      # ميت (Dead)
+G_HERO_STATE_CAPTURED = 3  # مأسور في سجن العدو (Captured)
+G_HERO_STATE_BATTLE = 4    # زحف / مسيرة نشطة (Battle / Marching)
+G_HERO_STATE_DEFEND = 5    # حامية السور (Defending Castle Wall)
+G_HERO_STATE_ESCAPE = 6    # هارب (Escape)
+G_HERO_STATE_GARRISON = 7  # مرابط في الحصن العسكري (Garrison)
+
+G_HERO_STATE: Dict[str, int] = {
+    "NORMAL": 1,
+    "DEAD": 2,
+    "CAPTURED": 3,
+    "BATTLE": 4,
+    "DEFEND": 5,
+    "ESCAPE": 6,
+    "GARRISON": 7,
+}
+
+# مجموعات أبطال القتال وأبطال التطوير بحسب سورس كود اللعبة
+COMBAT_HERO_TYPES: Set[int] = {
+    G_HERO_TYPE_CHARIOTS,
+    G_HERO_TYPE_CAVALRY,
+    G_HERO_TYPE_ARCHER,
+    G_HERO_TYPE_INFANTRY,
+}  # {2, 3, 4, 5}
+
+DEVELOPMENT_HERO_TYPES: Set[int] = {G_HERO_TYPE_ANCILLARY}  # {1}
+GATHERING_SPECIALIST_HERO_IDS: Set[int] = {1711, 1724, 1733}  # أبطال الجمع التخصصيين (الانيق، الضرغام، صخر)
+
+# خريطة الكلمات المفتاحية الذكية للأنواع
+HERO_TYPE_FILTER_MAP: Dict[str, Set[int]] = {
+    "all": {1, 2, 3, 4, 5},
+    "any": {1, 2, 3, 4, 5},
+    "الكل": {1, 2, 3, 4, 5},
+    "جميع": {1, 2, 3, 4, 5},
+    "combat": {2, 3, 4, 5},
+    "war": {2, 3, 4, 5},
+    "battle": {2, 3, 4, 5},
+    "قتال": {2, 3, 4, 5},
+    "حرب": {2, 3, 4, 5},
+    "عسكري": {2, 3, 4, 5},
+    "infantry": {5},
+    "مشاة": {5},
+    "مشاه": {5},
+    "cavalry": {3},
+    "فرسان": {3},
+    "خيل": {3},
+    "archer": {4},
+    "archers": {4},
+    "bowmen": {4},
+    "رماة": {4},
+    "رماه": {4},
+    "chariots": {2},
+    "chariot": {2},
+    "siege": {2},
+    "عربات": {2},
+    "عربة": {2},
+    "ancillary": {1},
+    "support": {1},
+    "development": {1},
+    "assist": {1},
+    "تطوير": {1},
+    "دعم": {1},
+    "مساعد": {1},
+    "جمع": {1},
+}
+
+# كتالوج الأبطال الرسمي المستخرج بدقة من سورس كود اللعبة ومحلي اللغات (57 بطلاً)
+OFFICIAL_HERO_CATALOG: Dict[int, Dict[str, Any]] = {
+    1700: {"id": 1700, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1700", "name_ar": "امير الصحراء", "rarity": 1},
+    1701: {"id": 1701, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1701", "name_ar": "قاهرة الاعداء", "rarity": 1},
+    1702: {"id": 1702, "type": 2, "type_en": "chariots", "type_ar": "عربات", "name": "heroname_1702", "name_ar": "أمير الشرق", "rarity": 1},
+    1703: {"id": 1703, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1703", "name_ar": "الفاتح", "rarity": 1},
+    1704: {"id": 1704, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1704", "name_ar": "امير الظلام", "rarity": 1},
+    1705: {"id": 1705, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1705", "name_ar": "البارق", "rarity": 1},
+    1706: {"id": 1706, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1706", "name_ar": "صقر المملكه", "rarity": 1},
+    1707: {"id": 1707, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1707", "name_ar": "المرعب", "rarity": 1},
+    1708: {"id": 1708, "type": 2, "type_en": "chariots", "type_ar": "عربات", "name": "heroname_1708", "name_ar": "اميرة الحرب", "rarity": 1},
+    1709: {"id": 1709, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1709", "name_ar": "الاسطورة", "rarity": 1},
+    1710: {"id": 1710, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1710", "name_ar": "أمير الحرب", "rarity": 1},
+    1711: {"id": 1711, "type": 1, "type_en": "ancillary", "type_ar": "مساعد", "name": "heroname_1711", "name_ar": "الانيق", "rarity": 1},
+    1712: {"id": 1712, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1712", "name_ar": "الغضنفر", "rarity": 1},
+    1713: {"id": 1713, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1713", "name_ar": "السفاح", "rarity": 1},
+    1714: {"id": 1714, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1714", "name_ar": "الزعيم", "rarity": 1},
+    1716: {"id": 1716, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1716", "name_ar": "أميرة الرماة", "rarity": 1},
+    1717: {"id": 1717, "type": 1, "type_en": "ancillary", "type_ar": "مساعد", "name": "heroname_1717", "name_ar": "المزيونة", "rarity": 1},
+    1718: {"id": 1718, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1718", "name_ar": "المفترس", "rarity": 1},
+    1719: {"id": 1719, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1719", "name_ar": "المستبدة", "rarity": 1},
+    1720: {"id": 1720, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1720", "name_ar": "الكاسر", "rarity": 5},
+    1721: {"id": 1721, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1721", "name_ar": "صائد الفرسان", "rarity": 5},
+    1722: {"id": 1722, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1722", "name_ar": "الهمام", "rarity": 5},
+    1723: {"id": 1723, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1723", "name_ar": "الأمير القناص", "rarity": 5},
+    1724: {"id": 1724, "type": 1, "type_en": "ancillary", "type_ar": "مساعد", "name": "heroname_1724", "name_ar": "الضرغام", "rarity": 5},
+    1725: {"id": 1725, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1725", "name_ar": "اليمامة", "rarity": 5},
+    1726: {"id": 1726, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1726", "name_ar": "جسار", "rarity": 5},
+    1727: {"id": 1727, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1727", "name_ar": "المُهاب", "rarity": 5},
+    1728: {"id": 1728, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1728", "name_ar": "الصارم المقدام", "rarity": 5},
+    1729: {"id": 1729, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1729", "name_ar": "الباسلة", "rarity": 5},
+    1730: {"id": 1730, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1730", "name_ar": "جساس", "rarity": 5},
+    1731: {"id": 1731, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1731", "name_ar": "الحازم البتار", "rarity": 5},
+    1732: {"id": 1732, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1732", "name_ar": "الإمبراطور", "rarity": 5},
+    1733: {"id": 1733, "type": 1, "type_en": "ancillary", "type_ar": "مساعد", "name": "heroname_1733", "name_ar": "صخر", "rarity": 5},
+    1734: {"id": 1734, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1734", "name_ar": "العنيد", "rarity": 5},
+    1735: {"id": 1735, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1735", "name_ar": "العنقاء", "rarity": 5},
+    1736: {"id": 1736, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1736", "name_ar": "العاصوف", "rarity": 5},
+    1737: {"id": 1737, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1737", "name_ar": "الصنديد", "rarity": 5},
+    1738: {"id": 1738, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1738", "name_ar": "الشنفرى", "rarity": 5},
+    1739: {"id": 1739, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1739", "name_ar": "الباشق", "rarity": 5},
+    1740: {"id": 1740, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1740", "name_ar": "الجليلة", "rarity": 5},
+    1741: {"id": 1741, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1741", "name_ar": "فارس الهيجاء", "rarity": 5},
+    1742: {"id": 1742, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1742", "name_ar": "الملاك الساهرة", "rarity": 5},
+    1743: {"id": 1743, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1743", "name_ar": "أميرة وحيد القرن", "rarity": 5},
+    1744: {"id": 1744, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1744", "name_ar": "المدمّر", "rarity": 5},
+    1745: {"id": 1745, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1745", "name_ar": "أُسيد", "rarity": 5},
+    1746: {"id": 1746, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1746", "name_ar": "الماجدة", "rarity": 5},
+    1747: {"id": 1747, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1747", "name_ar": "هدير اللهب", "rarity": 5},
+    1748: {"id": 1748, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1748", "name_ar": "السهم الصاعق", "rarity": 5},
+    1749: {"id": 1749, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1749", "name_ar": "سلطان عاصفة الصحراء", "rarity": 5},
+    1750: {"id": 1750, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1750", "name_ar": "قُصي", "rarity": 5},
+    1751: {"id": 1751, "type": 3, "type_en": "cavalry", "type_ar": "فرسان", "name": "heroname_1751", "name_ar": "زُهير", "rarity": 5},
+    1752: {"id": 1752, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1752", "name_ar": "سليل الصوارم", "rarity": 5},
+    1753: {"id": 1753, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1753", "name_ar": "شاهين", "rarity": 5},
+    1754: {"id": 1754, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1754", "name_ar": "وقاص", "rarity": 5},
+    1755: {"id": 1755, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1755", "name_ar": "ملكة الغابة", "rarity": 5},
+    1756: {"id": 1756, "type": 5, "type_en": "infantry", "type_ar": "مشاة", "name": "heroname_1756", "name_ar": "صياد الصحراء", "rarity": 5},
+    1757: {"id": 1757, "type": 4, "type_en": "archer", "type_ar": "رماة", "name": "heroname_1757", "name_ar": "العاصف الرعدي", "rarity": 5},
+}
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -915,6 +1081,258 @@ STAMINA_PACKS_BY_ID: Dict[int, Dict[str, Any]] = {
     300401: STAMINA_PACKS_CATALOG["10"],
     300402: STAMINA_PACKS_CATALOG["50"],
     300403: STAMINA_PACKS_CATALOG["100"],
+}
+
+# ═════════════════════════════════════════════════════════════════════════
+# ثوابت سورس كود اللعبة للوحدات وفخاخ حصن الحرب (buildDef.lua / armyinfo.lua)
+# ═════════════════════════════════════════════════════════════════════════
+BUILDID_FORTRESS = 120  # معرف مبنى حصن الحرب طبقاً لسورس اللعبة (buildDef.lua - BUILDID.FORTRESS)
+
+# معرفات فخاخ وعناصر حصن الحرب الرسمية (15 فخاً برتب مختلفة من armyinfo.lua حيث barrackID == 120)
+FORTRESS_TRAP_IDS: FrozenSet[int] = frozenset({
+    801, 802, 803, 804, 805,
+    811, 812, 813, 814, 815,
+    821, 822, 823, 824, 825,
+})
+
+# ═════════════════════════════════════════════════════════════════════════
+# ثوابت وجداول حساب سعة المسيرة القصوى (Single March Troop Limit)
+# مطابقة تامة لسورس اللعبة (buildLogic.lua, build121.lua, technology.lua)
+# ═════════════════════════════════════════════════════════════════════════
+
+DRILL_GROUNDS_BUILDING_ID = 121
+DEFAULT_EXP_ARMY_COUNT = 1000
+
+# سعة مبنى ميدان العرض الأساسية لكل مستوى (Drill Grounds Lv.1 - Lv.40)
+DRILL_GROUNDS_CAPACITY: Dict[int, int] = {
+    1: 3000, 2: 5000, 3: 7100, 4: 9300, 5: 11600,
+    6: 14000, 7: 16500, 8: 19100, 9: 21800, 10: 24600,
+    11: 27500, 12: 30500, 13: 33600, 14: 36800, 15: 40100,
+    16: 43500, 17: 47000, 18: 50600, 19: 54300, 20: 58100,
+    21: 62000, 22: 66000, 23: 70100, 24: 74300, 25: 78600,
+    26: 83000, 27: 87500, 28: 92100, 29: 96800, 30: 101600,
+    31: 101600, 32: 101600, 33: 101600, 34: 101600, 35: 101600,
+    36: 101600, 37: 101600, 38: 101600, 39: 101600, 40: 106500,
+}
+
+# سعة إضافية لنجوم قصر المجد لميدان العرض (Star Lv.1 - Lv.5)
+DRILL_GROUNDS_STAR_CAPACITY: Dict[int, int] = {
+    1: 1500, 2: 3000, 3: 4500, 4: 6000, 5: 7500,
+}
+
+# أبحاث القيادة بمعهد الأبحاث (Technology Type 43 / SINGLE_TROOP_STRENGTH)
+LEADERSHIP_TECH_ADDITIONS: Dict[int, Dict[int, int]] = {
+    24016: {1: 2000, 2: 4000, 3: 6000},  # القيادة
+    24032: {1: 2500, 2: 5000, 3: 7500, 4: 10000, 5: 12500},  # القيادة 2
+    24048: {1: 3000, 2: 6000, 3: 9000, 4: 12000, 5: 15000, 6: 18000, 7: 21000},  # القيادة 3
+    25030: {1: 1000},  # قيادة متقدمة
+    110027: {1: 2000, 2: 4000, 3: 6000, 4: 8000, 5: 10000},
+}
+
+# بافات المسيرة الرسمية المعروفة (Buff ID -> (EffectType, EffectValue))
+KNOWN_MARCH_BUFFS: Dict[int, Tuple[int, int]] = {
+    4006: (19, 100),   # +10%
+    5010: (19, 250),   # +25%
+    4506: (19, 100),   # +10%
+    5044: (19, 350),   # +35%
+    4569: (19, 100),   # +10%
+    4570: (19, 150),   # +15%
+    5055: (19, 500),   # +50%
+    5056: (19, 500),   # +50%
+    5091: (19, 200),   # +20%
+    5120: (19, 250),   # +25%
+    5302: (19, 200),   # +20%
+    5305: (19, 150),   # +15%
+    5333: (19, 80),    # +8%
+    5496: (19, 150),   # +15%
+    5499: (19, 80),    # +8%
+    5797: (96, 20000), # +20,000 جندي
+}
+
+# مهارات معركة الأبطال التي تزيد سعة الفيلق (Skill Type -> Buff Value)
+HERO_MARCH_SKILLS_VAL: Dict[int, int] = {
+    171601: 480, 171602: 480, 172001: 480, 172002: 480,
+    172101: 480, 172201: 480, 172301: 480, 172601: 480,
+    172701: 480, 173004: 480, 173101: 480, 173104: 480,
+    173201: 480, 173204: 480, 173301: 480, 173401: 480,
+    173501: 480, 173601: 480, 173701: 480, 173801: 480,
+    173901: 480, 174001: 480, 174101: 480, 174201: 480,
+    174301: 480, 174401: 480, 174501: 480, 174601: 480,
+    174701: 480, 174801: 480, 174901: 480, 175001: 480,
+    175101: 480, 175201: 480, 175301: 480, 175401: 480,
+    175501: 480, 175601: 480, 175701: 480,
+}
+
+# ── بافات ميداليات الإنجازات الرسمية لسعة المسيرة (Achievement Medal Properties) ──
+# مأخوذة بدقة 100% من سورس اللعبة:
+#   - achievementctrl.buffVsAchieve[gBuffEffect.MARCH_LIMIT_BOOST] = gAchieveProperty.MARCH_LIMIT_BOOST (14)
+#   - Medal 9003017 ("توحيد القوة" - قتل الأعداء بالحشد / Achievement Type 17)
+ACHIEVEMENT_MARCH_MEDAL_ID: int = 9003017
+
+# جدول مستويات إنجاز توحيد القوة (Achievement ID -> Permille / بالآلاف)
+ACHIEVEMENT_MARCH_TIERS: Dict[int, int] = {
+    5317002: 10,  # المستوى 2: 10 بالآلاف (+1%)
+    5317003: 10,  # المستوى 3: 10 بالآلاف (+1%)
+    5317004: 20,  # المستوى 4: 20 بالآلاف (+2%)
+    5317005: 30,  # المستوى 5: 30 بالآلاف (+3%)
+    5317006: 40,  # المستوى 6: 40 بالآلاف (+4%)
+    5317007: 50,  # المستوى 7: 50 بالآلاف (+5%)
+    5317008: 60,  # المستوى 8: 60 بالآلاف (+6%)
+    5317009: 70,  # المستوى 9: 70 بالآلاف (+7%)
+    5317010: 80,  # المستوى 10: 80 بالآلاف (+8%)
+    5317011: 90,  # المستوى 11: 90 بالآلاف (+9%)
+    5317012: 100, # المستوى 12: 100 بالآلاف (+10%)
+    5317013: 110, # المستوى 13: 110 بالآلاف (+11%)
+    5317014: 120, # المستوى 14: 120 بالآلاف (+12%)
+    5317015: 140, # المستوى 15: 140 بالآلاف (+14%)
+}
+
+# عتبات قتل الأعداء لاشتقاق مستوى إنجاز الحشد (توحيد القوة - Medal 9003017) مباشرة من الذاكرة الحية (0-Network Direct Read)
+# متطلبات الإنجاز الرسمية 5317001-5317015 تشترط قتلى الحشد (Rally Kills)، وحيث تمثل قتلى الحشد قرابة 50% - 55% من إجمالي القتلى (killCount) في fcInfo
+ACHIEVEMENT_KILL_THRESHOLDS: List[Tuple[int, int]] = [
+    (380000000, 140), # المستوى 15: 200M قتلى حشد -> +14%
+    (190000000, 120), # المستوى 14: 100M قتلى حشد -> +12%
+    (4000000, 110),   # المستوى 13: 2.1M قتلى حشد -> +11%
+    (3400000, 100),   # المستوى 12: 1.8M قتلى حشد -> +10%
+    (2800000, 90),    # المستوى 11: 1.5M قتلى حشد -> +9%
+    (2200000, 80),    # المستوى 10: 1.2M قتلى حشد -> +8%
+    (1800000, 70),    # المستوى 9: 1.0M قتلى حشد -> +7%
+    (1500000, 60),    # المستوى 8: 800k قتلى حشد -> +6%
+    (1100000, 50),    # المستوى 7: 600k قتلى حشد -> +5%
+    (750000, 40),     # المستوى 6: 400k قتلى حشد -> +4%
+    (380000, 30),     # المستوى 5: 200k قتلى حشد -> +3%
+    (190000, 20),     # المستوى 4: 100k قتلى حشد -> +2% (يتطلب 100 ألف قتيل حشد)
+    (50000, 10),      # المستوى 3: 50k قتلى حشد -> +1% (المستوى 3 يبدأ من 50 ألف قتيل حشد)
+]
+
+_MARCH_DATA_CACHE: Optional[Dict[str, Any]] = None
+
+def _load_march_data_tables() -> Dict[str, Any]:
+    """تحميل جداول سعة المسيرة الشاملة والمطابقة لسورس اللعبة مع تخزينها بالذاكرة."""
+    global _MARCH_DATA_CACHE
+    if _MARCH_DATA_CACHE is not None:
+        return _MARCH_DATA_CACHE
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    possible_paths = [
+        os.path.join(base_dir, "..", "tools", "march_data_tables.json"),
+        os.path.join(base_dir, "march_data_tables.json"),
+        os.path.join("tools", "march_data_tables.json"),
+    ]
+    for p in possible_paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    _MARCH_DATA_CACHE = json.load(f)
+                    return _MARCH_DATA_CACHE
+            except Exception:
+                pass
+
+    _MARCH_DATA_CACHE = {}
+    return _MARCH_DATA_CACHE
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# ثوابت وجداول حساب سعة نقل مساعدة الموارد والضرائب بالسوق (Market Resource Transport)
+# مطابقة تامة وتفصيلية لسورس كود اللعبة:
+#   - buildLogic.lua:2024-2055 (buildLogic.getMarketWeight & buildLogic.getMarketRate)
+#   - build112.lua (Market Lv.1 - Lv.30 Base Capacities & Tax Rates)
+#   - alliance_science_lv.lua (Science ID 33002: TRADING_WEIGHT - sciType 18)
+#   - marketViewPanel.lua:39-48 & marketResSingle.lua:67 (Resource Weights & Unlock Levels)
+# ═════════════════════════════════════════════════════════════════════════
+
+MARKET_BUILDING_ID = 112  # BUILDID.MARKET في buildDef.lua
+
+# سعة السوق الأساسية لكل مستوى (Market Lv.1 - Lv.30) من build112.lua (حقل capacity)
+MARKET_BASE_CAPACITY: Dict[int, int] = {
+    1: 20000, 2: 40000, 3: 60000, 4: 80000, 5: 100000,
+    6: 120000, 7: 140000, 8: 160000, 9: 180000, 10: 200000,
+    11: 220000, 12: 240000, 13: 270000, 14: 290000, 15: 320000,
+    16: 340000, 17: 370000, 18: 390000, 19: 420000, 20: 440000,
+    21: 470000, 22: 490000, 23: 520000, 24: 540000, 25: 570000,
+    26: 590000, 27: 620000, 28: 640000, 29: 670000, 30: 690000,
+}
+
+# نسبة الضريبة الأساسية بالسوق لكل مستوى مقسومة على 1000 (taxRate / 1000) من build112.lua
+# Lv.1 = 450 (45%) -> Lv.30 = 100 (10%)
+MARKET_BASE_TAX_RATE: Dict[int, float] = {
+    1: 0.45, 2: 0.44, 3: 0.43, 4: 0.42, 5: 0.41,
+    6: 0.40, 7: 0.39, 8: 0.38, 9: 0.37, 10: 0.36,
+    11: 0.35, 12: 0.34, 13: 0.33, 14: 0.32, 15: 0.31,
+    16: 0.30, 17: 0.29, 18: 0.28, 19: 0.27, 20: 0.26,
+    21: 0.25, 22: 0.24, 23: 0.23, 24: 0.22, 25: 0.21,
+    26: 0.19, 27: 0.17, 28: 0.15, 29: 0.13, 30: 0.10,
+}
+
+# أوزان الموارد ومستويات فك القفل طبقاً لسورس كود العميل (marketViewPanel.lua:39-48)
+# المعادلة الرسمية: resCount * perWeight <= market_overWeight
+MARKET_RESOURCE_WEIGHTS: Dict[int, Dict[str, Any]] = {
+    1002: {
+        "res_id": 1002,
+        "key": "food",
+        "name_ar": "طعام",
+        "name_en": "Food",
+        "weight": 1,
+        "unlock_level": 1,
+    },
+    1003: {
+        "res_id": 1003,
+        "key": "wood",
+        "name_ar": "خشب",
+        "name_en": "Wood",
+        "weight": 1,
+        "unlock_level": 1,
+    },
+    1004: {
+        "res_id": 1004,
+        "key": "iron",
+        "name_ar": "حديد",
+        "name_en": "Iron",
+        "weight": 6,
+        "unlock_level": 10,
+    },
+    1005: {
+        "res_id": 1005,
+        "key": "mithril",
+        "name_ar": "فضة",
+        "name_en": "Mithril",
+        "weight": 24,
+        "unlock_level": 15,
+    },
+    1006: {
+        "res_id": 1006,
+        "key": "crystal",
+        "name_ar": "بلور",
+        "name_en": "Crystal",
+        "weight": 96,
+        "unlock_level": 30,
+    },
+}
+
+# تطبيع أسماء ومعرفات الموارد (Resource Aliases Mapping)
+MARKET_RESOURCE_ALIASES: Dict[Union[str, int], int] = {
+    1002: 1002, "1002": 1002, "food": 1002, "wheat": 1002, "grain": 1002, "طعام": 1002, "قمح": 1002, 1: 1002, "1": 1002,
+    1003: 1003, "1003": 1003, "wood": 1003, "timber": 1003, "خشب": 1003, 2: 1003, "2": 1003,
+    1004: 1004, "1004": 1004, "iron": 1004, "حديد": 1004, 3: 1004, "3": 1004,
+    1005: 1005, "1005": 1005, "mithril": 1005, "silver": 1005, "فضة": 1005, "ميثريل": 1005, 4: 1005, "4": 1005,
+    1006: 1006, "1006": 1006, "crystal": 1006, "بلور": 1006, "كريستال": 1006, 5: 1006, "5": 1006,
+}
+
+# معرف ومكافآت علوم التحالف لزيادة حمولة التبادل (Alliance Science 33002: TRADING_WEIGHT)
+# من alliance_science_lv.lua (sciType = 18)
+ALLIANCE_SCIENCE_TRADING_WEIGHT_ID = 33002
+ALLIANCE_SCIENCE_TRADING_WEIGHT_BONUS: Dict[int, float] = {
+    0: 0.00,
+    1: 0.01,
+    2: 0.02,
+    3: 0.03,
+    4: 0.04,
+    5: 0.05,
+    6: 0.06,
+    7: 0.07,
+    8: 0.08,
+    9: 0.09,
+    10: 0.10,
 }
 
 
@@ -1396,38 +1814,91 @@ class BaseTask(ABC):
         # 4. فحص سريان مفعول المهارة حالياً (Active Buff / Queue)
         is_buff_active = False
         buff_remaining = 0
+        is_untimed_buff = False
 
-        # أ. فحص بافات القلعة (buffCtrl و newBuffCtrl)
+        # أ. فحص بافات القلعة (buffCtrl و newBuffCtrl) المحدثة بالذاكرة الحية (0-Network)
         if target_buff_id is not None:
             str_bid = str(target_buff_id)
-            buff_ctrl = self.get_ctrl("buffCtrl")
-            new_buff_ctrl = self.get_ctrl("newBuffCtrl")
-            for b_ctrl in (buff_ctrl, new_buff_ctrl):
-                if not isinstance(b_ctrl, dict):
-                    continue
-                b_val = b_ctrl.get(str_bid) or b_ctrl.get(target_buff_id)
-                if b_val:
-                    is_buff_active = True
-                    if isinstance(b_val, dict):
-                        end_t = int(b_val.get("endTime") or b_val.get("finishTime") or b_val.get("time") or 0)
+            raw_buffs: List[Dict[str, Any]] = []
+            for ctrl_name in ("buffCtrl", "newBuffCtrl"):
+                ctrl_val = self.get_ctrl(ctrl_name)
+                if isinstance(ctrl_val, list):
+                    raw_buffs.extend([b for b in ctrl_val if isinstance(b, dict)])
+                elif isinstance(ctrl_val, dict):
+                    if "buffList" in ctrl_val and isinstance(ctrl_val["buffList"], list):
+                        raw_buffs.extend([b for b in ctrl_val["buffList"] if isinstance(b, dict)])
+                    for bk, bv in ctrl_val.items():
+                        if isinstance(bv, dict) and bk != "buffList":
+                            raw_buffs.append(bv)
+                        elif isinstance(bv, list) and bk == "list":
+                            raw_buffs.extend([b for b in bv if isinstance(b, dict)])
+
+            for b in raw_buffs:
+                b_id = str(b.get("id") or b.get("buffId") or b.get("buffID") or "")
+                # فحص تطابق رقم الباف المستهدف
+                if b_id == str_bid:
+                    begin_t = int(b.get("beginTime") or b.get("startTime") or b.get("createtime") or 0)
+                    dur = int(b.get("time") or b.get("duration") or b.get("totaltime") or 0)
+                    end_t = int(b.get("endTime") or b.get("finishTime") or b.get("ottime") or 0)
+
+                    # البافات دائمة المفعول أو التي تنتهي بحدث مثل خوض معركة (time=0 مثل مهارة الإنقاذ 4501، التسلل 5130، الاستحواذ 5425)
+                    if dur == 0 and end_t == 0:
+                        is_buff_active = True
+                        is_untimed_buff = True
+                        buff_remaining = 0
+                        break
+
+                    # البافات محددة المدة بوقت انتهاء صريح (Unix Timestamp)
+                    if end_t > 0:
                         if end_t > now_ts:
+                            is_buff_active = True
                             buff_remaining = max(buff_remaining, end_t - now_ts)
-                    elif isinstance(b_val, (int, float)) and b_val > now_ts:
-                        buff_remaining = max(buff_remaining, int(b_val) - now_ts)
+                            break
+                    # البافات محددة المدة عبر زمن البدء والمدة بالثواني
+                    elif dur > 0 and begin_t > 0:
+                        calc_end = begin_t + dur
+                        if calc_end > now_ts:
+                            is_buff_active = True
+                            buff_remaining = max(buff_remaining, calc_end - now_ts)
+                            break
 
         # ب. فحص طوابير المهارات النشطة (queueCtrl)
-        if target_queue_type is not None:
+        if not is_buff_active and target_queue_type is not None:
+            str_qtype = str(target_queue_type)
+            raw_queues: List[Dict[str, Any]] = []
             queue_ctrl = self.get_ctrl("queueCtrl")
             if isinstance(queue_ctrl, dict):
                 for qk, qv in queue_ctrl.items():
-                    if not isinstance(qv, dict):
-                        continue
-                    qtype = qv.get("queueType") or qv.get("type")
-                    if str(qtype) == str(target_queue_type):
-                        f_time = int(qv.get("finishTime") or qv.get("endTime") or 0)
+                    if isinstance(qv, dict):
+                        q_item = dict(qv)
+                        if "qtype" not in q_item:
+                            q_item["qtype"] = qk
+                        raw_queues.append(q_item)
+                    elif isinstance(qv, list) and qk in ("queues", "list"):
+                        raw_queues.extend([q for q in qv if isinstance(q, dict)])
+            elif isinstance(queue_ctrl, list):
+                raw_queues.extend([q for q in queue_ctrl if isinstance(q, dict)])
+
+            for q in raw_queues:
+                qtype = str(q.get("qtype") or q.get("queueType") or q.get("type") or q.get("queuetype") or q.get("id") or "")
+                if qtype == str_qtype:
+                    st = int(q.get("starttime") or q.get("beginTime") or 0)
+                    tot = int(q.get("totaltime") or q.get("time") or 0)
+                    ot = int(q.get("ottime") or q.get("finishTime") or q.get("endTime") or 0)
+
+                    if ot == 0 and tot > 0 and st > 0:
+                        ot = st + tot
+
+                    if ot > now_ts:
                         is_buff_active = True
-                        if f_time > now_ts:
-                            buff_remaining = max(buff_remaining, f_time - now_ts)
+                        buff_remaining = max(buff_remaining, ot - now_ts)
+                        break
+                    elif ot == 0:
+                        # طابور دائم أو سارٍ حتى حدوث واقعة (مثل طابور 1214 لمهارة الإنقاذ)
+                        is_buff_active = True
+                        is_untimed_buff = True
+                        buff_remaining = 0
+                        break
 
         # ج. تحديد حالة المهارة الكامنة (Passive Skill)
         if not is_cataloged_active:
@@ -1484,6 +1955,7 @@ class BaseTask(ABC):
             "sets_count": len(sets_found),
             "is_active": is_active_now,
             "is_buff_active": is_buff_active,
+            "is_untimed_buff": is_untimed_buff,
             "buff_remaining_seconds": buff_remaining,
             "in_cooldown": in_cd,
             "cd_remaining_seconds": cd_remain,
@@ -1494,6 +1966,9 @@ class BaseTask(ABC):
             "point_total": point_total,
             "description": meta.get("description", ""),
         }
+
+    # اسم بديل متوافق مع كافة المحركات والمهام
+    get_lord_active_skill_status = get_lord_skill_status
 
 
     @staticmethod
@@ -1547,6 +2022,77 @@ class BaseTask(ABC):
         self.log(f"✅ [مهارات اللورد] تم التبديل بنجاح إلى طقم المهارات {target_set}.")
         return True, f"تم التبديل بنجاح إلى طقم المهارات {target_set}."
 
+    def _mark_skill_buff_active_in_memory(
+        self,
+        skill_id: int,
+        target_buff_id: Optional[int] = None,
+        target_queue_type: Optional[int] = None,
+    ) -> None:
+        """
+        مزامنة فورية لحالة الباف أو الطابور النشط في الذاكرة الحية (0-Network In-Memory Buff Sync):
+        تضمن معرفة البوت بأن المهارة سارية فور نجاح تفعيلها أو عند استلام كود 3012 (Skill is already active).
+        """
+        now_ts = int(time.time())
+        meta = LORD_ACTIVE_SKILLS_CATALOG.get(skill_id, {})
+        buff_id = target_buff_id or meta.get("buff_id")
+        queue_type = target_queue_type or meta.get("queue_type")
+
+        if hasattr(self, "conn") and isinstance(self.conn.init_data, dict):
+            # 1. حقن/تحديث باف القلعة في buffCtrl
+            if buff_id is not None:
+                buff_ctrl = self.conn.init_data.setdefault("buffCtrl", [])
+                is_untimed = buff_id in (4501, 5130, 5425)
+                buff_obj = {
+                    "id": buff_id,
+                    "buffId": buff_id,
+                    "beginTime": now_ts,
+                    "time": 0 if is_untimed else 3600,
+                    "endTime": 0 if is_untimed else (now_ts + 3600),
+                }
+                if isinstance(buff_ctrl, list):
+                    found = False
+                    for b in buff_ctrl:
+                        if isinstance(b, dict) and str(b.get("id") or b.get("buffId")) == str(buff_id):
+                            b.update(buff_obj)
+                            found = True
+                            break
+                    if not found:
+                        buff_ctrl.append(buff_obj)
+                elif isinstance(buff_ctrl, dict):
+                    if "buffList" in buff_ctrl and isinstance(buff_ctrl["buffList"], list):
+                        found = False
+                        for b in buff_ctrl["buffList"]:
+                            if isinstance(b, dict) and str(b.get("id") or b.get("buffId")) == str(buff_id):
+                                b.update(buff_obj)
+                                found = True
+                                break
+                        if not found:
+                            buff_ctrl["buffList"].append(buff_obj)
+                    else:
+                        buff_ctrl[str(buff_id)] = buff_obj
+
+            # 2. حقن/تحديث طابور المهارة في queueCtrl
+            if queue_type is not None:
+                queue_ctrl = self.conn.init_data.setdefault("queueCtrl", {})
+                is_untimed_q = (queue_type == 1214)
+                q_obj = {
+                    "qtype": str(queue_type),
+                    "starttime": now_ts,
+                    "totaltime": 0 if is_untimed_q else 3600,
+                    "ottime": 0 if is_untimed_q else (now_ts + 3600),
+                }
+                if isinstance(queue_ctrl, dict):
+                    queue_ctrl[str(queue_type)] = q_obj
+                elif isinstance(queue_ctrl, list):
+                    found = False
+                    for q in queue_ctrl:
+                        if isinstance(q, dict) and str(q.get("qtype") or q.get("queueType")) == str(queue_type):
+                            q.update(q_obj)
+                            found = True
+                            break
+                    if not found:
+                        queue_ctrl.append(q_obj)
+
     def _sync_skill_cd_in_memory(self, skill_id: int, resp: Dict[str, Any], status: Dict[str, Any]) -> None:
         """مزامنة فورية لحالة التبريد في كائن الذاكرة الحية (0-Network In-Memory State Sync)."""
         now_ts = int(time.time())
@@ -1554,6 +2100,10 @@ class BaseTask(ABC):
         rsp_data = resp.get("data", {}) if isinstance(resp.get("data"), dict) else {}
         cd_val = int(rsp_data.get("CD", base_cd) or base_cd)
         begin_t = int(rsp_data.get("beginTime", now_ts) or now_ts)
+
+        # المهارات التي لا تبدأ فترة تبريدها إلا بعد استهلاك/إغلاق الباف (مثل مهارة الإنقاذ 11028 والاستحواذ 13040)
+        if skill_id in (11028, 13040) and "CD" not in rsp_data:
+            return
 
         if hasattr(self, "conn") and isinstance(self.conn.init_data, dict):
             lord_skills = self.conn.init_data.setdefault("lordSkillCtrl", {})
@@ -1604,11 +2154,16 @@ class BaseTask(ABC):
             return False, f"المهارة '{skill_name}' ({resolved_id}) غير متوفرة أو غير مفتوحة بنقاط للقلعة في أي طقم."
 
         if status.get("is_active"):
-            return False, f"المهارة '{skill_name}' مفعّلة وسارية بالفعل حالياً (متبقي {status.get('buff_remaining_seconds')} ثانية)."
+            buff_rem = status.get("buff_remaining_seconds", 0)
+            is_untimed = status.get("is_untimed_buff", False)
+            desc = "تأثير مستمر حتى المعركة القادمة" if (is_untimed or buff_rem == 0) else f"متبقي {buff_rem} ثانية"
+            return False, f"المهارة '{skill_name}' مفعّلة وسارية بالفعل حالياً ({desc})."
 
         if status.get("in_cooldown"):
             return False, f"المهارة '{skill_name}' في فترة تبريد (متبقي {status.get('cd_remaining_seconds')} ثانية)."
 
+        target_buff_id = status.get("target_buff_id") or LORD_ACTIVE_SKILLS_CATALOG.get(resolved_id, {}).get("buff_id")
+        target_queue_type = status.get("target_queue_type") or LORD_ACTIVE_SKILLS_CATALOG.get(resolved_id, {}).get("queue_type")
         original_set_id = str(status.get("active_set_id", "1"))
         in_active_set = status.get("is_in_active_set", False)
         target_set_id = str(status.get("target_switch_set_id") or original_set_id)
@@ -1630,10 +2185,15 @@ class BaseTask(ABC):
             )
             if not self._is_resp_ok(resp):
                 err_code = resp.get("err", resp.get("code", "no_response")) if isinstance(resp, dict) else "no_response"
+                if str(err_code) == "3012":
+                    self._mark_skill_buff_active_in_memory(resolved_id, target_buff_id, target_queue_type)
+                    self.log(f"ℹ️ [مهارات اللورد] المهارة '{skill_name}' مفعلة وسارية المفعول بالفعل على القلعة (تمت مزامنة الباف محلياً).")
+                    return True, f"المهارة '{skill_name}' مفعلة وسارية المفعول بالفعل."
                 return False, f"فشل تفعيل المهارة '{skill_name}' من السيرفر (كود الخطأ: {err_code})."
 
             self._sync_skill_cd_in_memory(resolved_id, resp, status)
-            self.log(f"✅ [مهارات اللورد] تم تفعيل المهارة '{skill_name}' بنجاح ودخلت فترة التبريد.")
+            self._mark_skill_buff_active_in_memory(resolved_id, target_buff_id, target_queue_type)
+            self.log(f"✅ [مهارات اللورد] تم تفعيل المهارة '{skill_name}' بنجاح.")
             return True, f"تم تفعيل المهارة '{skill_name}' بنجاح."
 
         # الحالة 2: المهارة موجودة في طقم آخر غير النشط
@@ -1669,11 +2229,18 @@ class BaseTask(ABC):
 
             if not self._is_resp_ok(resp):
                 err_code = resp.get("err", resp.get("code", "no_response")) if isinstance(resp, dict) else "no_response"
-                success = False
-                result_msg = f"فشل تفعيل المهارة '{skill_name}' من السيرفر (كود الخطأ: {err_code})."
+                if str(err_code) == "3012":
+                    self._mark_skill_buff_active_in_memory(resolved_id, target_buff_id, target_queue_type)
+                    self.log(f"ℹ️ [مهارات اللورد] المهارة '{skill_name}' مفعلة وسارية المفعول بالفعل على القلعة (تمت مزامنة الباف محلياً).")
+                    success = True
+                    result_msg = f"المهارة '{skill_name}' مفعلة وسارية المفعول بالفعل."
+                else:
+                    success = False
+                    result_msg = f"فشل تفعيل المهارة '{skill_name}' من السيرفر (كود الخطأ: {err_code})."
             else:
                 success = True
                 self._sync_skill_cd_in_memory(resolved_id, resp, status)
+                self._mark_skill_buff_active_in_memory(resolved_id, target_buff_id, target_queue_type)
                 result_msg = f"تم تفعيل المهارة '{skill_name}' بنجاح."
                 self.log(f"✅ [مهارات اللورد] تم تفعيل المهارة '{skill_name}' بنجاح في الطقم {target_set_id}.")
 
@@ -1877,6 +2444,9 @@ class BaseTask(ABC):
             "can_activate": can_activate,
             "description": meta.get("description", ""),
         }
+
+    # اسم بديل متوافق مع كافة المحركات والمهام
+    get_lord_active_skill_status = get_lord_skill_status
 
     def _sync_hero_rally_skill_in_memory(self, group_id: int, resp: Dict[str, Any], status: Dict[str, Any]) -> None:
         """مزامنة فورية لحالة مهارة الحشد في كائن الذاكرة الحية (0-Network In-Memory State Sync)."""
@@ -2409,33 +2979,67 @@ class BaseTask(ABC):
 
     # ═════════════════════════════════════════════════════════════════════════
     # دوال جلب وفحص القوات والجنود الشاغرين في القلعة (0-Network Direct Read)
+    # مطابقة تامة وترجمة حرفية لسورس اللعبة (armyCtrl.lua / armyltCtrl.lua / serviceFunctions.lua)
     # ═════════════════════════════════════════════════════════════════════════
 
-    def get_available_troops(
-        self,
-        exclude_fortress: bool = True,
-        as_list: bool = False,
-        reverse: bool = False,
-    ) -> Dict[int, int] | List[Dict[str, int]]:
+    # معرف مبنى حصن الحرب طبقاً لسورس كود اللعبة (buildDef.lua - BUILDID.FORTRESS)
+    BUILDID_FORTRESS = 120
+
+    # معرفات فخاخ وعناصر حصن الحرب الرسمية (15 فخاً برتب مختلفة من armyinfo.lua حيث barrackID == 120)
+    FORTRESS_TRAP_IDS: FrozenSet[int] = frozenset({
+        801, 802, 803, 804, 805,
+        811, 812, 813, 814, 815,
+        821, 822, 823, 824, 825,
+    })
+
+    @staticmethod
+    def is_trap_id(army_id: Union[int, str]) -> bool:
         """
-        جلب القوات والجنود المتاحين والشاغرين حالياً داخل القلعة من الذاكرة الحية (0-Network):
-        - قراءة فورية من كائن armyCtrl (totalArmy / freeArmy / armys) بصفر استعلامات شبكية.
-        - استبعاد وحدات حصن الحرب (فخاخ الحصن 800..899 / BUILDID 120) تلقائياً عند تفعيل exclude_fortress.
-        - استبعاد أي جنود منخرطين حالياً في معارك القلعة من كائن fightingArmy إن وُجد.
-        - ترتيب القوات تصاعدياً بحسب المعرف/الرتبة (reverse=False: الأضعف أولاً لتفادي استنزاف النخب)،
-          أو تنازلياً (reverse=True: الأقوى رتبة أولاً للحشود والمسيرات القتالية).
-        - صيغة الإرجاع:
-          * قاموس {unit_id: count} إذا كان as_list=False (الافتراضي).
-          * قائمة كائنات [{"id": unit_id, "num": count}, ...] إذا كان as_list=True لتناسب حزم السيرفر فوراً.
+        الترجمة الحرفية لدالة سورس اللعبة serviceFunctions.isTrapID(armyid):
+        فحص ما إذا كان المعرف ينتمي لفخاخ أو عناصر حصن الحرب (800 < armyid <= 899).
+        """
+        try:
+            aid = int(army_id)
+            return (800 < aid <= 899) or (aid in BaseTask.FORTRESS_TRAP_IDS)
+        except (ValueError, TypeError):
+            return False
+
+    @classmethod
+    def is_army_id(cls, army_id: Union[int, str]) -> bool:
+        """
+        الترجمة الحرفية لدالة سورس اللعبة armyltCtrl.isArmyID(armyid):
+        التحقق من أن الوحدة هي وحدة عسكرية مقاتلة وليست من فخاخ/عناصر حصن الحرب
+        (armyltCtrl.armyAttr(armyid, ARMY_ATTR.BARRACK_ID) ~= BUILDID.FORTRESS).
+        """
+        try:
+            aid = int(army_id)
+            if aid <= 0:
+                return False
+            # استبعاد عناصر حصن الحرب (BUILDID.FORTRESS = 120 / Trap IDs 801-899)
+            if cls.is_trap_id(aid):
+                return False
+            return True
+        except (ValueError, TypeError):
+            return False
+
+    def get_trap_list(self) -> Dict[int, int]:
+        """
+        الترجمة الحرفية لدالة سورس اللعبة armyCtrl:getTrapList():
+        جلب كافة فخاخ وعناصر حصن الحرب الموجودة بالقلعة حالياً من الذاكرة الحية (0-Network):
+        local traplist = {}
+        for k, v in pairs(self.armyInfo.totalArmy) do
+            if serviceFunctions.isTrapID(k) and tonumber(v) > 0 then
+                traplist[k] = tonumber(v)
+            end
+        end
+        return traplist
         """
         army_ctrl = self.get_ctrl("armyCtrl")
         if not army_ctrl or not isinstance(army_ctrl, dict):
-            # محاولة قراءة الاسم البديل army في الذاكرة الحية
             army_ctrl = self.get_ctrl("army")
             if not army_ctrl or not isinstance(army_ctrl, dict):
                 army_ctrl = self.init_data.get("armyCtrl", {}) if isinstance(self.init_data.get("armyCtrl"), dict) else {}
 
-        # 1. استخراج مصدر القوات من الذاكرة الحية
         raw_army = (
             army_ctrl.get("totalArmy")
             or army_ctrl.get("freeArmy")
@@ -2444,12 +3048,91 @@ class BaseTask(ABC):
             or {}
         )
 
-        fighting_army = army_ctrl.get("fightingArmy") or {}
-        troops_map: Dict[int, int] = {}
-
-        # 2. استخراج وتطهير القوات المتاحة
+        traplist: Dict[int, int] = {}
         if isinstance(raw_army, dict):
             for k, v in raw_army.items():
+                if self.is_trap_id(k):
+                    try:
+                        cnt = int(v)
+                        if cnt > 0:
+                            traplist[int(k)] = cnt
+                    except (ValueError, TypeError):
+                        continue
+        elif isinstance(raw_army, list):
+            for entry in raw_army:
+                if not isinstance(entry, dict):
+                    continue
+                uid = entry.get("id") or entry.get("armyid") or entry.get("armyID")
+                cnt = entry.get("num") or entry.get("count") or entry.get("armycount")
+                if self.is_trap_id(uid):
+                    try:
+                        c = int(cnt)
+                        if c > 0:
+                            traplist[int(uid)] = traplist.get(int(uid), 0) + c
+                    except (ValueError, TypeError):
+                        continue
+        return traplist
+
+    def get_trap_total_count(self) -> int:
+        """
+        الترجمة الحرفية لدالة سورس اللعبة armyCtrl:getTrapTotalCount():
+        إجمالي عدد فخاخ وعناصر حصن الحرب الموجودة في القلعة حالياً.
+        """
+        return sum(self.get_trap_list().values())
+
+    def get_army_list(
+        self,
+        war_type: Optional[int] = None,
+        deduct_fighting: bool = True,
+    ) -> Dict[int, int]:
+        """
+        الترجمة الحرفية والمطابقة التامة لدالة سورس اللعبة armyCtrl:getArmyList(warType):
+        جلب الجنود المتاحين والشاغرين في القلعة الممكن إرسالهم بدون عناصر حصن الحرب (0-Network Direct Read).
+
+        كود السورس الأصلي (armyCtrl.lua):
+        function armyCtrl:getArmyList(warType)
+            local armylist = {}
+            local totalArmy = self:getTotalArmyList(warType)
+            for k, v in pairs(totalArmy) do
+                if armyltCtrl.isArmyID(k) and tonumber(v) > 0 then
+                    armylist[k] = tonumber(v)
+                end
+            end
+            return armylist
+        end
+
+        المنطق المطبق:
+        1. قراءة totalArmy للنوع العسكري المحدد (أو الحرب الافتراضية normal).
+        2. الفلترة الصارمة عبر armyltCtrl.isArmyID(k): استبعاد كافة عناصر وفخاخ حصن الحرب (BUILDID.FORTRESS = 120 / 801-899).
+        3. التأكد من أن القوة > 0 (tonumber(v) > 0).
+        4. حماية إضافية من البان وأخطاء السيرفر (Zero-Risk): خصم جنود معارك الدفاع الحالية (fightingArmy) إن وُجدت
+           لمنع إرسال جنود منخرطين حالياً في قتال دفاعي داخل القلعة.
+
+        Returns:
+            Dict[int, int]: قاموس {army_id: count} للجنود الشاغرين المتاحين للإرسال فوراً.
+        """
+        army_ctrl = self.get_ctrl("armyCtrl")
+        if not army_ctrl or not isinstance(army_ctrl, dict):
+            army_ctrl = self.get_ctrl("army")
+            if not army_ctrl or not isinstance(army_ctrl, dict):
+                army_ctrl = self.init_data.get("armyCtrl", {}) if isinstance(self.init_data.get("armyCtrl"), dict) else {}
+
+        # 1. استخراج totalArmy بحسب نوع الحرب (مطابقة getTotalArmyList)
+        raw_army = (
+            army_ctrl.get("totalArmy")
+            or army_ctrl.get("freeArmy")
+            or army_ctrl.get("armys")
+            or (army_ctrl.get("armyInfo", {}).get("totalArmy") if isinstance(army_ctrl.get("armyInfo"), dict) else None)
+            or {}
+        )
+
+        fighting_army = (army_ctrl.get("fightingArmy") or {}) if deduct_fighting else {}
+        armylist: Dict[int, int] = {}
+
+        if isinstance(raw_army, dict):
+            for k, v in raw_army.items():
+                if not self.is_army_id(k):
+                    continue
                 try:
                     uid = int(k)
                     cnt = int(v)
@@ -2459,13 +3142,9 @@ class BaseTask(ABC):
                 if cnt <= 0:
                     continue
 
-                # استبعاد وحدات حصن الحرب (فخاخ الحصن 800..899 طبقاً لـ serviceFunctions.isTrapID)
-                if exclude_fortress and (800 <= uid <= 899):
-                    continue
-
-                # خصم أي قوات مقيدة في fightingArmy إن وُجدت
+                # خصم قوات معارك الدفاع الحالية إن وُجدت
                 fight_cnt = 0
-                if isinstance(fighting_army, dict):
+                if deduct_fighting and isinstance(fighting_army, dict):
                     raw_fight = fighting_army.get(str(uid)) if str(uid) in fighting_army else fighting_army.get(uid)
                     if raw_fight is not None:
                         try:
@@ -2475,7 +3154,7 @@ class BaseTask(ABC):
 
                 avail = max(0, cnt - fight_cnt)
                 if avail > 0:
-                    troops_map[uid] = avail
+                    armylist[uid] = avail
 
         elif isinstance(raw_army, list):
             for entry in raw_army:
@@ -2483,6 +3162,8 @@ class BaseTask(ABC):
                     continue
                 raw_id = entry.get("id") or entry.get("armyid") or entry.get("armyID")
                 raw_count = entry.get("num") or entry.get("count") or entry.get("armycount")
+                if not self.is_army_id(raw_id):
+                    continue
                 try:
                     uid = int(raw_id)
                     cnt = int(raw_count)
@@ -2492,11 +3173,8 @@ class BaseTask(ABC):
                 if cnt <= 0:
                     continue
 
-                if exclude_fortress and (800 <= uid <= 899):
-                    continue
-
                 fight_cnt = 0
-                if isinstance(fighting_army, dict):
+                if deduct_fighting and isinstance(fighting_army, dict):
                     raw_fight = fighting_army.get(str(uid)) if str(uid) in fighting_army else fighting_army.get(uid)
                     if raw_fight is not None:
                         try:
@@ -2506,31 +3184,77 @@ class BaseTask(ABC):
 
                 avail = max(0, cnt - fight_cnt)
                 if avail > 0:
-                    troops_map[uid] = troops_map.get(uid, 0) + avail
+                    armylist[uid] = armylist.get(uid, 0) + avail
 
-        # 3. فرز الوحدات (تصاعدي الأضعف أولاً افتراضياً لتفادي استنزاف النخب)
+        return armylist
+
+    def get_inner_city_normal_army(self, war_type: Optional[int] = None) -> int:
+        """
+        الترجمة الحرفية لدالة سورس اللعبة armyCtrl:getInnerCityNormalArmy(warType):
+        إجمالي عدد الجنود العاديين الشاغرين المتاحين داخل القلعة (مجموع get_army_list):
+        function armyCtrl:getInnerCityNormalArmy(warType)
+            local ret = 0
+            local armyList = self:getArmyList(warType)
+            for k, v in pairs(armyList) do
+                ret = ret + v
+            end
+            return ret
+        end
+        """
+        return sum(self.get_army_list(war_type=war_type, deduct_fighting=True).values())
+
+    get_inner_city_army = get_inner_city_normal_army
+    get_army_total_count = get_inner_city_normal_army
+
+    def get_available_troops(
+        self,
+        exclude_fortress: bool = True,
+        as_list: bool = False,
+        reverse: bool = False,
+        war_type: Optional[int] = None,
+    ) -> Dict[int, int] | List[Dict[str, int]]:
+        """
+        جلب القوات والجنود المتاحين والشاغرين حالياً داخل القلعة من الذاكرة الحية (0-Network):
+        - إذا كان exclude_fortress=True (الافتراضي): يعتمد مباشرة على الترجمة الحرفية لدالة سورس اللعبة
+          armyCtrl:getArmyList(warType) وفلترة armyltCtrl.isArmyID(k) باستبعاد حصن الحرب (120 / 801-899).
+        - استبعاد أي جنود منخرطين حالياً في معارك القلعة من كائن fightingArmy إن وُجد.
+        - ترتيب القوات تصاعدياً بحسب المعرف/الرتبة (reverse=False: الأضعف أولاً لتفادي استنزاف النخب)،
+          أو تنازلياً (reverse=True: الأقوى رتبة أولاً للحشود والمسيرات القتالية).
+        - صيغة الإرجاع:
+          * قاموس {unit_id: count} إذا كان as_list=False (الافتراضي).
+          * قائمة كائنات [{"id": unit_id, "num": count}, ...] إذا كان as_list=True لتناسب حزم السيرفر فوراً.
+        """
+        if exclude_fortress:
+            troops_map = self.get_army_list(war_type=war_type, deduct_fighting=True)
+        else:
+            troops_map = self.get_army_list(war_type=war_type, deduct_fighting=True)
+            traps = self.get_trap_list()
+            for k, v in traps.items():
+                troops_map[k] = troops_map.get(k, 0) + v
+
+        # فرز الوحدات (تصاعدي الأضعف أولاً افتراضياً لتفادي استنزاف النخب)
         sorted_items = sorted(troops_map.items(), key=lambda x: x[0], reverse=reverse)
 
-        # 4. تحويل لصيغة الإرجاع المطلوبة
+        # تحويل لصيغة الإرجاع المطلوبة
         if as_list:
             return [{"id": k, "num": v} for k, v in sorted_items]
         return dict(sorted_items)
 
     def get_available_troops_count(self, exclude_fortress: bool = True) -> int:
         """إجمالي تعداد الجنود المتاحين والشاغرين في القلعة حالياً (0-Network)."""
-        troops = self.get_available_troops(exclude_fortress=exclude_fortress, as_list=False)
-        return sum(troops.values()) if isinstance(troops, dict) else 0
+        if exclude_fortress:
+            return self.get_inner_city_normal_army()
+        return sum(self.get_available_troops(exclude_fortress=False, as_list=False).values())
 
     @property
     def available_troops(self) -> Dict[int, int]:
         """قاموس القوات الشاغرة المتاحة حالياً في القلعة مع استبعاد وحدات حصن الحرب (0-Network)."""
-        res = self.get_available_troops(exclude_fortress=True, as_list=False, reverse=False)
-        return res if isinstance(res, dict) else {}
+        return self.get_army_list(deduct_fighting=True)
 
     @property
     def available_troops_count(self) -> int:
         """إجمالي عدد القوات الشاغرة المتاحة في القلعة حالياً مع استبعاد وحدات حصن الحرب."""
-        return self.get_available_troops_count(exclude_fortress=True)
+        return self.get_inner_city_normal_army()
 
     def get_available_troops_list(
         self,
@@ -2546,6 +3270,11 @@ class BaseTask(ABC):
     get_idle_troops = get_available_troops
     get_idle_soldiers = get_available_troops
 
+    @property
+    def is_connected(self) -> bool:
+        """فحص سريع لوجود اتصال حي ونشط بالبوابة (0-Network Pre-flight)."""
+        return bool(self.conn and getattr(self.conn, "is_connected", False))
+
     async def sync_local_queues(self, timeout: float = 2.0) -> bool:
         """
         إرسال استعلام مزامنة طوابير الفيالق 1007/1000 للسيرفر وانتظار وصول إشعار NOTIFY_LOCAL_QUEUE_SYNC (cmd 202).
@@ -2559,6 +3288,24 @@ class BaseTask(ABC):
             self.log(f"⚠️ استعلام مزامنة الفيالق 1007/1000 لم يكتمل: {e}")
             return False
 
+    async def sync_achievements(self, timeout: float = 3.0) -> bool:
+        """
+        مزامنة بيانات الإنجازات الرسمية (CMD 1055, SUBCMD 2) وتحديث الذاكرة الحية.
+        مطابقة تامة لـ achievementctrl:sendRefresh() في العميل الرسمي للعبة.
+        """
+        if not self.conn or not getattr(self.conn, "is_connected", False) or not hasattr(self.conn, "query"):
+            return False
+        try:
+            resp = await self.conn.query("1055", "2", {}, timeout=timeout)
+            if resp and isinstance(resp, dict):
+                res_data = resp.get("result") or resp.get("data")
+                if res_data and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
+                    self.conn.init_data["achievementctrl"] = res_data
+            return True
+        except Exception as e:
+            self.log(f"⚠️ استعلام مزامنة الإنجازات 1055/2 لم يكتمل: {e}")
+            return False
+
     # ═════════════════════════════════════════════════════════════════════════
     # 2. الاستعلام الشبكي الآمن (Safe Query with Human Jitter)
     # ═════════════════════════════════════════════════════════════════════════
@@ -2570,14 +3317,16 @@ class BaseTask(ABC):
         data: Optional[Dict[str, Any]] = None,
         min_delay: float = 0.3,
         max_delay: float = 0.7,
+        action: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         إرسال استعلام للبوابة مع تطبيق تأخير بشري ديناميكي عشوائي (Human Jitter)
-        لمنع إثقال السيرفر وتفادي أنظمة الحماية الآلية.
+        لمنع إثقال السيرفر وتفادي أنظمة الحماية الآلية، مع تفعيل قاطع الاتصال
+        (Connection Circuit Breaker) فور رصد انقطاع الاتصال بالسيرفر.
         """
         if not self.conn or not getattr(self.conn, "is_connected", False):
-            self.log("⚠️ محاولة إرسال استعلام والاتصال مقطوع!")
-            return None
+            self.log("⚡ [قاطع الاتصال] تم اعتراض الاستعلام: الاتصال مقطوع بالبوابة (Connection lost / Dead socket)!")
+            raise ConnectionCircuitBreakerError("الاتصال مقطوع بالبوابة (Connection lost / Dead socket)")
 
         # إضافة فاصل بشري عشوائي خفيف قبل الطلب
         if min_delay > 0:
@@ -2585,10 +3334,25 @@ class BaseTask(ABC):
             await asyncio.sleep(jitter)
 
         try:
-            return await self.conn.query(cmd, subcmd, data or {})
+            res = await self.conn.query(cmd, subcmd, data or {}, action=action)
+            if not getattr(self.conn, "is_connected", False):
+                self.log(f"⚡ [قاطع الاتصال] انقطع الاتصال بالسيرفر أثناء الاستعلام ({cmd}/{subcmd}) — تفعيل قاطع الاتصال فوراً.")
+                raise ConnectionCircuitBreakerError(f"انقطع الاتصال بالخادم أثناء الاستعلام ({cmd}/{subcmd})")
+            return res
         except Exception as e:
             if "ConcurrentLogin" in type(e).__name__:
                 raise
+            if "ConnectionCircuitBreaker" in type(e).__name__:
+                raise
+            if self.conn and getattr(self.conn, "is_other_device", False):
+                from core.game_client import ConcurrentLoginError
+                raise ConcurrentLoginError("تم رصد طرد من السيرفر بسبب دخول متزامن من جهاز آخر (KICK)")
+            if isinstance(e, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)):
+                self.log(f"⚡ [قاطع الاتصال] تم رصد انقطاع شبكي صريح ({type(e).__name__}) أثناء ({cmd}/{subcmd})!")
+                raise ConnectionCircuitBreakerError(f"انقطاع شبكي أثناء الاستعلام: {e}")
+            if isinstance(e, (asyncio.TimeoutError, TimeoutError)) and (not self.conn or not getattr(self.conn, "is_connected", False)):
+                self.log(f"⚡ [قاطع الاتصال] انتهت مهلة الاستعلام والاتصال مقطوع أثناء ({cmd}/{subcmd})!")
+                raise ConnectionCircuitBreakerError(f"انقطاع شبكي أثناء الاستعلام: {e}")
             self.log(f"❌ خطأ أثناء إرسال الاستعلام ({cmd}/{subcmd}): {e}")
             return None
 
@@ -2600,7 +3364,7 @@ class BaseTask(ABC):
         """
         فحص قبلي سريع (Pre-flight Check) لتحديد هل المهمة قابلة للتشغيل:
         - هل المهمة مفعلة في الإعدادات؟
-        - هل الحساب متصل والذاكرة جاهزة؟
+        - هل الحساب متصل والذاكرة جاهزة؟ (فحص قاطع الاتصال)
         - هل شروط المهمة الخاصة متوفرة؟
         يُعاد (True, "") أو (False, "سبب التخطي").
         """
@@ -2608,7 +3372,7 @@ class BaseTask(ABC):
             return False, "المهمة معطلة في الإعدادات"
 
         if not self.conn or not getattr(self.conn, "is_connected", False):
-            return False, "لا يوجد اتصال نشط بالبوابة"
+            return False, "قاطع الاتصال: لا يوجد اتصال نشط بالبوابة"
 
         if not self.init_data:
             return False, "بيانات الذاكرة الحية غير متوفرة"
@@ -2627,6 +3391,7 @@ class BaseTask(ABC):
         """
         الغلاف الخارجي الآمن لتنفيذ المهمة:
         - يمنع انهيار البوت عند حدوث أي خطأ غير متوقع.
+        - يمرر استثناء قاطع الاتصال وتزامن الجلسات لمدير البوت فوراً.
         - يقيس زمن التنفيذ ويسجل النتائج بدقة.
         """
         # 1. الفحص القبلي
@@ -2634,6 +3399,8 @@ class BaseTask(ABC):
             can_execute, reason = await self.can_run()
             if not can_execute:
                 return TaskResult.skip(reason)
+        except ConnectionCircuitBreakerError:
+            raise
         except Exception as e:
             msg = f"خطأ أثناء فحص شروط المهمة: {e}"
             self.log(f"⚠️ {msg}")
@@ -2645,6 +3412,8 @@ class BaseTask(ABC):
             result = await self.run()
             result.execution_time = time.time() - t0
             return result
+        except ConnectionCircuitBreakerError:
+            raise
         except Exception as e:
             if "ConcurrentLogin" in type(e).__name__:
                 raise
@@ -3240,128 +4009,18 @@ class BaseTask(ABC):
         """
         انتقاء وتجهيز تشكيلة الأبطال القتاليين المتعددة وفق الاستنباط الدقيق من سورس كود اللعبة (heroSelectBanner / heroCtrl):
         - احتساب عدد الخانات القتالية المفتوحة (openSites / max_slots) بحسب مستوى القلعة (حتى 5 أبطال للقلعة 18 فما فوق).
-        - قراءة الأبطال وحالاتهم من الذاكرة الحية (0-Network) عبر heroSysCtrl / heroCtrl.
-        - استبعاد أبطال حراسة السور المخصصين (defendList) لمنع سحبهم وإضعاف دفاع القلعة.
-        - استبعاد أبطال الجمع التخصصيين (1711, 1724, 1733).
-        - استبعاد الأبطال المشغولين في مسيرات نشطة أخرى (queue غير فارغ).
-        - تطبيق خوارزمية الفرز الرسمية للعبة (heroCtrl:sortDispatchHerosID):
-          1. الأبطال في الحالة الشاغرة (state == 1 أو state == 4 غير مخصص للسور).
-          2. أسبقية الأبطال ذوي المظهر/النائب الخاص (ownL).
-          3. المستوى التنازلي (level).
-          4. الجودة والنجوم التنازلية (quality).
-          5. حالة الصحوة التنازلية (isAwake).
-          6. المعرف التصاعدي (heroID).
-        - اختيار أفضل (max_slots) أبطال لملء كافة الخانات الشاغرة كما تفعل دالة اللعبة (autoFillHeros).
+        - استدعاء محرك get_available_heroes الرسمي مع فلترة 'combat' واستبعاد حماة السور والجمع والتطوير.
         - صيغة الإرجاع: [{"heroID": hid}, ...] متوافقة 100% مع حزمة السيرفر الرسمية.
         """
-        hero_ctrl = self.get_ctrl("heroSysCtrl") or self.get_ctrl("heroCtrl")
-        if not isinstance(hero_ctrl, dict):
-            return []
-
-        hero_list_raw = hero_ctrl.get("heroList")
-        if not isinstance(hero_list_raw, dict):
-            return []
-
-        # 1. تحديد عدد خانات الأبطال المفتوحة للمسير وفق مستوى القلعة (heroCtrl:getMaxBattleHeroNum)
-        castle_lv = getattr(self, "castle_level", 1)
-        if castle_lv >= 18:
-            max_slots = 5
-        elif castle_lv >= 14:
-            max_slots = 4
-        elif castle_lv >= 10:
-            max_slots = 3
-        elif castle_lv >= 5:
-            max_slots = 2
-        else:
-            max_slots = 1
-
-        # 2. استخراج قائمة حراس السور الفعليين لاستبعادهم بدقة
-        defend_ids: Set[int] = set()
-        raw_defend = hero_ctrl.get("defendList", {})
-        if isinstance(raw_defend, dict):
-            for vk, vv in raw_defend.items():
-                if isinstance(vv, dict):
-                    dhid = self._safe_int(vv.get("heroID", vv.get("id")))
-                    if dhid > 0:
-                        defend_ids.add(dhid)
-                elif isinstance(vv, (int, str)):
-                    dhid = self._safe_int(vv)
-                    if dhid > 0:
-                        defend_ids.add(dhid)
-
-        # 3. أبطال الجمع التخصصيين المستبعدين دائماً من القتال
-        gathering_hero_ids = {1711, 1724, 1733}
-
-        # فحص المسيرات النشطة لاستخراج أي بطل منخرط حالياً في طابور مسير
-        active_queue_heroes: Set[int] = set()
-        if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
-            for q_item in self.conn.init_data.get("local_queues", []):
-                if isinstance(q_item, dict):
-                    qid = self._safe_int(q_item.get("heroID", 0))
-                    if qid > 0:
-                        active_queue_heroes.add(qid)
-                    q_heroes = q_item.get("heroInfo")
-                    if isinstance(q_heroes, list):
-                        for qh in q_heroes:
-                            if isinstance(qh, dict):
-                                qhid = self._safe_int(qh.get("heroID", 0))
-                                if qhid > 0:
-                                    active_queue_heroes.add(qhid)
-
-        # 4. فلترة وتجهيز المرشحين (حصراً الأبطال في الحالة 1: HERO_STATE_NORMAL وفق معيار اللعبة الرسمي)
-        candidates: List[Dict[str, Any]] = []
-        for k, v in hero_list_raw.items():
-            if not isinstance(v, dict):
-                continue
-
-            hid = self._safe_int(v.get("heroID", k))
-            if hid <= 0 or hid in gathering_hero_ids or hid in defend_ids or hid in active_queue_heroes:
-                continue
-
-            state = self._safe_int(v.get("state"), 0)
-            q = v.get("queue")
-            has_queue = bool(q and isinstance(q, dict) and len(q) > 0)
-            # الحالة 1 فقط تعني متفرغ وجاهز للمسير (gHeroState.HERO_STATE_NORMAL = 1)
-            # الحالة 4 تعني HERO_STATE_BATTLE وحظر السيرفر المباشر بالخطأ 856008
-            if state == 1 and not has_queue:
-                quality = self._safe_int(v.get("quality"), 1)
-                level = self._safe_int(v.get("level"), 1)
-                is_awake = bool(v.get("isAwake", False))
-
-                dress = v.get("dress", {})
-                cur_dress = self._safe_int(dress.get("seting") if isinstance(dress, dict) else 0)
-                own_lieutenant = bool(cur_dress > 0 and cur_dress % 100 > 1)
-
-                candidates.append({
-                    "heroID": hid,
-                    "level": level,
-                    "quality": quality,
-                    "is_awake": is_awake,
-                    "own_l": own_lieutenant,
-                    "dress": cur_dress,
-                })
-
-        if not candidates:
-            return []
-
-        # 5. الفرز المطابق لخوارزمية اللعبة heroCtrl:sortDispatchHerosID
-        candidates.sort(
-            key=lambda x: (
-                1 if x["own_l"] else 0,
-                x["level"],
-                x["quality"],
-                1 if x["is_awake"] else 0,
-                -x["heroID"],
-            ),
-            reverse=True,
+        max_slots = self.get_max_battle_hero_num()
+        combat_ids = self.get_available_heroes(
+            hero_type="combat",
+            include_defend=False,
+            detailed=False,
+            sort=True,
+            limit=max_slots,
         )
-
-        # 6. اختيار أعلى الأبطال لملء كافة الخانات المتاحة
-        selected_heroes: List[Dict[str, int]] = []
-        for c in candidates[:max_slots]:
-            selected_heroes.append({"heroID": int(c["heroID"])})
-
-        return selected_heroes
+        return [{"heroID": int(hid)} for hid in combat_ids]
 
     async def execute_command_hall_battle_task(
         self,
@@ -5116,6 +5775,902 @@ class BaseTask(ABC):
             "100": int(tier_stamina.get("100", 0)),
             "details": details,
         }
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # محرك حساب سعة المسيرة القصوى للفيلق الواحد (Single March Troop Limit)
+    # مطابقة 100% لكود سورس اللعبة الأصلي (buildLogic.lua & WorldDispatchArmyViewPanel.lua)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    def get_max_battle_hero_num(self) -> int:
+        """
+        حساب عدد خانات الأبطال المفتوحة للقتال والمسيرات بحسب مستوى القلعة (0-Network Direct Read).
+        مطابق 100% لكود سورس اللعبة: heroCtrl:getMaxBattleHeroNum() و constantRead (HIRED_HEROES_%d_LV).
+        
+        مستويات فك قفل الخانات الخمس (1..5):
+          - الخانة 1: قلعة مستوى 1
+          - الخانة 2: قلعة مستوى 5
+          - الخانة 3: قلعة مستوى 10
+          - الخانة 4: قلعة مستوى 15
+          - الخانة 5: قلعة مستوى 18 (الحد الأقصى للنظام = 5 خانات)
+        """
+        castle_lv = int(self.castle_level or 1)
+        slot_thresholds = (1, 5, 10, 15, 18)
+        return sum(1 for req in slot_thresholds if castle_lv >= req)
+
+    def get_best_march_heroes(
+        self,
+        num_heroes: Optional[int] = None,
+        need_available: bool = True,
+    ) -> List[Dict[str, Any]]:
+        """
+        استخراج وترتيب أفضل أبطال القلعة لقيادة الفيالق والمسيرات بأعلى سعة ممكنة (0-Network Direct Read).
+        مطابقة تامة لمنطق الترتيب الرسمي للعبة:
+          - heroCtrl:sortDispatchHerosID(heros, states, isCompareLie)
+          - WorldDispatchArmyViewPanel:quickChoose_hero() -> nodeHero:autoFillHeros()
+        
+        معايير الترتيب التنازلي:
+          1. حالة البطل (متاح داخل القلعة State=1 أولاً).
+          2. إجمالي الزيادة في سعة المسيرة (سعة المستوى + مهارات المعركة النشطة Effect 96).
+          3. مستوى البطل (Level).
+          4. ندرة البطل (Rarity).
+        
+        :param num_heroes: عدد الأبطال المطلوب استخراجهم. إذا ترك None، يؤخذ السقف المتاح للقلعة (get_max_battle_hero_num).
+        :param need_available: إذا كان True، يُشترط أن يكون البطل متاحاً داخل القلعة (State=1).
+        :return: قائمة قواميس الأبطال الأفضل مرتبة تنازلياً.
+        """
+        tables = _load_march_data_tables()
+        rare_levels = tables.get("rare_levels", {})
+        hero_configs = tables.get("heroes", {})
+
+        hero_sys = self.get_ctrl("heroSysCtrl") or {}
+        hero_list = hero_sys.get("heroList", {}) if isinstance(hero_sys, dict) else {}
+        if not hero_list:
+            return []
+
+        candidates: List[Dict[str, Any]] = []
+        for hid_str, h_data in hero_list.items():
+            if not isinstance(h_data, dict):
+                continue
+            hid = int(hid_str) if str(hid_str).isdigit() else 0
+            state = int(h_data.get("state", 1) or 1)
+            if need_available and state != 1:
+                continue
+
+            lv = int(h_data.get("level", 1) or 1)
+            cfg = hero_configs.get(str(hid), hero_configs.get(hid, {}))
+            quality = int(h_data.get("quality") or 0)
+            rarity = int(h_data.get("rarity") or cfg.get("rarity", 1) or 1)
+            effective_tier = quality if quality > 0 else rarity
+            name = cfg.get("name", f"Hero_{hid}")
+
+            str_tier = str(effective_tier)
+            str_hlv = str(lv)
+            r_lvs = rare_levels.get(str_tier, rare_levels.get(effective_tier, {}))
+            base_march = int(r_lvs.get(str_hlv, r_lvs.get(lv, 0)))
+
+            skill_add = 0
+            skills = h_data.get("skillList", {})
+            if isinstance(skills, dict):
+                for _, s_info in skills.items():
+                    if isinstance(s_info, dict) and s_info.get("isActive"):
+                        st = int(s_info.get("skillType", 0) or 0)
+                        if st in HERO_MARCH_SKILLS_VAL:
+                            skill_add += HERO_MARCH_SKILLS_VAL[st]
+
+            total_h = base_march + skill_add
+            candidates.append({
+                "hero_id": hid,
+                "name": name,
+                "level": lv,
+                "quality": quality,
+                "rarity": rarity,
+                "effective_tier": effective_tier,
+                "state": state,
+                "is_normal": (state == 1),
+                "level_march_add": base_march,
+                "skill_march_add": skill_add,
+                "total_hero_add": total_h,
+            })
+
+        # الترتيب التنازلي الرسمي للعبة (heroCtrl:sortDispatchHerosID)
+        candidates.sort(
+            key=lambda h: (
+                1 if h["state"] == 1 else 0,
+                h["total_hero_add"],
+                h["level"],
+                h["effective_tier"],
+                -h["hero_id"],
+            ),
+            reverse=True,
+        )
+
+        limit = num_heroes if num_heroes is not None else self.get_max_battle_hero_num()
+        return candidates[:max(0, limit)]
+
+    def get_max_march_capacity(
+        self,
+        heroes: Optional[Union[List[Union[int, str, Dict[str, Any]]], int, str, bool]] = None,
+        breakdown: bool = False,
+        need_available: bool = False,
+        move_line_type: Optional[int] = None,
+    ) -> Union[int, Dict[str, Any]]:
+        """
+        حساب سعة المسيرة القصوى للفيلق الواحد (0-Network Direct Read من الذاكرة الحية).
+        
+        مطابقة تامة لآلية العميل الرسمي للعبة من سورس اللعبة:
+          - buildLogic.getExpArmyCount(moveLineType)
+          - WorldDispatchArmyViewPanel.lua (updateCountLabel & heroltCtrl:getHerosMarchCapacity)
+        
+        العوامل المحسوبة بدقة 100%:
+          1. سعة مبنى ميدان العرض (BID 121 - Drill Grounds) بحسب المستوى ونجوم قصر المجد.
+          2. السعة الافتراضية الثابتة للعبة (DEFAULT_EXP_ARMY_COUNT = 1,000 جندي).
+          3. أبحاث القيادة بمعهد الأبحاث (Technology Type 43 / SINGLE_TROOP_STRENGTH مثل 24016، 24032، 24048...).
+          4. المضاعفات والنسب المئوية للأبحاث الميدانية (Technology Types 73, 77, 95).
+          5. بافات القلعة النشطة (buffCtrl): عناصر توسيع الفيلق (Effect 19: +20%, +25%, +50%) وبافات القيمة الثابتة (Effect 96).
+          6. مساهمة الأبطال (Heroes):
+             - إذا ترك heroes=None (أو 'auto'/'best'): يتم التحديد التلقائي لأفضل أبطال القلعة المتاحين حتى السقف المسموح (خانات الأبطال المفتوحة) تماماً كما تفعل شاشة إرسال الفيالق باللعبة.
+             - إذا تم تمرير قائمة محددة: تُحسب سعة الأبطال المحددين بدقة (مستوى + مهارات).
+             - إذا تم تمرير 'none' أو False أو 0: تُحسب السعة المجردة للقلعة بدون أبطال.
+             - إذا تم تمرير رقم (مثال: 1 أو 2): يتم اختيار أفضل N أبطال تلقائياً.
+        
+        :param heroes: أبطال الفيلق (None=تلقائي لأفضل أبطال القلعة، أو قائمة، أو عدد، أو False/none للسعة المجردة).
+        :param breakdown: إذا كان True، يعيد قاموساً تفصيلياً شاملاً يوضح ناتج كل مصدر، وإلا يعيد رقماً صحيحاً (int).
+        :param need_available: إذا كان True، يُشترط أن يكون البطل متاحاً داخل القلعة (State=1 / NORMAL).
+        :param move_line_type: نوع حركة المسيرة (لحساب بافات الحشد إن وجدت).
+        :return: السعة القصوى كعدد جنود (int) أو قاموس تفصيلي (Dict[str, Any]).
+        """
+        tables = _load_march_data_tables()
+        drill_levels = tables.get("drill_levels", {})
+        drill_stars = tables.get("drill_stars", {})
+        tech_tables = tables.get("techs", {})
+        hero_configs = tables.get("heroes", {})
+        rare_levels = tables.get("rare_levels", {})
+
+        # ── 1. سعة مبنى ميدان العرض (BID 121) ──
+        b121_lv = 0
+        b121_star = 0
+        city_ctrl = self.get_ctrl("cityCtrl")
+        if isinstance(city_ctrl, dict):
+            blist = city_ctrl.get("blist", [])
+            if isinstance(blist, list):
+                for item in blist:
+                    binfo = item.get("binfo") if isinstance(item, dict) else None
+                    if isinstance(binfo, dict) and str(binfo.get("bid")) == "121":
+                        b121_lv = int(binfo.get("lv", 0) or 0)
+                        b121_star = int(binfo.get("starLv", 0) or 0)
+                        break
+
+        # استخراج سعة المستوى وسعة النجوم مع دعم القواميس المدمجة الاحتياطية
+        str_b121_lv = str(b121_lv)
+        str_b121_star = str(b121_star)
+        drill_bld_cap = int(drill_levels.get(str_b121_lv, drill_levels.get(b121_lv, DRILL_GROUNDS_CAPACITY.get(b121_lv, 0))))
+        drill_star_cap = int(drill_stars.get(str_b121_star, drill_stars.get(b121_star, DRILL_GROUNDS_STAR_CAPACITY.get(b121_star, 0))))
+        base_capacity = drill_bld_cap + drill_star_cap
+
+        # ── 2. القيمة الافتراضية للعبة ──
+        default_cap = 1000
+
+        # ── 3. أبحاث القيادة بمعهد الأبحاث ──
+        tech_ctrl = self.get_ctrl("technologyCtrl") or {}
+        tech_add = 0
+        tech_group_add = 0.0
+        tech_details: List[Dict[str, Any]] = []
+
+        if isinstance(tech_ctrl, dict):
+            for tid_key, tdata in tech_ctrl.items():
+                tid = int(tdata[0]) if isinstance(tdata, (list, tuple)) and len(tdata) > 0 else (int(tid_key) if str(tid_key).isdigit() else 0)
+                tlv = int(tdata[1]) if isinstance(tdata, (list, tuple)) and len(tdata) > 1 else (int(tdata) if isinstance(tdata, (int, str)) and str(tdata).isdigit() else 0)
+                if not tid or not tlv:
+                    continue
+
+                str_tid = str(tid)
+                str_tlv = str(tlv)
+                t_info = tech_tables.get(str_tid, tech_tables.get(tid, {}))
+                lv_data = t_info.get(str_tlv, t_info.get(tlv))
+
+                if lv_data:
+                    pw, bt, bnt = lv_data[0], lv_data[1], lv_data[2]
+                    if bt == 43:  # SINGLE_TROOP_STRENGTH (سعة مسيرة ثابتة)
+                        cardinal = 1 if bnt == 2 else 1000
+                        val = int(pw / cardinal)
+                        tech_add += val
+                        tech_details.append({"tech_id": tid, "level": tlv, "val": val})
+                    elif bt in (73, 77, 95):  # نسبة مئوية (Conquest / Pyramid / Legend)
+                        cardinal = 1000
+                        tech_group_add += (pw / cardinal)
+                elif tid in LEADERSHIP_TECH_ADDITIONS:
+                    # جدول احتياطي لأبحاث القيادة المباشرة
+                    bonus_map = LEADERSHIP_TECH_ADDITIONS[tid]
+                    val = bonus_map.get(tlv, 0)
+                    if val > 0:
+                        tech_add += val
+                        tech_details.append({"tech_id": tid, "level": tlv, "val": val})
+
+        # ── 4. بافات القلعة وعناصر المسيرة النشطة (buffCtrl) ──
+        buff_ctrl = self.get_ctrl("buffCtrl") or []
+        buff_percent_add = 0.0
+        buff_value_add = 0
+        now_ts = int(time.time())
+        active_buff_details: List[Dict[str, Any]] = []
+
+        if isinstance(buff_ctrl, list):
+            for b in buff_ctrl:
+                if not isinstance(b, dict):
+                    continue
+                # فحص وقت انتهاء الباف
+                bt = int(b.get("beginTime", 0) or 0)
+                dur = int(b.get("time", 0) or 0)
+                if dur > 0 and (bt + dur) < now_ts:
+                    continue
+
+                bid = b.get("id") or b.get("buffID")
+                et = b.get("effectType")
+                val = b.get("val") or b.get("effect") or 0
+
+                # فحص البافات المعروفة من قاعدة بيانات اللعبة
+                if bid in KNOWN_MARCH_BUFFS:
+                    k_et, k_val = KNOWN_MARCH_BUFFS[bid]
+                    et = k_et
+                    val = k_val
+
+                if et == 19:  # MARCH_LIMIT_BOOST (نسبة مئوية / 1000)
+                    ratio = float(val) / 1000.0
+                    buff_percent_add += ratio
+                    active_buff_details.append({"buff_id": bid, "type": "percent", "percent": round(ratio * 100, 1)})
+                elif et == 96:  # MARCH_VALUE_LIMIT_BOOST (قيمة عددية ثابتة)
+                    val_int = int(val)
+                    buff_value_add += val_int
+                    active_buff_details.append({"buff_id": bid, "type": "flat", "val": val_int})
+
+        # فحص باف ميدالية الإنجازات (achievementctrl:getBuffValue(gBuffEffect.MARCH_LIMIT_BOOST) -> Property 14)
+        # مأخوذ بدقة 100% من سورس اللعبة: Medal 9003017 ("توحيد القوة" - القتل بالحشد)
+        achieve_permille = 0
+        achieve_ctrl = self.get_ctrl("achievementctrl") or {}
+        achieve_list = None
+        if isinstance(achieve_ctrl, dict):
+            achieve_list = achieve_ctrl.get("list") or achieve_ctrl.get("dataTable") or achieve_ctrl.get("result", {}).get("list")
+        elif isinstance(achieve_ctrl, list):
+            achieve_list = achieve_ctrl
+
+        entry17 = None
+        if isinstance(achieve_list, dict):
+            entry17 = achieve_list.get("17") or achieve_list.get(17)
+        elif isinstance(achieve_list, list):
+            for item in achieve_list:
+                if isinstance(item, dict) and (str(item.get("id", "")).startswith("5317") or str(item.get("medalID", "")) == "9003017"):
+                    entry17 = item
+                    break
+
+        if isinstance(entry17, dict):
+            max_done = int(entry17.get("maxDoneID", 0) or 0)
+            if max_done in ACHIEVEMENT_MARCH_TIERS:
+                achieve_permille = ACHIEVEMENT_MARCH_TIERS[max_done]
+
+        if achieve_permille == 0:
+            # قراءة الذاكرة الحية المباشرة (0-Network) عبر lordInfoCtrl.fcInfo.killCount
+            lord_ctrl = self.get_ctrl("lordInfoCtrl") or {}
+            fc_info = lord_ctrl.get("fcInfo", {}) if isinstance(lord_ctrl, dict) else {}
+            if isinstance(fc_info, dict):
+                inner_fc = fc_info.get("fcInfo") if isinstance(fc_info.get("fcInfo"), dict) else fc_info
+                kc = int(inner_fc.get("killCount", 0) or 0)
+                for thresh, p_val in ACHIEVEMENT_KILL_THRESHOLDS:
+                    if kc >= thresh:
+                        achieve_permille = p_val
+                        break
+
+        if achieve_permille > 0:
+            achieve_ratio = float(achieve_permille) / 1000.0
+            buff_percent_add += achieve_ratio
+            active_buff_details.append({
+                "type": "achievement_medal",
+                "medal_id": ACHIEVEMENT_MARCH_MEDAL_ID,
+                "name": "ميدالية توحيد القوة (قتل الأعداء بالحشد)",
+                "permille": achieve_permille,
+                "percent": round(achieve_ratio * 100, 2),
+            })
+
+        # ── 5. مساهمة الأبطال بالفيلق ──
+        max_hero_slots = self.get_max_battle_hero_num()
+        hero_add = 0
+        heroes_details: List[Dict[str, Any]] = []
+        is_auto_heroes = False
+
+        hero_sys = self.get_ctrl("heroSysCtrl") or {}
+        hero_list = hero_sys.get("heroList", {}) if isinstance(hero_sys, dict) else {}
+
+        # حل وتحديد قائمة الأبطال المطلوبين
+        resolved_heroes: Optional[List[Any]] = None
+        if heroes is None or heroes == "auto" or heroes == "best" or heroes == "max":
+            is_auto_heroes = True
+            auto_list = self.get_best_march_heroes(num_heroes=max_hero_slots, need_available=need_available)
+            resolved_heroes = auto_list
+        elif heroes is False or heroes == "none" or heroes == "bare" or heroes == 0 or heroes == "0":
+            resolved_heroes = []
+            is_auto_heroes = False
+        elif isinstance(heroes, int) or (isinstance(heroes, str) and str(heroes).isdigit() and int(heroes) <= 5):
+            is_auto_heroes = True
+            n_count = int(heroes)
+            auto_list = self.get_best_march_heroes(num_heroes=n_count, need_available=need_available)
+            resolved_heroes = auto_list
+        elif isinstance(heroes, (list, tuple, set)):
+            resolved_heroes = list(heroes)
+            is_auto_heroes = False
+        else:
+            resolved_heroes = [heroes]
+            is_auto_heroes = False
+
+        if resolved_heroes:
+            for h_item in resolved_heroes:
+                if isinstance(h_item, dict) and "total_hero_add" in h_item and "hero_id" in h_item:
+                    hero_add += int(h_item["total_hero_add"])
+                    heroes_details.append(h_item)
+                    continue
+
+                hid: Any = None
+                if isinstance(h_item, dict):
+                    hid = h_item.get("heroID") or h_item.get("id") or h_item.get("hero_id")
+                else:
+                    hid = h_item
+
+                if not hid:
+                    continue
+
+                str_hid = str(hid)
+                int_hid = int(hid) if str_hid.isdigit() else 0
+                h_data = hero_list.get(str_hid) or hero_list.get(int_hid)
+                if not h_data or not isinstance(h_data, dict):
+                    continue
+
+                h_state = int(h_data.get("state", 1) or 1)
+                if need_available and h_state != 1:
+                    continue
+
+                h_lv = int(h_data.get("level", 1) or 1)
+                h_cfg = hero_configs.get(str_hid, hero_configs.get(int_hid, {}))
+                quality = int(h_data.get("quality") or 0)
+                rarity = int(h_data.get("rarity") or h_cfg.get("rarity", 1) or 1)
+                effective_tier = quality if quality > 0 else rarity
+                h_name = h_cfg.get("name", f"Hero_{hid}")
+
+                str_tier = str(effective_tier)
+                str_hlv = str(h_lv)
+                r_lvs = rare_levels.get(str_tier, rare_levels.get(effective_tier, {}))
+                base_hero_march = int(r_lvs.get(str_hlv, r_lvs.get(h_lv, 0)))
+
+                skill_add = 0
+                skill_list = h_data.get("skillList", {})
+                if isinstance(skill_list, dict):
+                    for _, s_info in skill_list.items():
+                        if isinstance(s_info, dict) and s_info.get("isActive"):
+                            st = int(s_info.get("skillType", 0) or 0)
+                            if st in HERO_MARCH_SKILLS_VAL:
+                                skill_add += HERO_MARCH_SKILLS_VAL[st]
+
+                h_total = base_hero_march + skill_add
+                hero_add += h_total
+                heroes_details.append({
+                    "hero_id": int_hid,
+                    "name": h_name,
+                    "level": h_lv,
+                    "quality": quality,
+                    "rarity": rarity,
+                    "effective_tier": effective_tier,
+                    "state": h_state,
+                    "is_normal": (h_state == 1),
+                    "level_march_add": base_hero_march,
+                    "skill_march_add": skill_add,
+                    "total_hero_add": h_total,
+                })
+
+        # ── 6. التطبيق الرياضي الموحد لسورس اللعبة (buildLogic.lua & WorldDispatchArmyViewPanel.lua) ──
+        # سعة القلعة الأساسية المجردة بدون أبطال:
+        bare_flat_base = base_capacity + default_cap + tech_add + buff_value_add
+        percent_multiplier = buff_percent_add + tech_group_add
+        bare_buff_bonus = math.floor(bare_flat_base * percent_multiplier)
+        bare_castle_capacity = int(bare_flat_base + bare_buff_bonus)
+
+        # سعة الفيلق الشاملة مع الأبطال المحددين:
+        # باللعبة: النسبة المئوية للبافات تنطبق على إجمالي فيلق المسيرة بما فيه الأبطال المشاركون
+        total_flat_base = bare_flat_base + hero_add
+        total_buff_bonus = math.floor(total_flat_base * percent_multiplier)
+        total_capacity = int(total_flat_base + total_buff_bonus)
+
+        # حساب السعة القصوى الممكنة للقلعة مع أفضل أبطال متاحين
+        if not is_auto_heroes:
+            best_heroes = self.get_best_march_heroes(num_heroes=max_hero_slots, need_available=need_available)
+            max_hero_add = sum(h.get("total_hero_add", 0) for h in best_heroes)
+            max_flat_base = bare_flat_base + max_hero_add
+            max_possible_capacity = int(max_flat_base + math.floor(max_flat_base * percent_multiplier))
+        else:
+            max_possible_capacity = total_capacity
+
+        if not breakdown:
+            return total_capacity
+
+        return {
+            "total_capacity": total_capacity,
+            "bare_castle_capacity": bare_castle_capacity,
+            "max_possible_capacity": max_possible_capacity,
+            "unlocked_hero_slots": max_hero_slots,
+            "auto_selected_heroes": is_auto_heroes,
+            "drill_grounds": {
+                "bid": 121,
+                "level": b121_lv,
+                "star_level": b121_star,
+                "base_capacity": drill_bld_cap,
+                "star_capacity": drill_star_cap,
+                "total_building_capacity": base_capacity,
+            },
+            "game_default": default_cap,
+            "technology": {
+                "tech_add": tech_add,
+                "tech_group_multiplier": round(tech_group_add, 4),
+                "details": tech_details,
+            },
+            "buffs": {
+                "percent_add": round(buff_percent_add, 4),
+                "percent_bonus_troops": total_buff_bonus,
+                "flat_add": buff_value_add,
+                "active_buffs": active_buff_details,
+            },
+            "heroes": {
+                "total_hero_add": hero_add,
+                "count": len(heroes_details),
+                "auto_selected": is_auto_heroes,
+                "details": heroes_details,
+            },
+            "summary": {
+                "bare_flat_base": bare_flat_base,
+                "heroes_flat_add": hero_add,
+                "total_flat_base": total_flat_base,
+                "percent_multiplier": round(percent_multiplier, 4),
+                "percent_bonus_troops": total_buff_bonus,
+                "final_total": total_capacity,
+            },
+        }
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 19. محرك جلب الأبطال المتاحين والشاغرين في القلعة (Available Castle Heroes Engine)
+    # مطابقة 100% لسورس كود العميل الأصلي للعبة:
+    #   - heroCtrl:getHeroInCastle() (عند تفعيل include_defend=True).
+    #   - heroCtrl:getHeroInCastleNotDefend() (الوضع الافتراضي include_defend=False).
+    #   - heroltCtrl.filterHeroClass(classType, heroID) (فلترة الفئات العسكرية والأصناف).
+    #   - heroCtrl:sortDispatchHerosID(heros, states, isCompareLie) (خوارزمية الفرز الرسمية).
+    # ═════════════════════════════════════════════════════════════════════════
+
+    def get_available_heroes(
+        self,
+        hero_type: Union[str, int, List[int], Set[int], Tuple[int, ...]] = "all",
+        include_defend: bool = False,
+        detailed: bool = False,
+        sort: bool = True,
+        limit: Optional[int] = None,
+    ) -> Union[List[int], List[Dict[str, Any]]]:
+        """
+        جلب الأبطال المتاحين والشاغرين في القلعة مع فلترة دقيقة بحسب النوع (0-Network Direct Read).
+        
+        مطابقة تامة 100% لسورس كود العميل الأصلي للعبة:
+          - heroCtrl:getHeroInCastle() (عند تفعيل include_defend=True).
+          - heroCtrl:getHeroInCastleNotDefend() (الوضع الافتراضي include_defend=False).
+          - heroltCtrl.filterHeroClass(classType, heroID) (فلترة الفئات العسكرية والأصناف).
+          - heroCtrl:sortDispatchHerosID(heros, states, isCompareLie) (خوارزمية الفرز الرسمية للعبة).
+        
+        :param hero_type: نوع أو فئة الأبطال المطلوب إرجاعهم:
+            - 'all' / 'الكل' / None: جميع الأبطال المتاحين (أنواع 1, 2, 3, 4, 5).
+            - 'combat' / 'war' / 'قتال' / 'حرب': أبطال القتال والعسكر فقط (عربات 2, فرسان 3, رماة 4, مشاة 5)
+              مع استبعاد أبطال الجمع والتطوير التخصصيين (1711, 1724, 1733).
+            - 'infantry' / 'مشاة' / 5: مشاة فقط.
+            - 'cavalry' / 'فرسان' / 3: فرسان فقط.
+            - 'archer' / 'رماة' / 4: رماة فقط.
+            - 'chariots' / 'عربات' / 2: عربات فقط.
+            - 'ancillary' / 'support' / 'development' / 'مساعد' / 'تطوير' / 'دعم' / 1: أبطال المساعدة والتنمية فقط.
+            - أو رقم صريح (1..5) أو قائمة/مجموعة أرقام معرفات أو أنواع.
+        :param include_defend: استبعاد حماة السور افتراضياً (False) مطابقة لـ getHeroInCastleNotDefend،
+            أو تضمينهم إذا كانت القيمة (True) مطابقة لـ getHeroInCastle.
+        :param detailed: إرجاع قائمة بمعرفات الأبطال فقط List[int] إذا كان False،
+            أو إرجاع قائمة كائنات مفصلة List[Dict[str, Any]] بكافة خصائص البطل إذا كان True.
+        :param sort: تطبيق خوارزمية الفرز الرسمية للعبة (heroCtrl:sortDispatchHerosID) تنازلياً حسب القوة.
+        :param limit: الحد الأقصى لعدد الأبطال المطلوب إرجاعهم (اختياري).
+        :return: قائمة بمعرفات الأبطال List[int] أو قائمة تفصيلية List[Dict[str, Any]].
+        """
+        hero_ctrl = self.get_ctrl("heroSysCtrl") or self.get_ctrl("heroCtrl")
+        if not isinstance(hero_ctrl, dict):
+            return []
+
+        hero_list_raw = hero_ctrl.get("heroList")
+        if not isinstance(hero_list_raw, dict):
+            return []
+
+        # 1. استخراج حماة السور الفعليين (defendList) لمطابقة heroCtrl:isHeroInDefend
+        defend_ids: Set[int] = set()
+        raw_defend = hero_ctrl.get("defendList", {})
+        if isinstance(raw_defend, dict):
+            for vk, vv in raw_defend.items():
+                if isinstance(vv, dict):
+                    dhid = self._safe_int(vv.get("heroID", vv.get("id")))
+                    if dhid > 0:
+                        defend_ids.add(dhid)
+                elif isinstance(vv, (int, str)):
+                    dhid = self._safe_int(vv)
+                    if dhid > 0:
+                        defend_ids.add(dhid)
+
+        # 2. فحص المسيرات والطوابير النشطة الحية لاستبعاد أي بطل منخرط بها
+        active_queue_heroes: Set[int] = set()
+        if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
+            for q_item in self.conn.init_data.get("local_queues", []):
+                if isinstance(q_item, dict):
+                    qid = self._safe_int(q_item.get("heroID", 0))
+                    if qid > 0:
+                        active_queue_heroes.add(qid)
+                    q_heroes = q_item.get("heroInfo")
+                    if isinstance(q_heroes, list):
+                        for qh in q_heroes:
+                            if isinstance(qh, dict):
+                                qhid = self._safe_int(qh.get("heroID", 0))
+                                if qhid > 0:
+                                    active_queue_heroes.add(qhid)
+
+        # 3. تحليل وتحديد مجموعة الأنواع المستهدفة (Target Types)
+        target_types: Set[int] = set()
+        is_combat_filter = False
+
+        if hero_type is None:
+            target_types = {1, 2, 3, 4, 5}
+        elif isinstance(hero_type, str):
+            clean_type = hero_type.lower().strip()
+            if clean_type.startswith("ال") and len(clean_type) > 2:
+                clean_no_al = clean_type[2:]
+            else:
+                clean_no_al = clean_type
+
+            if clean_type in HERO_TYPE_FILTER_MAP:
+                target_types = set(HERO_TYPE_FILTER_MAP[clean_type])
+            elif clean_no_al in HERO_TYPE_FILTER_MAP:
+                target_types = set(HERO_TYPE_FILTER_MAP[clean_no_al])
+            elif clean_type.isdigit():
+                target_types = {int(clean_type)}
+            else:
+                target_types = {1, 2, 3, 4, 5}
+
+            if clean_type in ("combat", "war", "battle", "قتال", "حرب", "عسكري") or clean_no_al in ("قتال", "حرب", "عسكري"):
+                is_combat_filter = True
+        elif isinstance(hero_type, int):
+            target_types = {hero_type}
+            if hero_type in COMBAT_HERO_TYPES:
+                is_combat_filter = True
+        elif isinstance(hero_type, (list, tuple, set)):
+            for item in hero_type:
+                if isinstance(item, int):
+                    target_types.add(item)
+                elif isinstance(item, str) and item.isdigit():
+                    target_types.add(int(item))
+                elif isinstance(item, str):
+                    s_item = item.lower().strip()
+                    if s_item in HERO_TYPE_FILTER_MAP:
+                        target_types.update(HERO_TYPE_FILTER_MAP[s_item])
+
+        if not target_types:
+            target_types = {1, 2, 3, 4, 5}
+
+        # 4. جداول بيانات المسيرات وقدرات الأبطال لحساب القوة والفرز
+        tables = _load_march_data_tables()
+        hero_configs = tables.get("heroes", {})
+        rare_levels = tables.get("rare_levels", {})
+
+        candidates: List[Dict[str, Any]] = []
+
+        for k, v in hero_list_raw.items():
+            if not isinstance(v, dict):
+                continue
+
+            hid = self._safe_int(v.get("heroID", k))
+            if hid <= 0:
+                continue
+
+            meta = OFFICIAL_HERO_CATALOG.get(hid, {})
+            # تحديد نوع البطل (سورس كود heroDef / hero_view_info)
+            htype = meta.get("type") or self._safe_int(v.get("heroType", v.get("type", 0)))
+            if htype not in target_types:
+                continue
+
+            # في حالة فلترة أبطال القتال، يتم استبعاد أبطال الجمع والتنمية التخصصيين
+            if is_combat_filter and hid in GATHERING_SPECIALIST_HERO_IDS:
+                continue
+
+            # فحص طابور البطل الفردي
+            q = v.get("queue")
+            has_queue = bool(q and isinstance(q, dict) and len(q) > 0)
+            if has_queue or hid in active_queue_heroes:
+                continue
+
+            # فحص حالة البطل (gHeroState)
+            state = self._safe_int(v.get("state"), G_HERO_STATE_NORMAL)
+            is_defending = (hid in defend_ids) or (state == G_HERO_STATE_DEFEND)
+
+            # التحقق من توفر وشغور البطل داخل القلعة (heroCtrl:getHeroInCastle / getHeroInCastleNotDefend)
+            if state == G_HERO_STATE_NORMAL:
+                if is_defending and not include_defend:
+                    continue
+            elif state == G_HERO_STATE_DEFEND:
+                if not include_defend:
+                    continue
+            else:
+                # الحالات الأخرى غير شاغرة: ميت (2)، مأسور (3)، زحف (4)، هارب (6)، مرابط (7)
+                continue
+
+            level = self._safe_int(v.get("level"), 1)
+            quality = self._safe_int(v.get("quality"), 1)
+            rarity = meta.get("rarity") or self._safe_int(v.get("rarity"), 1)
+            is_awake = bool(v.get("isAwake", False))
+
+            dress = v.get("dress", {})
+            cur_dress = self._safe_int(dress.get("seting") if isinstance(dress, dict) else 0)
+            own_lieutenant = bool(cur_dress > 0 and cur_dress % 100 > 1)
+
+            # حساب سعة المسيرة المضافة من البطل (طريقة heroCtrl:getHeroTotalMarchAddNum)
+            effective_tier = quality if quality > 0 else rarity
+            r_lvs = rare_levels.get(str(effective_tier), rare_levels.get(effective_tier, {}))
+            base_hero_march = int(r_lvs.get(str(level), r_lvs.get(level, 0)))
+
+            skill_add = 0
+            skill_list = v.get("skillList", {})
+            if isinstance(skill_list, dict):
+                for _, s_info in skill_list.items():
+                    if isinstance(s_info, dict) and s_info.get("isActive"):
+                        st = self._safe_int(s_info.get("skillType", 0))
+                        if st in HERO_MARCH_SKILLS_VAL:
+                            skill_add += HERO_MARCH_SKILLS_VAL[st]
+
+            total_march_num = base_hero_march + skill_add
+
+            name_code = meta.get("name", f"heroname_{hid}")
+            name_ar = meta.get("name_ar", name_code)
+            type_en = meta.get("type_en", "unknown")
+            type_ar = meta.get("type_ar", "غير معروف")
+
+            candidates.append({
+                "heroID": hid,
+                "hero_id": hid,
+                "name": name_code,
+                "name_ar": name_ar,
+                "heroType": htype,
+                "type_name_en": type_en,
+                "type_name_ar": type_ar,
+                "level": level,
+                "quality": quality,
+                "rarity": rarity,
+                "state": state,
+                "is_awake": is_awake,
+                "own_l": own_lieutenant,
+                "is_defending": is_defending,
+                "march_num": total_march_num,
+                "base_march_add": base_hero_march,
+                "skill_march_add": skill_add,
+                "dress": cur_dress,
+                "raw_data": v,
+            })
+
+        # 5. تطبيق خوارزمية الفرز الرسمية للعبة (heroCtrl:sortDispatchHerosID)
+        if sort:
+            candidates.sort(
+                key=lambda x: (
+                    1 if x["own_l"] else 0,
+                    x["march_num"],
+                    x["level"],
+                    x["rarity"],
+                    x["quality"],
+                    -x["heroID"],
+                ),
+                reverse=True,
+            )
+
+        # 6. تطبيق الحد الأقصى إن وجد
+        if limit is not None and limit > 0:
+            candidates = candidates[:limit]
+
+        # 7. صياغة النتيجة المرجعة
+        if detailed:
+            return candidates
+        return [c["heroID"] for c in candidates]
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 20. محرك حساب سعة نقل مساعدة الموارد والضرائب بالسوق (Market Resource Transport Engine)
+    # مطابقة تامة 100% لسورس كود اللعبة الرسمي:
+    #   - buildLogic.lua:2024-2055 (buildLogic.getMarketWeight & buildLogic.getMarketRate)
+    #   - build112.lua (Market Lv.1 - Lv.30 capacities & tax rates)
+    #   - allianceScience.lua:179-202 & alliance_science_lv.lua (Science ID 33002: TRADING_WEIGHT)
+    #   - marketViewPanel.lua:39-48, 127, 177-185 (Resource Weights & Unlock Levels)
+    #   - marketResSingle.lua:60-71 (getFinalWeight, getFinalCount = finalWeight / perWeight)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    def get_market_transport_capacity(
+        self,
+        resource_type: Optional[Union[str, int]] = None,
+        target_castle_level: Optional[int] = None,
+        breakdown: bool = False,
+    ) -> Union[int, Dict[str, Any]]:
+        """
+        حساب سعة نقل مساعدة الموارد الممكنة في النقل الواحد عبر مبنى السوق (0-Network Direct Read).
+        مطابقة مثالية وترجمة حرفية لمنطق وحسابات سورس كود اللعبة:
+          1. سعة السوق الأساسية (buildLogic.getMarketWeight / build112.lua:capacity):
+             - يتم استخراج مستوى مبنى السوق (BID 112) من الذاكرة الحية `cityCtrl.blist`.
+             - إذا كان السوق غير مبني أو مستواه 0، تكون السعة الأساسية 0.
+          2. زيادة علوم التحالف (allianceScience:getScienceAddValue(gAScienceType.TRADING_WEIGHT)):
+             - فحص علم التحالف 33002 ("زيادة حمولة القوات في التبادل" من sciType 18).
+             - إضافة النسبة: add = math.floor(base * alliance_add).
+             - total_capacity = base + add.
+          3. نسبة الضريبة الرسمية (buildLogic.getMarketRate / build112.lua:taxRate):
+             - تتراوح من 45% (مستوى 1) نزولاً إلى 10% (مستوى 30).
+          4. أوزان الموارد ومستويات فك القفل (marketViewPanel.lua:39-48 & marketResSingle.lua:67):
+             - طعام (1002): الوزن = 1، فك القفل = قلعة مستوى 1.
+             - خشب (1003): الوزن = 1، فك القفل = قلعة مستوى 1.
+             - حديد (1004): الوزن = 6، فك القفل = قلعة مستوى 10.
+             - فضة (1005): الوزن = 24، فك القفل = قلعة مستوى 15.
+             - بلور (1006): الوزن = 96، فك القفل = قلعة مستوى 30.
+             - فحص قفل المورد للقلعة المرسلة والقلعة المستلمة (target_castle_level).
+             - أقصى كمية للمورد = total_capacity // weight.
+             - الكمية الصافية المستلمة = math.floor(max_count * (1.0 - tax_rate)).
+
+        :param resource_type: نوع المورد (1002, 1003, 1004, 1005, 1006 أو 'food', 'wood', 'iron', 'mithril', 'crystal', إلخ).
+                              إذا حدد، يتم حساب السعة العددية القصوى لهذا المورد بناءً على معامل وزنه.
+        :param target_castle_level: مستوى قلعة الحليف المستلمة (اختياري). عند تمريره يتم فحص شرط فتح المورد للطرف المستلم.
+        :param breakdown: إذا كان True، يتم إرجاع قاموس تفصيلي شامل لكافة تفاصيل السوق، العلم، الضريبة، وجميع الموارد.
+        :return: رقم صحيح (السعة القصوى) أو قاموس تفصيلي شامل.
+        """
+        # ── 1. استخراج مستوى مبنى السوق (BID 112) من cityCtrl ──
+        market_lv = 0
+        city_ctrl = self.get_ctrl("cityCtrl")
+        if isinstance(city_ctrl, dict):
+            blist = city_ctrl.get("blist", [])
+            if isinstance(blist, list):
+                for item in blist:
+                    if not isinstance(item, dict):
+                        continue
+                    binfo = item.get("binfo") if isinstance(item.get("binfo"), dict) else item
+                    if str(binfo.get("bid")) == str(MARKET_BUILDING_ID):
+                        market_lv = int(binfo.get("lv", 0) or 0)
+                        break
+
+        # سعة وضريبة السوق الأساسية من جدول build112
+        base_capacity = MARKET_BASE_CAPACITY.get(market_lv, 0)
+        base_tax_rate = MARKET_BASE_TAX_RATE.get(market_lv, 0.45 if market_lv == 0 else 0.10)
+
+        # ── 2. حساب بونص علوم التحالف (ID 33002: TRADING_WEIGHT) ──
+        sci_trading_weight_lv = 0
+        alliance_ctrl = self.get_ctrl("allianceCtrl")
+        if isinstance(alliance_ctrl, dict) and alliance_ctrl:
+            # التحقق من الانتماء لتحالف نشط (ownalliid)
+            aid = int(alliance_ctrl.get("aid", 0) or 0)
+            if not aid:
+                member_info = alliance_ctrl.get("memberinfo") or alliance_ctrl.get("memberInfo") or {}
+                minfo = member_info.get("minfo") or {} if isinstance(member_info, dict) else {}
+                aid = int(minfo.get("aid", 0) or 0)
+
+            if aid > 0:
+                sciencelist = alliance_ctrl.get("sciencelist") or alliance_ctrl.get("scienceList") or {}
+                scilist = sciencelist.get("scilist", {}) if isinstance(sciencelist, dict) else {}
+
+                if isinstance(scilist, dict):
+                    for _, group in scilist.items():
+                        if isinstance(group, list):
+                            for sci_item in group:
+                                if isinstance(sci_item, dict) and str(sci_item.get("id")) == str(ALLIANCE_SCIENCE_TRADING_WEIGHT_ID):
+                                    sci_trading_weight_lv = int(sci_item.get("lv", 0) or 0)
+                                    break
+                        elif isinstance(group, dict):
+                            if str(group.get("id")) == str(ALLIANCE_SCIENCE_TRADING_WEIGHT_ID):
+                                sci_trading_weight_lv = int(group.get("lv", 0) or 0)
+                                break
+                elif isinstance(scilist, list):
+                    for sci_item in scilist:
+                        if isinstance(sci_item, dict) and str(sci_item.get("id")) == str(ALLIANCE_SCIENCE_TRADING_WEIGHT_ID):
+                            sci_trading_weight_lv = int(sci_item.get("lv", 0) or 0)
+                            break
+
+        # معامل زيادة علم التحالف (0.01 لكل مستوى حتى 10)
+        alliance_add_multiplier = ALLIANCE_SCIENCE_TRADING_WEIGHT_BONUS.get(
+            sci_trading_weight_lv,
+            (sci_trading_weight_lv * 0.01) if 0 <= sci_trading_weight_lv <= 10 else 0.0
+        )
+        alliance_bonus_weight = math.floor(base_capacity * alliance_add_multiplier)
+        total_weight_capacity = int(base_capacity + alliance_bonus_weight)
+
+        # نسبة الضريبة النهائية
+        final_tax_rate = base_tax_rate
+
+        # ── 3. حساب سعات الموارد الفردية والشروط ──
+        sender_castle_lv = int(self.castle_level or 1)
+        resources_details: Dict[str, Dict[str, Any]] = {}
+
+        for rid, rmeta in MARKET_RESOURCE_WEIGHTS.items():
+            r_key = rmeta["key"]
+            r_weight = rmeta["weight"]
+            r_unlock = rmeta["unlock_level"]
+
+            sender_locked = (sender_castle_lv < r_unlock)
+            target_locked = (target_castle_level is not None) and (int(target_castle_level) < r_unlock)
+            is_locked = sender_locked or target_locked
+
+            lock_reasons = []
+            if sender_locked:
+                lock_reasons.append(f"قلعة الإرسال (مستوى {sender_castle_lv}) لم تصل لمستوى فتح {rmeta['name_ar']} ({r_unlock})")
+            if target_locked:
+                lock_reasons.append(f"قلعة الاستلام (مستوى {target_castle_level}) لم تصل لمستوى فتح {rmeta['name_ar']} ({r_unlock})")
+
+            if is_locked or total_weight_capacity <= 0:
+                max_units = 0
+                net_delivered = 0
+            else:
+                max_units = total_weight_capacity // r_weight
+                net_delivered = math.floor(max_units * (1.0 - final_tax_rate))
+
+            resources_details[r_key] = {
+                "resource_id": rid,
+                "resource_key": r_key,
+                "name_ar": rmeta["name_ar"],
+                "name_en": rmeta["name_en"],
+                "weight_per_unit": r_weight,
+                "unlock_level": r_unlock,
+                "is_locked": is_locked,
+                "lock_reason": " - ".join(lock_reasons) if lock_reasons else None,
+                "max_capacity_units": max_units,
+                "net_delivered_units": net_delivered,
+            }
+
+        # ── 4. معالجة مورد محدد إن وجد ──
+        selected_res_info = None
+        if resource_type is not None:
+            norm_key = str(resource_type).lower().strip()
+            lookup_key: Union[str, int] = int(norm_key) if norm_key.isdigit() else norm_key
+            if lookup_key not in MARKET_RESOURCE_ALIASES:
+                raise ValueError(
+                    f"Unknown resource_type: '{resource_type}'. Valid options: {list(MARKET_RESOURCE_ALIASES.keys())}"
+                )
+            target_rid = MARKET_RESOURCE_ALIASES[lookup_key]
+            meta = MARKET_RESOURCE_WEIGHTS[target_rid]
+            selected_res_info = resources_details[meta["key"]]
+
+        # إذا كان المطلوب قيمة رقمية مجردة (breakdown=False)
+        if not breakdown:
+            if selected_res_info is not None:
+                return selected_res_info["max_capacity_units"]
+            return total_weight_capacity
+
+        # إرجاع تفصيل شامل ومطابق للسورس
+        result: Dict[str, Any] = {
+            "total_weight_capacity": total_weight_capacity,
+            "market_building": {
+                "bid": MARKET_BUILDING_ID,
+                "name_ar": "السوق",
+                "level": market_lv,
+                "base_capacity": base_capacity,
+                "base_tax_rate": base_tax_rate,
+                "tax_percent": round(base_tax_rate * 100, 1),
+            },
+            "alliance_science": {
+                "science_id": ALLIANCE_SCIENCE_TRADING_WEIGHT_ID,
+                "name_ar": "زيادة حمولة القوات في التبادل",
+                "level": sci_trading_weight_lv,
+                "bonus_multiplier": round(alliance_add_multiplier, 4),
+                "bonus_percent": round(alliance_add_multiplier * 100, 1),
+                "bonus_weight": alliance_bonus_weight,
+            },
+            "tax": {
+                "tax_rate": final_tax_rate,
+                "tax_percent": round(final_tax_rate * 100, 1),
+            },
+            "resources": resources_details,
+            "sender_castle_level": sender_castle_lv,
+            "target_castle_level": target_castle_level,
+        }
+
+        if selected_res_info is not None:
+            result["selected_resource"] = selected_res_info
+
+        return result
+
+
 
 
 

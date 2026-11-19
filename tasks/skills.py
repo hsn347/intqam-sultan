@@ -84,9 +84,31 @@ class SkillsTask(BaseTask):
             if status.get("is_buff_active") or status.get("is_active"):
                 buff_rem = status.get("buff_remaining_seconds", 0)
                 buff_min = round(buff_rem / 60, 1)
-                self.log(f"🛡️ المهارة [{skill_name}] مفعّلة وتأثيرها سارٍ (متبقي {buff_min} دقيقة)، تم التخطي.")
-                skipped_skills.append(f"{skill_name} (سارية {buff_min}د)")
+                is_untimed = status.get("is_untimed_buff", False)
+                if is_untimed or buff_rem == 0:
+                    status_desc = "تأثير مستمر حتى المعركة القادمة"
+                    skipped_label = "سارية (دائمة حتى المعركة)"
+                else:
+                    status_desc = f"متبقي {buff_min} دقيقة"
+                    skipped_label = f"سارية {buff_min}د"
+                self.log(f"🛡️ المهارة [{skill_name}] مفعّلة وتأثيرها سارٍ ({status_desc})، تم التخطي.")
+                skipped_skills.append(f"{skill_name} ({skipped_label})")
                 continue
+
+            # فحص التعارض التبادلي بين مهارتي السم القاتل (11056) والإكسير الفتاك (11057)
+            # تفعيل إحداهما يلغي تأثير الأخرى فوراً في محرك اللعبة
+            if resolved_id == 11056:
+                other_st = self.get_lord_skill_status(11057)
+                if other_st.get("is_buff_active") or other_st.get("is_active"):
+                    self.log(f"ℹ️ تم تخطي تفعيل [{skill_name}] لوجود باف متعارض قيد السريان [الإكسير الفتاك].")
+                    skipped_skills.append(f"{skill_name} (تعارض مع الإكسير)")
+                    continue
+            elif resolved_id == 11057:
+                other_st = self.get_lord_skill_status(11056)
+                if other_st.get("is_buff_active") or other_st.get("is_active"):
+                    self.log(f"ℹ️ تم تخطي تفعيل [{skill_name}] لوجود باف متعارض قيد السريان [السم القاتل].")
+                    skipped_skills.append(f"{skill_name} (تعارض مع السم)")
+                    continue
 
             # التحقق من إمكانية التفعيل الفوري أو عبر التبديل
             can_activate = status.get("can_activate", False)

@@ -97,8 +97,8 @@ class DailyQuestTask(BaseTask):
 
     @property
     def is_active(self) -> bool:
-        """المهمة مفعلة افتراضياً كنشاط تلقائي ما لم يعطلها المستخدم صراحة."""
-        return bool(self.config.get("enabled", True))
+        """المهمة إلزامية ودائمة وتعمل تلقائياً في الخلفية لجميع القلاع دون أخذ رأي المستخدم."""
+        return True
 
     @staticmethod
     def calculate_cur_points(event_info: Dict[str | int, Any]) -> int:

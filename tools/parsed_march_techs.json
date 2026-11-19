@@ -1,0 +1,1899 @@
+{
+  "2300201": {
+    "technologyID": 2300201,
+    "buffType": 19,
+    "powerNum": 10,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2300202": {
+    "technologyID": 2300202,
+    "buffType": 19,
+    "powerNum": 20,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2300203": {
+    "technologyID": 2300203,
+    "buffType": 19,
+    "powerNum": 30,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2300204": {
+    "technologyID": 2300204,
+    "buffType": 19,
+    "powerNum": 40,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2300205": {
+    "technologyID": 2300205,
+    "buffType": 19,
+    "powerNum": 50,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2301201": {
+    "technologyID": 2301201,
+    "buffType": 19,
+    "powerNum": 15,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2301202": {
+    "technologyID": 2301202,
+    "buffType": 19,
+    "powerNum": 30,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2301203": {
+    "technologyID": 2301203,
+    "buffType": 19,
+    "powerNum": 45,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2301204": {
+    "technologyID": 2301204,
+    "buffType": 19,
+    "powerNum": 60,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2301205": {
+    "technologyID": 2301205,
+    "buffType": 19,
+    "powerNum": 75,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2301206": {
+    "technologyID": 2301206,
+    "buffType": 19,
+    "powerNum": 90,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2301207": {
+    "technologyID": 2301207,
+    "buffType": 19,
+    "powerNum": 105,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2301208": {
+    "technologyID": 2301208,
+    "buffType": 19,
+    "powerNum": 120,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2301209": {
+    "technologyID": 2301209,
+    "buffType": 19,
+    "powerNum": 135,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2301210": {
+    "technologyID": 2301210,
+    "buffType": 19,
+    "powerNum": 150,
+    "buffNumType": 1,
+    "buffName": "MARCH_LIMIT_BOOST"
+  },
+  "2401601": {
+    "technologyID": 2401601,
+    "buffType": 43,
+    "powerNum": 2000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2401602": {
+    "technologyID": 2401602,
+    "buffType": 43,
+    "powerNum": 4000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2401603": {
+    "technologyID": 2401603,
+    "buffType": 43,
+    "powerNum": 6000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2403201": {
+    "technologyID": 2403201,
+    "buffType": 43,
+    "powerNum": 2500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2403202": {
+    "technologyID": 2403202,
+    "buffType": 43,
+    "powerNum": 5000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2403203": {
+    "technologyID": 2403203,
+    "buffType": 43,
+    "powerNum": 7500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2403204": {
+    "technologyID": 2403204,
+    "buffType": 43,
+    "powerNum": 10000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2403205": {
+    "technologyID": 2403205,
+    "buffType": 43,
+    "powerNum": 12500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2404801": {
+    "technologyID": 2404801,
+    "buffType": 43,
+    "powerNum": 3000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2404802": {
+    "technologyID": 2404802,
+    "buffType": 43,
+    "powerNum": 6000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2404803": {
+    "technologyID": 2404803,
+    "buffType": 43,
+    "powerNum": 9000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2404804": {
+    "technologyID": 2404804,
+    "buffType": 43,
+    "powerNum": 12000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2404805": {
+    "technologyID": 2404805,
+    "buffType": 43,
+    "powerNum": 15000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2404806": {
+    "technologyID": 2404806,
+    "buffType": 43,
+    "powerNum": 18000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2404807": {
+    "technologyID": 2404807,
+    "buffType": 43,
+    "powerNum": 21000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2431901": {
+    "technologyID": 2431901,
+    "buffType": 77,
+    "powerNum": 20,
+    "buffNumType": 1,
+    "buffName": "PYRAMID_SINGLE_TROOP"
+  },
+  "2431902": {
+    "technologyID": 2431902,
+    "buffType": 77,
+    "powerNum": 40,
+    "buffNumType": 1,
+    "buffName": "PYRAMID_SINGLE_TROOP"
+  },
+  "2431903": {
+    "technologyID": 2431903,
+    "buffType": 77,
+    "powerNum": 60,
+    "buffNumType": 1,
+    "buffName": "PYRAMID_SINGLE_TROOP"
+  },
+  "2431904": {
+    "technologyID": 2431904,
+    "buffType": 77,
+    "powerNum": 80,
+    "buffNumType": 1,
+    "buffName": "PYRAMID_SINGLE_TROOP"
+  },
+  "2431905": {
+    "technologyID": 2431905,
+    "buffType": 77,
+    "powerNum": 100,
+    "buffNumType": 1,
+    "buffName": "PYRAMID_SINGLE_TROOP"
+  },
+  "2432001": {
+    "technologyID": 2432001,
+    "buffType": 73,
+    "powerNum": 20,
+    "buffNumType": 1,
+    "buffName": "CONQUEST_WAR_SINGLE_TROOP"
+  },
+  "2432002": {
+    "technologyID": 2432002,
+    "buffType": 73,
+    "powerNum": 40,
+    "buffNumType": 1,
+    "buffName": "CONQUEST_WAR_SINGLE_TROOP"
+  },
+  "2432003": {
+    "technologyID": 2432003,
+    "buffType": 73,
+    "powerNum": 60,
+    "buffNumType": 1,
+    "buffName": "CONQUEST_WAR_SINGLE_TROOP"
+  },
+  "2432004": {
+    "technologyID": 2432004,
+    "buffType": 73,
+    "powerNum": 80,
+    "buffNumType": 1,
+    "buffName": "CONQUEST_WAR_SINGLE_TROOP"
+  },
+  "2432005": {
+    "technologyID": 2432005,
+    "buffType": 73,
+    "powerNum": 100,
+    "buffNumType": 1,
+    "buffName": "CONQUEST_WAR_SINGLE_TROOP"
+  },
+  "2432401": {
+    "technologyID": 2432401,
+    "buffType": 95,
+    "powerNum": 20,
+    "buffNumType": 1,
+    "buffName": "LEGEND_SINGLE_TROOP"
+  },
+  "2432402": {
+    "technologyID": 2432402,
+    "buffType": 95,
+    "powerNum": 40,
+    "buffNumType": 1,
+    "buffName": "LEGEND_SINGLE_TROOP"
+  },
+  "2432403": {
+    "technologyID": 2432403,
+    "buffType": 95,
+    "powerNum": 60,
+    "buffNumType": 1,
+    "buffName": "LEGEND_SINGLE_TROOP"
+  },
+  "2432404": {
+    "technologyID": 2432404,
+    "buffType": 95,
+    "powerNum": 80,
+    "buffNumType": 1,
+    "buffName": "LEGEND_SINGLE_TROOP"
+  },
+  "2432405": {
+    "technologyID": 2432405,
+    "buffType": 95,
+    "powerNum": 100,
+    "buffNumType": 1,
+    "buffName": "LEGEND_SINGLE_TROOP"
+  },
+  "11002701": {
+    "technologyID": 11002701,
+    "buffType": 43,
+    "powerNum": 2000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "11002702": {
+    "technologyID": 11002702,
+    "buffType": 43,
+    "powerNum": 4000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "11002703": {
+    "technologyID": 11002703,
+    "buffType": 43,
+    "powerNum": 6000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "11002704": {
+    "technologyID": 11002704,
+    "buffType": 43,
+    "powerNum": 8000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "11002705": {
+    "technologyID": 11002705,
+    "buffType": 43,
+    "powerNum": 10000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "2503001": {
+    "technologyID": 2503001,
+    "buffType": 43,
+    "powerNum": 1000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001201": {
+    "technologyID": 17001201,
+    "buffType": 43,
+    "powerNum": 750,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001202": {
+    "technologyID": 17001202,
+    "buffType": 43,
+    "powerNum": 1500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001203": {
+    "technologyID": 17001203,
+    "buffType": 43,
+    "powerNum": 2250,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001204": {
+    "technologyID": 17001204,
+    "buffType": 43,
+    "powerNum": 3000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001205": {
+    "technologyID": 17001205,
+    "buffType": 43,
+    "powerNum": 3750,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001206": {
+    "technologyID": 17001206,
+    "buffType": 43,
+    "powerNum": 4500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001207": {
+    "technologyID": 17001207,
+    "buffType": 43,
+    "powerNum": 5250,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001208": {
+    "technologyID": 17001208,
+    "buffType": 43,
+    "powerNum": 6000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001209": {
+    "technologyID": 17001209,
+    "buffType": 43,
+    "powerNum": 6750,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001210": {
+    "technologyID": 17001210,
+    "buffType": 43,
+    "powerNum": 7500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001301": {
+    "technologyID": 17001301,
+    "buffType": 43,
+    "powerNum": 1000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001302": {
+    "technologyID": 17001302,
+    "buffType": 43,
+    "powerNum": 2000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001303": {
+    "technologyID": 17001303,
+    "buffType": 43,
+    "powerNum": 3000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001304": {
+    "technologyID": 17001304,
+    "buffType": 43,
+    "powerNum": 4000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001305": {
+    "technologyID": 17001305,
+    "buffType": 43,
+    "powerNum": 5000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001306": {
+    "technologyID": 17001306,
+    "buffType": 43,
+    "powerNum": 6000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001307": {
+    "technologyID": 17001307,
+    "buffType": 43,
+    "powerNum": 7000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001308": {
+    "technologyID": 17001308,
+    "buffType": 43,
+    "powerNum": 8000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001309": {
+    "technologyID": 17001309,
+    "buffType": 43,
+    "powerNum": 9000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17001310": {
+    "technologyID": 17001310,
+    "buffType": 43,
+    "powerNum": 10000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005401": {
+    "technologyID": 17005401,
+    "buffType": 43,
+    "powerNum": 1000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005402": {
+    "technologyID": 17005402,
+    "buffType": 43,
+    "powerNum": 2000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005403": {
+    "technologyID": 17005403,
+    "buffType": 43,
+    "powerNum": 3000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005404": {
+    "technologyID": 17005404,
+    "buffType": 43,
+    "powerNum": 4000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005405": {
+    "technologyID": 17005405,
+    "buffType": 43,
+    "powerNum": 5000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005406": {
+    "technologyID": 17005406,
+    "buffType": 43,
+    "powerNum": 6000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005407": {
+    "technologyID": 17005407,
+    "buffType": 43,
+    "powerNum": 7000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005408": {
+    "technologyID": 17005408,
+    "buffType": 43,
+    "powerNum": 8000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005409": {
+    "technologyID": 17005409,
+    "buffType": 43,
+    "powerNum": 9000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005410": {
+    "technologyID": 17005410,
+    "buffType": 43,
+    "powerNum": 10000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005501": {
+    "technologyID": 17005501,
+    "buffType": 43,
+    "powerNum": 1000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005502": {
+    "technologyID": 17005502,
+    "buffType": 43,
+    "powerNum": 2000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005503": {
+    "technologyID": 17005503,
+    "buffType": 43,
+    "powerNum": 3000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005504": {
+    "technologyID": 17005504,
+    "buffType": 43,
+    "powerNum": 4000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005505": {
+    "technologyID": 17005505,
+    "buffType": 43,
+    "powerNum": 5000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005506": {
+    "technologyID": 17005506,
+    "buffType": 43,
+    "powerNum": 6000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005507": {
+    "technologyID": 17005507,
+    "buffType": 43,
+    "powerNum": 7000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005508": {
+    "technologyID": 17005508,
+    "buffType": 43,
+    "powerNum": 8000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005509": {
+    "technologyID": 17005509,
+    "buffType": 43,
+    "powerNum": 9000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17005510": {
+    "technologyID": 17005510,
+    "buffType": 43,
+    "powerNum": 10000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009201": {
+    "technologyID": 17009201,
+    "buffType": 43,
+    "powerNum": 300,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009202": {
+    "technologyID": 17009202,
+    "buffType": 43,
+    "powerNum": 600,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009203": {
+    "technologyID": 17009203,
+    "buffType": 43,
+    "powerNum": 900,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009204": {
+    "technologyID": 17009204,
+    "buffType": 43,
+    "powerNum": 1200,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009205": {
+    "technologyID": 17009205,
+    "buffType": 43,
+    "powerNum": 1500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009206": {
+    "technologyID": 17009206,
+    "buffType": 43,
+    "powerNum": 1950,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009207": {
+    "technologyID": 17009207,
+    "buffType": 43,
+    "powerNum": 2400,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009208": {
+    "technologyID": 17009208,
+    "buffType": 43,
+    "powerNum": 2850,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009209": {
+    "technologyID": 17009209,
+    "buffType": 43,
+    "powerNum": 3300,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009210": {
+    "technologyID": 17009210,
+    "buffType": 43,
+    "powerNum": 3750,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009211": {
+    "technologyID": 17009211,
+    "buffType": 43,
+    "powerNum": 4350,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009212": {
+    "technologyID": 17009212,
+    "buffType": 43,
+    "powerNum": 4950,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009213": {
+    "technologyID": 17009213,
+    "buffType": 43,
+    "powerNum": 5550,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009214": {
+    "technologyID": 17009214,
+    "buffType": 43,
+    "powerNum": 6150,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009215": {
+    "technologyID": 17009215,
+    "buffType": 43,
+    "powerNum": 6750,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009216": {
+    "technologyID": 17009216,
+    "buffType": 43,
+    "powerNum": 7500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009217": {
+    "technologyID": 17009217,
+    "buffType": 43,
+    "powerNum": 8250,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009218": {
+    "technologyID": 17009218,
+    "buffType": 43,
+    "powerNum": 9000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009219": {
+    "technologyID": 17009219,
+    "buffType": 43,
+    "powerNum": 9750,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009220": {
+    "technologyID": 17009220,
+    "buffType": 43,
+    "powerNum": 10500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009221": {
+    "technologyID": 17009221,
+    "buffType": 43,
+    "powerNum": 11400,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009222": {
+    "technologyID": 17009222,
+    "buffType": 43,
+    "powerNum": 12300,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009223": {
+    "technologyID": 17009223,
+    "buffType": 43,
+    "powerNum": 13200,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009224": {
+    "technologyID": 17009224,
+    "buffType": 43,
+    "powerNum": 14100,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17009225": {
+    "technologyID": 17009225,
+    "buffType": 43,
+    "powerNum": 15000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010401": {
+    "technologyID": 17010401,
+    "buffType": 43,
+    "powerNum": 400,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010402": {
+    "technologyID": 17010402,
+    "buffType": 43,
+    "powerNum": 800,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010403": {
+    "technologyID": 17010403,
+    "buffType": 43,
+    "powerNum": 1200,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010404": {
+    "technologyID": 17010404,
+    "buffType": 43,
+    "powerNum": 1600,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010405": {
+    "technologyID": 17010405,
+    "buffType": 43,
+    "powerNum": 2000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010406": {
+    "technologyID": 17010406,
+    "buffType": 43,
+    "powerNum": 2500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010407": {
+    "technologyID": 17010407,
+    "buffType": 43,
+    "powerNum": 3000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010408": {
+    "technologyID": 17010408,
+    "buffType": 43,
+    "powerNum": 3500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010409": {
+    "technologyID": 17010409,
+    "buffType": 43,
+    "powerNum": 4000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010410": {
+    "technologyID": 17010410,
+    "buffType": 43,
+    "powerNum": 4500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010411": {
+    "technologyID": 17010411,
+    "buffType": 43,
+    "powerNum": 5100,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010412": {
+    "technologyID": 17010412,
+    "buffType": 43,
+    "powerNum": 5700,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010413": {
+    "technologyID": 17010413,
+    "buffType": 43,
+    "powerNum": 6300,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010414": {
+    "technologyID": 17010414,
+    "buffType": 43,
+    "powerNum": 6900,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010415": {
+    "technologyID": 17010415,
+    "buffType": 43,
+    "powerNum": 7500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010416": {
+    "technologyID": 17010416,
+    "buffType": 43,
+    "powerNum": 8200,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010417": {
+    "technologyID": 17010417,
+    "buffType": 43,
+    "powerNum": 8900,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010418": {
+    "technologyID": 17010418,
+    "buffType": 43,
+    "powerNum": 9600,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010419": {
+    "technologyID": 17010419,
+    "buffType": 43,
+    "powerNum": 10300,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010420": {
+    "technologyID": 17010420,
+    "buffType": 43,
+    "powerNum": 11000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010421": {
+    "technologyID": 17010421,
+    "buffType": 43,
+    "powerNum": 11800,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010422": {
+    "technologyID": 17010422,
+    "buffType": 43,
+    "powerNum": 12600,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010423": {
+    "technologyID": 17010423,
+    "buffType": 43,
+    "powerNum": 13400,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010424": {
+    "technologyID": 17010424,
+    "buffType": 43,
+    "powerNum": 14200,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010425": {
+    "technologyID": 17010425,
+    "buffType": 43,
+    "powerNum": 15000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010426": {
+    "technologyID": 17010426,
+    "buffType": 43,
+    "powerNum": 16000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010427": {
+    "technologyID": 17010427,
+    "buffType": 43,
+    "powerNum": 17000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010428": {
+    "technologyID": 17010428,
+    "buffType": 43,
+    "powerNum": 18000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010429": {
+    "technologyID": 17010429,
+    "buffType": 43,
+    "powerNum": 19000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17010430": {
+    "technologyID": 17010430,
+    "buffType": 43,
+    "powerNum": 20000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014001": {
+    "technologyID": 17014001,
+    "buffType": 43,
+    "powerNum": 300,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014002": {
+    "technologyID": 17014002,
+    "buffType": 43,
+    "powerNum": 600,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014003": {
+    "technologyID": 17014003,
+    "buffType": 43,
+    "powerNum": 900,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014004": {
+    "technologyID": 17014004,
+    "buffType": 43,
+    "powerNum": 1200,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014005": {
+    "technologyID": 17014005,
+    "buffType": 43,
+    "powerNum": 1500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014006": {
+    "technologyID": 17014006,
+    "buffType": 43,
+    "powerNum": 1875,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014007": {
+    "technologyID": 17014007,
+    "buffType": 43,
+    "powerNum": 2250,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014008": {
+    "technologyID": 17014008,
+    "buffType": 43,
+    "powerNum": 2625,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014009": {
+    "technologyID": 17014009,
+    "buffType": 43,
+    "powerNum": 3000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014010": {
+    "technologyID": 17014010,
+    "buffType": 43,
+    "powerNum": 3375,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014011": {
+    "technologyID": 17014011,
+    "buffType": 43,
+    "powerNum": 3825,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014012": {
+    "technologyID": 17014012,
+    "buffType": 43,
+    "powerNum": 4275,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014013": {
+    "technologyID": 17014013,
+    "buffType": 43,
+    "powerNum": 4725,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014014": {
+    "technologyID": 17014014,
+    "buffType": 43,
+    "powerNum": 5175,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014015": {
+    "technologyID": 17014015,
+    "buffType": 43,
+    "powerNum": 5625,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014016": {
+    "technologyID": 17014016,
+    "buffType": 43,
+    "powerNum": 6150,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014017": {
+    "technologyID": 17014017,
+    "buffType": 43,
+    "powerNum": 6675,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014018": {
+    "technologyID": 17014018,
+    "buffType": 43,
+    "powerNum": 7200,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014019": {
+    "technologyID": 17014019,
+    "buffType": 43,
+    "powerNum": 7725,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014020": {
+    "technologyID": 17014020,
+    "buffType": 43,
+    "powerNum": 8250,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014021": {
+    "technologyID": 17014021,
+    "buffType": 43,
+    "powerNum": 8850,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014022": {
+    "technologyID": 17014022,
+    "buffType": 43,
+    "powerNum": 9450,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014023": {
+    "technologyID": 17014023,
+    "buffType": 43,
+    "powerNum": 10050,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014024": {
+    "technologyID": 17014024,
+    "buffType": 43,
+    "powerNum": 10650,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014025": {
+    "technologyID": 17014025,
+    "buffType": 43,
+    "powerNum": 11250,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014026": {
+    "technologyID": 17014026,
+    "buffType": 43,
+    "powerNum": 12000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014027": {
+    "technologyID": 17014027,
+    "buffType": 43,
+    "powerNum": 12750,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014028": {
+    "technologyID": 17014028,
+    "buffType": 43,
+    "powerNum": 13500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014029": {
+    "technologyID": 17014029,
+    "buffType": 43,
+    "powerNum": 14250,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014030": {
+    "technologyID": 17014030,
+    "buffType": 43,
+    "powerNum": 15000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014801": {
+    "technologyID": 17014801,
+    "buffType": 43,
+    "powerNum": 480,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014802": {
+    "technologyID": 17014802,
+    "buffType": 43,
+    "powerNum": 960,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014803": {
+    "technologyID": 17014803,
+    "buffType": 43,
+    "powerNum": 1440,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014804": {
+    "technologyID": 17014804,
+    "buffType": 43,
+    "powerNum": 1920,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014805": {
+    "technologyID": 17014805,
+    "buffType": 43,
+    "powerNum": 2400,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014806": {
+    "technologyID": 17014806,
+    "buffType": 43,
+    "powerNum": 3000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014807": {
+    "technologyID": 17014807,
+    "buffType": 43,
+    "powerNum": 3600,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014808": {
+    "technologyID": 17014808,
+    "buffType": 43,
+    "powerNum": 4200,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014809": {
+    "technologyID": 17014809,
+    "buffType": 43,
+    "powerNum": 4800,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014810": {
+    "technologyID": 17014810,
+    "buffType": 43,
+    "powerNum": 5400,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014811": {
+    "technologyID": 17014811,
+    "buffType": 43,
+    "powerNum": 6120,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014812": {
+    "technologyID": 17014812,
+    "buffType": 43,
+    "powerNum": 6840,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014813": {
+    "technologyID": 17014813,
+    "buffType": 43,
+    "powerNum": 7560,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014814": {
+    "technologyID": 17014814,
+    "buffType": 43,
+    "powerNum": 8280,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014815": {
+    "technologyID": 17014815,
+    "buffType": 43,
+    "powerNum": 9000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014816": {
+    "technologyID": 17014816,
+    "buffType": 43,
+    "powerNum": 9840,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014817": {
+    "technologyID": 17014817,
+    "buffType": 43,
+    "powerNum": 10680,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014818": {
+    "technologyID": 17014818,
+    "buffType": 43,
+    "powerNum": 11520,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014819": {
+    "technologyID": 17014819,
+    "buffType": 43,
+    "powerNum": 12360,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014820": {
+    "technologyID": 17014820,
+    "buffType": 43,
+    "powerNum": 13200,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014821": {
+    "technologyID": 17014821,
+    "buffType": 43,
+    "powerNum": 14160,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014822": {
+    "technologyID": 17014822,
+    "buffType": 43,
+    "powerNum": 15120,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014823": {
+    "technologyID": 17014823,
+    "buffType": 43,
+    "powerNum": 16080,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014824": {
+    "technologyID": 17014824,
+    "buffType": 43,
+    "powerNum": 17040,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014825": {
+    "technologyID": 17014825,
+    "buffType": 43,
+    "powerNum": 18000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014826": {
+    "technologyID": 17014826,
+    "buffType": 43,
+    "powerNum": 19200,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014827": {
+    "technologyID": 17014827,
+    "buffType": 43,
+    "powerNum": 20400,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014828": {
+    "technologyID": 17014828,
+    "buffType": 43,
+    "powerNum": 21600,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014829": {
+    "technologyID": 17014829,
+    "buffType": 43,
+    "powerNum": 22800,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014830": {
+    "technologyID": 17014830,
+    "buffType": 43,
+    "powerNum": 24000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014831": {
+    "technologyID": 17014831,
+    "buffType": 43,
+    "powerNum": 25200,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014832": {
+    "technologyID": 17014832,
+    "buffType": 43,
+    "powerNum": 26400,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014833": {
+    "technologyID": 17014833,
+    "buffType": 43,
+    "powerNum": 27600,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014834": {
+    "technologyID": 17014834,
+    "buffType": 43,
+    "powerNum": 28800,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "17014835": {
+    "technologyID": 17014835,
+    "buffType": 43,
+    "powerNum": 30000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407101": {
+    "technologyID": 30407101,
+    "buffType": 43,
+    "powerNum": 2500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407102": {
+    "technologyID": 30407102,
+    "buffType": 43,
+    "powerNum": 5000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407103": {
+    "technologyID": 30407103,
+    "buffType": 43,
+    "powerNum": 7500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407104": {
+    "technologyID": 30407104,
+    "buffType": 43,
+    "powerNum": 10000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407105": {
+    "technologyID": 30407105,
+    "buffType": 43,
+    "powerNum": 12500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407106": {
+    "technologyID": 30407106,
+    "buffType": 43,
+    "powerNum": 15000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407107": {
+    "technologyID": 30407107,
+    "buffType": 43,
+    "powerNum": 17500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407108": {
+    "technologyID": 30407108,
+    "buffType": 43,
+    "powerNum": 20000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407109": {
+    "technologyID": 30407109,
+    "buffType": 43,
+    "powerNum": 22500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407110": {
+    "technologyID": 30407110,
+    "buffType": 43,
+    "powerNum": 25000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407111": {
+    "technologyID": 30407111,
+    "buffType": 43,
+    "powerNum": 27500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407112": {
+    "technologyID": 30407112,
+    "buffType": 43,
+    "powerNum": 30000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407113": {
+    "technologyID": 30407113,
+    "buffType": 43,
+    "powerNum": 32500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407114": {
+    "technologyID": 30407114,
+    "buffType": 43,
+    "powerNum": 35000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407115": {
+    "technologyID": 30407115,
+    "buffType": 43,
+    "powerNum": 37500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407116": {
+    "technologyID": 30407116,
+    "buffType": 43,
+    "powerNum": 40000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407117": {
+    "technologyID": 30407117,
+    "buffType": 43,
+    "powerNum": 42500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407118": {
+    "technologyID": 30407118,
+    "buffType": 43,
+    "powerNum": 45000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407119": {
+    "technologyID": 30407119,
+    "buffType": 43,
+    "powerNum": 47500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "30407120": {
+    "technologyID": 30407120,
+    "buffType": 43,
+    "powerNum": 50000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407101": {
+    "technologyID": 40407101,
+    "buffType": 43,
+    "powerNum": 2500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407102": {
+    "technologyID": 40407102,
+    "buffType": 43,
+    "powerNum": 5000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407103": {
+    "technologyID": 40407103,
+    "buffType": 43,
+    "powerNum": 7500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407104": {
+    "technologyID": 40407104,
+    "buffType": 43,
+    "powerNum": 10000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407105": {
+    "technologyID": 40407105,
+    "buffType": 43,
+    "powerNum": 12500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407106": {
+    "technologyID": 40407106,
+    "buffType": 43,
+    "powerNum": 15000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407107": {
+    "technologyID": 40407107,
+    "buffType": 43,
+    "powerNum": 17500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407108": {
+    "technologyID": 40407108,
+    "buffType": 43,
+    "powerNum": 20000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407109": {
+    "technologyID": 40407109,
+    "buffType": 43,
+    "powerNum": 22500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407110": {
+    "technologyID": 40407110,
+    "buffType": 43,
+    "powerNum": 25000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407111": {
+    "technologyID": 40407111,
+    "buffType": 43,
+    "powerNum": 27500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407112": {
+    "technologyID": 40407112,
+    "buffType": 43,
+    "powerNum": 30000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407113": {
+    "technologyID": 40407113,
+    "buffType": 43,
+    "powerNum": 32500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407114": {
+    "technologyID": 40407114,
+    "buffType": 43,
+    "powerNum": 35000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407115": {
+    "technologyID": 40407115,
+    "buffType": 43,
+    "powerNum": 37500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407116": {
+    "technologyID": 40407116,
+    "buffType": 43,
+    "powerNum": 40000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407117": {
+    "technologyID": 40407117,
+    "buffType": 43,
+    "powerNum": 42500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407118": {
+    "technologyID": 40407118,
+    "buffType": 43,
+    "powerNum": 45000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407119": {
+    "technologyID": 40407119,
+    "buffType": 43,
+    "powerNum": 47500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "40407120": {
+    "technologyID": 40407120,
+    "buffType": 43,
+    "powerNum": 50000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407101": {
+    "technologyID": 41407101,
+    "buffType": 43,
+    "powerNum": 2500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407102": {
+    "technologyID": 41407102,
+    "buffType": 43,
+    "powerNum": 5000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407103": {
+    "technologyID": 41407103,
+    "buffType": 43,
+    "powerNum": 7500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407104": {
+    "technologyID": 41407104,
+    "buffType": 43,
+    "powerNum": 10000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407105": {
+    "technologyID": 41407105,
+    "buffType": 43,
+    "powerNum": 12500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407106": {
+    "technologyID": 41407106,
+    "buffType": 43,
+    "powerNum": 15000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407107": {
+    "technologyID": 41407107,
+    "buffType": 43,
+    "powerNum": 17500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407108": {
+    "technologyID": 41407108,
+    "buffType": 43,
+    "powerNum": 20000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407109": {
+    "technologyID": 41407109,
+    "buffType": 43,
+    "powerNum": 22500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407110": {
+    "technologyID": 41407110,
+    "buffType": 43,
+    "powerNum": 25000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407111": {
+    "technologyID": 41407111,
+    "buffType": 43,
+    "powerNum": 27500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407112": {
+    "technologyID": 41407112,
+    "buffType": 43,
+    "powerNum": 30000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407113": {
+    "technologyID": 41407113,
+    "buffType": 43,
+    "powerNum": 32500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407114": {
+    "technologyID": 41407114,
+    "buffType": 43,
+    "powerNum": 35000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407115": {
+    "technologyID": 41407115,
+    "buffType": 43,
+    "powerNum": 37500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407116": {
+    "technologyID": 41407116,
+    "buffType": 43,
+    "powerNum": 40000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407117": {
+    "technologyID": 41407117,
+    "buffType": 43,
+    "powerNum": 42500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407118": {
+    "technologyID": 41407118,
+    "buffType": 43,
+    "powerNum": 45000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407119": {
+    "technologyID": 41407119,
+    "buffType": 43,
+    "powerNum": 47500,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  },
+  "41407120": {
+    "technologyID": 41407120,
+    "buffType": 43,
+    "powerNum": 50000,
+    "buffNumType": 2,
+    "buffName": "SINGLE_TROOP_STRENGTH"
+  }
+}

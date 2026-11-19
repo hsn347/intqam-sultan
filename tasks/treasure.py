@@ -65,7 +65,22 @@ class TreasureTask(BaseTask):
                 targets.append((r_id, r_name))
 
         # في حال حدد المستخدم قائمة فارغة أو غير متطابقة، نعتمد الموارد الستة
-        return targets or [(r_id, r_name) for r_id, r_name, _ in FOUNTAIN_RESOURCES]
+        raw_targets = targets or [(r_id, r_name) for r_id, r_name, _ in FOUNTAIN_RESOURCES]
+
+        # 🛡️ فلترة استباقية صارمة وفق مستوى القلعة (0-Network Pre-flight):
+        # مطابقة لدالة treviFountainAuxiliary:handleData الرسمية لمنع إرسال طلبات فاشلة بكود 7
+        castle_lv = getattr(self, "castle_level", 0) or 0
+        filtered_targets = []
+        for r_id, r_name in raw_targets:
+            if r_id == 1027 and castle_lv < 60:
+                continue  # البلور لا يفتح إلا في المستوى 60
+            if r_id == 1005 and castle_lv < 15:
+                continue  # الميثريل لا يفتح إلا في المستوى 15
+            if r_id in (1004, 1006) and castle_lv < 10:
+                continue  # الحديد والصلب لا يفتحان إلا في المستوى 10
+            filtered_targets.append((r_id, r_name))
+
+        return filtered_targets
 
     async def run(self) -> TaskResult:
         trevi_data = self.get_ctrl("treviFountainCtrl")

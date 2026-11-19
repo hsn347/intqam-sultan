@@ -429,7 +429,7 @@ class AllianceTask(BaseTask):
                             r_donate = await self.safe_query('1010', '48', {
                                 "sciid": target_sciid,
                                 "donatetype": DONATE_TYPE_FREE
-                            }, min_delay=0.4, max_delay=0.8)
+                            }, min_delay=0.4, max_delay=0.8, action="تبرع علوم التحالف")
 
                             if r_donate and str(r_donate.get('err', '0')) == '0':
                                 total_donated_free += 1

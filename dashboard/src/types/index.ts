@@ -262,7 +262,7 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
   daily_luxury_gift: { enabled: false },
   vip_gift: { enabled: false },
   tactics_hall: { enabled: false, tactic: 'القلعة الفارغة' },
-  watermill: { enabled: false, resources: ['food', 'wood', 'iron', 'silver'], types: 'all' },
+  watermill: { enabled: false, resources: ['food', 'wood', 'iron', 'silver', 'crystal'], types: 'all', allow_shop_buy: false },
   fountain: { enabled: false, resources: ['food', 'wood', 'iron', 'diamond'], allow_gold: false, gold_times: 0 },
   material_workshop: { enabled: false, selected_materials: [200101, 200201, 200301, 200401, 200501, 200601] },
   caravan: { enabled: false },
@@ -321,8 +321,8 @@ export const FIXED_PRESET_CONFIG: CastleConfig = {
     gold_gather: { enabled: false, locations: [] },
     gather: { enabled: true, res_type: 4, level: 5, search_range: 100 },
   },
-  // 2. مكافأة الطاحونة لكل الموارد مع السماح للشراء من المتجر
-  watermill: { enabled: true, types: 'all', allow_shop_buy: true },
+  // 2. مكافأة الطاحونة لكل الموارد مع حزم الدعم المجانية
+  watermill: { enabled: true, resources: ['food', 'wood', 'iron', 'silver', 'crystal'], types: 'all', allow_shop_buy: false },
   // 3. مهمة قافلة الغنيمة
   caravan: { enabled: true },
   // 4. مهام التحالف مع التبرع للتحالف
@@ -413,7 +413,6 @@ export type TaskTab =
   | 'transport'
   | 'daily'
   | 'building'
-  | 'events'
 
 export interface GoldLocation {
   x: number
