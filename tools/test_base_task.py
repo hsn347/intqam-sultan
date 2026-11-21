@@ -769,62 +769,44 @@ async def test_command_hall_dialogue(task: BaseTask) -> Dict[str, Any]:
 
 
 def test_single_march_capacity(task: BaseTask) -> Dict[str, Any]:
-    """اختبار دالة حساب سعة المسيرة القصوى للفيلق الواحد get_max_march_capacity بدقة وميدانياً."""
+    """اختبار دالة حساب سعة المسيرة القصوى للفيلق الواحد بدون أبطال طبقاً لسورس كود اللعبة (buildLogic.lua)."""
     t0 = time.perf_counter()
 
-    # 1. حساب السعة المجردة للقلعة بدون أبطال (Bare Castle Capacity)
-    bare_cap_int = task.get_max_march_capacity(heroes="none", breakdown=False)
-    bare_breakdown = task.get_max_march_capacity(heroes="none", breakdown=True)
-
-    # 2. حساب السعة القصوى الممكنة مع أفضل أبطال القلعة تلقائياً (Max Possible March Capacity)
-    max_cap_int = task.get_max_march_capacity(heroes=None, breakdown=False)
-    max_breakdown = task.get_max_march_capacity(heroes=None, breakdown=True)
-
-    # 3. استخراج الأبطال المتوفرين بالقلعة لتجربة تمريرهم يدوياً
-    hero_sys = task.get_ctrl("heroSysCtrl") or {}
-    hl = hero_sys.get("heroList", {}) if isinstance(hero_sys, dict) else {}
-    sample_heroes = list(hl.keys())[:2]
-
-    hero_cap_int = None
-    hero_breakdown = None
-    if sample_heroes:
-        hero_cap_int = task.get_max_march_capacity(heroes=sample_heroes, breakdown=False)
-        hero_breakdown = task.get_max_march_capacity(heroes=sample_heroes, breakdown=True)
+    # 1. حساب السعة المجردة للقلعة بدون أبطال طبقاً لمعادلة اللعبة الرسمية (buildLogic.getExpArmyCount)
+    cap_data = task.get_castle_march_capacity_without_heroes()
+    total_cap = cap_data.get("total_capacity", 0)
+    unchangesize = cap_data.get("unchangesize", 0)
+    bd = cap_data.get("breakdown", {})
 
     t_elapsed_ms = (time.perf_counter() - t0) * 1000
 
     print("\n" + "═" * 70)
-    print(" 🛡️ [March Capacity Engine] سعة المسيرة القصوى للفيلق الواحد (Single March)")
+    print(" 🛡️ [March Capacity Engine] سعة المسيرة القصوى للفيلق الواحد بدون أبطال")
     print("═" * 70)
-    print(f"   • السعة القصوى الممكنة للفيلق (مع أفضل الأبطال) : {max_cap_int:,} جندي")
-    print(f"   • سعة القلعة الأساسية المجردة (بدون أبطال)      : {bare_cap_int:,} جندي")
-    dg = bare_breakdown.get("drill_grounds", {})
-    print(f"       - مبنى ميدان العرض (BID 121)               : Lv.{dg.get('level')} (نجوم: {dg.get('star_level')}) -> {dg.get('total_building_capacity', 0):,} جندي")
-    print(f"       - السعة الافتراضية للعبة                   : +{bare_breakdown.get('game_default', 1000):,} جندي")
-    tech_info = bare_breakdown.get("technology", {})
-    print(f"       - أبحاث معهد القيادة (#240xx)             : +{tech_info.get('tech_add', 0):,} جندي (مضاعف: +{round(tech_info.get('tech_group_multiplier', 0)*100, 1)}%)")
-    buff_info = bare_breakdown.get("buffs", {})
-    print(f"       - بافات المسيرة النشطة                     : نسبة +{round(buff_info.get('percent_add', 0)*100, 1)}% (+{buff_info.get('percent_bonus_troops', 0):,} جندي) | ثابت: +{buff_info.get('flat_add', 0):,}")
-
-    max_h_info = max_breakdown.get("heroes", {})
-    unlocked_slots = max_breakdown.get("unlocked_hero_slots", 5)
-    print(f"\n   👑 مساهمة أفضل {unlocked_slots} أبطال متاحين بالقلعة (Auto-Selected): +{max_h_info.get('total_hero_add', 0):,} جندي")
-    for h in max_h_info.get("details", []):
-        print(f"       - بطل #{h.get('hero_id')} ({h.get('name')}): Lv.{h.get('level')} (ندرة {h.get('rarity')}) -> سعة أساسية: +{h.get('level_march_add'):,} | مهارات: +{h.get('skill_march_add'):,} (إجمالي: +{h.get('total_hero_add'):,})")
-
-    if sample_heroes and hero_breakdown:
-        h_info = hero_breakdown.get("heroes", {})
-        print(f"\n   • سعة الفيلق عند تمرير أبطال محددين {sample_heroes}: {hero_cap_int:,} جندي (زيادة الأبطال: +{h_info.get('total_hero_add', 0):,})")
-
-    print(f"\n   ⚡ زمن الحساب بالذاكرة الحية                    : {t_elapsed_ms:.3f} ms (0-Network)")
+    print(f"   • السعة الإجمالية القصوى للفيلق        : {total_cap:,} جندي")
+    print(f"   • السعة الدائمة غير المتغيرة (بدون مؤقت) : {unchangesize:,} جندي")
+    print(f"   • حالة البافات الإضافية              : {'🟢 نشطة (أخضر)' if cap_data.get('is_buffed') else '⚪ عادية'}")
+    print(f"   ──────────────────────────────────────────────────────────────────")
+    print(f"   🏛️ مبنى ساحة العرض (BID 121)         : Lv.{bd.get('drill_grounds_level')} (نجوم: {bd.get('drill_grounds_star')}) -> {bd.get('base_drill_grounds', 0):,} جندي")
+    print(f"   ⚙️ الثابت الرياضي الافتراضي للعبة       : +{bd.get('default_game_constant', 1000):,} جندي")
+    print(f"   🔬 أبحاث القيادة ومعهد العلوم (#240xx)  : +{bd.get('tech_flat_add', 0):,} جندي (مجموعات العلوم: +{bd.get('tech_group_percent', 0.0)}%)")
+    print(f"   👗 بافات مظاهر الأبطال السلبية (Effect 96): +{bd.get('hero_dress_flat_add', 0):,} جندي")
+    print(f"   📦 بافات المسيرة الثابتة النشطة (Effect 96): +{bd.get('buff_flat_add', 0):,} جندي")
+    print(f"   📊 إجمالي الأساس الفعلي (Effective Base): {bd.get('effective_base', 0):,} جندي")
+    print(f"   ──────────────────────────────────────────────────────────────────")
+    print(f"   🎖️ وسام القائد 'توحيد القوة' (Medal 17) : +{bd.get('achievement_percent', 0.0)}%")
+    print(f"   👑 امتياز الـ VIP/SVIP (Privilege 7219) : +{bd.get('vip_percent', 0.0)}%")
+    print(f"   ⏳ باف المسيرة المئوي المؤقت (Effect 19): +{bd.get('item_buff_percent', 0.0)}%")
+    print(f"   📈 إجمالي النسبة المئوية المطبقة        : +{round(bd.get('total_percent_multiplier', 0.0) * 100, 2)}% (+{bd.get('percent_troop_add', 0):,} جندي)")
+    print(f"   ──────────────────────────────────────────────────────────────────")
+    print(f"   ⚡ زمن الحساب الفوري بالذاكرة الحية     : {t_elapsed_ms:.3f} ms (0-Network)")
     print("═" * 70)
 
     return {
-        "success": bool(max_cap_int > 0),
-        "max_capacity": max_cap_int,
-        "bare_capacity": bare_cap_int,
-        "with_sample_heroes": hero_cap_int,
-        "breakdown": max_breakdown,
+        "success": bool(total_cap > 0),
+        "total_capacity": total_cap,
+        "unchangesize": unchangesize,
+        "breakdown": bd,
         "time_ms": t_elapsed_ms,
     }
 
@@ -1139,8 +1121,6 @@ async def main_async():
             task = BaseTaskHarness(bot_fn.conn, log_func=lambda m: None, config=bot_fn.config)
             if any(k in fn_name.lower() for k in ("march", "queue", "gather", "ruin")):
                 await task.sync_local_queues(timeout=3.0)
-                if "capacity" in fn_name.lower() and hasattr(task, "sync_achievements"):
-                    await task.sync_achievements(timeout=3.0)
                 await asyncio.sleep(0.5)
 
             if fn_name.lower() in ("march_capacity", "single_march", "test_single_march_capacity"):

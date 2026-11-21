@@ -69,9 +69,15 @@ class SkillsTask(BaseTask):
             # فحص حالة المهارة من الذاكرة الحية (0-Network)
             status = self.get_lord_skill_status(resolved_id)
 
-            if not status.get("is_learned"):
-                self.log(f"ℹ️ المهارة [{skill_name}] غير متعلمة في أي طقم مواهب، تم التخطي.")
-                skipped_skills.append(f"{skill_name} (غير متعلمة)")
+            if not status.get("is_learned") or not status.get("is_available"):
+                locked_sets = [sf for sf in status.get("sets_found", []) if not sf.get("is_unlocked")]
+                if locked_sets and not status.get("is_in_active_set"):
+                    reason = locked_sets[0].get("locked_reason") or status.get("switch_blocked_reason") or "طقم المواهب مقفل"
+                    self.log(f"ℹ️ المهارة [{skill_name}] غير متاحة للقلعة حالياً ({reason})، تم التخطي.")
+                    skipped_skills.append(f"{skill_name} (طقم مقفل)")
+                else:
+                    self.log(f"ℹ️ المهارة [{skill_name}] غير متعلمة في أي طقم مواهب متاح، تم التخطي.")
+                    skipped_skills.append(f"{skill_name} (غير متعلمة)")
                 continue
 
             if status.get("in_cooldown"):
@@ -115,8 +121,10 @@ class SkillsTask(BaseTask):
             can_switch = status.get("can_switch_to_set", False)
 
             if not can_activate and not can_switch:
-                self.log(f"⚠️ المهارة [{skill_name}] غير جاهزة للتفعيل في الطقم الحالي ولا يمكن التبديل لطقمها.")
-                skipped_skills.append(f"{skill_name} (غير جاهزة)")
+                blocked_reason = status.get("switch_blocked_reason") or "غير جاهزة للتفعيل في الطقم الحالي ولا يمكن التبديل"
+                self.log(f"⚠️ المهارة [{skill_name}] غير متاحة للتفعيل: {blocked_reason}")
+                label = "VIP منتهي" if ("منتهي" in blocked_reason or "VIP" in blocked_reason) else "غير جاهزة"
+                skipped_skills.append(f"{skill_name} ({label})")
                 continue
 
             # تفعيل المهارة بأمان مع دعم التبديل التلقائي والرجوع

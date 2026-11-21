@@ -394,49 +394,9 @@ class BuildingTask(BaseTask):
     def _is_vip_active(self) -> Tuple[bool, int]:
         """
         فحص دقيق وصارم لسريان امتيازات VIP بناءً على مستوى VIP وتاريخ الانتهاء vipEndTime:
-        - قراءة lordInfoCtrl.vip من الذاكرة الحية (0-Network).
-        - معالجة آمنة لكافة صيغ vipEndTime (int, float, str, null/None).
-        - امتيازات VIP تعتبر نشطة فقط إذا كان level > 0 و vipEndTime > 0 و vipEndTime > time.time().
-        - ترجع (is_active, vip_level).
+        يرث مباشرة من BaseTask (0-Network).
         """
-        lord_info = self.get_ctrl("lordInfoCtrl") or {}
-        vip = lord_info.get("vip", {}) if isinstance(lord_info, dict) else {}
-        if not isinstance(vip, dict):
-            return False, 0
-
-        # استخراج مستوى VIP بأمان
-        vip_lv = 0
-        raw_lv = vip.get("level")
-        if raw_lv is not None:
-            try:
-                vip_lv = int(raw_lv)
-            except (ValueError, TypeError):
-                vip_lv = 0
-
-        if vip_lv <= 0:
-            return False, 0
-
-        # استخراج وقت انتهاء VIP بأمان تام ضد مختلف أنواع البيانات
-        vip_end = 0.0
-        raw_end = vip.get("vipEndTime")
-        if raw_end is not None:
-            try:
-                if isinstance(raw_end, str):
-                    raw_end_str = raw_end.strip()
-                    if raw_end_str and raw_end_str != "0":
-                        vip_end = float(raw_end_str)
-                elif isinstance(raw_end, (int, float)):
-                    vip_end = float(raw_end)
-            except (ValueError, TypeError):
-                vip_end = 0.0
-
-        # دعم التوقيت بالميلي ثانية إن وُجد (أكبر من 100 مليار)
-        if vip_end > 1e11:
-            vip_end /= 1000.0
-
-        now_ts = time.time()
-        is_active = (vip_end > 0.0) and (vip_end > now_ts)
-        return is_active, vip_lv
+        return self.is_vip_active, self.vip_level
 
     def calculate_free_speedup_seconds(self) -> int:
         """

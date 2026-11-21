@@ -415,6 +415,12 @@ class StaminaConfigModel(BaseModel):
     gold_trigger_stamina: int = Field(default=50, ge=0)
     gold_buy_stamina_amount: int = Field(default=50, ge=1)
 
+class MarchManagerConfigModel(BaseModel):
+    enabled: bool = False
+    max_duration_minutes: int = Field(default=20, ge=1, le=120)
+
+    model_config = {"extra": "allow"}
+
 class CastleConfigModel(BaseModel):
     fountain: Optional[FountainConfig] = None
     train: Optional[TrainConfig] = None
@@ -438,6 +444,8 @@ class CastleConfigModel(BaseModel):
     skills: Optional[SkillsConfigModel] = None
     material_workshop: Optional[MaterialWorkshopConfigModel] = None
     stamina: Optional[StaminaConfigModel] = None
+    caravan: Optional[SimpleToggleConfig] = None
+    march_manager: Optional[MarchManagerConfigModel] = None
 
     @model_validator(mode="before")
     @classmethod

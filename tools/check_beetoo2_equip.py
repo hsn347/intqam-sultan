@@ -1,22 +1,10 @@
-# -*- coding: utf-8 -*-
-import sys, os
-sys.path.insert(0, '.')
-import asyncio
 import json
-import core.database as db
-from bot_manager import CastleBot
 
-async def check():
-    c_data = db.get_castle_by_id('beetoo2@hotmail.com')
-    bot = CastleBot(email='beetoo2@hotmail.com', password=c_data.get('password'), log_callback=lambda m: None)
-    bot.is_running = True
-    await bot.connect()
-    equip = bot.conn.init_data.get('equipmentCtrl', {})
-    arr = equip.get('equipment_array', [])
-    print(f"Total equipment in array: {len(arr)}")
-    for i, eq in enumerate(arr):
-        print(f"[{i}] {eq}")
-    if bot.conn:
-        await bot.conn.close()
+with open('tools/beetoo2_full_init_data.json', 'r', encoding='utf-8') as f:
+    d2 = json.load(f)
 
-asyncio.run(check())
+equip_array = d2.get('equipmentCtrl', {}).get('equipment_array', [])
+print(f"Total equipment in beetoo2: {len(equip_array)}")
+for eq in equip_array:
+    if eq.get('wear') == 1:
+        print("Equipped in beetoo2:", eq)

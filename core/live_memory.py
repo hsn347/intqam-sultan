@@ -77,6 +77,7 @@ ALLOWED_CONTROLLERS: FrozenSet[str] = frozenset({
     "taskCtrl",
     "questCtrl",
     "everydayTaskCtrl",
+    "achievementctrl",
     "commandHall",
     "commandHallCtrl",
     "armyGroupTaskData",
@@ -114,6 +115,10 @@ ALLOWED_CONTROLLERS: FrozenSet[str] = frozenset({
     "arenaCtrl",
     "stuffWorkshopCtrl",
     "stuffWorkshop",
+    "dressCtrl",
+    "godArmsCtrl",
+    "militaryRankCtrl",
+    "warGemCtrl",
 
     # --- Aliases & Internal State Keys (10) ---
     "lord",

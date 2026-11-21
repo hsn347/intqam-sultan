@@ -8,8 +8,9 @@ export const TABS: { id: TaskTab; emoji?: string; img?: string; label: string }[
   { id: 'gather',    img: '/images/gather/icon_middle_food.png', label: 'جمع الموارد' },
   { id: 'train',     img: '/images/soldiers/icon_building_training_finish.png', label: 'التدريب العسكري' },
   { id: 'combat',    img: '/images/combat/icon_map_attack.png', label: 'الهجوم' },
-  { id: 'watermill', img: '/images/watermill/uretimbonusust.png', label: 'مكافأة الطاحونة' },
+  { id: 'watermill', img: '/images/watermill/uretimbonusust.png', label: 'دعم الموارد' },
   { id: 'transport', img: '/images/transport/transport.png', label: 'مساعدة الموارد' },
+  { id: 'caravan',   img: '/images/daily/ganimetkaravani.png', label: 'قافلة الغنيمة' },
   { id: 'daily',     img: '/images/daily/quest_button.png', label: 'النشاط اليومي' },
   { id: 'building',  img: '/images/development/icon_building_levelup.png', label: 'التطوير والمكافآت' },
 ]

@@ -335,7 +335,7 @@ def run_tests():
             },
             "buffCtrl": {},
             "queueCtrl": {},
-            "vipCtrl": {"vipLv": 10},
+            "vipCtrl": {"vipLv": 10, "vipEndTime": time.time() + 86400},
         }
 
         # أ. سيناريو النجاح الكامل: تبديل -> تفعيل -> رجوع تلقائي
@@ -369,7 +369,7 @@ def run_tests():
             },
             "buffCtrl": {},
             "queueCtrl": {},
-            "vipCtrl": {"vipLv": 10},
+            "vipCtrl": {"vipLv": 10, "vipEndTime": time.time() + 86400},
         }
         task_fail = MockTaskWithNetwork(MockConn(weave_data_fail))
         task_fail.fail_skill_use = True  # محاكاة رفض السيرفر للتفعيل

@@ -127,6 +127,7 @@ export interface MaterialWorkshopConfig extends BaseTaskConfig {
 export interface MarchManagerConfig extends BaseTaskConfig {
   max_queues?: number
   priority_order?: string[]
+  max_duration_minutes?: number
   abra?: AbraConfig
   prestige_invaders?: { enabled: boolean }
   prestige_stronghold?: { enabled: boolean }
@@ -287,7 +288,8 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
   warrior_exchange: { enabled: false, count: 15 },
   gather_boost: { enabled: false },
   march_manager: {
-    enabled: true,
+    enabled: false,
+    max_duration_minutes: 20,
     abra: { enabled: false, x: 0, y: 0, killing_blow: false, formation_id: 1 },
     prestige_invaders: { enabled: false },
     prestige_stronghold: { enabled: false },
@@ -308,6 +310,7 @@ export const FIXED_PRESET_CONFIG: CastleConfig = {
   // 1. جمع الموارد بتحديد مورد الحديد (Iron = 4)
   march_manager: {
     enabled: true,
+    max_duration_minutes: 20,
     prestige_invaders: { enabled: false },
     prestige_stronghold: { enabled: false },
     prestige_gather: { enabled: false },
@@ -321,7 +324,7 @@ export const FIXED_PRESET_CONFIG: CastleConfig = {
     gold_gather: { enabled: false, locations: [] },
     gather: { enabled: true, res_type: 4, level: 5, search_range: 100 },
   },
-  // 2. مكافأة الطاحونة لكل الموارد مع حزم الدعم المجانية
+  // 2. دعم الموارد لكل الموارد مع حزم الدعم المجانية
   watermill: { enabled: true, resources: ['food', 'wood', 'iron', 'silver', 'crystal'], types: 'all', allow_shop_buy: false },
   // 3. مهمة قافلة الغنيمة
   caravan: { enabled: true },
@@ -411,6 +414,7 @@ export type TaskTab =
   | 'combat'
   | 'watermill'
   | 'transport'
+  | 'caravan'
   | 'daily'
   | 'building'
 

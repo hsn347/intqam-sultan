@@ -1,11 +1,18 @@
+import os
+import sys
 import json
 
-with open(r"e:\intqam-sultan\tools\beetoo2_full_init_data.json", "r", encoding="utf-8") as f:
-    data = json.load(f)
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
-eq = data.get("equipmentCtrl", {})
-print("equipmentCtrl keys:", list(eq.keys()))
-for k, v in eq.items():
-    print(f"\n--- {k} ---")
-    s = json.dumps(v, indent=2)
-    print(s[:500] if len(s) > 500 else s)
+from tasks.march_capacity import load_account_init_data
+
+def inspect_equipment():
+    _, init_data = load_account_init_data("beetoo1", offline=True)
+    eq = init_data.get("equipmentCtrl", {})
+    print("equipmentCtrl keys:", list(eq.keys()))
+    print(json.dumps(eq, indent=2))
+
+if __name__ == "__main__":
+    inspect_equipment()

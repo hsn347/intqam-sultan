@@ -720,6 +720,8 @@ function TaskTabContentInner({
     const skillsDraft = (currentDraft as any)?.skills
     const materialWorkshopDraft = (currentDraft as any)?.material_workshop
     const staminaDraft = (currentDraft as any)?.stamina
+    const caravanDraft = (currentDraft as any)?.caravan
+    const marchManagerDraft = (currentDraft as any)?.march_manager
     isSavingRef.current = true
     setSaveStatus('saving')
     try {
@@ -745,6 +747,8 @@ function TaskTabContentInner({
         skills: skillsDraft,
         material_workshop: materialWorkshopDraft,
         stamina: staminaDraft,
+        caravan: caravanDraft,
+        march_manager: marchManagerDraft,
       } as any)
       lastSavedConfigRef.current = JSON.parse(JSON.stringify(currentDraft))
       setSavedConfig(JSON.parse(JSON.stringify(currentDraft)))
@@ -936,6 +940,8 @@ function TaskTabContentInner({
     const skillsConfig = (draftConfig as any)?.skills
     const materialWorkshopConfig = (draftConfig as any)?.material_workshop
     const staminaConfig = (draftConfig as any)?.stamina
+    const caravanConfig = (draftConfig as any)?.caravan
+    const marchManagerConfig = (draftConfig as any)?.march_manager
     const payloadToSave = {
       ...(fountainConfig !== undefined ? { fountain: fountainConfig } : {}),
       ...(trainConfig !== undefined ? { train: trainConfig } : {}),
@@ -958,6 +964,8 @@ function TaskTabContentInner({
       ...(skillsConfig !== undefined ? { skills: skillsConfig } : {}),
       ...(materialWorkshopConfig !== undefined ? { material_workshop: materialWorkshopConfig } : {}),
       ...(staminaConfig !== undefined ? { stamina: staminaConfig } : {}),
+      ...(caravanConfig !== undefined ? { caravan: caravanConfig } : {}),
+      ...(marchManagerConfig !== undefined ? { march_manager: marchManagerConfig } : {}),
     }
     try {
       if (isBatchMode) {
@@ -1192,6 +1200,8 @@ function TaskTabContentInner({
   // 3. الهجوم (Combat / march_manager)
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'combat') {
+    const mm = (cfg as any).march_manager || { enabled: false, max_duration_minutes: 20 }
+    const isMmEnabled = Boolean(mm.enabled)
     const combatTasks = [
       { key: 'elf', img: '/images/combat/elitifrit.png', labelKey: 'tasks.eliteEfreet' },
       { key: 'invaders', img: '/images/combat/yagmaci.png', labelKey: 'tasks.invaders' },
@@ -1203,12 +1213,55 @@ function TaskTabContentInner({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <TaskRow
+          id="march_manager"
           img="/images/combat/icon_map_attack.png"
-          label={t('tasks.attack')}
-          enabled={false}
-          onToggle={() => {}}
-          comingSoon={true}
-        />
+          label={t('tasks.march_manager', 'مدير المسيرات والفيالق')}
+          description={t('tasks.marchManagerDesc', 'إدارة وتنسيق مسيرات الهجوم والعمليات العسكرية خارج القلعة وفق مدة زمنية محسوبة')}
+          enabled={isMmEnabled}
+          onToggle={toggle('march_manager' as any)}
+          comingSoon={false}
+          badge={
+            isMmEnabled ? (
+              <span style={{ fontSize: '11px', color: '#fbbf24', background: 'rgba(251, 191, 36, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+                {`${mm.max_duration_minutes || 20} ${t('minutes', 'دقائق')}`}
+              </span>
+            ) : undefined
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <span style={{ fontSize: '13px', color: '#e5e7eb' }}>
+                {t('tasks.maxDurationMinutes', 'الحد الأقصى للمدة الزمنية لدورة المسيرات:')}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={mm.max_duration_minutes || 20}
+                  onChange={e => {
+                    const val = Math.max(1, Math.min(120, parseInt(e.target.value) || 20))
+                    update('march_manager' as any, { max_duration_minutes: val })
+                  }}
+                  style={{
+                    width: '70px',
+                    padding: '4px 8px',
+                    background: 'rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: '4px',
+                    color: '#fff',
+                    textAlign: 'center',
+                    fontSize: '13px',
+                  }}
+                />
+                <span style={{ fontSize: '12px', color: '#9ca3af' }}>{t('minutes', 'دقائق')}</span>
+              </div>
+            </div>
+            <div style={{ fontSize: '11px', color: '#9ca3af', lineHeight: '1.4' }}>
+              {t('tasks.marchManagerDurationHint', 'يقوم المدير بتشغيل المهام تباعاً ويخرج فوراً عند اكتمالها أو بلوغ هذه المدة القصوى (افتراضياً 20 دقيقة).')}
+            </div>
+          </div>
+        </TaskRow>
         {combatTasks.map(c => (
           <TaskRow
             key={c.key}
@@ -1226,7 +1279,7 @@ function TaskTabContentInner({
 
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 4. مكافأة الطاحونة (Watermill)
+  // 4. دعم الموارد (Watermill / Resource Support)
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'watermill') {
     const wm = (cfg as any).watermill || { enabled: false, resources: ['food', 'wood', 'iron', 'silver', 'crystal'] }
@@ -1381,7 +1434,26 @@ function TaskTabContentInner({
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 6. النشاط اليومي (Daily Activity)
+  // 6. قافلة الغنيمة (Caravan)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (tab === 'caravan') {
+    const crv = cfg.caravan || { enabled: false }
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <TaskRow
+          id="caravan"
+          img="/images/daily/ganimetkaravani.png"
+          label={t('tasks.lootCaravan')}
+          enabled={Boolean(crv.enabled)}
+          onToggle={toggle('caravan')}
+          comingSoon={false}
+        />
+      </div>
+    )
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 7. النشاط اليومي (Daily Activity)
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'daily') {
     const sh = cfg.shield || { enabled: false, duration: '8h', allow_gold: false }
@@ -1396,12 +1468,6 @@ function TaskTabContentInner({
     const ch = (cfg as any).command_hall || { enabled: false, mode: 'daily', allow_marches: false, auto_claim_rewards: true, auto_upgrade_hall: true }
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {/* قافلة الغنيمة */}
-        <TaskRow
-          img="/images/daily/ganimetkaravani.png" label={t('tasks.lootCaravan')}
-          enabled={cfg.caravan.enabled} onToggle={toggle('caravan')}
-        />
-
         {/* مهام التحالف (التبرع لعلوم التحالف) */}
         <TaskRow
           id="alliance"

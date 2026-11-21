@@ -30,6 +30,8 @@ from tasks.skills import SkillsTask
 from tasks.material_workshop import MaterialWorkshopTask
 from tasks.stamina import StaminaTask
 from tasks.watermill import WatermillTask
+from tasks.march_manager import MarchManagerTask
+from tasks.exclude_manager import ExcludeManager, get_manager
 
 __all__ = [
     "BaseTask",
@@ -61,4 +63,7 @@ __all__ = [
     "MaterialWorkshopTask",
     "StaminaTask",
     "WatermillTask",
+    "MarchManagerTask",
+    "ExcludeManager",
+    "get_manager",
 ]

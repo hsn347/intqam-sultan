@@ -1,0 +1,60 @@
+{
+  "source": "c",
+  "cmd": "2122",
+  "subcmd": "1",
+  "pid": 11299184,
+  "err": "0",
+  "rspdata": {
+    "initData": {
+      "armsList": {
+        "6100131": {
+          "armsID": 6100131,
+          "curRefineTimes": 0,
+          "totalRefineTimes": 31,
+          "level": 9,
+          "advanceRefineTimes": 0,
+          "awakeStatus": 0,
+          "exp": 600,
+          "skillList": {
+            "61001313": {
+              "skillID": 61001313,
+              "isActive": false,
+              "activeLevel": 40
+            },
+            "61001311": {
+              "skillID": 61001311,
+              "isActive": true,
+              "activeLevel": 1
+            },
+            "61001312": {
+              "skillID": 61001312,
+              "isActive": false,
+              "activeLevel": 20
+            },
+            "61001314": {
+              "skillID": 61001314,
+              "isActive": false,
+              "activeLevel": 80
+            }
+          },
+          "normalRefineTimes": 0,
+          "activeSkillList": [
+            {
+              "skillID": 61001315,
+              "isActive": false,
+              "activeLevel": 60
+            }
+          ],
+          "skillCD": {},
+          "marchCount": 0
+        }
+      },
+      "lastRefreshTime": 1795251542,
+      "lastShareTime": 0,
+      "defendArmID": 0
+    }
+  },
+  "data": {},
+  "_session": 1,
+  "_ok": true
+}

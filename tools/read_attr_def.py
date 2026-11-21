@@ -1,5 +1,13 @@
-with open(r"e:\intqam-sultan\game_file\src\app\module\newBuff\attributeDef.lua", "r", encoding="utf-8", errors="ignore") as f:
-    lines = f.readlines()
-for i, l in enumerate(lines):
-    if "DISPATCH_TROOP" in l or "DISPATCH" in l or "MARCH" in l or "ARMY" in l:
-        print(f"{i+1}: {l.strip()}")
+import os
+
+for root, dirs, files in os.walk(r"E:\intqam-sultan\game_file\src\app"):
+    for f in files:
+        if "attribute" in f.lower():
+            print("attribute file:", os.path.join(root, f))
+            try:
+                with open(os.path.join(root, f), "r", encoding="utf-8", errors="ignore") as fl:
+                    for line in fl:
+                        if "DISPATCH_TROOP_COUNT_NUM" in line:
+                            print("  FOUND:", line.strip())
+            except Exception:
+                pass

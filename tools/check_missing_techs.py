@@ -1,28 +1,17 @@
-# -*- coding: utf-8 -*-
-import sys, os, json, asyncio
+import json
+import sys
 sys.path.insert(0, '.')
-from bot_manager import CastleBot
-import core.database as db
+from tasks.base_task import _load_march_data_tables
 
-async def main():
-    c = db.get_castle_by_id('beetoo2@hotmail.com')
-    b = CastleBot('beetoo2@hotmail.com', c.get('password'), config={}, log_callback=lambda m: None)
-    b.is_running = True
-    await b.connect()
-    init = b.conn.init_data
-    techs = init.get('technologyCtrl', {})
-    
-    with open('tools/march_data_tables.json', 'r', encoding='utf-8') as f:
-        tables = json.load(f)
-    tech_tables = tables.get('techs', {})
-    
-    missing = []
-    for tid_str, tdata in techs.items():
-        tid = int(tdata[0]) if isinstance(tdata, (list, tuple)) and len(tdata) > 0 else int(tid_str)
-        if str(tid) not in tech_tables:
-            missing.append(tid)
-    print(f"Techs missing from tech_tables: {missing}")
-    if b.conn:
-        await b.conn.close()
+tables = _load_march_data_tables()
+tech_tables = tables.get('techs', {})
 
-asyncio.run(main())
+with open('tools/beetoo1_full_init_data.json', 'r', encoding='utf-8') as f:
+    d1 = json.load(f)
+
+tctrl = d1.get('technologyCtrl', {})
+missing = []
+for tid_str in tctrl:
+    if str(tid_str) not in tech_tables:
+        missing.append(tid_str)
+print("Missing techs from tech_tables:", missing)

@@ -70,6 +70,7 @@ from tasks import (
     MaterialWorkshopTask,
     StaminaTask,
     WatermillTask,
+    MarchManagerTask,
 )
 
 # قائمة المهام المسجلة في دورة البوت التلقائية
@@ -98,6 +99,7 @@ REGISTERED_TASKS = [
     HeroTrialTask,
     StaminaTask,
     CommandHallTask,
+    MarchManagerTask,
     SkillsTask,
     DailyQuestTask,
 ]
@@ -140,6 +142,7 @@ TASK_METADATA: Dict[str, Tuple[str, str]] = {
     "daily_quest": ("📋", "المهام اليومية"),
     "skills": ("⚡", "مهارات اللورد"),
     "watermill": ("🌾", "مكافأة الحقول"),
+    "march_manager": ("⚔️", "مدير المسيرات"),
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -275,6 +278,13 @@ DEFAULT_BOT_CONFIG: Dict[str, Any] = {
             "gold_trigger_stamina": 50,       # سقف طاقة القلعة لتفعيل الشراء بالذهب
             "gold_buy_stamina_amount": 50,    # كمية الطاقة للشراء في المرة الواحدة بالذهب
         },
+        "caravan": {                          # قافلة الغنيمة
+            "enabled": False,
+        },
+        "march_manager": {                    # مدير المسيرات والفيالق (العمليات العسكرية بالخارج)
+            "enabled": False,
+            "max_duration_minutes": 20,
+        },
     }
 }
 
@@ -383,7 +393,7 @@ class CastleBot:
                 tasks_cfg.update(saved_cfg["tasks"])
 
             # إعدادات المهام المباشرة في جذر config هي صاحبة الأولوية المطلقة (تعديلات المستخدم في الواجهة)
-            for t_name in ("fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "material_workshop", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest", "watermill", "skills", "stamina"):
+            for t_name in ("fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "material_workshop", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest", "watermill", "skills", "stamina", "caravan", "march_manager"):
                 if t_name in saved_cfg:
                     tasks_cfg[t_name] = saved_cfg[t_name]
 
@@ -391,7 +401,7 @@ class CastleBot:
             tasks_cfg.setdefault("daily_quest", {"enabled": True})
 
             for k, v in saved_cfg.items():
-                if k not in ("tasks", "fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "material_workshop", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest", "watermill", "skills", "stamina"):
+                if k not in ("tasks", "fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "material_workshop", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest", "watermill", "skills", "stamina", "caravan"):
                     self.config[k] = v
         except Exception:
             pass
