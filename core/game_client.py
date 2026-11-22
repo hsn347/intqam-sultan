@@ -1659,6 +1659,16 @@ class GameConnection:
                         log.info(f"[{self.account.email}] ✓ تم إرسال حزمة تفعيل نبض القلب الرسمية (CMD=1037, SUBCMD=2, switch=True).")
                     except Exception:
                         pass
+
+                    # مزامنة طوابير المسيرات النشطة مرة واحدة عند الدخول (CMD 1007 / 1000)
+                if self._alive and self.is_connected:
+                    try:
+                        await asyncio.sleep(random.uniform(0.2, 0.5))
+                        await self.query("1007", "1000", {}, timeout=8.0)
+                        log.info(f"[{self.account.email}] ✓ تمت مزامنة طوابير المسيرات النشطة (CMD=1007/1000).")
+                    except Exception as e:
+                        log.warning(f"[{self.account.email}] تعذرت مزامنة طوابير المسيرات (1007/1000): {e}")
+                
             except asyncio.TimeoutError:
                 self.emit_brief_log(f"🌐 [{self.account_short_name}] تهيئة اللعبة والذاكرة الحية (1000/1) ❌")
                 log.warning(f"[{self.account.email}] لم يتم استلام حزمة session 0 خلال 12 ثانية.")

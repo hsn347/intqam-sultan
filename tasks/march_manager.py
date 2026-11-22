@@ -1,6 +1,20 @@
 # -*- coding: utf-8 -*-
 """
 python tasks/march_manager.py --email beetoo2@hotmail.com --formation 3
+
+
+python tasks/march_manager.py --email beetoo1@hotmail.com --treasure-escort
+
+
+python tasks/march_manager.py --email beetoo3@hotmail.com --relics-explore
+
+python tasks/march_manager.py --email beetoo1@hotmail.com --search-resource wood --res-level 6
+
+
+
+python tasks/march_manager.py --email beetoo3@hotmail.com --search-monster --monster-type nebula --monster-level 20
+
+
 """
 from __future__ import annotations
 
@@ -8,11 +22,12 @@ import argparse
 import math
 import asyncio
 import json
+import random
 import logging
 import os
 import sys
 import time
-from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple, Type
+from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple, Type , Union
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PROJECT_ROOT not in sys.path:
@@ -82,6 +97,54 @@ ALLIANCE_TRADING_WEIGHT_BY_LV: Dict[int, float] = {
     0: 0.0, 1: 0.01, 2: 0.02, 3: 0.03, 4: 0.04, 5: 0.05,
     6: 0.06, 7: 0.07, 8: 0.08, 9: 0.09, 10: 0.10,
 }
+
+# ── أنواع مسيرات حراسة الكنز الرسمية (src/app/constdef/mapDef.lua -> gMapMoveLineServerType) ──
+MOVE_LINE_TYPE_ESCORT = 22         # إرسال الكنز تحت الحراسة (مسيرة حراسة الكنز الخاصة بك)
+MOVE_LINE_TYPE_ESCORT_ASSIST = 23  # مساعدة حراسة الكنز لعضو التحالف
+
+MOVE_LINE_TYPE_RELICS_EXPLORE = 5        # استكشاف الأطلال (نوع السيرفر)
+MOVE_LINE_CLIENT_RELICS_EXPLORE = 4      # استكشاف الأطلال (نوع العميل)
+
+
+
+MOVE_LINE_TYPE_KILL_NPC = 1              # الهجوم على الوحوش (نوع السيرفر)
+
+# ── مهام النشاط اليومي الخاصة بالمسيرات (daily_reward_point_config.lua) ──
+# الصيغة: مفتاح القاموس -> (task_type في eventInfo, الحد المطلوب limitTime, نوع المورد في الخريطة أو None للوحوش)
+DAILY_MARCH_TASKS_SPEC: Dict[str, Tuple[int, int, Optional[int]]] = {
+    "attack_monsters": (5, 5, None),  # أهجم على الوحوش
+    "gather_food":     (1, 5, 2),     # جمع القمح
+    "gather_wood":     (2, 5, 3),     # جمع الخشب
+    "gather_iron":     (3, 5, 4),     # جمع الحديد
+    "gather_silver":   (4, 5, 5),     # جمع الفضة
+}
+
+# ── البحث عن الموارد وسعات البلاطات الرسمية (findMonsterCtrl.lua & resource.lua) ──
+CMD_WORLD_SEARCH = "2083"
+SUBCMD_SEARCH_RESOURCE = "2"
+CMD_KINGDOM_MAP = "1006"
+SUBCMD_MAP_OBJ_INFO = "15"
+
+RESOURCE_SEARCH_ALIASES: Dict[str, Tuple[int, str]] = {
+    "1": (1, "gold"),    "1001": (1, "gold"),    "gold": (1, "gold"),       "ذهب": (1, "gold"),
+    "2": (2, "food"),    "1002": (2, "food"),    "food": (2, "food"),       "قمح": (2, "food"), "طعام": (2, "food"),
+    "3": (3, "wood"),    "1003": (3, "wood"),    "wood": (3, "wood"),       "خشب": (3, "wood"),
+    "4": (4, "iron"),    "1004": (4, "iron"),    "iron": (4, "iron"),       "حديد": (4, "iron"),
+    "5": (5, "silver"),  "1005": (5, "silver"),  "silver": (5, "silver"),   "mithril": (5, "silver"), "فضة": (5, "silver"),
+    "6": (6, "crystal"), "1006": (6, "crystal"), "crystal": (6, "crystal"), "كريستال": (6, "crystal"), "بلور": (6, "crystal"),
+}
+
+# السعة القصوى الرسمية لكل بلاطة مورد حسب (resType, level) من resource.lua (outputNum)
+WORLD_RESOURCE_MAX_CAPACITY: Dict[int, Dict[int, int]] = {
+    1: {1: 12, 2: 22, 3: 35, 4: 55, 5: 75, 6: 105, 7: 135, 8: 170, 9: 205, 10: 250},
+    2: {1: 20000, 2: 38000, 3: 75000, 4: 130000, 5: 200000, 6: 300000, 7: 400000, 8: 530000, 9: 670000, 10: 830000},
+    3: {1: 20000, 2: 38000, 3: 75000, 4: 130000, 5: 200000, 6: 300000, 7: 400000, 8: 530000, 9: 670000, 10: 830000},
+    4: {1: 3300, 2: 6300, 3: 12500, 4: 21600, 5: 33300, 6: 50000, 7: 66600, 8: 88300, 9: 111600, 10: 138300},
+    5: {1: 800, 2: 1550, 3: 3100, 4: 5400, 5: 8300, 6: 12500, 7: 16650, 8: 22050, 9: 27900, 10: 34550},
+    6: {1: 200, 2: 390, 3: 780, 4: 1350, 5: 2080, 6: 3120, 7: 4160, 8: 5520, 9: 6970, 10: 8640},
+}
+
+
 
 
 class MarchManagerTask(BaseTask):
@@ -256,6 +319,103 @@ class MarchManagerTask(BaseTask):
             "marches_detail": eta_data.get("marches", []),
         }
 
+    def has_treasure_escort_march(self, include_assist: bool = False) -> bool:
+        """
+        التحقق من وجود مسيرة حراسة الكنز نشطة حالياً للقلعة من الذاكرة الحية فقط (0-Network)،
+        مطابق لـ kingdomMapCtrl:hasEscortQueue() (kingdomMapCtrl.lua:1194 & mapDef.lua:343).
+
+        Args:
+            include_assist: إذا كانت True تشمل أيضاً مسيرة مساعدة حراسة كنز عضو التحالف (type=23).
+
+        Returns:
+            True إذا وُجدت مسيرة حراسة كنز نشطة، وإلا False.
+        """
+        target_server_types = (
+            (MOVE_LINE_TYPE_ESCORT, MOVE_LINE_TYPE_ESCORT_ASSIST)
+            if include_assist
+            else (MOVE_LINE_TYPE_ESCORT,)
+        )
+        target_client_types = (11, 13) if include_assist else (11,)
+
+        for q, _status in self._iter_my_active_queues():
+            q_type = self._safe_int(q.get("type") or q.get("queueType"), 0)
+            m_type = self._safe_int(q.get("moveLineType"), 0)
+            if q_type in target_server_types or m_type in target_client_types:
+                return True
+        return False
+    
+    def has_relics_explore_march(self) -> bool:
+        """
+        التحقق من وجود مسيرة استكشاف أطلال نشطة حالياً للقلعة من الذاكرة الحية فقط (0-Network)،
+        مطابق لـ kingdomMapCtrl.lua:1156 و mapDef.lua:326,384.
+        """
+        for q, _status in self._iter_my_active_queues():
+            q_type = self._safe_int(q.get("type") or q.get("queueType"), 0)
+            m_type = self._safe_int(q.get("moveLineType"), 0)
+            if q_type == MOVE_LINE_TYPE_RELICS_EXPLORE or m_type == MOVE_LINE_CLIENT_RELICS_EXPLORE:
+                return True
+        return False
+
+    def get_daily_march_tasks_status(self) -> Dict[str, Dict[str, Any]]:
+        """
+        فحص حالة إنجاز مهام النشاط اليومي الخمس (الوحوش، القمح، الخشب، الحديد، الفضة)
+        من الذاكرة الحية فقط (0-Network) مطابق لـ everydayTaskCtrl:isTaskCompleted():
+          - completed: True إذا كانت المهمة منجزة (progress >= 5)، وإلا False.
+          - has_active_march: يُفحص فقط إذا كانت المهمة غير منجزة (completed=False)
+            للتحقق من وجود مسيرة نشطة حالياً لها في local_queues.
+        """
+        snapshot = self._get_live_snapshot()
+        et_ctrl = snapshot.get("everydayTaskCtrl")
+        event_info = et_ctrl.get("eventInfo") if isinstance(et_ctrl, dict) else None
+        if not isinstance(event_info, dict):
+            event_info = {}
+
+        # فحص كسول لطوابير المسيرات (فقط عند الحاجة لمهمة غير منجزة)
+        active_gather_res: Optional[Set[int]] = None
+        has_monster_march: Optional[bool] = None
+
+        result: Dict[str, Dict[str, Any]] = {}
+        for task_key, (task_type, target_limit, res_sub_type) in DAILY_MARCH_TASKS_SPEC.items():
+            progress = self._safe_int(event_info.get(str(task_type), event_info.get(task_type, 0)), 0)
+            completed = progress >= target_limit
+
+            has_active_march = False
+            if not completed:
+                if res_sub_type is None:
+                    # فحص وجود مسيرة هجوم على وحوش نشطة (type=1)
+                    if has_monster_march is None:
+                        has_monster_march = any(
+                            self._safe_int(q.get("type") or q.get("queueType"), 0) == MOVE_LINE_TYPE_KILL_NPC
+                            for q, _st in self._iter_my_active_queues()
+                        )
+                    has_active_march = has_monster_march
+                else:
+                    # فحص وجود مسيرة جمع نشطة لهذا المورد تحديداً (0-Network)
+                    if active_gather_res is None:
+                        active_gather_res = self.get_active_gather_resource_types(force_sync=False)
+                    has_active_march = res_sub_type in active_gather_res
+
+            result[task_key] = {
+                "completed": completed,
+                "has_active_march": has_active_march,
+                "progress": min(progress, target_limit),
+                "target": target_limit,
+            }
+
+        return result
+
+    def has_available_march(self, require_soldiers: bool = False) -> bool:
+        """
+        التحقق من وجود فيلق شاغر واحد على الأقل قابل للإرسال (0-Network).
+        - require_soldiers=False: يتحقق فقط من وجود خانة فيلق شاغرة.
+        - require_soldiers=True : يتحقق من وجود خانة فيلق شاغرة + وجود جنود متاحين في القلعة.
+        """
+        if self.get_available_marches_count() <= 0:
+            return False
+        if require_soldiers and not self.get_available_soldiers():
+            return False
+        return True
+    
     # ═════════════════════════════════════════════════════════════════════════
     # 5. الأبطال المتاحون للإرسال (Available Heroes - 0-Network)
     # ═════════════════════════════════════════════════════════════════════════
@@ -621,7 +781,829 @@ class MarchManagerTask(BaseTask):
             "divine_beast_ids": divine_beast_ids,
         }
 
+    def _get_castle_coords_and_kingdom(self) -> Tuple[int, int, int]:
+        """استخراج إحداثيات القلعة الحالية (مطابق لـ cityCtrl:getCurCityPos) ورقم المملكة من BaseTask.kingdom_id."""
+        cx, cy = 0, 0
 
+        # 1. المصدر الرسمي الأول: cityCtrl.cinfo.pos (الإحداثيات الحالية الفعلية للقلعة على الخريطة)
+        city_ctrl = self.get_ctrl("cityCtrl")
+        if isinstance(city_ctrl, dict):
+            cinfo = city_ctrl.get("cinfo")
+            if isinstance(cinfo, dict):
+                pos = cinfo.get("pos")
+                if isinstance(pos, dict):
+                    cx = self._safe_int(pos.get("x"), 0)
+                    cy = self._safe_int(pos.get("y"), 0)
+
+        # 2. احتياطي فقط في حال عدم توفر cityCtrl.cinfo.pos
+        if cx <= 0 and cy <= 0:
+            lord_ctrl = self.get_ctrl("lordInfoCtrl")
+            base = lord_ctrl.get("base", {}) if isinstance(lord_ctrl, dict) else {}
+            source_pos = base.get("sourcePos", {}) if isinstance(base.get("sourcePos"), dict) else {}
+            cx = self._safe_int(source_pos.get("x", base.get("x", 0)), 0)
+            cy = self._safe_int(source_pos.get("y", base.get("y", 0)), 0)
+
+        # استدعاء رقم المملكة من الخاصية الرسمية الموروثة من base_task.py
+        kid = self.kingdom_id
+        return cx, cy, kid
+
+    def _is_coord_targeted_by_any_march(self, tx: int, ty: int) -> bool:
+        """التحقق من وجود أي مسيرة نشطة (لقلعتنا أو لغيرنا) متجهة إلى (tx, ty) من الذاكرة الحية."""
+        all_queues: List[Any] = list(self._read_live_local_queues(self.conn) or [])
+        if hasattr(self, "_read_live_other_queues"):
+            all_queues.extend(self._read_live_other_queues(self.conn) or [])
+
+        for q in all_queues:
+            if not isinstance(q, dict):
+                continue
+            st = self._safe_int(q.get("status"), -1)
+            if st not in ACTIVE_MARCH_QUEUE_STATUSES:
+                continue
+            to_pos = q.get("to") if isinstance(q.get("to"), dict) else {}
+            qx = self._safe_int(to_pos.get("x") or q.get("target_x"), -1)
+            qy = self._safe_int(to_pos.get("y") or q.get("target_y"), -1)
+            if qx == tx and qy == ty:
+                return True
+        return False
+
+    async def search_best_resource(
+        self,
+        resource_type: Union[str, int],
+        level: int,
+        max_distance: float = 120.0,
+        min_level: int = 2,
+        max_attempts_per_level: int = 3,
+        min_remaining_ratio: float = 0.50,
+        retry_delay_range: Tuple[float, float] = (1.8, 3.8),
+        reserve_found: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        البحث الرسمي عن أفضل مورد متاح على الخريطة عبر CMD 2083/2 + فحص CMD 1006/15:
+        - يبحث عن مورد واحد في كل طلب رسمي (research=True لأول محاولة في كل مستوى، ثم False).
+        - يتحقق من المسافة (<= max_distance) مقارنة بموقع القلعة الفعلي (cityCtrl.cinfo.pos).
+        - يبني معرف الكائن الرسمي "{x+1}-{y+1}-5-{resType}-{resObjId}" لفحص البلاطة عبر 1006/15.
+        - يتحقق أن المورد غير مشغول بأي أمير، وأن موارده المتبقية >= 50% من سعته الرسمية.
+        - إذا كان مشغولاً أو أقل من 50%، يُضاف للاستبعاد ويعاد البحث بنفس المستوى حتى 3 محاولات بحد أقصى.
+        - عند عدم العثور ينزل مستوى واحداً تلقائياً حتى المستوى 2، مع زمن انتظار بشري عشوائي بين المحاولات الفاشلة.
+        """
+        # خريطة أنواع الموارد الرسمية (worldMapMonsterSearch.lua: 1=gold, 2=food, 3=wood, 4=iron, 5=silver, 6=crystal)
+        res_aliases: Dict[str, Tuple[int, str]] = {
+            "1": (1, "gold"), "gold": (1, "gold"), "ذهب": (1, "gold"), "1001": (1, "gold"),
+            "2": (2, "food"), "food": (2, "food"), "wheat": (2, "food"), "قمح": (2, "food"), "طعام": (2, "food"), "1002": (2, "food"),
+            "3": (3, "wood"), "wood": (3, "wood"), "خشب": (3, "wood"), "1003": (3, "wood"),
+            "4": (4, "iron"), "iron": (4, "iron"), "حديد": (4, "iron"), "1004": (4, "iron"),
+            "5": (5, "silver"), "silver": (5, "silver"), "mithril": (5, "silver"), "فضة": (5, "silver"), "1005": (5, "silver"),
+            "6": (6, "crystal"), "crystal": (6, "crystal"), "بلور": (6, "crystal"), "كريستال": (6, "crystal"), "1006": (6, "crystal"),
+        }
+
+        # الجدول الرسمي من resource.lua: (معرف الكائن objId, السعة القصوى outputNum)
+        res_table: Dict[int, Dict[int, Tuple[int, int]]] = {
+            1: {1: (3201, 12), 2: (3202, 22), 3: (3203, 35), 4: (3204, 55), 5: (3205, 75), 6: (3206, 105), 7: (3207, 135), 8: (3208, 170), 9: (3209, 205), 10: (3210, 250)},
+            2: {1: (3301, 20000), 2: (3302, 38000), 3: (3303, 75000), 4: (3304, 130000), 5: (3305, 200000), 6: (3306, 300000), 7: (3307, 400000), 8: (3308, 530000), 9: (3309, 670000), 10: (3310, 830000)},
+            3: {1: (3401, 20000), 2: (3402, 38000), 3: (3403, 75000), 4: (3404, 130000), 5: (3405, 200000), 6: (3406, 300000), 7: (3407, 400000), 8: (3408, 530000), 9: (3409, 670000), 10: (3410, 830000)},
+            4: {1: (3501, 3300), 2: (3502, 6300), 3: (3503, 12500), 4: (3504, 21600), 5: (3505, 33300), 6: (3506, 50000), 7: (3507, 66600), 8: (3508, 88300), 9: (3509, 111600), 10: (3510, 138300)},
+            5: {1: (3601, 800), 2: (3602, 1550), 3: (3603, 3100), 4: (3604, 5400), 5: (3605, 8300), 6: (3606, 12500), 7: (3607, 16650), 8: (3608, 22050), 9: (3609, 27900), 10: (3610, 34550)},
+            6: {1: (1301, 200), 2: (1302, 390), 3: (1303, 780), 4: (1304, 1350), 5: (1305, 2080), 6: (1306, 3120), 7: (1307, 4160), 8: (1308, 5520), 9: (1309, 6970), 10: (1310, 8640)},
+        }
+
+        raw_key = str(resource_type).strip().lower()
+        if raw_key not in res_aliases:
+            return {
+                "success": False,
+                "code": "INVALID_RESOURCE_TYPE",
+                "message": f"نوع المورد غير معروف: {resource_type}",
+                "target": None,
+                "resource": None,
+                "attempts_used": 0,
+            }
+
+        res_code, res_key = res_aliases[raw_key]
+        start_level = max(1, min(10, self._safe_int(level, 6)))
+        min_lv = max(1, min(start_level, self._safe_int(min_level, 2)))
+        max_dist = max(1.0, float(max_distance))
+        max_tries = max(1, self._safe_int(max_attempts_per_level, 3))
+        delay_lo, delay_hi = retry_delay_range
+
+        async def _human_sleep() -> None:
+            if delay_hi > 0:
+                await asyncio.sleep(random.uniform(max(0.2, delay_lo), max(delay_lo, delay_hi)))
+
+        cx, cy, kid = self._get_castle_coords_and_kingdom()
+        self.log(f"📍 [بحث الموارد] موقع القلعة الفعلي: ({cx}, {cy}) | المملكة: {kid}")
+
+        if cx <= 0 and cy <= 0:
+            return {
+                "success": False,
+                "code": "CASTLE_COORDS_MISSING",
+                "message": "تعذر قراءة إحداثيات القلعة من الذاكرة الحية (cityCtrl.cinfo.pos).",
+                "target": None,
+                "resource": None,
+                "attempts_used": 0,
+            }
+
+        # جلب خريطة الاستبعاد المعزولة لهذا النوع فقط ومفلترة بالمسافة
+        exclude_map = await self.get_exclude_map(
+            kingdom_id=kid,
+            x=cx,
+            y=cy,
+            max_distance=max_dist,
+            target_type=res_key,
+        )
+
+        seen_coords: Set[Tuple[int, int]] = set()
+        total_attempts = 0
+
+        for lv in range(start_level, min_lv - 1, -1):
+            res_obj_id, max_cap = res_table.get(res_code, {}).get(lv, (0, 0))
+
+            for attempt in range(1, max_tries + 1):
+                total_attempts += 1
+                is_new_search = (attempt == 1)
+
+                payload = {
+                    "restype": res_code,
+                    "level": lv,
+                    "posx": cx,
+                    "posy": cy,
+                    "research": is_new_search,
+                }
+
+                resp = await self.safe_query("2083", "2", payload, min_delay=0.3, max_delay=0.7)
+                if not isinstance(resp, dict) or not self._is_resp_ok(resp):
+                    await _human_sleep()
+                    break
+
+                # استخراج الإحداثيات من رد 2083/2 (المسار الرسمي في findMonsterCtrl:searchResourcesRsp هو result)
+                inner: Dict[str, Any] = {}
+                for key in ("result", "rspdata", "data", "retData"):
+                    val = resp.get(key)
+                    if isinstance(val, dict) and any(k in val for k in ("x", "y", "posX", "posY", "pos")):
+                        inner = val
+                        break
+                if not inner:
+                    inner = resp
+
+                pos_obj = inner.get("pos") if isinstance(inner.get("pos"), dict) else {}
+                tx = self._safe_int(inner.get("x", inner.get("posX", pos_obj.get("x", 0))), 0)
+                ty = self._safe_int(inner.get("y", inner.get("posY", pos_obj.get("y", 0))), 0)
+
+                if tx <= 0 and ty <= 0:
+                    self.log(f"⚠️ [بحث الموارد] لم تُعثر إحداثيات في رد 2083/2 (مستوى {lv}): {resp}")
+                    await _human_sleep()
+                    break
+
+                dist = math.hypot(tx - cx, ty - cy)
+                if dist > max_dist:
+                    self.log(
+                        f"⏭️ [بحث الموارد] مستوى {lv}: أقرب مورد ({tx}, {ty}) يبعد {dist:.1f} > {max_dist:g}، الانتقال للمستوى التالي."
+                    )
+                    await _human_sleep()
+                    break
+
+                target_id = f"{res_key}_{tx}_{ty}"
+                alt_tid = f"{tx}_{ty}"
+
+                if (tx, ty) in seen_coords or target_id in exclude_map or alt_tid in exclude_map:
+                    self.log(f"⏭️ [بحث الموارد] تخطي المورد ({tx}, {ty}) مستوى {lv} لأنه مستبعد/مكرر (محاولة {attempt}/{max_tries}).")
+                    await _human_sleep()
+                    continue
+
+                seen_coords.add((tx, ty))
+
+                # بناء معرف الكائن الرسمي لـ 1006/15: "{x+1}-{y+1}-5-{resType}-{resObjId}" (mapObjUtil.lua:1155)
+                instance_id = f"{tx + 1}-{ty + 1}-5-{res_code}-{res_obj_id}"
+                info_payload: Dict[str, Any] = {
+                    "x": tx,
+                    "y": ty,
+                    "id": instance_id,
+                    "kingdomId": kid,
+                }
+                info_resp = await self.safe_query("1006", "15", info_payload, min_delay=0.3, max_delay=0.7)
+
+                occupied = False
+                remaining: Optional[int] = None
+
+                if isinstance(info_resp, dict) and self._is_resp_ok(info_resp):
+                    ret_data: Dict[str, Any] = {}
+                    for k in ("retData", "result", "rspdata", "data"):
+                        v = info_resp.get(k)
+                        if isinstance(v, dict):
+                            ret_data = v
+                            break
+                    if not ret_data:
+                        ret_data = info_resp
+
+                    res_block = ret_data.get("resource") if isinstance(ret_data.get("resource"), dict) else {}
+
+                    # التحقق من وجود أمير يجمع في المورد أو يشغله (في ret_data أو داخل resource)
+                    owner_uid = str(
+                        res_block.get("playerID")
+                        or res_block.get("uid")
+                        or res_block.get("ownerId")
+                        or res_block.get("occupyUid")
+                        or ret_data.get("playerID")
+                        or ret_data.get("uid")
+                        or ret_data.get("ownerId")
+                        or ret_data.get("occupyUid")
+                        or ""
+                    ).strip()
+                    if (owner_uid and owner_uid != "0") or bool(res_block.get("playerInfo")) or bool(res_block.get("queueId")):
+                        occupied = True
+
+                    # التحقق من الكمية المتبقية في المورد (المسار الرسمي: retData.resource.currentSourceNum)
+                    for src_dict in (res_block, ret_data):
+                        for num_key in ("currentSourceNum", "resNum", "leftNum", "curNum", "sourceNum", "num"):
+                            if num_key in src_dict and src_dict[num_key] is not None:
+                                val = self._safe_int(src_dict[num_key], -1)
+                                if val >= 0:
+                                    remaining = val
+                                    break
+                        if remaining is not None:
+                            break
+
+                if occupied:
+                    self.log(f"🚫 [بحث الموارد] المورد ({tx}, {ty}) مستوى {lv} مشغول بأمير آخر — استبعاده وإعادة البحث.")
+                    await self.confirm_target(target_id, kingdom_id=kid, target_type=res_key)
+                    exclude_map[target_id] = True
+                    await _human_sleep()
+                    continue
+
+                ratio = 1.0
+                if remaining is not None and max_cap > 0:
+                    ratio = remaining / float(max_cap)
+                    if ratio < min_remaining_ratio:
+                        self.log(
+                            f"📉 [بحث الموارد] المورد ({tx}, {ty}) مستوى {lv} يحتوي {remaining:,}/{max_cap:,} "
+                            f"({ratio * 100:.1f}% < {min_remaining_ratio * 100:.0f}%) — استبعاده وإعادة البحث."
+                        )
+                        await self.confirm_target(target_id, kingdom_id=kid, target_type=res_key)
+                        exclude_map[target_id] = True
+                        await _human_sleep()
+                        continue
+
+                # حجز المورد مؤقتاً في الذاكرة لمنع تصادم القلاع الشقيقة
+                if reserve_found:
+                    reserved = await self.reserve_target(target_id, kingdom_id=kid, target_type=res_key)
+                    if not reserved:
+                        self.log(f"🔒 [بحث الموارد] المورد ({tx}, {ty}) تم حجزه للتو من قلعة شقيقة — إعادة البحث.")
+                        exclude_map[target_id] = True
+                        await _human_sleep()
+                        continue
+
+                rem_str = f"{remaining:,}/{max_cap:,} ({ratio * 100:.1f}%)" if remaining is not None else "غير محدد"
+                self.log(
+                    f"✅ [بحث الموارد] تم اختيار {res_key} مستوى {lv} في ({tx}, {ty}) | "
+                    f"المسافة: {dist:.1f} | المتبقي: {rem_str}"
+                )
+                target_info = {
+                    "resource_type": res_key,
+                    "resource_key": res_key,
+                    "resource_code": res_code,
+                    "level": lv,
+                    "x": tx,
+                    "y": ty,
+                    "target_id": target_id,
+                    "instance_id": instance_id,
+                    "obj_id": res_obj_id,
+                    "distance": round(dist, 2),
+                    "remaining": remaining,
+                    "max_capacity": max_cap,
+                    "fill_ratio": round(ratio, 4),
+                    "remaining_ratio": round(ratio, 4),
+                    "remaining_pct": round(ratio * 100, 1),
+                    "remaining_percent": round(ratio * 100, 1),
+                    "verified": remaining is not None,
+                    "occupied": False,
+                    "kingdom_id": kid,
+                    "castle_pos": {"x": cx, "y": cy},
+                }
+                return {
+                    "success": True,
+                    "code": "OK",
+                    "message": f"تم العثور على مورد {res_key} مستوى {lv} في ({tx}, {ty}) على مسافة {dist:.1f}.",
+                    "target": target_info,
+                    "resource": target_info,
+                    "attempts_used": total_attempts,
+                }
+
+        return {
+            "success": False,
+            "code": "NO_RESOURCE_FOUND",
+            "message": f"لم يتم العثور على مورد ({res_key}) متاح من المستوى {start_level} حتى المستوى {min_lv} ضمن مسافة {max_dist:g}.",
+            "target": None,
+            "resource": None,
+            "attempts_used": total_attempts,
+        }
+    
+    def get_max_can_kill_monster_level(self) -> int:
+        """
+        أقصى مستوى وحش مسموح للقلعة بمهاجمته حالياً (0-Network).
+        مطابقة حرفية لدالة kingdomMapCell:getMaxCanKillLevel() في سورس اللعبة (السطر 932).
+        """
+        km = self.get_ctrl("kingdomMapCtrl")
+        if not isinstance(km, dict):
+            return 40
+        max_npc_lv = self._safe_int(km.get("maxNpcLevel"), 0)
+        max_map_npc_lv = self._safe_int(km.get("maxMapNpcLevel"), 40)
+        if max_npc_lv <= 0:
+            return max_map_npc_lv if max_map_npc_lv > 0 else 40
+        ret = min(max_npc_lv + 1, 40)
+        if max_map_npc_lv > 0 and ret > max_map_npc_lv:
+            ret = max_map_npc_lv
+        return max(1, ret)
+
+    async def search_best_monster(
+        self,
+        level: int,
+        monster_type: str = "normal",
+        max_distance: float = 120.0,
+        min_level: int = 1,
+        max_attempts_per_level: int = 3,
+        max_failed_attempts: int = 3,
+        retry_delay_range: Tuple[float, float] = (1.8, 3.8),
+        reserve_found: bool = True,
+        respect_unlock_cap: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        البحث الرسمي الموحّد عن الوحوش (العادية أو وحوش معركة السحاب):
+        - monster_type="normal" (أو "monster" / "عادي" / "وحوش"):
+            يرسل CMD 2083/1 (REQ_SEARCH_MONSTER) ويسجّل الاستبعاد في حوض "monster".
+        - monster_type="nebula" (أو "cloud" / "سحاب" / "معركة_السحاب"):
+            يرسل CMD 2083/9 (REQ_SEARCH_MAP_TPYE) بـ mapType=56 ويسجّل الاستبعاد في حوض "nebula_monster".
+        """
+        type_aliases: Dict[str, Tuple[str, str, str]] = {
+            "normal": ("normal", "monster", "الوحوش العادية"),
+            "monster": ("normal", "monster", "الوحوش العادية"),
+            "npc": ("normal", "monster", "الوحوش العادية"),
+            "عادي": ("normal", "monster", "الوحوش العادية"),
+            "وحوش": ("normal", "monster", "الوحوش العادية"),
+            "الوحوش": ("normal", "monster", "الوحوش العادية"),
+            "1": ("normal", "monster", "الوحوش العادية"),
+            "nebula": ("nebula", "nebula_monster", "وحوش معركة السحاب"),
+            "cloud": ("nebula", "nebula_monster", "وحوش معركة السحاب"),
+            "nebula_monster": ("nebula", "nebula_monster", "وحوش معركة السحاب"),
+            "سحاب": ("nebula", "nebula_monster", "وحوش معركة السحاب"),
+            "السحاب": ("nebula", "nebula_monster", "وحوش معركة السحاب"),
+            "معركة السحاب": ("nebula", "nebula_monster", "وحوش معركة السحاب"),
+            "معركة_السحاب": ("nebula", "nebula_monster", "وحوش معركة السحاب"),
+            "56": ("nebula", "nebula_monster", "وحوش معركة السحاب"),
+        }
+
+        raw_type = str(monster_type or "normal").strip().lower()
+        if raw_type not in type_aliases:
+            return {
+                "success": False,
+                "code": "INVALID_MONSTER_TYPE",
+                "message": f"نوع الوحش غير معروف: '{monster_type}'. القيم المدعومة: normal (وحوش عادية) أو nebula (وحوش معركة السحاب).",
+                "target": None,
+                "monster": None,
+                "attempts_used": 0,
+            }
+
+        m_mode, exclude_type, ar_label = type_aliases[raw_type]
+        if m_mode == "nebula":
+            # وحوش معركة السحاب مستوياتها الرسمية 41..50 فقط (nebula_area_tower.lua: npcId 3041..3050)
+            max_can_kill = 50
+            req_level = max(41, min(50, self._safe_int(level, 41)))
+            start_level = req_level
+            min_lv = max(41, min(start_level, self._safe_int(min_level, 41)))
+        else:
+            max_can_kill = self.get_max_can_kill_monster_level()
+            req_level = max(1, min(40, self._safe_int(level, 10)))
+            start_level = min(req_level, max_can_kill) if respect_unlock_cap else req_level
+            min_lv = max(1, min(start_level, self._safe_int(min_level, 1)))
+        max_dist = max(1.0, float(max_distance))
+        max_tries = max(1, self._safe_int(max_attempts_per_level, 3))
+        max_fails = max(1, self._safe_int(max_failed_attempts, 3))
+        delay_lo, delay_hi = retry_delay_range
+        failed_attempts = 0
+
+        async def _on_failure() -> bool:
+            """تسجيل محاولة فاشلة وإرجاع True إذا بلغنا الحد الأقصى (3) للتوقف فوراً بدون انتظار زائد."""
+            nonlocal failed_attempts
+            failed_attempts += 1
+            if failed_attempts >= max_fails:
+                self.log(f"🛑 [بحث {ar_label}] تم بلوغ الحد الأقصى للمحاولات الفاشلة المتتالية ({failed_attempts}/{max_fails}) — إيقاف البحث.")
+                return True
+            if delay_hi > 0:
+                await asyncio.sleep(random.uniform(max(0.2, delay_lo), max(delay_lo, delay_hi)))
+            return False
+
+        cx, cy, kid = self._get_castle_coords_and_kingdom()
+        cap_txt = f" (المتاح للقتل حتى: {max_can_kill})" if m_mode == "normal" else ""
+        self.log(
+            f"📍 [بحث {ar_label}] موقع القلعة الفعلي: ({cx}, {cy}) | المملكة: {kid} | "
+            f"المستوى المطلوب: {req_level}{cap_txt}"
+        )
+
+        if cx <= 0 and cy <= 0:
+            return {
+                "success": False,
+                "code": "CASTLE_COORDS_MISSING",
+                "message": "تعذر قراءة إحداثيات القلعة من الذاكرة الحية (cityCtrl.cinfo.pos).",
+                "target": None,
+                "monster": None,
+                "attempts_used": 0,
+            }
+
+        # جلب خريطة الاستبعاد المعزولة لهذا النوع تحديداً ومفلترة بالمسافة
+        exclude_map = await self.get_exclude_map(
+            kingdom_id=kid,
+            x=cx,
+            y=cy,
+            max_distance=max_dist,
+            target_type=exclude_type,
+        )
+
+        seen_coords: Set[Tuple[int, int]] = set()
+        total_attempts = 0
+
+        for lv in range(start_level, min_lv - 1, -1):
+            if failed_attempts >= max_fails:
+                break
+
+            for attempt in range(1, max_tries + 1):
+                if failed_attempts >= max_fails:
+                    break
+
+                total_attempts += 1
+                is_new_search = (attempt == 1)
+
+                if m_mode == "nebula":
+                    # وحوش معركة السحاب: CMD 2083/9 (REQ_SEARCH_MAP_TPYE) بـ mapType=56 (nebulaNpc)
+                    subcmd = "9"
+                    payload: Dict[str, Any] = {
+                        "mapType": 56,
+                        "minlv": lv,
+                        "maxlv": lv,
+                        "research": is_new_search,
+                    }
+                else:
+                    # الوحوش العادية: CMD 2083/1 (REQ_SEARCH_MONSTER)
+                    subcmd = "1"
+                    payload = {
+                        "minLv": lv,
+                        "maxLv": lv,
+                        "posx": cx,
+                        "posy": cy,
+                        "research": is_new_search,
+                    }
+
+                resp = await self.safe_query("2083", subcmd, payload, min_delay=0.3, max_delay=0.7)
+                if not isinstance(resp, dict) or not self._is_resp_ok(resp):
+                    await _on_failure()
+                    break
+
+                # استخراج الإحداثيات من رد 2083/1 أو 2083/9 (المسار الرسمي هو result)
+                inner: Dict[str, Any] = {}
+                for key in ("result", "rspdata", "data", "retData"):
+                    val = resp.get(key)
+                    if isinstance(val, dict) and any(k in val for k in ("x", "y", "posX", "posY", "pos")):
+                        inner = val
+                        break
+                if not inner:
+                    inner = resp
+
+                pos_obj = inner.get("pos") if isinstance(inner.get("pos"), dict) else {}
+                tx = self._safe_int(inner.get("x", inner.get("posX", pos_obj.get("x", 0))), 0)
+                ty = self._safe_int(inner.get("y", inner.get("posY", pos_obj.get("y", 0))), 0)
+
+                if tx <= 0 and ty <= 0:
+                    self.log(f"⚠️ [بحث {ar_label}] لم يُعثر على هدف مستوى {lv} في رد 2083/{subcmd}: {resp}")
+                    await _on_failure()
+                    break
+
+                dist = math.hypot(tx - cx, ty - cy)
+                if dist > max_dist:
+                    self.log(
+                        f"⏭️ [بحث {ar_label}] مستوى {lv}: أقرب هدف ({tx}, {ty}) يبعد {dist:.1f} > {max_dist:g}، الانتقال للمستوى التالي."
+                    )
+                    await _on_failure()
+                    break
+
+                target_id = f"{exclude_type}_{tx}_{ty}"
+                alt_tid = f"{tx}_{ty}"
+
+                if (
+                    (tx, ty) in seen_coords
+                    or target_id in exclude_map
+                    or alt_tid in exclude_map
+                    or self._is_coord_targeted_by_any_march(tx, ty)
+                ):
+                    self.log(f"⏭️ [بحث {ar_label}] تخطي ({tx}, {ty}) مستوى {lv} لأنه مستبعد/مشغول (محاولة فاشلة {failed_attempts + 1}/{max_fails}).")
+                    if await _on_failure():
+                        break
+                    continue
+
+                seen_coords.add((tx, ty))
+
+                if reserve_found:
+                    reserved = await self.reserve_target(target_id, kingdom_id=kid, target_type=exclude_type)
+                    if not reserved:
+                        self.log(f"🔒 [بحث {ar_label}] ({tx}, {ty}) محجوز لقلعة شقيقة — إعادة البحث.")
+                        exclude_map[target_id] = True
+                        if await _on_failure():
+                            break
+                        continue
+
+                self.log(f"✅ [بحث {ar_label}] تم اختيار هدف مستوى {lv} في ({tx}, {ty}) | المسافة: {dist:.1f}")
+                target_info = {
+                    "target_type": exclude_type,
+                    "monster_type": m_mode,
+                    "monster_label": ar_label,
+                    "level": lv,
+                    "x": tx,
+                    "y": ty,
+                    "target_id": target_id,
+                    "distance": round(dist, 2),
+                    "kingdom_id": kid,
+                    "castle_pos": {"x": cx, "y": cy},
+                    "max_can_kill_level": max_can_kill,
+                }
+                return {
+                    "success": True,
+                    "code": "OK",
+                    "message": f"تم العثور على ({ar_label}) مستوى {lv} في ({tx}, {ty}) على مسافة {dist:.1f}.",
+                    "target": target_info,
+                    "monster": target_info,
+                    "attempts_used": total_attempts,
+                }
+
+        return {
+            "success": False,
+            "code": "NO_MONSTER_FOUND",
+            "message": f"لم يتم العثور على ({ar_label}) متاح من المستوى {start_level} حتى المستوى {min_lv} ضمن مسافة {max_dist:g}.",
+            "target": None,
+            "monster": None,
+            "attempts_used": total_attempts,
+        }
+    
+    async def search_best_ruins(
+        self,
+        max_distance: float = 120.0,
+        max_scans: int = 3,
+        scan_step: int = 75,
+        lod: int = 3,
+        scan_delay_range: Tuple[float, float] = (1.0, 2.0),
+    ) -> Dict[str, Any]:
+        """
+        البحث الرسمي عن أقرب أطلال (Relics) متاحة بدون أمير داخلها أو يسير إليها
+        عبر مسح الخريطة الرسمي CMD 1006/1000 (REQ_KINGDOM_MAP_SYNC) + تحقق CMD 1006/15:
+        - يمسح حول موقع القلعة الفعلي (cityCtrl.cinfo.pos) بمسار حلزوني (30×30 لكل طلب).
+        - يستخرج كل الأطلال (type=7) من kingdomMapCtrl المحدّث عبر NOTIFY_MAP_SYNC (201).
+        - يستبعد أي أطلال يتجه إليه فيلق أو فيه أمير حالياً (من الذاكرة الحية + 1006/15).
+        - لا يسجّل الأطلال في exclude_manager (التزاماً باستثناء الأطلال من الاستبعاد).
+        """
+        max_dist = max(1.0, float(max_distance))
+        scans_limit = max(1, self._safe_int(max_scans, 9))
+        step = max(15, self._safe_int(scan_step, 30))
+        delay_lo, delay_hi = scan_delay_range
+
+        cx, cy, kid = self._get_castle_coords_and_kingdom()
+        self.log(f"📍 [بحث الأطلال] موقع القلعة الفعلي: ({cx}, {cy}) | المملكة: {kid} | أقصى مسافة: {max_dist:g}")
+
+        if cx <= 0 and cy <= 0:
+            return {
+                "success": False,
+                "code": "CASTLE_COORDS_MISSING",
+                "message": "تعذر قراءة إحداثيات القلعة من الذاكرة الحية (cityCtrl.cinfo.pos).",
+                "target": None,
+                "ruins": None,
+                "attempts_used": 0,
+            }
+
+        def _extract_relics_and_busy_from_map() -> Tuple[List[Dict[str, Any]], Set[Tuple[int, int]], Set[str]]:
+            """استخراج جميع الأطلال (mapType=7) والطوابير المتجهة إليها من kingdomMapCtrl."""
+            km = self.get_ctrl("kingdomMapCtrl")
+            relics_by_xy: Dict[Tuple[int, int], Dict[str, Any]] = {}
+            busy_coords: Set[Tuple[int, int]] = set()
+            busy_ids: Set[str] = set()
+
+            def _walk(obj: Any, depth: int = 0) -> None:
+                if depth > 10 or obj is None:
+                    return
+                if isinstance(obj, list):
+                    for item in obj:
+                        _walk(item, depth + 1)
+                    return
+                if not isinstance(obj, dict):
+                    return
+
+                # 1. فحص هل الكائن طابور مسيرة على الخريطة (يحتوي from/to)
+                to_obj = obj.get("to")
+                if isinstance(to_obj, dict) and ("x" in to_obj or "id" in to_obj):
+                    st = self._safe_int(obj.get("status"), 1)
+                    if st in ACTIVE_MARCH_QUEUE_STATUSES or "status" not in obj:
+                        qx = self._safe_int(to_obj.get("x"), -1)
+                        qy = self._safe_int(to_obj.get("y"), -1)
+                        if qx >= 0 and qy >= 0:
+                            busy_coords.add((qx, qy))
+                            if qx > 0 and qy > 0:
+                                busy_coords.add((qx - 1, qy - 1))
+                        tid_s = str(to_obj.get("id") or "").strip()
+                        if tid_s:
+                            busy_ids.add(tid_s)
+
+                # 2. فحص هل الكائن أطلال (type=7 أو id بصيغة "sx-sy-7-sub-objId")
+                obj_id_str = str(obj.get("id") or "").strip()
+                parts = obj_id_str.split("-") if "-" in obj_id_str else []
+                is_relic_by_id = len(parts) >= 5 and parts[2] == "7"
+                obj_type = self._safe_int(obj.get("type", obj.get("mapType", 0)), 0)
+
+                if is_relic_by_id or obj_type == 7:
+                    if is_relic_by_id:
+                        sx = self._safe_int(parts[0], 0)
+                        sy = self._safe_int(parts[1], 0)
+                        tx, ty = max(0, sx - 1), max(0, sy - 1)
+                        inst_id = obj_id_str
+                    else:
+                        tx = self._safe_int(obj.get("x"), 0)
+                        ty = self._safe_int(obj.get("y"), 0)
+                        inst_id = obj_id_str if "-" in obj_id_str else f"{tx + 1}-{ty + 1}-7-0-3701"
+
+                    if tx > 0 or ty > 0:
+                        owner_uid = str(
+                            obj.get("playerID")
+                            or obj.get("uid")
+                            or obj.get("ownerId")
+                            or obj.get("occupyUid")
+                            or obj.get("exploreUid")
+                            or ""
+                        ).strip()
+                        is_occ = (owner_uid not in ("", "0")) or bool(obj.get("queueId")) or bool(obj.get("queueID"))
+                        prev = relics_by_xy.get((tx, ty))
+                        if prev is None or is_occ:
+                            relics_by_xy[(tx, ty)] = {
+                                "x": tx,
+                                "y": ty,
+                                "instance_id": inst_id,
+                                "occupied_hint": is_occ,
+                            }
+
+                for k, v in obj.items():
+                    if isinstance(k, str) and "-" in k:
+                        kparts = k.split("-")
+                        if len(kparts) >= 5 and kparts[2] == "7":
+                            sx = self._safe_int(kparts[0], 0)
+                            sy = self._safe_int(kparts[1], 0)
+                            tx, ty = max(0, sx - 1), max(0, sy - 1)
+                            if (tx > 0 or ty > 0) and (tx, ty) not in relics_by_xy:
+                                is_occ = False
+                                if isinstance(v, dict):
+                                    ou = str(v.get("playerID") or v.get("uid") or v.get("ownerId") or "").strip()
+                                    is_occ = (ou not in ("", "0")) or bool(v.get("queueId"))
+                                relics_by_xy[(tx, ty)] = {
+                                    "x": tx,
+                                    "y": ty,
+                                    "instance_id": k,
+                                    "occupied_hint": is_occ,
+                                }
+                    if isinstance(v, (dict, list)):
+                        _walk(v, depth + 1)
+
+            _walk(km)
+            return list(relics_by_xy.values()), busy_coords, busy_ids
+
+        # بناء نقاط المسح الحلزونية حول القلعة ضمن نطاق max_dist
+        scan_points: List[Tuple[int, int]] = [(cx, cy)]
+        max_ring = max(1, int(math.ceil(max_dist / float(step))))
+        for ring in range(1, max_ring + 1):
+            for dx in range(-ring, ring + 1):
+                for dy in range(-ring, ring + 1):
+                    if max(abs(dx), abs(dy)) != ring:
+                        continue
+                    px = max(1, min(1199, cx + dx * step))
+                    py = max(1, min(1199, cy + dy * step))
+                    if math.hypot(px - cx, py - cy) <= max_dist + step:
+                        scan_points.append((px, py))
+        scan_points = scan_points[:scans_limit]
+
+        checked_coords: Set[Tuple[int, int]] = set()
+        total_scans = 0
+
+        for idx, (sx, sy) in enumerate(scan_points, 1):
+            total_scans += 1
+            sync_payload = {
+                "centerKid": kid,
+                "centerX": sx,
+                "centerY": sy,
+                "lod": lod,
+            }
+            await self.safe_query("1006", "1000", sync_payload, min_delay=0.3, max_delay=0.6)
+            # انتظار قصير لوصول حزم NOTIFY_MAP_SYNC (201) ودمجها في kingdomMapCtrl
+            await asyncio.sleep(0.75)
+
+            relics, busy_coords, busy_ids = _extract_relics_and_busy_from_map()
+            candidates: List[Tuple[float, Dict[str, Any]]] = []
+            for r in relics:
+                tx, ty = r["x"], r["y"]
+                if (tx, ty) in checked_coords:
+                    continue
+                dist = math.hypot(tx - cx, ty - cy)
+                if dist > max_dist:
+                    continue
+                if (
+                    r.get("occupied_hint")
+                    or (tx, ty) in busy_coords
+                    or r["instance_id"] in busy_ids
+                    or self._is_coord_targeted_by_any_march(tx, ty)
+                ):
+                    checked_coords.add((tx, ty))
+                    continue
+                candidates.append((dist, r))
+
+            candidates.sort(key=lambda item: item[0])
+
+            for dist, r in candidates:
+                tx, ty = r["x"], r["y"]
+                inst_id = r["instance_id"]
+                checked_coords.add((tx, ty))
+
+                # تحقق نهائي عبر CMD 1006/15 للتأكد من عدم وجود أمير يستكشف الأطلال حالياً
+                info_resp = await self.safe_query(
+                    "1006",
+                    "15",
+                    {"x": tx, "y": ty, "id": inst_id, "kingdomId": kid},
+                    min_delay=0.3,
+                    max_delay=0.6,
+                )
+
+                occupied = False
+                verified = False
+                if isinstance(info_resp, dict) and self._is_resp_ok(info_resp):
+                    verified = True
+                    ret_data: Dict[str, Any] = {}
+                    for k in ("retData", "result", "rspdata", "data"):
+                        v = info_resp.get(k)
+                        if isinstance(v, dict):
+                            ret_data = v
+                            break
+                    if not ret_data:
+                        ret_data = info_resp
+
+                    sub_blocks = [ret_data]
+                    for sub_k in ("relic", "relics", "remains", "explore", "owner", "playerInfo"):
+                        sv = ret_data.get(sub_k)
+                        if isinstance(sv, dict):
+                            sub_blocks.append(sv)
+
+                    for blk in sub_blocks:
+                        owner_uid = str(
+                            blk.get("playerID")
+                            or blk.get("uid")
+                            or blk.get("ownerId")
+                            or blk.get("occupyUid")
+                            or blk.get("exploreUid")
+                            or ""
+                        ).strip()
+                        if (
+                            (owner_uid and owner_uid != "0")
+                            or bool(blk.get("queueId"))
+                            or bool(blk.get("queueID"))
+                            or bool(blk.get("playerName"))
+                            or bool(blk.get("nickName"))
+                        ):
+                            occupied = True
+                            break
+
+                if occupied:
+                    self.log(f"🚫 [بحث الأطلال] الأطلال ({tx}, {ty}) مشغول بأمير آخر — الانتقال للأقرب التالي.")
+                    continue
+
+                target_id = f"ruins_{tx}_{ty}"
+                self.log(f"✅ [بحث الأطلال] تم اختيار أطلال متاحة في ({tx}, {ty}) | المسافة: {dist:.1f}")
+                target_info = {
+                    "target_type": "ruins",
+                    "x": tx,
+                    "y": ty,
+                    "target_id": target_id,
+                    "instance_id": inst_id,
+                    "distance": round(dist, 2),
+                    "verified": verified,
+                    "occupied": False,
+                    "kingdom_id": kid,
+                    "castle_pos": {"x": cx, "y": cy},
+                }
+                return {
+                    "success": True,
+                    "code": "OK",
+                    "message": f"تم العثور على أطلال متاحة في ({tx}, {ty}) على مسافة {dist:.1f}.",
+                    "target": target_info,
+                    "ruins": target_info,
+                    "attempts_used": total_scans,
+                }
+
+            if idx < len(scan_points) and delay_hi > 0:
+                await asyncio.sleep(random.uniform(max(0.3, delay_lo), max(delay_lo, delay_hi)))
+
+        return {
+            "success": False,
+            "code": "NO_RUINS_FOUND",
+            "message": f"لم يتم العثور على أطلال متاحة ضمن مسافة {max_dist:g} بعد {total_scans} مسحات للخريطة.",
+            "target": None,
+            "ruins": None,
+            "attempts_used": total_scans,
+        }
 
     # ═════════════════════════════════════════════════════════════════════════
     # 7. الفحص القبلي ومحرك التنفيذ (Pre-flight & Execution Engine)
@@ -738,9 +1720,12 @@ def _print_cli_report(
     show_heroes: bool,
     show_soldiers: bool,
     show_transport: bool,
+    show_escort: bool,
+    show_relics: bool,
+    show_daily_tasks: bool,
     exclude_defend: bool,
     as_json: bool,
-    formation_index: int = 0
+    formation_index: int = 0,
 ) -> None:
     payload: Dict[str, Any] = {"castle": label}
     if show_status:
@@ -763,6 +1748,16 @@ def _print_cli_report(
         payload["resource_help_transport_capacity"] = mgr.get_resource_help_transport_capacity()
     if formation_index > 0:
         payload["saved_formation"] = mgr.get_saved_formation(formation_index)
+
+    if show_escort:
+        payload["has_treasure_escort"] = mgr.has_treasure_escort_march()
+        payload["has_treasure_escort_with_assist"] = mgr.has_treasure_escort_march(include_assist=True)
+
+    if show_relics:
+        payload["has_relics_explore"] = mgr.has_relics_explore_march()
+    
+    if show_daily_tasks:
+        payload["daily_march_tasks"] = mgr.get_daily_march_tasks_status()
 
     if as_json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
@@ -837,6 +1832,36 @@ def _print_cli_report(
                 print(f"    • الأسلحة/الرونات : {fm['arms_ids']}")
             if fm["divine_beast_ids"]:
                 print(f"    • الوحوش الإلهية : {fm['divine_beast_ids']}")
+
+    if show_escort:
+        has_own = payload["has_treasure_escort"]
+        has_any = payload["has_treasure_escort_with_assist"]
+        print("-" * 66)
+        print(f"  💰 مسيرة حراسة الكنز (الخاصة بك) : {has_own}")
+        print(f"  🤝 شاملة مساعدة حراسة التحالف    : {has_any}")
+
+    if show_relics:
+        print("-" * 66)
+        print(f"  🏛️  مسيرة استكشاف الأطلال : {payload['has_relics_explore']}")
+    if show_daily_tasks:
+        dt = payload["daily_march_tasks"]
+        labels = {
+            "attack_monsters": "أهجم على الوحوش",
+            "gather_food":     "جمع القمح",
+            "gather_wood":     "جمع الخشب",
+            "gather_iron":     "جمع الحديد",
+            "gather_silver":   "جمع الفضة",
+        }
+        print("-" * 66)
+        print("  📅 مهام النشاط اليومي للمسيرات:")
+        for key, ar_name in labels.items():
+            info = dt[key]
+            if info["completed"]:
+                st_txt = f"✅ منجزة ({info['progress']}/{info['target']})"
+            else:
+                march_txt = "🚀 توجد مسيرة نشطة" if info["has_active_march"] else "⏸️ لا توجد مسيرة"
+                st_txt = f"❌ غير منجزة ({info['progress']}/{info['target']}) | {march_txt}"
+            print(f"    • {ar_name:<16} : {st_txt}")
 
     print("=" * 66 + "\n")
 
@@ -932,17 +1957,100 @@ async def _run_cli_live(args: argparse.Namespace) -> int:
             print("[-] انتهى وقت انتظار تحميل الذاكرة الحية (20s).")
             return 1
 
-        await asyncio.sleep(0.5)
+        # انتظار اكتمال مزامنة طوابير المسيرات النشطة من _init_flow (حتى 5 ثوانٍ)
+        sync_deadline = time.monotonic() + 5.0
+        while time.monotonic() < sync_deadline:
+            if getattr(conn.memory_engine, "local_queues_synced", False):
+                break
+            await asyncio.sleep(0.15)
+        await asyncio.sleep(0.2)
+
         mgr = MarchManagerTask(conn)
         lord_name = (
             ((conn.init_data.get("lordInfoCtrl") or {}).get("base") or {}).get("nickName")
             or account.email
         )
+        
+        if args.search_resource:
+            print(
+                f"[*] جاري البحث عن مورد '{args.search_resource}' "
+                f"(مستوى {args.res_level} | أقصى مسافة {args.max_dist})..."
+            )
+            search_res = await mgr.search_best_resource(
+                resource_type=args.search_resource,
+                level=args.res_level,
+                max_distance=args.max_dist,
+            )
+            if args.json:
+                print(json.dumps(search_res, ensure_ascii=False, indent=2))
+            else:
+                print("\n" + "=" * 66)
+                if search_res.get("success"):
+                    t = search_res["target"]
+                    rem_txt = (
+                        f"{t['remaining']:,} / {t['max_capacity']:,} ({t['fill_ratio'] * 100:.0f}%)"
+                        if t.get("remaining") is not None
+                        else "غير محدد"
+                    )
+                    print(f"  ✅ تم العثور على مورد مناسب ({t['resource_key']} مستوى {t['level']}):")
+                    print(f"    • الإحداثيات : ({t['x']}, {t['y']}) | المسافة: {t['distance']}")
+                    print(f"    • المتبقي    : {rem_txt}")
+                    print(f"    • المعرّف    : {t['target_id']}")
+                else:
+                    print(f"  ❌ {search_res.get('code', 'ERROR')}: {search_res.get('message', '')}")
+                print("=" * 66 + "\n")
+            return 0 if search_res.get("success") else 1
+
+        if getattr(args, "search_monster", False):
+            print(
+                f"[*] جاري البحث عن وحش "
+                f"(مستوى {args.monster_level} | أقصى مسافة {args.max_dist})..."
+            )
+            m_res = await mgr.search_best_monster(
+                level=args.monster_level,
+                monster_type=args.monster_type,
+                max_distance=args.max_dist,
+            )
+            if args.json:
+                print(json.dumps(m_res, ensure_ascii=False, indent=2))
+            else:
+                print("\n" + "=" * 66)
+                if m_res.get("success"):
+                    t = m_res["target"]
+                    print(f"  ✅ تم العثور على وحش مناسب (مستوى {t['level']}):")
+                    print(f"    • الإحداثيات : ({t['x']}, {t['y']}) | المسافة: {t['distance']}")
+                    print(f"    • المعرّف    : {t['target_id']} | أقصى مستوى مفتوح: {t['max_can_kill_level']}")
+                else:
+                    print(f"  ❌ {m_res.get('code', 'ERROR')}: {m_res.get('message', '')}")
+                print("=" * 66 + "\n")
+            return 0 if m_res.get("success") else 1
+        
+        if getattr(args, "search_ruins", False):
+            print(f"[*] جاري البحث عن أطلال متاحة (أقصى مسافة {args.max_dist})...")
+            r_res = await mgr.search_best_ruins(max_distance=args.max_dist)
+            if args.json:
+                print(json.dumps(r_res, ensure_ascii=False, indent=2))
+            else:
+                print("\n" + "=" * 66)
+                if r_res.get("success"):
+                    t = r_res["target"]
+                    print(f"  ✅ تم العثور على أطلال متاحة:")
+                    print(f"    • الإحداثيات : ({t['x']}, {t['y']}) | المسافة: {t['distance']}")
+                    print(f"    • المعرّف    : {t['target_id']} | instance_id: {t['instance_id']}")
+                else:
+                    print(f"  ❌ {r_res.get('code', 'ERROR')}: {r_res.get('message', '')}")
+                print("=" * 66 + "\n")
+            return 0 if r_res.get("success") else 1
+
+            
         any_explicit = (
             args.available_heroes
             or args.available_soldiers
             or args.status
             or args.transport_capacity
+            or args.treasure_escort
+            or args.relics_explore
+            or args.daily_tasks
             or (args.formation > 0)
         )
         _print_cli_report(
@@ -952,6 +2060,9 @@ async def _run_cli_live(args: argparse.Namespace) -> int:
             show_heroes=args.available_heroes or (not any_explicit),
             show_soldiers=args.available_soldiers or (not any_explicit),
             show_transport=args.transport_capacity or (not any_explicit),
+            show_escort=args.treasure_escort or (not any_explicit),
+            show_relics=args.relics_explore or (not any_explicit),
+            show_daily_tasks=args.daily_tasks or (not any_explicit),
             exclude_defend=args.exclude_defend,
             as_json=args.json,
             formation_index=args.formation,
@@ -982,6 +2093,16 @@ def _main() -> None:
     parser.add_argument("--available-soldiers", action="store_true", help="عرض الجنود المتاحين بدون حصن الحرب")
     parser.add_argument("--transport-capacity", action="store_true", help="عرض سعة نقل مساعدة الموارد")
     parser.add_argument("--formation", type=int, default=0, help="عرض التشكيلة المحفوظة رقم N (مثال: --formation 1)")
+    parser.add_argument("--treasure-escort", action="store_true", help="فحص وجود مسيرة حراسة الكنز نشطة (True/False)")
+    parser.add_argument("--relics-explore", action="store_true", help="فحص وجود مسيرة استكشاف أطلال نشطة (True/False)")
+    parser.add_argument("--daily-tasks", action="store_true", help="فحص حالة مهام النشاط اليومي الخمس ومسيراتها النشطة")
+    parser.add_argument("--search-resource", type=str, default="", help="البحث عن مورد (مثال: food / wood / iron / silver / gold أو 2)")
+    parser.add_argument("--res-level", type=int, default=6, help="مستوى المورد المطلوب للبحث (الافتراضي 6)")
+    parser.add_argument("--search-monster", action="store_true", help="البحث عن أقرب وحش متاح")
+    parser.add_argument("--monster-level", type=int, default=15, help="مستوى الوحش المطلوب (افتراضي: 15)")
+    parser.add_argument("--monster-type", type=str, default="normal", help="نوع الوحش: normal (وحوش عادية) أو nebula (وحوش معركة السحاب)")
+    parser.add_argument("--search-ruins", action="store_true", help="البحث عن أقرب أطلال متاحة بدون أمير فيها")
+    parser.add_argument("--max-dist", type=float, default=120.0, help="أقصى مسافة للبحث عن المورد (الافتراضي 120)")
     parser.add_argument("--json", action="store_true", help="طباعة النتيجة بصيغة JSON")
     args = parser.parse_args()
 
@@ -1005,6 +2126,9 @@ def _main() -> None:
             or args.available_soldiers
             or args.status
             or args.transport_capacity
+            or args.treasure_escort
+            or args.relics_explore
+            or args.daily_tasks
             or (args.formation > 0)
         )
         _print_cli_report(
@@ -1014,6 +2138,9 @@ def _main() -> None:
             show_heroes=args.available_heroes or (not any_explicit),
             show_soldiers=args.available_soldiers or (not any_explicit),
             show_transport=args.transport_capacity or (not any_explicit),
+            show_escort=args.treasure_escort or (not any_explicit),
+            show_relics=args.relics_explore or (not any_explicit),
+            show_daily_tasks=args.daily_tasks or (not any_explicit),
             exclude_defend=args.exclude_defend,
             as_json=args.json,
             formation_index=args.formation,

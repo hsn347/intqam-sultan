@@ -67,12 +67,14 @@ class ExcludeManager:
     - الحجوزات المؤقتة (reserved) تبقى في الذاكرة RAM فقط وتُمسح عند إعادة التشغيل.
     """
 
-    MAX_PER_KINGDOM         = 300        # الطول الثابت لجدول الأهداف لكل مملكة
-    MAX_RESERVED_PER_POOL   = 30         # الحد الأقصى للأهداف المحجوزة بالذاكرة المؤقتة لكل pool
-    RESERVED_TTL_SECONDS    = 90.0       # صلاحية الحجز المؤقت في الذاكرة لمنع Race Condition بين القلاع الشقيقة
-    MAX_EXCLUDE_AGE_SECONDS = 5 * 3600   # 5 ساعات — أقصى عمر مقلوب للأهداف في الاستبعاد
+    MAX_PER_KINGDOM         = 300        # للإبقاء على التوافق مع الترحيل القديم
+    MAX_PER_TYPE            = 150        # حد مستقل لكل نوع داخل كل مملكة (خشب لوحده، ذهب لوحده، وحوش لوحدهم...)
+    MAX_RESERVED_PER_POOL   = 30         # الحد الأقصى للحجوزات المؤقتة لكل (مملكة + نوع)
+    RESERVED_TTL_SECONDS    = 90.0       # صلاحية الحجز المؤقت في الذاكرة لمنع التصادم بين القلاع الشقيقة
+    MAX_EXCLUDE_AGE_SECONDS = 5 * 3600   # 5 ساعات — أقصى عمر للأهداف في الاستبعاد
     MAX_QUERY_EXCLUDES      = 60         # الحد الأقصى للأهداف المعادة في get_exclude_map
-    MAX_QUERY_DISTANCE      = 150.0      # أقصى مسافة مربعة مقبولة عن موقع القلعة (x, y)
+    MAX_QUERY_DISTANCE      = 150.0      # أقصى مسافة عن موقع القلعة (x, y)
+    NON_EXCLUDABLE_TYPES    = frozenset({"ruins", "escort", "treasure_escort"})  # الأطلال وحراسة الكنز لا تُستبعد
 
     def __init__(self, db_path: str | None = None):
         self._lock = threading.Lock()
@@ -195,6 +197,7 @@ class ExcludeManager:
             "ذهب": "gold",
             "غازي": "invader", "وحش": "invader",
             "أطلال": "ruins", "اطلال": "ruins",
+            "حراسة الكنز": "escort", "حراسة كنز": "escort", "كنز": "escort", "treasure_escort": "escort",
             "معقل": "stronghold",
             "متمرد": "rebel", "متمردين": "rebel",
             "عفريت": "elf",
@@ -326,50 +329,49 @@ class ExcludeManager:
         ttl: float | None = None,
     ) -> bool:
         """
-        حجز هدف مؤقتاً وبشكل حصري (Atomic Exclusive Lock) في الذاكرة المشتركة للمملكة.
-        - إذا كان محجوزاً لقلعة أخرى في المملكة خلال مدة الصلاحية (90 ثانية):
-          يرفض الحجز فوراً ويعيد False لمنع التزامن والتصادم.
-        - إذا كان شاغراً أو محجوزاً لنفس القلعة:
-          يحجز الهدف ويعيد True.
+        حجز هدف مؤقتاً وبشكل حصري في حوض مستقل لكل (مملكة + نوع).
+        يُتجاهل الاستبعاد تماماً للأطلال وحراسة الكنز (يرجع True دون حفظ).
         """
         tid_str = str(target_id).strip() if target_id is not None else ""
         if not tid_str:
             return False
+
+        ttype = self._normalize_query_type(target_type) or self._infer_target_type(tid_str)
+        if ttype in self.NON_EXCLUDABLE_TYPES:
+            return True
+
         uid_str = str(uid).strip() if uid not in (None, "", 0, "0") else ""
         now_ts = time.time()
         effective_ttl = float(ttl) if ttl is not None else self.RESERVED_TTL_SECONDS
 
         with self._lock:
-            pool_keys = self._get_reserved_keys(uid, kingdom_id)
+            base_keys = self._get_reserved_keys(uid, kingdom_id)
+            pool_keys = [f"{pk}:{ttype}" for pk in base_keys]
 
-            # 1. فحص التعارض أولاً عبر كل الأحواض ذات الصلة
+            # 1. فحص التعارض وتنظيف المنتهي في حوض هذا النوع فقط
             for pkey in pool_keys:
                 pool = self._reserved.setdefault(pkey, {})
-                # تنظيف الحجوزات منتهية الصلاحية
                 expired_keys = [
                     tid for tid, entry in pool.items()
-                    if (now_ts - (entry["ts"] if isinstance(entry, dict) else float(entry))) > effective_ttl
+                    if (now_ts - float(entry.get("ts", 0))) > float(entry.get("ttl", effective_ttl))
                 ]
                 for exp_tid in expired_keys:
                     del pool[exp_tid]
 
                 if tid_str in pool:
                     existing = pool[tid_str]
-                    reserver_uid = existing.get("uid") if isinstance(existing, dict) else None
-                    reserver_ts = existing.get("ts", 0) if isinstance(existing, dict) else float(existing)
-                    # إذا كان محجوزاً لحساب آخر وما زال صالحاً: ارفض الحجز
-                    if reserver_uid and reserver_uid != uid_str and (now_ts - reserver_ts) <= effective_ttl:
+                    reserver_uid = existing.get("uid")
+                    reserver_ts = float(existing.get("ts", 0))
+                    reserver_ttl = float(existing.get("ttl", effective_ttl))
+                    if reserver_uid and reserver_uid != uid_str and (now_ts - reserver_ts) <= reserver_ttl:
                         return False
 
-            # 2. لا يوجد تعارض: تسجيل الحجز الحصري
+            # 2. تسجيل الحجز الحصري داخل حوض هذا النوع
             for pkey in pool_keys:
                 pool = self._reserved.setdefault(pkey, {})
-                pool[tid_str] = {"uid": uid_str, "ts": now_ts}
+                pool[tid_str] = {"uid": uid_str, "ts": now_ts, "type": ttype, "ttl": effective_ttl}
                 if len(pool) > self.MAX_RESERVED_PER_POOL:
-                    oldest_tid = min(
-                        pool,
-                        key=lambda k: pool[k]["ts"] if isinstance(pool[k], dict) else float(pool[k])
-                    )
+                    oldest_tid = min(pool, key=lambda k: float(pool[k].get("ts", 0)))
                     del pool[oldest_tid]
 
             return True
@@ -382,68 +384,82 @@ class ExcludeManager:
         target_type: str | None = None,
     ):
         """
-        تثبيت الهدف في قاعدة البيانات SQLite WAL بعد نجاح الإرسال أو تأكد الانشغال.
-        يحافظ على طول ثابت (MAX_PER_KINGDOM) مع حذف الأقدم تلقائياً.
-        (target_type اختياري: للأنواع الخاصة مثل 'elf', 'elite_rebel')
+        تثبيت الهدف في SQLite ضمن سجل مستقل لكل (مملكة + نوع) بحد MAX_PER_TYPE.
+        لا يتم تثبيت الأطلال أو حراسة الكنز إطلاقاً.
         """
         tid_str = str(target_id).strip() if target_id is not None else ""
         if not tid_str:
             return
 
+        ttype = self._normalize_query_type(target_type) or self._infer_target_type(tid_str)
+        if ttype in self.NON_EXCLUDABLE_TYPES:
+            return
+
         with self._lock:
             k_key = self._normalize_kingdom_key(uid, kingdom_id)
             uid_str = str(uid).strip() if uid not in (None, "", 0, "0") else ""
-            # إزالة من الحجوزات المؤقتة (RAM)
             for rkey in ([k_key] if k_key else []) + ([f"_tmp_{uid_str}"] if uid_str else []):
-                if rkey in self._reserved:
-                    self._reserved[rkey].pop(tid_str, None)
+                pkey = f"{rkey}:{ttype}"
+                if pkey in self._reserved:
+                    self._reserved[pkey].pop(tid_str, None)
 
             if not k_key:
                 return
-
             kingdom_id_int = int(k_key)
 
-        ttype = self._normalize_query_type(target_type) or self._infer_target_type(tid_str)
         x, y = self._parse_coords(tid_str)
         now_ts = time.time()
 
         with self._db_session() as conn:
-            # تنفيذ ذري متسلسل داخل معاملة واحدة آمنة
             conn.execute(
                 "INSERT OR REPLACE INTO excluded_targets "
                 "(kingdom_id, target_id, target_type, x, y, ts) VALUES (?,?,?,?,?,?)",
                 (kingdom_id_int, tid_str, ttype, x, y, now_ts)
             )
+            # تقليم مستقل لهذا النوع فقط داخل المملكة
             conn.execute("""
                 DELETE FROM excluded_targets
                 WHERE kingdom_id = ?
+                  AND target_type = ?
                   AND target_id NOT IN (
                       SELECT target_id FROM excluded_targets
-                      WHERE kingdom_id = ?
+                      WHERE kingdom_id = ? AND target_type = ?
                       ORDER BY ts DESC LIMIT ?
                   )
-            """, (kingdom_id_int, kingdom_id_int, self.MAX_PER_KINGDOM))
-            # حذف أي هدف تجاوز عمره 5 ساعات للمملكة
+            """, (kingdom_id_int, ttype, kingdom_id_int, ttype, self.MAX_PER_TYPE))
+            # حذف المنتهي (أكثر من 5 ساعات) لهذا النوع
             cutoff_ts = now_ts - self.MAX_EXCLUDE_AGE_SECONDS
             conn.execute(
-                "DELETE FROM excluded_targets WHERE kingdom_id = ? AND ts < ?",
-                (kingdom_id_int, cutoff_ts)
+                "DELETE FROM excluded_targets WHERE kingdom_id = ? AND target_type = ? AND ts < ?",
+                (kingdom_id_int, ttype, cutoff_ts)
             )
 
-    async def release(self, uid: Any, target_id: Any, kingdom_id: Any = None):
-        """
-        إزالة الاستبعاد المؤقت عند فشل الإرسال من الذاكرة المؤقتة.
-        (لا تمس قاعدة البيانات)
-        """
+    async def release(
+        self,
+        uid: Any,
+        target_id: Any,
+        kingdom_id: Any = None,
+        target_type: str | None = None,
+    ):
+        """تحرير الحجز المؤقت من الذاكرة فقط إذا كان مملوكاً لنفس القلعة (uid)."""
         tid_str = str(target_id).strip() if target_id is not None else ""
         if not tid_str:
             return
+
+        ttype = self._normalize_query_type(target_type) or self._infer_target_type(tid_str)
+        if ttype in self.NON_EXCLUDABLE_TYPES:
+            return
+
         with self._lock:
             k_key = self._normalize_kingdom_key(uid, kingdom_id)
             uid_str = str(uid).strip() if uid not in (None, "", 0, "0") else ""
             for rkey in ([k_key] if k_key else []) + ([f"_tmp_{uid_str}"] if uid_str else []):
-                if rkey in self._reserved:
-                    self._reserved[rkey].pop(tid_str, None)
+                pkey = f"{rkey}:{ttype}"
+                pool = self._reserved.get(pkey)
+                if pool and tid_str in pool:
+                    owner = pool[tid_str].get("uid")
+                    if not owner or not uid_str or owner == uid_str:
+                        pool.pop(tid_str, None)
 
     async def get_exclude_map(
         self,
@@ -455,21 +471,42 @@ class ExcludeManager:
         target_type: Optional[Any] = None,
     ) -> Dict[str, bool]:
         """
-        جلب خريطة الاستبعاد لمملكة الحساب (ضمن مسافة max_distance وبحد أقصى MAX_QUERY_EXCLUDES).
-        يدعم الفلترة بنوع الهدف target_type (مثل 'food', 'wood', 2, 'elf', 'invader').
-        الأحدث يأتي في نهاية القائمة (للاستخدام مع [-MAX_QUERY_EXCLUDES:]).
+        جلب خريطة الاستبعاد لنوع محدد فقط (أو لكل الأنواع القابلة للاستبعاد عند target_type=None).
+        يرجع {} فوراً للأطلال وحراسة الكنز، ويتجاهل أي حجز RAM منتهي الصلاحية.
         """
         norm_type = self._normalize_query_type(target_type)
+        if norm_type in self.NON_EXCLUDABLE_TYPES:
+            return {}
+
+        now_ts = time.time()
+        reserved_pool: Dict[str, float] = {}
 
         with self._lock:
             k_key = self._normalize_kingdom_key(uid, kingdom_id)
-            rkey  = k_key or (f"_tmp_{str(uid).strip()}" if uid not in (None, "", 0, "0") else None)
-            reserved_pool: Dict[str, float] = {}
-            if rkey and rkey in self._reserved:
-                # استخراج التوقيت مع دعم الشكلين (dict أو float)
-                for tid, entry in self._reserved[rkey].items():
-                    ts = entry.get("ts", 0) if isinstance(entry, dict) else float(entry)
-                    reserved_pool[tid] = ts
+            rkey = k_key or (f"_tmp_{str(uid).strip()}" if uid not in (None, "", 0, "0") else None)
+            if rkey:
+                if norm_type:
+                    candidate_pools = [self._reserved.get(f"{rkey}:{norm_type}")]
+                else:
+                    prefix = f"{rkey}:"
+                    candidate_pools = [
+                        pool for pk, pool in self._reserved.items()
+                        if pk.startswith(prefix) and pk[len(prefix):] not in self.NON_EXCLUDABLE_TYPES
+                    ]
+
+                for pool in candidate_pools:
+                    if not pool:
+                        continue
+                    expired = []
+                    for tid, entry in pool.items():
+                        ts = float(entry.get("ts", 0))
+                        ttl = float(entry.get("ttl", self.RESERVED_TTL_SECONDS))
+                        if (now_ts - ts) > ttl:
+                            expired.append(tid)
+                        else:
+                            reserved_pool[tid] = ts
+                    for exp_tid in expired:
+                        pool.pop(exp_tid, None)
 
         db_ids: List[str] = []
         if k_key:
@@ -480,9 +517,12 @@ class ExcludeManager:
             if norm_type:
                 where_clauses.append("target_type = ?")
                 params.append(norm_type)
+            else:
+                placeholders = ",".join("?" for _ in self.NON_EXCLUDABLE_TYPES)
+                where_clauses.append(f"target_type NOT IN ({placeholders})")
+                params.extend(sorted(self.NON_EXCLUDABLE_TYPES))
 
-            # شرط عمر الهدف: ألا يتجاوز 5 ساعات
-            cutoff_ts = time.time() - self.MAX_EXCLUDE_AGE_SECONDS
+            cutoff_ts = now_ts - self.MAX_EXCLUDE_AGE_SECONDS
             where_clauses.append("ts >= ?")
             params.append(cutoff_ts)
 
@@ -500,24 +540,28 @@ class ExcludeManager:
                 WHERE {' AND '.join(where_clauses)}
                 ORDER BY ts ASC
             """
-
             with self._db_session() as conn:
                 rows = conn.execute(query, params).fetchall()
                 db_ids = [r[0] for r in rows]
 
-        # دمج المحجوزات (RAM) — مع مطابقة نوع الهدف إن حُدد
         if reserved_pool:
-            filtered_reserved: Dict[str, float] = {}
-            for tid, r_ts in reserved_pool.items():
-                if norm_type and self._infer_target_type(tid) != norm_type:
-                    continue
-                filtered_reserved[tid] = r_ts
+            if x is not None and y is not None:
+                try:
+                    ix, iy = int(x), int(y)
+                    max_dist = float(max_distance)
+                    filtered_ram: Dict[str, float] = {}
+                    for tid, r_ts in reserved_pool.items():
+                        tx, ty = self._parse_coords(tid)
+                        if tx is None or ty is None or (abs(tx - ix) <= max_dist and abs(ty - iy) <= max_dist):
+                            filtered_ram[tid] = r_ts
+                    reserved_pool = filtered_ram
+                except (ValueError, TypeError):
+                    pass
 
-            if filtered_reserved:
-                db_ids = [tid for tid in db_ids if tid not in filtered_reserved]
-                db_ids.extend(sorted(filtered_reserved, key=filtered_reserved.get))
+            if reserved_pool:
+                db_ids = [tid for tid in db_ids if tid not in reserved_pool]
+                db_ids.extend(sorted(reserved_pool, key=reserved_pool.get))
 
-        # آخر MAX_QUERY_EXCLUDES عنصراً (الأحدث)
         return {tid: True for tid in db_ids[-self.MAX_QUERY_EXCLUDES:]}
 
     # ────────────────────────────────────────────────────────────────
@@ -531,7 +575,9 @@ class ExcludeManager:
             return
         kid = int(k_key)
         with self._lock:
-            self._reserved.pop(k_key, None)
+            prefix = f"{k_key}:"
+            for pk in [k for k in self._reserved if k == k_key or k.startswith(prefix)]:
+                self._reserved.pop(pk, None)
         with self._db_session() as conn:
             conn.execute("DELETE FROM excluded_targets WHERE kingdom_id = ?", (kid,))
 
