@@ -119,6 +119,9 @@ ALLOWED_CONTROLLERS: FrozenSet[str] = frozenset({
     "godArmsCtrl",
     "militaryRankCtrl",
     "warGemCtrl",
+    "playerKingdomLevelCtrl",
+    "nebulaTowerCtrl",
+    "heroBiographyCtrl",
 
     # --- Aliases & Internal State Keys (10) ---
     "lord",
@@ -688,6 +691,9 @@ class LiveMemoryEngine:
         "104": ("_handle_notify_hero", ("heroCtrl",), True),
         "HERO": ("_handle_notify_hero", ("heroCtrl",), True),
         "NOTIFY_HERO": ("_handle_notify_hero", ("heroCtrl",), True),
+        "406": ("_handle_notify_hero_sys", ("heroSysCtrl",), True),
+        "HERO_SYS": ("_handle_notify_hero_sys", ("heroSysCtrl",), True),
+        "NOTIFY_HERO_SYS": ("_handle_notify_hero_sys", ("heroSysCtrl",), True),
         "8": ("_handle_notify_lord", ("lordInfoCtrl",), True),
         "LORD": ("_handle_notify_lord", ("lordInfoCtrl",), True),
         "NOTIFY_LORD": ("_handle_notify_lord", ("lordInfoCtrl",), True),
@@ -1765,6 +1771,47 @@ class LiveMemoryEngine:
                 )
             else:
                 self.init_data["heroCtrl"] = heroes_to_merge
+
+    def _handle_notify_hero_sys(self, notify_data: Any) -> None:
+        """
+        Synchronizes NOTIFY_HERO_SYS (406) directly into heroSysCtrl.heroList & defendList,
+        matching heroCtrl:noitfyDataRsp (src/app/module/hero/heroCtrl.lua:1325-1382).
+        """
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        hero_sys = self.init_data.setdefault("heroSysCtrl", {})
+        if not isinstance(hero_sys, dict):
+            hero_sys = {}
+            self.init_data["heroSysCtrl"] = hero_sys
+
+        hero_list = hero_sys.setdefault("heroList", {})
+        if not isinstance(hero_list, dict):
+            hero_list = {}
+            hero_sys["heroList"] = hero_list
+
+        for notify_msg in items:
+            if not isinstance(notify_msg, dict):
+                continue
+            revc_data = notify_msg.get("data")
+            if not isinstance(revc_data, dict):
+                revc_data = notify_msg
+
+            update_heroes = revc_data.get("updateHeroInfo")
+            if isinstance(update_heroes, list):
+                for h_obj in update_heroes:
+                    if not isinstance(h_obj, dict):
+                        continue
+                    hid = h_obj.get("heroID") or h_obj.get("id")
+                    if hid is not None:
+                        hero_list[str(hid)] = copy.deepcopy(h_obj)
+            elif isinstance(update_heroes, dict):
+                for k, h_obj in update_heroes.items():
+                    if isinstance(h_obj, dict):
+                        hid = h_obj.get("heroID") or h_obj.get("id") or k
+                        hero_list[str(hid)] = copy.deepcopy(h_obj)
+
+            defend_list = revc_data.get("defendList")
+            if isinstance(defend_list, (dict, list)):
+                hero_sys["defendList"] = copy.deepcopy(defend_list)
 
     def _handle_notify_lord(self, notify_data: Any) -> None:
         """Synchronizes NOTIFY_LORD (8): updates base, skill, and attributes."""
