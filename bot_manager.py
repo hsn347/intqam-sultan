@@ -580,7 +580,7 @@ class CastleBot:
 
         # فتح اتصال البوابة غير المتزامن بـ asyncio
         self.conn = GameConnection(self.account, creds)
-        self.conn.notify_log_callback = self.log
+        self.conn.notify_log_callback = None  # معطل مؤقتاً لحذف طباعة إشعارات السوكت في التيرمنال
         self.conn.brief_log_callback = lambda line: self.log_brief(line, print_to_term=False)
         if not self.is_running or self._stop_event.is_set() or self._async_stop.is_set():
             if self.conn:

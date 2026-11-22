@@ -1,9 +1,7 @@
-with open(r"E:\intqam-sultan\game_file\src\fgui\views\troopFlagView\WorldDispatchArmyViewPanel.lua", "r", encoding="utf-8", errors="ignore") as f:
-    text = f.read()
+with open(r"E:\intqam-sultan\game_file\src\app\game\worldMap\worldAssistView\worldDispatchArmyView\worldDispatchArmyView.lua", "r", encoding="utf-8", errors="ignore") as f:
+    lines = f.readlines()
 
-lines = text.splitlines()
-for idx, line in enumerate(lines):
-    if "getExpArmyCount" in line or "maxArmy" in line or "armyMax" in line or "maxTroop" in line or "capacity" in line:
-        for j in range(max(0, idx-5), min(len(lines), idx+15)):
-            print(f"{j+1}: {lines[j]}")
-        print("="*40)
+print(f"Total lines: {len(lines)}")
+for i, line in enumerate(lines):
+    if any(k in line.lower() for k in ["max", "capacity", "limit", "drill", "121", "totalsoldier", "maxarmy", "maxsoldier", "maxtroop"]):
+        print(f"{i+1}: {line.strip()[:140]}")

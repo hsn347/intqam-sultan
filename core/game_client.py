@@ -1450,6 +1450,8 @@ class GameConnection:
         self.notify_log_callback: Optional[Callable[[str], None]] = None
         self.brief_log_callback: Optional[Callable[[str], None]] = None
         self._seen_unhandled_notifies: Set[str] = set()
+        # تعطيل طباعة إشعارات السوكت في التيرمنال مؤقتاً بناءً على رغبة المطور
+        self.enable_notification_logging: bool = False
 
     @property
     def account_short_name(self) -> str:
@@ -1504,7 +1506,11 @@ class GameConnection:
     def _log_notification(self, report: Dict[str, Any]) -> None:
         """
         طباعة وتوثيق وصول الإشعارات اللحظية في التيرمنال مع فحص الدمج في الذاكرة الحية.
+        (تم تعطيل الطباعة مؤقتاً لحذف إشعارات السوكت من التيرمنال بناءً على طلب المطور)
         """
+        if not getattr(self, "enable_notification_logging", False):
+            return
+
         if not report or not report.get("is_notification"):
             return
 

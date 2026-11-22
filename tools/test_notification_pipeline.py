@@ -34,6 +34,7 @@ def test_allowed_notification_merge():
     acc = AccountSession(email="test@bot.local", user_id="12345", session_id="sess_abc", password="pass")
     creds = GateCredentials(uid="12345", gate_ip="127.0.0.1", gate_port=4084, secret=b"12345678", kingdom_id=150)
     conn = GameConnection(acc, creds)
+    conn.enable_notification_logging = True
     conn.notify_log_callback = lambda msg: logged_messages.append(msg)
 
     # تهيئة أولية لـ cityCtrl
@@ -87,6 +88,7 @@ def test_queue_notification_merge():
     acc = AccountSession(email="test@bot.local", user_id="12345", session_id="sess_abc", password="pass")
     creds = GateCredentials(uid="12345", gate_ip="127.0.0.1", gate_port=4084, secret=b"12345678", kingdom_id=150)
     conn = GameConnection(acc, creds)
+    conn.enable_notification_logging = True
     conn.notify_log_callback = lambda msg: logged_messages.append(msg)
 
     conn.init_data["queueCtrl"] = {}
@@ -132,6 +134,7 @@ def test_reward_notification_merge():
     acc = AccountSession(email="test@bot.local", user_id="12345", session_id="sess_abc", password="pass")
     creds = GateCredentials(uid="12345", gate_ip="127.0.0.1", gate_port=4084, secret=b"12345678", kingdom_id=150)
     conn = GameConnection(acc, creds)
+    conn.enable_notification_logging = True
     conn.notify_log_callback = lambda msg: logged_messages.append(msg)
 
     conn.init_data["timeRewardCtrl"] = {"isReceive": 1, "isAllReceive": 0}
@@ -168,6 +171,7 @@ def test_everyday_task_notification_merge():
     acc = AccountSession(email="test@bot.local", user_id="12345", session_id="sess_abc", password="pass")
     creds = GateCredentials(uid="12345", gate_ip="127.0.0.1", gate_port=4084, secret=b"12345678", kingdom_id=150)
     conn = GameConnection(acc, creds)
+    conn.enable_notification_logging = True
     conn.notify_log_callback = lambda msg: logged_messages.append(msg)
 
     conn.init_data["everydayTaskCtrl"] = {"chestRecord": 0}
@@ -234,6 +238,7 @@ def test_unhandled_notification_filtering():
     acc = AccountSession(email="test@bot.local", user_id="12345", session_id="sess_abc", password="pass")
     creds = GateCredentials(uid="12345", gate_ip="127.0.0.1", gate_port=4084, secret=b"12345678", kingdom_id=150)
     conn = GameConnection(acc, creds)
+    conn.enable_notification_logging = True
     conn.notify_log_callback = lambda msg: logged_messages.append(msg)
 
     untracked_packet = {

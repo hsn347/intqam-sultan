@@ -7462,7 +7462,19 @@ class BaseTask(ABC):
                 or init_data.get("kingdomLevel")
                 or 0
             )
-        if klv >= 36:
+        if klv >= 98:
+            kingdom_lv_add = 15000
+        elif klv >= 88:
+            kingdom_lv_add = 14000
+        elif klv >= 78:
+            kingdom_lv_add = 13000
+        elif klv >= 68:
+            kingdom_lv_add = 12000
+        elif klv >= 58:
+            kingdom_lv_add = 11000
+        elif klv >= 50:
+            kingdom_lv_add = 10000
+        elif klv >= 36:
             kingdom_lv_add = 6000
         elif klv >= 18:
             kingdom_lv_add = 3000
