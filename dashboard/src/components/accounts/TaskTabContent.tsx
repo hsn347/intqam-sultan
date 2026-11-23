@@ -1200,6 +1200,7 @@ function TaskTabContentInner({
   // 3. الهجوم (Combat / march_manager)
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'combat') {
+    const crv = cfg.caravan || { enabled: false }
     const combatTasks = [
       { key: 'invaders', img: '/images/combat/yagmaci.png', labelKey: 'tasks.invaders' },
       { key: 'rebels', img: '/images/combat/yagmaci.png', labelKey: 'tasks.eliteRebels' },
@@ -1207,6 +1208,14 @@ function TaskTabContentInner({
     ]
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <TaskRow
+          id="caravan"
+          img="/images/daily/ganimetkaravani.png"
+          label={t('tasks.lootCaravan')}
+          enabled={Boolean(crv.enabled)}
+          onToggle={toggle('caravan')}
+          comingSoon={false}
+        />
         {combatTasks.map(c => (
           <TaskRow
             key={c.key}
@@ -1378,24 +1387,6 @@ function TaskTabContentInner({
     )
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 6. قافلة الغنيمة (Caravan)
-  // ─────────────────────────────────────────────────────────────────────────
-  if (tab === 'caravan') {
-    const crv = cfg.caravan || { enabled: false }
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <TaskRow
-          id="caravan"
-          img="/images/daily/ganimetkaravani.png"
-          label={t('tasks.lootCaravan')}
-          enabled={Boolean(crv.enabled)}
-          onToggle={toggle('caravan')}
-          comingSoon={false}
-        />
-      </div>
-    )
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // 7. النشاط اليومي (Daily Activity)

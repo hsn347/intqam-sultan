@@ -406,7 +406,6 @@ export type TaskTab =
   | 'combat'
   | 'watermill'
   | 'transport'
-  | 'caravan'
   | 'daily'
   | 'building'
 
