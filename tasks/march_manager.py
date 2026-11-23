@@ -15,6 +15,9 @@ python tasks/march_manager.py --email beetoo1@hotmail.com --search-resource wood
 python tasks/march_manager.py --email beetoo3@hotmail.com --search-monster --monster-type nebula --monster-level 20
 
 
+
+python tasks/gather_resources.py --email LUCIFER@g4.coom --mode daily_tasks --level 6
+
 """
 from __future__ import annotations
 
@@ -143,6 +146,99 @@ WORLD_RESOURCE_MAX_CAPACITY: Dict[int, Dict[int, int]] = {
     5: {1: 800, 2: 1550, 3: 3100, 4: 5400, 5: 8300, 6: 12500, 7: 16650, 8: 22050, 9: 27900, 10: 34550},
     6: {1: 200, 2: 390, 3: 780, 4: 1350, 5: 2080, 6: 3120, 7: 4160, 8: 5520, 9: 6970, 10: 8640},
 }
+
+
+# ── أوزان الموارد الرسمية للجمع (WorldDispatchArmyViewPanel.lua:1074-1081) ──
+RESOURCE_UNIT_WEIGHT: Dict[str, int] = {
+    "gold": 1000,
+    "food": 1,
+    "wood": 1,
+    "iron": 6,
+    "silver": 24,
+    "crystal": 96,
+}
+
+# ── الحمولة الأساسية الرسمية لكل جندي (armyinfo.lua -> freeWeight) ──
+ARMY_BASE_FREE_WEIGHT: Dict[int, int] = {
+    # مشاة (401-414)
+    401: 8, 402: 8, 403: 9, 404: 9, 405: 10, 406: 10, 407: 11, 408: 11,
+    409: 12, 410: 12, 411: 13, 412: 15, 413: 17, 414: 17,
+    # فرسان (501-514)
+    501: 6, 502: 6, 503: 7, 504: 7, 505: 8, 506: 8, 507: 9, 508: 9,
+    509: 10, 510: 10, 511: 12, 512: 14, 513: 16, 514: 16,
+    # رماة (601-614)
+    601: 8, 602: 8, 603: 8, 604: 8, 605: 10, 606: 10, 607: 10, 608: 11,
+    609: 11, 610: 12, 611: 12, 612: 14, 613: 15, 614: 15,
+    # عربات (701-714) — عربات النقل الزوجية/الخاصة أعلى حمولة في اللعبة
+    701: 16, 702: 22, 703: 17, 704: 24, 705: 18, 706: 26, 707: 19, 708: 20,
+    709: 28, 710: 21, 711: 32, 712: 22, 713: 24, 714: 24,
+    # جنود النخبة (906-910)
+    906: 15, 907: 15, 908: 15, 909: 15, 910: 15,
+}
+
+# ── أبطال مهارات الجمع والحمولة الرسميون (hero_skill_conf.lua) ──
+# الصيغة: resource_key -> قائمة (hero_id, required_skill_type)
+GATHER_HERO_SPECIALISTS: Dict[str, List[Tuple[int, int]]] = {
+    "gold":    [(1712, 171202)],
+    "food":    [(1709, 170902), (1717, 171703)],
+    "wood":    [(1707, 170703), (1717, 171702)],
+    "iron":    [(1717, 171704)],
+    "silver":  [(1714, 171402)],
+    "crystal": [(1724, 172404)],
+}
+LOAD_HERO_SPECIALISTS: List[Tuple[int, int]] = [(1706, 170603)]
+
+
+
+# ── سرعة الجمع الأساسية الرسمية (وحدة / ساعة) من resource.lua -> outputSpeed ──
+RESOURCE_BASE_GATHER_SPEED_PER_HOUR: Dict[str, float] = {
+    "gold": 3.0,
+    "food": 55200.0,
+    "wood": 55200.0,
+    "iron": 9200.0,
+    "silver": 2300.0,
+    "crystal": 46.0,
+}
+# معرفات تأثيرات سرعة الجمع في buffCtrl (buffDef.lua)
+GATHER_SPEED_BUFF_BY_RES: Dict[str, int] = {
+    "gold": 226,
+    "food": 73,
+    "wood": 74,
+    "iron": 75,
+    "silver": 76,
+    "crystal": 480,
+}
+
+
+# القوة القتالية الرسمية للوحوش (fc) من config_server/npc.lua (العادية 1..40، السحابية 41..50)
+NPC_COMBAT_FC_BY_LEVEL: Dict[int, int] = {
+    1: 30, 2: 250, 3: 740, 4: 1694, 5: 2765,
+    6: 4130, 7: 7285, 8: 10076, 9: 13354, 10: 23084,
+    11: 28974, 12: 35641, 13: 54822, 14: 65422, 15: 77161,
+    16: 114488, 17: 132416, 18: 151984, 19: 204318, 20: 231400,
+    21: 260549, 22: 364382, 23: 406216, 24: 450909, 25: 498569,
+    26: 625366, 27: 686595, 28: 751478, 29: 820064, 30: 1105534,
+    31: 1406856, 32: 1559454, 33: 1763550, 34: 2018664, 35: 2040892,
+    36: 2669595, 37: 3053265, 38: 3448095, 39: 3924165, 40: 4476450,
+    # الوحوش السحابية (npcId 3041..3050)
+    41: 4966650, 42: 5215050, 43: 5475600, 44: 5749650, 45: 6037200,
+    46: 7044000, 47: 7396500, 48: 7767000, 49: 8155500, 50: 8563500,
+}
+
+# القوة القتالية الأساسية للجندي الواحد (armyinfo.lua -> power) حسب المستوى T1..T14
+SOLDIER_POWER_BY_TIER: Dict[int, float] = {
+    1: 1.0, 2: 1.4, 3: 1.9, 4: 2.5, 5: 3.2,
+    6: 4.0, 7: 4.9, 8: 5.9, 9: 7.0, 10: 8.2,
+    11: 10.5, 12: 12.0, 13: 13.5, 14: 15.0,
+}
+
+# قوة الوحدات الخاصة 8xx (801..805 / 811..815 / 821..825) من armyinfo.lua
+SPECIAL_8XX_POWER_BY_SUB: Dict[int, float] = {
+    1: 1.0, 2: 2.5, 3: 4.0, 4: 5.5, 5: 7.5,
+}
+
+DEFAULT_COMBAT_MIN_WIN_RATIO: float = 1.5
+
 
 
 
@@ -1603,6 +1699,827 @@ class MarchManagerTask(BaseTask):
             "target": None,
             "ruins": None,
             "attempts_used": total_scans,
+        }
+
+    def _get_active_soldier_load_multiplier(self) -> float:
+        """
+        حساب مضاعف حمولة الجنود النشط من الذاكرة الحية (0-Network) كحد أدنى آمن:
+        مطابق جزئياً لـ kingdomMapCtrl:getArmyWeightPlus() (buffCtrl Effect 117).
+        """
+        bonus = 0.0
+        snap = self._get_live_snapshot()
+        buff_ctrl = snap.get("buffCtrl")
+        if isinstance(buff_ctrl, dict):
+            now_ts = time.time()
+            raw_buffs = buff_ctrl.get("buffList") or buff_ctrl.get("buffs") or buff_ctrl
+            entries = raw_buffs.values() if isinstance(raw_buffs, dict) else (raw_buffs if isinstance(raw_buffs, list) else [])
+            for b in entries:
+                if not isinstance(b, dict):
+                    continue
+                eff = self._safe_int(b.get("effect") or b.get("buffType") or b.get("type"), 0)
+                if eff != 117:  # SOLDIER_LOAD_BOOST
+                    continue
+                end_t = self._safe_float(b.get("endTime") or b.get("expireTime") or 0.0)
+                if end_t > 1e11:
+                    end_t /= 1000.0
+                if end_t > 0 and end_t < now_ts:
+                    continue
+                val = self._safe_float(b.get("value") or b.get("buffValue") or 0.0)
+                if val > 0:
+                    bonus += val / 1000.0
+        return max(1.0, 1.0 + bonus)
+
+    def build_gather_army_formation(
+        self,
+        resource_type: Union[str, int],
+        resource_amount: int,
+        available_soldiers: Optional[Union[List[Dict[str, Any]], Dict[int, int]]] = None,
+        available_heroes: Optional[Union[List[Dict[str, Any]], List[int]]] = None,
+        max_march_capacity: Optional[int] = None,
+        safety_margin: float = 0.03,
+        max_heroes: Optional[int] = None,
+        use_load_buff: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        تشكيل فيلق الجمع الأمثل (جنود + أبطال) لمورد محدد بحيث ينهي كامل كميته بهامش أمان بسيط:
+        - resource_type      : نوع المورد (gold/food/wood/iron/silver/crystal أو 1..6 أو 1001..1006 أو بالعربي).
+        - resource_amount    : الكمية المتبقية في المورد (مثال: 300000 خشب أو 50000 حديد).
+        - available_soldiers : الجنود المتاحون بدون حصن الحرب (قائمة من get_available_soldiers أو قاموس {id: count}).
+        - available_heroes   : الأبطال المتاحون (قائمة من get_available_heroes أو قائمة أرقام hero_id).
+        - max_march_capacity : السعة القصوى للفيلق (عدد الجنود الأقصى المسموح بإرساله).
+        - safety_margin      : هامش الأمان الإضافي فوق كمية المورد (الافتراضي 0.03 = +3%).
+        - max_heroes         : أقصى عدد أبطال للفيلق (افتراضياً يُقرأ تلقائياً من get_max_battle_hero_num()).
+        """
+        raw_key = str(resource_type).strip().lower()
+        if raw_key not in RESOURCE_SEARCH_ALIASES:
+            return {
+                "success": False,
+                "code": "INVALID_RESOURCE_TYPE",
+                "message": f"نوع المورد غير معروف: {resource_type}",
+                "soldiers": {},
+                "army_payload": [],
+                "hero_ids": [],
+                "hero_payload": [],
+            }
+
+        res_code, res_key = RESOURCE_SEARCH_ALIASES[raw_key]
+        amount = max(0, self._safe_int(resource_amount, 0))
+        if amount <= 0:
+            return {
+                "success": False,
+                "code": "INVALID_RESOURCE_AMOUNT",
+                "message": f"كمية المورد غير صالحة: {resource_amount}",
+                "soldiers": {},
+                "army_payload": [],
+                "hero_ids": [],
+                "hero_payload": [],
+            }
+
+        # 1. توحيد قائمة الجنود المتاحين واستبعاد أي فخاخ حصن حرب دفاعياً
+        if available_soldiers is None:
+            raw_soldiers_list = self.get_available_soldiers()
+        elif isinstance(available_soldiers, dict):
+            raw_soldiers_list = [
+                {"army_id": int(aid), "count": self._safe_int(cnt, 0)}
+                for aid, cnt in available_soldiers.items()
+            ]
+        else:
+            raw_soldiers_list = list(available_soldiers)
+
+        soldier_pool: List[Dict[str, Any]] = []
+        for s in raw_soldiers_list:
+            if not isinstance(s, dict):
+                continue
+            aid = self._safe_int(s.get("army_id") or s.get("id"), 0)
+            cnt = self._safe_int(s.get("count") or s.get("num"), 0)
+            if cnt <= 0 or not self.is_dispatchable_soldier_id(aid):
+                continue
+            base_id, branch_code, view_lv, is_enhanced = self._parse_soldier_meta(aid)
+            base_weight = ARMY_BASE_FREE_WEIGHT.get(base_id, 8)
+            soldier_pool.append({
+                "army_id": aid,
+                "base_id": base_id,
+                "branch_code": branch_code,
+                "view_level": view_lv,
+                "is_enhanced": is_enhanced,
+                "count": cnt,
+                "free_weight": base_weight,
+            })
+
+        if not soldier_pool:
+            return {
+                "success": False,
+                "code": "NO_SOLDIERS_AVAILABLE",
+                "message": "لا يوجد جنود متاحون في القلعة لتشكيل فيلق الجمع.",
+                "soldiers": {},
+                "army_payload": [],
+                "hero_ids": [],
+                "hero_payload": [],
+            }
+
+        # 2. تحديد السعة القصوى للفيلق (دعم القلاع الصغيرة والكبيرة)
+        if max_march_capacity is None:
+            cap_info = self.get_max_attack_march_capacity() if hasattr(self, "get_max_attack_march_capacity") else {}
+            cap = self._safe_int(cap_info.get("max_march_capacity") if isinstance(cap_info, dict) else 0, 0)
+        else:
+            cap = self._safe_int(max_march_capacity, 0)
+
+        if cap <= 0:
+            return {
+                "success": False,
+                "code": "INVALID_MARCH_CAPACITY",
+                "message": f"سعة الفيلق القصوى غير صالحة: {max_march_capacity}",
+                "soldiers": {},
+                "army_payload": [],
+                "hero_ids": [],
+                "hero_payload": [],
+            }
+
+        # 3. توحيد قائمة الأبطال المتاحين واختيار أبطال الجمع/الحمولة المناسبين
+        if available_heroes is None:
+            raw_heroes_list = self.get_available_heroes()
+        else:
+            raw_heroes_list = list(available_heroes)
+
+        hero_slots = (
+            max(0, min(2, self._safe_int(max_heroes, 1)))
+            if max_heroes is not None
+            else (self.get_max_battle_hero_num() if hasattr(self, "get_max_battle_hero_num") else 1)
+        )
+
+        # تجهيز بيانات الأبطال للفرز الذكي
+        spec_for_res = dict(GATHER_HERO_SPECIALISTS.get(res_key, []))
+        load_specs = dict(LOAD_HERO_SPECIALISTS)
+
+        def _is_hero_skill_active(h_dict: Dict[str, Any], skill_type: int) -> bool:
+            raw = h_dict.get("raw") if isinstance(h_dict.get("raw"), dict) else h_dict
+            slist = raw.get("skillList")
+            if not isinstance(slist, dict):
+                return True  # عند تمرير قائمة IDs فقط بدون raw نعتمد على معرف البطل
+            entry = slist.get(str(skill_type)) or slist.get(skill_type)
+            if isinstance(entry, dict):
+                return bool(entry.get("isActive", False))
+            return False
+
+        scored_gather_heroes: List[Tuple[int, int, int, int]] = []
+        fallback_heroes: List[Tuple[int, int, int]] = []
+
+        for h in raw_heroes_list:
+            if isinstance(h, dict):
+                hid = self._safe_int(h.get("hero_id") or h.get("heroID") or h.get("id"), 0)
+                h_lv = self._safe_int(h.get("level"), 1)
+                h_q = self._safe_int(h.get("quality"), 1)
+                h_dict = h
+            else:
+                hid = self._safe_int(h, 0)
+                h_lv, h_q, h_dict = 1, 1, {}
+
+            if hid <= 0:
+                continue
+
+            score = 0
+            if hid in spec_for_res and _is_hero_skill_active(h_dict, spec_for_res[hid]):
+                score += 1000  # بطل متخصص في جمع هذا المورد تحديداً
+            if hid in load_specs and _is_hero_skill_active(h_dict, load_specs[hid]):
+                score += 600   # بطل زيادة حمولة الجنود
+
+            if score > 0:
+                scored_gather_heroes.append((score, h_q, h_lv, hid))
+            else:
+                fallback_heroes.append((h_q, h_lv, hid))
+
+        scored_gather_heroes.sort(key=lambda x: (-x[0], -x[1], -x[2], x[3]))
+        selected_hero_ids: List[int] = [x[3] for x in scored_gather_heroes[:hero_slots]]
+
+        # 4. حساب الوزن المطلوب بدقة مع هامش الأمان
+        unit_weight = RESOURCE_UNIT_WEIGHT.get(res_key, 1)
+        margin = max(0.0, float(safety_margin))
+        raw_required_weight = amount * unit_weight
+        target_weight = math.ceil(raw_required_weight * (1.0 + margin))
+        load_mult = self._get_active_soldier_load_multiplier() if use_load_buff else 1.0
+
+        # 5. ترتيب الجنود للجمع الاحترافي:
+        #    (1) الأعلى حمولة (freeWeight) أولاً -> يضع عربات النقل (711, 709, 706, 704, 702...) في المقدمة
+        #    (2) تفضيل العربات (branch=7) عند تساوي الحمولة لإبقاء جنود القتال بالقلعة
+        #    (3) تفضيل الرتبة الأقل وغير المطوّرة بالنجوم عند تساوي الحمولة لحماية الجنود النادرين
+        soldier_pool.sort(
+            key=lambda s: (
+                -s["free_weight"],
+                0 if s["branch_code"] == 7 else 1,
+                1 if s["is_enhanced"] else 0,
+                s["view_level"],
+                s["base_id"],
+            )
+        )
+
+        # 6. توزيع الجنود حتى تغطية target_weight أو بلوغ max_march_capacity
+        chosen_soldiers: Dict[int, int] = {}
+        remaining_weight = float(target_weight)
+        remaining_slots = cap
+        total_soldiers = 0
+        total_load = 0.0
+
+        for s in soldier_pool:
+            if remaining_weight <= 0 or remaining_slots <= 0:
+                break
+            per_troop_load = s["free_weight"] * load_mult
+            if per_troop_load <= 0:
+                continue
+            needed = math.ceil(remaining_weight / per_troop_load)
+            take = min(s["count"], needed, remaining_slots)
+            if take <= 0:
+                continue
+            chosen_soldiers[s["army_id"]] = chosen_soldiers.get(s["army_id"], 0) + take
+            gained_load = take * per_troop_load
+            total_soldiers += take
+            total_load += gained_load
+            remaining_weight -= gained_load
+            remaining_slots -= take
+
+        carryable_resource = int(math.floor(total_load / float(unit_weight)))
+        can_clear_all = carryable_resource >= amount
+        coverage_pct = min(100.0, round((carryable_resource / float(amount)) * 100.0, 2)) if amount > 0 else 100.0
+
+        # إذا لم نتمكن من إنهاء المورد ولدينا خانات أبطال شاغرة، أضف أبطالاً احتياطيين للمساعدة
+        if not can_clear_all and len(selected_hero_ids) < hero_slots and fallback_heroes:
+            fallback_heroes.sort(key=lambda x: (-x[0], -x[1], x[2]))
+            for _q, _lv, hid in fallback_heroes:
+                if len(selected_hero_ids) >= hero_slots:
+                    break
+                if hid not in selected_hero_ids:
+                    selected_hero_ids.append(hid)
+
+        army_payload = [{"id": aid, "num": cnt} for aid, cnt in chosen_soldiers.items()]
+        hero_payload = [{"heroID": hid} for hid in selected_hero_ids]
+
+        return {
+            "success": True,
+            "code": "OK" if can_clear_all else "PARTIAL_LOAD",
+            "message": (
+                f"تم تشكيل فيلق جمع لـ {res_key} ({amount:,}): {total_soldiers:,}/{cap:,} جندي "
+                f"(حمولة {carryable_resource:,} = {coverage_pct:.1f}%)"
+            ),
+            "resource_type": res_key,
+            "resource_code": res_code,
+            "resource_amount": amount,
+            "unit_weight": unit_weight,
+            "required_weight": raw_required_weight,
+            "target_weight_with_margin": target_weight,
+            "safety_margin": margin,
+            "load_multiplier": round(load_mult, 4),
+            "max_march_capacity": cap,
+            "total_soldiers": total_soldiers,
+            "total_load": int(math.floor(total_load)),
+            "carryable_resource": carryable_resource,
+            "can_clear_all": can_clear_all,
+            "coverage_percent": coverage_pct,
+            "soldiers": chosen_soldiers,
+            "army_payload": army_payload,
+            "hero_ids": selected_hero_ids,
+            "hero_payload": hero_payload,
+        }
+
+
+    @staticmethod
+    def _get_soldier_combat_power(army_id: int, level: int = 1) -> float:
+        """حساب القوة القتالية الأساسية للجندي الواحد وفق armyinfo.lua."""
+        if 800 <= army_id < 900:
+            sub = army_id % 10
+            return SPECIAL_8XX_POWER_BY_SUB.get(sub, 1.0)
+        tier = max(1, min(14, int(level or 1)))
+        if tier <= 1 and 400 <= army_id < 800:
+            tier = max(1, min(14, army_id % 100))
+        return SOLDIER_POWER_BY_TIER.get(tier, 1.0)
+
+    @staticmethod
+    def get_target_combat_fc(
+        target_type: str = "monster",
+        level: int = 1,
+        custom_fc: Optional[int] = None,
+    ) -> int:
+        """إرجاع القوة القتالية الرسمية (fc) للهدف (وحش عادي، سحابي، أو زعيم بقوة مخصصة)."""
+        if custom_fc is not None and int(custom_fc) > 0:
+            return int(custom_fc)
+        return int(NPC_COMBAT_FC_BY_LEVEL.get(int(level), 0))
+
+    def _compute_recommended_max_level(
+        self,
+        effective_power: float,
+        target_type: str,
+        min_win_ratio: float,
+        max_unlocked_level: Optional[int] = None,
+    ) -> int:
+        """حساب أعلى مستوى وحش تستطيع القلعة قتله بشكل مؤكد بالقوة المتاحة حالياً."""
+        t = (target_type or "monster").strip().lower()
+        if t in ("nebula", "nebula_monster", "cloud"):
+            lv_range = range(41, 51)
+        else:
+            upper = min(40, int(max_unlocked_level)) if max_unlocked_level else 40
+            lv_range = range(1, max(1, upper) + 1)
+
+        best_lv = 0
+        for lv in lv_range:
+            fc = NPC_COMBAT_FC_BY_LEVEL.get(lv, 0)
+            if fc > 0 and (effective_power / fc) >= min_win_ratio:
+                best_lv = lv
+        return best_lv
+
+    def build_combat_army_formation(
+        self,
+        target_type: str = "monster",
+        level: int = 1,
+        strategy: str = "max_power",
+        min_win_ratio: float = DEFAULT_COMBAT_MIN_WIN_RATIO,
+        combat_buff_factor: float = 1.0,
+        custom_fc: Optional[int] = None,
+        exclude_defend_heroes: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        تشكيل الفيلق القتالي المناسب (أبطال + جنود) لقتل هدف محدد بشكل مؤكد (0-Network).
+        يعيد ok=False و can_kill=False مع السبب الدقيق وأعلى مستوى موصى به عند عدم القدرة على القتل.
+
+        المعاملات:
+          - target_type: 'monster' (1..40)، 'nebula_monster' (41..50)، أو 'boss' (مع custom_fc).
+          - level: مستوى الوحش المستهدف.
+          - strategy: 'max_power' (ملء السعة لتقليل الجرحى)، 'exact_threshold' (اقتصادي)، 'strict_overkill' (> 2.0x).
+          - min_win_ratio: عتبة الفوز المؤكد الافتراضية 1.5 (تتوافق مع المؤشر الأخضر في اللعبة).
+          - combat_buff_factor: معامل بوف القلعة القتالي (افتراضي 1.0 = مطابق تماماً لمؤشر اللعبة الخام).
+        """
+        t_norm = (target_type or "monster").strip().lower()
+        req_level = int(level)
+        req_ratio = 2.01 if strategy == "strict_overkill" else max(0.1, float(min_win_ratio))
+        buff_mul = max(0.1, float(combat_buff_factor))
+
+        # 1) التحقق من فتح مستوى الوحش العادي في القلعة
+        max_unlocked: Optional[int] = None
+        if t_norm in ("monster", "normal", "normal_monster"):
+            if hasattr(self, "get_max_can_kill_monster_level"):
+                try:
+                    max_unlocked = int(self.get_max_can_kill_monster_level())
+                except Exception:
+                    max_unlocked = None
+            if max_unlocked is not None and req_level > max_unlocked:
+                return {
+                    "ok": False,
+                    "can_kill": False,
+                    "error_code": "TARGET_LEVEL_LOCKED",
+                    "reason": f"مستوى الوحش المطلوب ({req_level}) غير مفتوح بعد؛ أعلى مستوى مفتوح هو {max_unlocked}.",
+                    "requested_level": req_level,
+                    "max_unlocked_level": max_unlocked,
+                    "recommended_max_level": max_unlocked,
+                }
+
+        # 2) استخراج القوة الرسمية للهدف (npc.fc)
+        npc_fc = self.get_target_combat_fc(t_norm, req_level, custom_fc=custom_fc)
+        if npc_fc <= 0:
+            return {
+                "ok": False,
+                "can_kill": False,
+                "error_code": "UNKNOWN_TARGET_POWER",
+                "reason": f"لا توجد قوة مسجلة (fc) للهدف من نوع '{t_norm}' مستوى {req_level}.",
+                "requested_level": req_level,
+            }
+
+        # 3) التحقق من وجود جنود متاحين
+        soldiers_now = self.get_available_soldiers()
+        if not soldiers_now:
+            return {
+                "ok": False,
+                "can_kill": False,
+                "error_code": "NO_AVAILABLE_SOLDIERS",
+                "reason": "لا يوجد جنود متاحون في القلعة حالياً.",
+                "npc_fc": npc_fc,
+                "recommended_max_level": 0,
+            }
+
+        # 4) اختيار أقوى الأبطال المتاحين أولاً (حتى 5 أبطال حسب get_max_battle_hero_num)
+        heroes_now = self.get_available_heroes(exclude_defend=exclude_defend_heroes)
+        max_heroes = 5
+        if hasattr(self, "get_max_battle_hero_num"):
+            try:
+                max_heroes = max(1, int(self.get_max_battle_hero_num()))
+            except Exception:
+                max_heroes = 5
+
+        sorted_heroes = sorted(
+            heroes_now,
+            key=lambda h: (
+                int(h.get("quality") or 0),
+                int(h.get("level") or 0),
+                int(h.get("hero_id") or h.get("heroID") or h.get("id") or 0),
+            ),
+            reverse=True,
+        )
+        selected_heroes: List[int] = []
+        for h in sorted_heroes[:max_heroes]:
+            hid = int(h.get("hero_id") or h.get("heroID") or h.get("id") or 0)
+            if hid > 0:
+                selected_heroes.append(hid)
+
+        # 5) حساب السعة القصوى الحية للفيلق
+        max_cap = 0
+        try:
+            cap_data = self.get_max_attack_march_capacity()
+            if isinstance(cap_data, dict):
+                max_cap = int(
+                    cap_data.get("total")
+                    or cap_data.get("max_capacity")
+                    or cap_data.get("capacity")
+                    or 0
+                )
+        except Exception:
+            max_cap = 0
+        if max_cap <= 0:
+            try:
+                c_data = self.get_castle_march_capacity_without_heroes()
+                if isinstance(c_data, dict):
+                    max_cap = int(c_data.get("total") or c_data.get("castle_capacity") or 0)
+            except Exception:
+                max_cap = 0
+        if max_cap <= 0:
+            max_cap = 50000
+
+        # 6) ترتيب الجنود المتاحين تنازلياً حسب القوة القتالية للجندي الواحد
+        enriched_soldiers: List[Dict[str, Any]] = []
+        for s in soldiers_now:
+            sid = int(s.get("army_id") or s.get("id") or 0)
+            cnt = int(s.get("count") or 0)
+            lv = int(s.get("level") or 1)
+            if sid <= 0 or cnt <= 0:
+                continue
+            unit_pwr = self._get_soldier_combat_power(sid, lv)
+            enriched_soldiers.append({
+                "army_id": sid,
+                "level": lv,
+                "count": cnt,
+                "unit_power": unit_pwr,
+            })
+
+        enriched_soldiers.sort(
+            key=lambda x: (x["unit_power"], x["level"], x["count"]),
+            reverse=True,
+        )
+
+        # 7) تقييم القوة القصوى الممكنة ضمن سعة الفيلق (وحساب إجمالي قوة القلعة للتمييز بين نقص الجنود وضيق السعة)
+        required_power = npc_fc * req_ratio
+        total_castle_raw_power = sum(x["count"] * x["unit_power"] for x in enriched_soldiers)
+
+        remaining_cap = max_cap
+        army_dict: Dict[str, int] = {}
+        raw_power = 0.0
+        total_sent = 0
+
+        for s in enriched_soldiers:
+            if remaining_cap <= 0:
+                break
+            unit_pwr = s["unit_power"]
+            max_take = min(s["count"], remaining_cap)
+            if max_take <= 0:
+                continue
+
+            if strategy == "exact_threshold":
+                eff_so_far = raw_power * buff_mul
+                if eff_so_far >= required_power:
+                    break
+                needed_eff = required_power - eff_so_far
+                needed_units = int(math.ceil(needed_eff / max(1e-6, unit_pwr * buff_mul)))
+                take = min(max_take, max(1, needed_units))
+            else:
+                take = max_take
+
+            army_dict[str(s["army_id"])] = take
+            raw_power += take * unit_pwr
+            total_sent += take
+            remaining_cap -= take
+
+        effective_power = raw_power * buff_mul
+        win_ratio = effective_power / float(npc_fc)
+
+        # 8) شرط الرفض الصريح إذا لم تتحقق عتبة القتل المؤكد
+        if win_ratio < req_ratio or total_sent <= 0:
+            rec_max_lv = self._compute_recommended_max_level(
+                effective_power=effective_power,
+                target_type=t_norm,
+                min_win_ratio=req_ratio,
+                max_unlocked_level=max_unlocked,
+            )
+            if (total_castle_raw_power * buff_mul) >= required_power:
+                err_code = "INSUFFICIENT_CAPACITY"
+                reason = (
+                    f"لا يمكن قتل الهدف (مستوى {req_level}) بشكل مؤكد بسبب ضيق سعة الفيلق ({max_cap:,}): "
+                    f"النسبة المحققة {win_ratio:.2f}× أقل من المطلوب {req_ratio:.2f}×."
+                )
+            else:
+                err_code = "INSUFFICIENT_SOLDIERS"
+                reason = (
+                    f"لا يمكن قتل الهدف (مستوى {req_level}) بشكل مؤكد بسبب نقص الجنود المتاحين: "
+                    f"القوة المحققة {effective_power:,.0f} من أصل {required_power:,.0f} مطلوبة "
+                    f"(النسبة {win_ratio:.2f}× < {req_ratio:.2f}×)."
+                )
+            return {
+                "ok": False,
+                "can_kill": False,
+                "error_code": err_code,
+                "reason": reason,
+                "target_type": t_norm,
+                "requested_level": req_level,
+                "npc_fc": npc_fc,
+                "required_power": round(required_power, 1),
+                "achieved_power": round(effective_power, 1),
+                "win_ratio": round(win_ratio, 3),
+                "min_win_ratio": req_ratio,
+                "max_capacity": max_cap,
+                "recommended_max_level": rec_max_lv,
+            }
+
+        tier_label = "overkill" if win_ratio > 2.0 else "safe"
+        return {
+            "ok": True,
+            "can_kill": True,
+            "error_code": "OK",
+            "tier": tier_label,
+            "target_type": t_norm,
+            "level": req_level,
+            "army": army_dict,
+            "hero_ids": selected_heroes,
+            "total_soldiers": total_sent,
+            "max_capacity": max_cap,
+            "raw_army_power": round(raw_power, 1),
+            "effective_power": round(effective_power, 1),
+            "npc_fc": npc_fc,
+            "win_ratio": round(win_ratio, 3),
+            "min_win_ratio": req_ratio,
+        }
+
+
+    @staticmethod
+    def _format_duration_hms(seconds: float) -> str:
+        """تحويل الثواني إلى صيغة مقروءة HH:MM:SS."""
+        sec = max(0, int(round(seconds)))
+        h, rem = divmod(sec, 3600)
+        m, s = divmod(rem, 60)
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
+    def _get_active_gather_speed_multiplier(self, res_key: str) -> float:
+        """حساب مضاعف سرعة الجمع النشط من الذاكرة الحية (buffCtrl: Effect 17 + الخاص بالمورد)."""
+        bonus = 0.0
+        target_effs = {17}  # GATHER_SPEED_BOOST (عام)
+        if res_key in GATHER_SPEED_BUFF_BY_RES:
+            target_effs.add(GATHER_SPEED_BUFF_BY_RES[res_key])
+
+        snap = self._get_live_snapshot()
+        buff_ctrl = snap.get("buffCtrl")
+        if isinstance(buff_ctrl, dict):
+            now_ts = time.time()
+            raw_buffs = buff_ctrl.get("buffList") or buff_ctrl.get("buffs") or buff_ctrl
+            entries = raw_buffs.values() if isinstance(raw_buffs, dict) else (raw_buffs if isinstance(raw_buffs, list) else [])
+            for b in entries:
+                if not isinstance(b, dict):
+                    continue
+                eff = self._safe_int(b.get("effect") or b.get("buffType") or b.get("type"), 0)
+                if eff not in target_effs:
+                    continue
+                end_t = self._safe_float(b.get("endTime") or b.get("expireTime") or 0.0)
+                if end_t > 1e11:
+                    end_t /= 1000.0
+                if end_t > 0 and end_t < now_ts:
+                    continue
+                val = self._safe_float(b.get("value") or b.get("buffValue") or 0.0)
+                if val > 0:
+                    bonus += val / 1000.0
+        return max(1.0, 1.0 + bonus)
+
+    def estimate_march_duration(
+        self,
+        march_type: str,
+        dispatch_response: Optional[Dict[str, Any]] = None,
+        target_x: Optional[int] = None,
+        target_y: Optional[int] = None,
+        distance: Optional[float] = None,
+        resource_type: Optional[Union[str, int]] = None,
+        resource_amount: int = 0,
+        work_seconds: float = 0.0,
+    ) -> Dict[str, Any]:
+        """
+        حساب الوقت الكلي الفعلي للمسيرة (ذهاب + عمل/جمع + إياب) لجميع أنواع المسيرات (0-Network):
+        - gather / resource              : ذهاب + وقت الجمع (resource.lua + buffCtrl) + إياب
+        - monster / nebula / boss        : ذهاب + 0 + إياب (القتال فوري عند الوصول)
+        - ruins / relics                 : ذهاب + work_seconds (مدة الاستكشاف) + إياب
+        - escort / escort_assist         : ذهاب فقط (قافلة حراسة الكنز باتجاه واحد)
+        - help / resource_help / attack  : ذهاب + 0 + إياب
+        """
+        now_ts = time.time()
+        m_type = str(march_type or "gather").strip().lower()
+
+        def _extract_go_from_dict(d: Any) -> float:
+            if not isinstance(d, dict):
+                return 0.0
+            for container in (d, d.get("queue"), d.get("data"), d.get("result"), d.get("rspdata")):
+                if not isinstance(container, dict):
+                    continue
+                for dur_key in ("moveTime", "needTime", "marchTime", "goTime"):
+                    dv = self._safe_float(container.get(dur_key), 0.0)
+                    if dv > 0:
+                        return dv / 1000.0 if dv > 1e6 else dv
+                st = self._safe_float(container.get("startTime") or container.get("beginTime") or 0.0)
+                ft = self._safe_float(container.get("finishTime") or container.get("endTime") or 0.0)
+                if st > 1e11:
+                    st /= 1000.0
+                if ft > 1e11:
+                    ft /= 1000.0
+                if ft > st > 0:
+                    return ft - st
+                if ft > now_ts:
+                    return ft - now_ts
+            return 0.0
+
+        # 1. استخراج وقت الذهاب الحقيقي من رد السيرفر أولاً، ثم من local_queues، ثم تقدير بالمسافة
+        go_sec = _extract_go_from_dict(dispatch_response)
+        source = "server_response" if go_sec > 0 else ""
+
+        if go_sec <= 0 and target_x is not None and target_y is not None:
+            tx_i, ty_i = int(target_x), int(target_y)
+            valid_xy = {(tx_i, ty_i), (tx_i + 1, ty_i + 1), (tx_i - 1, ty_i - 1)}
+            for q, _st in self._iter_my_active_queues():
+                to_obj = q.get("to") if isinstance(q.get("to"), dict) else {}
+                qx = self._safe_int(to_obj.get("x") or q.get("target_x"), -1)
+                qy = self._safe_int(to_obj.get("y") or q.get("target_y"), -1)
+                if (qx, qy) in valid_xy:
+                    go_sec = _extract_go_from_dict(q)
+                    if go_sec > 0:
+                        source = "local_queues"
+                        break
+
+        if go_sec <= 0:
+            dist = float(distance) if distance is not None else 0.0
+            if dist <= 0 and target_x is not None and target_y is not None:
+                cx, cy, _kid = self._get_castle_coords_and_kingdom()
+                if cx > 0 or cy > 0:
+                    dist = math.hypot(int(target_x) - cx, int(target_y) - cy)
+            # تقدير احتياطي عند المحاكاة (dry-run): ~3 ثوانٍ/مربع للجمع والأطلال و~1.8 للوحوش والكنز
+            sec_per_tile = 3.0 if m_type in ("gather", "resource", "ruins", "relics") else 1.8
+            go_sec = max(0.0, dist * sec_per_tile)
+            source = "distance_estimate"
+
+        # 2. حساب وقت العمل/البقاء في الهدف + وقت الإياب حسب نوع المسيرة
+        stay_sec = max(0.0, float(work_seconds))
+        return_sec = go_sec
+
+        if m_type in ("gather", "resource"):
+            if stay_sec <= 0 and resource_type is not None and resource_amount > 0:
+                raw_k = str(resource_type).strip().lower()
+                res_key = RESOURCE_SEARCH_ALIASES[raw_k][1] if raw_k in RESOURCE_SEARCH_ALIASES else raw_k
+                base_per_hour = RESOURCE_BASE_GATHER_SPEED_PER_HOUR.get(res_key, 55200.0)
+                speed_mult = self._get_active_gather_speed_multiplier(res_key)
+                if base_per_hour > 0:
+                    stay_sec = (float(resource_amount) / (base_per_hour * speed_mult)) * 3600.0
+        elif m_type in ("monster", "nebula", "nebula_monster", "boss", "help", "resource_help", "attack"):
+            stay_sec = 0.0
+            return_sec = go_sec
+        elif m_type in ("ruins", "relics"):
+            return_sec = go_sec
+        elif m_type in ("escort", "escort_assist"):
+            stay_sec = 0.0
+            return_sec = 0.0  # قافلة حراسة الكنز باتجاه واحد
+
+        total_sec = go_sec + stay_sec + return_sec
+        return {
+            "march_type": m_type,
+            "go_seconds": round(go_sec, 1),
+            "work_seconds": round(stay_sec, 1),
+            "return_seconds": round(return_sec, 1),
+            "total_seconds": round(total_sec, 1),
+            "total_formatted": self._format_duration_hms(total_sec),
+            "expected_return_at": round(now_ts + total_sec, 1),
+            "source": source,
+        }
+
+    async def dispatch_gather_march(
+        self,
+        target: Dict[str, Any],
+        formation: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        إرسال فيلق جمع الموارد الفعلي عبر CMD 1007/2 (ADD_KINGDOM_QUEUE):
+        - مطابق لـ worldMapFunction.lua:206-260 (moveLineType=3, matrixType=3).
+        - يدير دورة حياة الاستبعاد تلقائياً:
+            * نجاح الإرسال أو اختفاء/احتلال البلاطة -> confirm_target
+            * خطأ محلي من القلعة (نقص جنود/سعة/طوابير) -> release_target لتحرير الهدف فوراً
+        """
+        tx = self._safe_int(target.get("x"), 0)
+        ty = self._safe_int(target.get("y"), 0)
+        kid = self._safe_int(target.get("kingdom_id"), self.kingdom_id)
+        target_id = str(target.get("target_id") or "").strip()
+        instance_id = str(target.get("instance_id") or "").strip()
+        res_key = str(target.get("resource_key") or target.get("resource_type") or "").strip()
+
+        army_payload = formation.get("army_payload") or []
+        hero_payload = formation.get("hero_payload") or []
+
+        if not army_payload or (tx <= 0 and ty <= 0):
+            if target_id:
+                await self.release_target(target_id, kingdom_id=kid, target_type=res_key)
+            return {
+                "success": False,
+                "retryable": False,
+                "code": "INVALID_DISPATCH_PARAMS",
+                "message": "بيانات الهدف أو الجيش غير مكتملة لإرسال فيلق الجمع.",
+            }
+
+        march_payload: Dict[str, Any] = {
+            "moveLineType": 3,  # gMapMoveLineType.moveLineTypecapture
+            "matrixType": 3,    # gMapMoveLineMatrixType.moveLineMatrixTypeCollection
+            "data": {
+                "to": {
+                    "x": tx,
+                    "y": ty,
+                    "id": instance_id,
+                },
+                "army": army_payload,
+                "heroInfo": hero_payload,
+                "armsInfo": [],
+                "divineBeastInfo": [],
+                "mapId": kid,
+                "isDuel": False,
+                "isForbidSpeed": False,
+                "data": {},
+            },
+        }
+
+        self.log(
+            f"🚀 [إرسال جمع] إرسال {formation.get('total_soldiers', 0):,} جندي "
+            f"(أبطال: {formation.get('hero_ids', [])}) نحو {res_key} مستوى {target.get('level')} "
+            f"في ({tx}, {ty}) | تغطية: {formation.get('coverage_percent', 0)}%"
+        )
+
+        resp = await self.safe_query("1007", "2", march_payload, min_delay=0.5, max_delay=1.1)
+        if isinstance(resp, dict) and self._is_resp_ok(resp):
+            if target_id:
+                await self.confirm_target(target_id, kingdom_id=kid, target_type=res_key)
+
+            # انتظار قصير لوصول طابور المسيرة الحقيقي من NOTIFY_LOCAL_QUEUE_SYNC (202)
+            valid_xy = {(tx, ty), (tx + 1, ty + 1), (tx - 1, ty - 1)}
+            wait_end = time.monotonic() + 1.5
+            while time.monotonic() < wait_end:
+                found_q = False
+                for q, _st in self._iter_my_active_queues():
+                    to_obj = q.get("to") if isinstance(q.get("to"), dict) else {}
+                    qx = self._safe_int(to_obj.get("x") or q.get("target_x"), -1)
+                    qy = self._safe_int(to_obj.get("y") or q.get("target_y"), -1)
+                    if (qx, qy) in valid_xy:
+                        found_q = True
+                        break
+                if found_q:
+                    break
+                await asyncio.sleep(0.1)
+
+            # حساب الوقت الكلي (ذهاب + جمع + إياب)
+            actual_gather_amount = min(
+                self._safe_int(formation.get("resource_amount"), 0),
+                self._safe_int(formation.get("carryable_resource"), 0),
+            )
+            timing = self.estimate_march_duration(
+                march_type="gather",
+                dispatch_response=resp,
+                target_x=tx,
+                target_y=ty,
+                distance=target.get("distance"),
+                resource_type=res_key,
+                resource_amount=actual_gather_amount,
+            )
+            self.log(
+                f"✅ [إرسال جمع] انطلق الفيلق نحو ({tx}, {ty}) | "
+                f"الزمن الكلي المتوقع: {timing['total_formatted']} [{timing['source']}] "
+                f"(ذهاب: {timing['go_seconds']:.0f}ث | جمع: {timing['work_seconds']:.0f}ث | إياب: {timing['return_seconds']:.0f}ث)"
+            )
+            return {
+                "success": True,
+                "retryable": False,
+                "code": "OK",
+                "message": f"تم إرسال فيلق الجمع بنجاح نحو ({tx}, {ty}).",
+                "timing": timing,
+                "response": resp,
+            }
+
+        err_code = str(resp.get("err", resp.get("code", "TIMEOUT")) if isinstance(resp, dict) else "NO_RESPONSE").strip()
+        # أخطاء القلعة المحلية (نفاد فيالق/جنود/سعة) -> تحرير الحجز والتوقف
+        # أخطاء الهدف (اختفاء/احتلال البلاطة) -> تثبيت الاستبعاد وإعادة المحاولة
+        castle_side_errors = {"NO_RESPONSE", "TIMEOUT", "20003", "20004"}
+        is_castle_error = err_code in castle_side_errors
+
+        if target_id:
+            if is_castle_error:
+                await self.release_target(target_id, kingdom_id=kid, target_type=res_key)
+            else:
+                await self.confirm_target(target_id, kingdom_id=kid, target_type=res_key)
+
+        self.log(f"❌ [إرسال جمع] فشل الإرسال نحو ({tx}, {ty}) | كود الخطأ: {err_code} | الرد: {resp}")
+        return {
+            "success": False,
+            "retryable": not is_castle_error,
+            "code": err_code,
+            "message": f"فشل إرسال فيلق الجمع (كود السيرفر: {err_code}).",
+            "response": resp,
         }
 
     # ═════════════════════════════════════════════════════════════════════════

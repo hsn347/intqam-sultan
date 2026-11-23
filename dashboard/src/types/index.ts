@@ -124,6 +124,15 @@ export interface MaterialWorkshopConfig extends BaseTaskConfig {
   materials?: string[]
 }
 
+export interface TreasureEscortConfig extends BaseTaskConfig {
+  free_refresh: boolean
+  formation_id: number
+  use_saved_formation: boolean
+  use_auto_fill: boolean
+  require_full_legion: boolean
+  exclude_defend: boolean
+}
+
 export interface MarchManagerConfig extends BaseTaskConfig {
   max_queues?: number
   priority_order?: string[]
@@ -133,6 +142,7 @@ export interface MarchManagerConfig extends BaseTaskConfig {
   prestige_stronghold?: { enabled: boolean }
   prestige_gather?: { enabled: boolean }
   transport: { enabled: boolean; target_x: number | null; target_y: number | null; resource_ids: number[] }
+  treasure_escort?: TreasureEscortConfig
   ruins: { enabled: boolean; explore_time: number; formation_id: number }
   combat: { enabled: boolean; choice: 'elf' | 'invaders' | 'rebels'; level: number; formation_id: number }
   elf: { enabled: boolean; formation_id: number }
@@ -295,6 +305,7 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
     prestige_stronghold: { enabled: false },
     prestige_gather: { enabled: false },
     transport: { enabled: false, target_x: null, target_y: null, resource_ids: [] },
+    treasure_escort: { enabled: false, free_refresh: true, formation_id: 1, use_saved_formation: true, use_auto_fill: true, require_full_legion: true, exclude_defend: false },
     ruins: { enabled: false, explore_time: 900, formation_id: 1 },
     combat: { enabled: false, choice: 'invaders', level: 15, formation_id: 1 },
     elf: { enabled: false, formation_id: 1 },
@@ -315,6 +326,7 @@ export const FIXED_PRESET_CONFIG: CastleConfig = {
     prestige_stronghold: { enabled: false },
     prestige_gather: { enabled: false },
     transport: { enabled: false, target_x: null, target_y: null, resource_ids: [] },
+    treasure_escort: { enabled: false, free_refresh: true, formation_id: 1, use_saved_formation: true, use_auto_fill: true, require_full_legion: true, exclude_defend: false },
     ruins: { enabled: false, explore_time: 900, formation_id: 1 },
     combat: { enabled: false, choice: 'elf', level: 30, formation_id: 1 },
     elf: { enabled: false, formation_id: 1 },

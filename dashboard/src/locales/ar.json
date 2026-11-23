@@ -605,7 +605,13 @@
       "goldBuyEnabledLabel": "السماح بالشراء بالذهب عند نفاذ الحزم المجانية",
       "goldTriggerStaminaLabel": "سقف الطاقة لتفعيل الشراء بالذهب",
       "goldBuyStaminaAmountLabel": "كمية الطاقة للشراء في المرة الواحدة"
-    }
+    },
+    "treasureEscort": "حراسة الكنز",
+    "treasureEscortDesc": "إرسال فيلق كامل لحراسة كنز القلعة مع التحديث المجاني للعربة",
+    "fullLegionBadge": "فيلق كامل",
+    "treasureEscortFreeRefresh": "التحديث المجاني للعربة قبل الإرسال",
+    "treasureEscortFormation": "رقم التشكيلة المحفوظة (0 للتلقائي فقط)",
+    "treasureEscortAutoFallback": "التعبئة التلقائية كاحتياطي عند نقص التشكيلة"
   },
   "resources": {
     "food": "القمح",

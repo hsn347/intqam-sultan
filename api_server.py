@@ -415,9 +415,19 @@ class StaminaConfigModel(BaseModel):
     gold_trigger_stamina: int = Field(default=50, ge=0)
     gold_buy_stamina_amount: int = Field(default=50, ge=1)
 
+class TreasureEscortConfigModel(BaseModel):
+    enabled: bool = False
+    free_refresh: bool = True
+    formation_id: int = Field(default=1, ge=0, le=10)
+    use_saved_formation: bool = True
+    use_auto_fill: bool = True
+    require_full_legion: bool = True
+    exclude_defend: bool = False
+
 class MarchManagerConfigModel(BaseModel):
     enabled: bool = False
     max_duration_minutes: int = Field(default=20, ge=1, le=120)
+    treasure_escort: Optional[TreasureEscortConfigModel] = None
 
     model_config = {"extra": "allow"}
 

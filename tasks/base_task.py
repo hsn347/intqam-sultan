@@ -3707,13 +3707,19 @@ class BaseTask(ABC):
             target_type=target_type,
         )
 
-    async def release_target(self, target_id: Any, kingdom_id: Any = None):
+    async def release_target(
+        self,
+        target_id: Any,
+        kingdom_id: Any = None,
+        target_type: str | None = None,
+    ):
         """تحرير حجز الهدف عند فشل الإرسال لإعادة إتاحته فوراً."""
         kid = kingdom_id if kingdom_id is not None else self.kingdom_id
         await self.exclude_manager.release(
             uid=self.uid,
             target_id=target_id,
             kingdom_id=kid,
+            target_type=target_type,
         )
 
     async def get_exclude_map(

@@ -284,6 +284,15 @@ DEFAULT_BOT_CONFIG: Dict[str, Any] = {
         "march_manager": {                    # مدير المسيرات والفيالق (العمليات العسكرية بالخارج)
             "enabled": False,
             "max_duration_minutes": 20,
+            "treasure_escort": {              # حراسة الكنز (كنز القلعة فقط - فيلق كامل)
+                "enabled": False,
+                "free_refresh": True,
+                "formation_id": 1,
+                "use_saved_formation": True,
+                "use_auto_fill": True,
+                "require_full_legion": True,
+                "exclude_defend": False,
+            },
         },
     }
 }

@@ -605,7 +605,13 @@
       "goldBuyEnabledLabel": "Allow gold purchase when free packs run out",
       "goldTriggerStaminaLabel": "Stamina threshold to trigger gold purchase",
       "goldBuyStaminaAmountLabel": "Stamina amount to purchase per attempt"
-    }
+    },
+    "treasureEscort": "Treasure Escort",
+    "treasureEscortDesc": "Dispatch a full legion to escort your castle treasure with free cart refresh",
+    "fullLegionBadge": "Full Legion",
+    "treasureEscortFreeRefresh": "Free cart refresh before dispatch",
+    "treasureEscortFormation": "Saved formation # (0 for auto only)",
+    "treasureEscortAutoFallback": "Auto-fill fallback if formation is incomplete"
   },
   "resources": {
     "food": "Food",

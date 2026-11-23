@@ -33,6 +33,7 @@ export function mergeCastleConfig(fcConfig: Record<string, unknown>): CastleConf
       ...(fmm || {}),
       max_duration_minutes: Number(fmm?.max_duration_minutes) || 20,
       transport:   { ...def.march_manager.transport,   ...((fmm?.transport   as Record<string, unknown>) || {}) },
+      treasure_escort: { ...def.march_manager.treasure_escort!, ...((fmm?.treasure_escort as Record<string, unknown>) || {}) },
       ruins:       { ...def.march_manager.ruins,       ...rawRuins, explore_time: cleanTime },
     combat:      { ...def.march_manager.combat,      ...((fmm?.combat      as Record<string, unknown>) || {}) },
     elf:         { ...def.march_manager.elf,         ...((fmm?.elf         as Record<string, unknown>) || {}) },

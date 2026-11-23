@@ -601,7 +601,13 @@
       "goldBuyEnabledLabel": "Ücretsiz paketler bittiğinde altın ile satın almaya izin ver",
       "goldTriggerStaminaLabel": "Altınla satın almayı tetikleme dayanıklılık eşiği",
       "goldBuyStaminaAmountLabel": "Sefer başına satın alınacak dayanıklılık miktarı"
-    }
+    },
+    "treasureEscort": "Hazine Muhafızlığı",
+    "treasureEscortDesc": "Ücretsiz araba yenileme ile kale hazinesini korumak için tam lejyon gönder",
+    "fullLegionBadge": "Tam Lejyon",
+    "treasureEscortFreeRefresh": "Gönderimden önce ücretsiz araba yenileme",
+    "treasureEscortFormation": "Kayıtlı dizilim # (sadece otomatik için 0)",
+    "treasureEscortAutoFallback": "Dizilim eksikse otomatik doldurma yedeği"
   },
   "resources": {
     "food": "Tahıl",

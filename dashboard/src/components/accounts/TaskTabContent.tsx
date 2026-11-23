@@ -1262,6 +1262,86 @@ function TaskTabContentInner({
             </div>
           </div>
         </TaskRow>
+        {(() => {
+          const te = mm.treasure_escort || {
+            enabled: false,
+            free_refresh: true,
+            formation_id: 1,
+            use_saved_formation: true,
+            use_auto_fill: true,
+            require_full_legion: true,
+            exclude_defend: false,
+          }
+          const updateTe = (patch: Record<string, unknown>) => {
+            update('march_manager' as any, { treasure_escort: { ...te, ...patch } })
+          }
+          return (
+            <TaskRow
+              id="treasure_escort"
+              emoji="💰"
+              label={t('tasks.treasureEscort', 'حراسة الكنز')}
+              description={t('tasks.treasureEscortDesc', 'إرسال فيلق كامل لحراسة كنز القلعة مع التحديث المجاني للعربة')}
+              enabled={Boolean(te.enabled)}
+              onToggle={() => updateTe({ enabled: !te.enabled })}
+              comingSoon={false}
+              badge={
+                te.enabled ? (
+                  <span style={{ fontSize: '11px', color: '#34d399', background: 'rgba(52, 211, 153, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+                    {t('tasks.fullLegionBadge', 'فيلق كامل')}
+                  </span>
+                ) : undefined
+              }
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', color: '#e5e7eb' }}>
+                    {t('tasks.treasureEscortFreeRefresh', 'التحديث المجاني للعربة قبل الإرسال')}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(te.free_refresh)}
+                    onChange={e => updateTe({ free_refresh: e.target.checked })}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', color: '#e5e7eb' }}>
+                    {t('tasks.treasureEscortFormation', 'رقم التشكيلة المحفوظة (0 للتلقائي فقط)')}
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={te.formation_id ?? 1}
+                    onChange={e => {
+                      const val = Math.max(0, Math.min(10, parseInt(e.target.value) || 0))
+                      updateTe({ formation_id: val })
+                    }}
+                    style={{
+                      width: '70px',
+                      padding: '4px 8px',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '4px',
+                      color: '#fff',
+                      textAlign: 'center',
+                      fontSize: '13px',
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', color: '#e5e7eb' }}>
+                    {t('tasks.treasureEscortAutoFallback', 'التعبئة التلقائية كاحتياطي عند نقص التشكيلة')}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(te.use_auto_fill)}
+                    onChange={e => updateTe({ use_auto_fill: e.target.checked })}
+                  />
+                </div>
+              </div>
+            </TaskRow>
+          )
+        })()}
         {combatTasks.map(c => (
           <TaskRow
             key={c.key}
