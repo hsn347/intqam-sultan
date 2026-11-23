@@ -499,7 +499,14 @@ class EscortTreasureTask(MarchManagerTask):
         ok_pre, pre_reason = await self.can_run()
         if not ok_pre:
             self.log(f"⏭️ [حراسة الكنز] {pre_reason}")
-            return TaskResult(success=False, skipped=True, message=pre_reason)
+            sig = "CONTINUE"
+            if not self.is_connected or getattr(self.conn, "is_other_device", False) or getattr(self.conn, "is_sealed", False):
+                sig = "ABORT_DISCONNECTED"
+            elif not self.has_available_march(require_soldiers=True):
+                blk_sig, _ = self.evaluate_march_block_signal(require_soldiers=True)
+                if blk_sig in ("ABORT_MARCHES_FULL", "ABORT_SOLDIER_SHORTAGE", "ABORT_DISCONNECTED"):
+                    sig = blk_sig
+            return TaskResult(success=False, skipped=True, message=pre_reason, data={"manager_signal": sig})
 
         state = self._get_escort_ctrl_state()
         escort_count = state["escort_count"]
@@ -515,7 +522,9 @@ class EscortTreasureTask(MarchManagerTask):
         if not formation.get("ok"):
             msg = str(formation.get("reason") or "تعذر تشكيل فيلق حراسة الكنز.")
             self.log(f"⏭️ [حراسة الكنز] {msg}")
-            return TaskResult(success=False, skipped=True, message=msg)
+            blk_sig, _ = self.evaluate_march_block_signal(require_soldiers=True, soldier_shortage=True)
+            sig = blk_sig if blk_sig in ("ABORT_MARCHES_FULL", "ABORT_SOLDIER_SHORTAGE", "ABORT_DISCONNECTED") else "CONTINUE"
+            return TaskResult(success=False, skipped=True, message=msg, data={"manager_signal": sig})
 
         # 3) جلب أقرب مبنى حراسة كنز (ذاكرة حية أولاً ثم 1078/2)
         closest_build, build_src = await self._resolve_closest_escort_build()

@@ -16,32 +16,52 @@ export function mergeCastleConfig(fcConfig: Record<string, unknown>): CastleConf
   const fc = fcConfig || {}
 
   const mergeMM = (fmm: Record<string, unknown>) => {
-    const rawRuins = ((fmm?.ruins as Record<string, unknown>) || {})
+    const rawExp = ((fmm?.explore_ruins as Record<string, unknown>) || {})
     const VALID_EXPLORE_TIMES = [900, 3600, 14400, 28800]
-    const rawTime = Number(rawRuins.explore_time)
-    let cleanTime = def.march_manager.ruins.explore_time
-    if (VALID_EXPLORE_TIMES.includes(rawTime)) {
-      cleanTime = rawTime
-    } else if (!isNaN(rawTime) && rawTime > 0) {
-      cleanTime = VALID_EXPLORE_TIMES.reduce((prev, curr) =>
-        Math.abs(curr - rawTime) < Math.abs(prev - rawTime) ? curr : prev
-      )
-    }
+    const rawTime = Number(rawExp.explore_time)
+    const cleanTime = VALID_EXPLORE_TIMES.includes(rawTime) ? rawTime : 14400
+
+    const rawTe = (fmm?.treasure_escort as Record<string, unknown>) || {}
+    const rawGsb = (fmm?.gather_speed_buff as Record<string, unknown>) || {}
+    const rawDh = (fmm?.daily_hunt as Record<string, unknown>) || {}
+    const rawDg = (fmm?.daily_gather as Record<string, unknown>) || {}
+    const rawRh = (fmm?.resource_help as Record<string, unknown>) || {}
+    const rawHm = (fmm?.hunt_monsters as Record<string, unknown>) || {}
+    const rawGr = (fmm?.gather_resources as Record<string, unknown>) || {}
+
+    const formationId = Number(fmm?.formation_id ?? rawExp.formation ?? 1) || 1
 
     return {
-      ...def.march_manager,
-      ...(fmm || {}),
+      enabled: Boolean(fmm?.enabled ?? false),
       max_duration_minutes: Number(fmm?.max_duration_minutes) || 20,
-      transport:   { ...def.march_manager.transport,   ...((fmm?.transport   as Record<string, unknown>) || {}) },
-      treasure_escort: { ...def.march_manager.treasure_escort!, ...((fmm?.treasure_escort as Record<string, unknown>) || {}) },
-      ruins:       { ...def.march_manager.ruins,       ...rawRuins, explore_time: cleanTime },
-    combat:      { ...def.march_manager.combat,      ...((fmm?.combat      as Record<string, unknown>) || {}) },
-    invaders:    { ...def.march_manager.invaders,    ...((fmm?.invaders    as Record<string, unknown>) || {}) },
-    rebels:      { ...def.march_manager.rebels,      ...((fmm?.rebels      as Record<string, unknown>) || {}) },
-    gold_gather: { ...def.march_manager.gold_gather, ...((fmm?.gold_gather as Record<string, unknown>) || {}) },
-    gather:      { ...def.march_manager.gather,      ...((fmm?.gather      as Record<string, unknown>) || {}) },
+      formation_id: formationId,
+      gather_speed_buff: { enabled: Boolean(rawGsb.enabled ?? false) },
+      treasure_escort: { enabled: Boolean(rawTe.enabled ?? false) },
+      daily_hunt: { enabled: Boolean(rawDh.enabled ?? false) },
+      daily_gather: { enabled: Boolean(rawDg.enabled ?? false) },
+      explore_ruins: {
+        enabled: Boolean(rawExp.enabled ?? false),
+        explore_time: cleanTime,
+        formation: Number(rawExp.formation ?? formationId) || 1,
+      },
+      resource_help: {
+        enabled: Boolean(rawRh.enabled ?? false),
+        target_x: rawRh.target_x != null && Number(rawRh.target_x) > 0 ? Number(rawRh.target_x) : null,
+        target_y: rawRh.target_y != null && Number(rawRh.target_y) > 0 ? Number(rawRh.target_y) : null,
+        resources: typeof rawRh.resources === 'string' && rawRh.resources.trim() ? rawRh.resources : 'food,wood,iron',
+      },
+      hunt_monsters: {
+        enabled: Boolean(rawHm.enabled ?? false),
+        monster_type: (rawHm.monster_type === 'nebula' ? 'nebula' : 'normal') as 'normal' | 'nebula',
+        monster_level: Number(rawHm.monster_level ?? 0) || 0,
+      },
+      gather_resources: {
+        enabled: Boolean(rawGr.enabled ?? false),
+        resource: typeof rawGr.resource === 'string' && rawGr.resource.trim() ? rawGr.resource : 'wood',
+        level: Number(rawGr.level ?? 0) || 0,
+      },
+    }
   }
-}
 
   const mergeTrain = (ft: Record<string, unknown>) => ({
     ...def.train,

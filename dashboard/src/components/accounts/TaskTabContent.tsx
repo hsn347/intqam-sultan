@@ -171,7 +171,7 @@ function Stepper({
           inputMode="numeric"
           pattern="[0-9]*"
           value={isFocused ? textValue : (formatLabel ? '' : value)}
-          placeholder={formatLabel ? String(formatLabel(value)) : String(value)}
+          placeholder={formatLabel ? '' : String(value)}
           onFocus={(e) => {
             setIsFocused(true)
             setTextValue(String(value))
@@ -477,18 +477,20 @@ function SectionLabel({ text }: { text: string }) {
 // ─── Resource definitions ────────────────────────────────────────────────────
 
 const MARCH_RESOURCES = [
-  { v: 2, img: '/images/gather/mtahil.png', resKey: 'resources.food' },
-  { v: 3, img: '/images/gather/modun.png',  resKey: 'resources.wood' },
-  { v: 4, img: '/images/gather/mdemir.png', resKey: 'resources.iron' },
-  { v: 5, img: '/images/gather/mkuvars.png',resKey: 'resources.diamond' },
-  { v: 1, img: '/images/gather/altin.png',  resKey: 'resources.gold' },
+  { v: 2, img: '/images/gather/mtahil.png',  resKey: 'resources.food' },
+  { v: 3, img: '/images/gather/modun.png',   resKey: 'resources.wood' },
+  { v: 4, img: '/images/gather/mdemir.png',  resKey: 'resources.iron' },
+  { v: 5, img: '/images/daily/metal.png',    resKey: 'resources.silver' },
+  { v: 6, img: '/images/gather/mkuvars.png', resKey: 'resources.crystal' },
+  { v: 1, img: '/images/gather/altin.png',   resKey: 'resources.gold' },
 ]
 
 const TRANSPORT_RESOURCES = [
-  { id: 1002, img: '/images/resources/mtahil.png', resKey: 'resources.food' },
-  { id: 1003, img: '/images/resources/modun.png',  resKey: 'resources.wood' },
-  { id: 1004, img: '/images/resources/mdemir.png', resKey: 'resources.iron' },
-  { id: 1005, img: '/images/resources/mkuvars.png',resKey: 'resources.diamond' },
+  { id: 1002, key: 'food',    img: '/images/resources/mtahil.png',  resKey: 'resources.food' },
+  { id: 1003, key: 'wood',    img: '/images/resources/modun.png',   resKey: 'resources.wood' },
+  { id: 1004, key: 'iron',    img: '/images/resources/mdemir.png',  resKey: 'resources.iron' },
+  { id: 1005, key: 'silver',  img: '/images/daily/metal.png',       resKey: 'resources.silver' },
+  { id: 1006, key: 'crystal', img: '/images/resources/mkuvars.png', resKey: 'resources.crystal' },
 ]
 
 const WATERMILL_RESOURCES = [
@@ -867,7 +869,7 @@ function TaskTabContentInner({
     flushSave()
 
     // التحقق من إحداثيات مساعدة الموارد إذا كانت مفعّلة
-    const tr = draftConfig.march_manager?.transport
+    const tr = draftConfig.march_manager?.resource_help
     if (tr?.enabled) {
       const hasX = tr.target_x != null && tr.target_x > 0
       const hasY = tr.target_y != null && tr.target_y > 0
@@ -896,7 +898,7 @@ function TaskTabContentInner({
     if (changesCount === 0 || isPending) return
 
     // التحقق من إحداثيات مساعدة الموارد عند الحفظ
-    const tr = draftConfig.march_manager?.transport
+    const tr = draftConfig.march_manager?.resource_help
     if (tr?.enabled) {
       const hasX = tr.target_x != null && tr.target_x > 0
       const hasY = tr.target_y != null && tr.target_y > 0
@@ -1005,21 +1007,132 @@ function TaskTabContentInner({
     // 1. جمع الموارد (Gather)
     // ─────────────────────────────────────────────────────────────────────────
     if (tab === 'gather') {
+      const mm: any = cfg.march_manager || {}
+      const gr: any = mm.gather_resources || {
+        enabled: false,
+        resource: 'wood',
+        res_type: 3,
+        level: 0,
+        max_distance: 120,
+      }
+      const gsb: any = mm.gather_speed_buff || { enabled: false }
+
+      const RES_KEY_BY_V: Record<number, string> = {
+        2: 'food',
+        3: 'wood',
+        4: 'iron',
+        5: 'silver',
+        6: 'crystal',
+        1: 'gold',
+      }
+      const V_BY_RES_KEY: Record<string, number> = {
+        food: 2,
+        wood: 3,
+        iron: 4,
+        silver: 5,
+        crystal: 6,
+        diamond: 6,
+        gold: 1,
+      }
+
+      const selectedResKey = String(gr.resource || RES_KEY_BY_V[Number(gr.res_type)] || 'wood').toLowerCase()
+      const selectedResV = V_BY_RES_KEY[selectedResKey] ?? 3
+      const gatherLevel = Number(gr.level ?? 0)
+
+      const updateGatherResources = (patch: Record<string, unknown>, delayMs = 200) => {
+        const nextGr = { ...gr, ...patch }
+        const nextKey = String(nextGr.resource || 'wood').toLowerCase()
+        const nextLv = Number(nextGr.level ?? 0)
+        const nextEnabled = Boolean(nextGr.enabled)
+        update(
+          'march_manager',
+          {
+            ...(nextEnabled ? { enabled: true } : {}),
+            gather_resources: {
+              enabled: nextEnabled,
+              resource: nextKey,
+              level: nextLv,
+            },
+          } as any,
+          delayMs
+        )
+      }
+
+      const updateGatherBuff = (enabled: boolean) => {
+        update(
+          'march_manager',
+          {
+            ...(enabled ? { enabled: true } : {}),
+            gather_speed_buff: { ...gsb, enabled },
+          } as any,
+          150
+        )
+      }
+
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <TaskRow
-            img="/images/gather/mtahil.png"
+            id="gather_resources"
+            img="/images/gather/icon_map_mineral_collect.png"
             label={t('tasks.gatherResources')}
-            enabled={false}
-            onToggle={() => {}}
-            comingSoon={true}
+            enabled={Boolean(gr.enabled)}
+            onToggle={v => updateGatherResources({ enabled: v }, 150)}
+            comingSoon={false}
           />
+
+          {Boolean(gr.enabled) && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                padding: '12px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '12px',
+              }}
+            >
+              <div>
+                <SectionLabel text={t('tasks.resourceType', 'نوع المورد')} />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {MARCH_RESOURCES.map(r => (
+                    <ResCard
+                      key={r.v}
+                      img={r.img}
+                      label={t(r.resKey)}
+                      selected={selectedResV === r.v}
+                      onClick={() =>
+                        updateGatherResources({
+                          resource: RES_KEY_BY_V[r.v] || 'wood',
+                          res_type: r.v,
+                        })
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <SectionLabel text={t('common.level', 'المستوى')} />
+                <Stepper
+                  value={gatherLevel}
+                  min={0}
+                  max={10}
+                  formatLabel={v => (v === 0 ? t('common.auto', 'تلقائي') : `Lv.${v}`)}
+                  onChange={v => updateGatherResources({ level: v })}
+                />
+              </div>
+            </div>
+          )}
+
           <TaskRow
+            id="gather_speed_buff"
             img="/images/gather/gather_boost.png"
             label={t('tasks.gatherBoost')}
-            enabled={false}
-            onToggle={() => {}}
-            comingSoon={true}
+            description={t('tasks.gatherBoostDesc', 'تفعيل تلقائي (الصغيرة ← الكبيرة ← السوبر) قبل الجمع')}
+            enabled={Boolean(gsb.enabled)}
+            onToggle={updateGatherBuff}
+            comingSoon={false}
           />
         </div>
       )
@@ -1200,33 +1313,288 @@ function TaskTabContentInner({
   // 3. الهجوم (Combat / march_manager)
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'combat') {
-    const crv = cfg.caravan || { enabled: false }
-    const combatTasks = [
-      { key: 'invaders', img: '/images/combat/yagmaci.png', labelKey: 'tasks.invaders' },
-      { key: 'rebels', img: '/images/combat/yagmaci.png', labelKey: 'tasks.eliteRebels' },
-      { key: 'ruins', emoji: '🏛️', labelKey: 'tasks.ruins' },
+    const mm: any = cfg.march_manager || {}
+    const hm: any = mm.hunt_monsters || {
+      enabled: false,
+      monster_type: 'normal',
+      monster_level: 0,
+      formation_id: 1,
+      auto_downgrade: true,
+      min_energy: 10,
+    }
+    const inv: any = mm.invaders || { enabled: false, level: 0, formation_id: 1 }
+    const reb: any = mm.rebels || { enabled: false, level: 0, formation_id: 1 }
+    const ruinsCfg: any = mm.ruins || { enabled: false, explore_time: 14400, formation_id: 1 }
+    const expRuins: any = mm.explore_ruins || { enabled: false, explore_time: 14400, formation: 1, max_distance: 120 }
+
+    const RUINS_DURATIONS = [
+      { sec: 900,   labelKey: 'tasks.ruins15m', fallback: '15 دقيقة' },
+      { sec: 3600,  labelKey: 'tasks.ruins1h',  fallback: '1 ساعة' },
+      { sec: 14400, labelKey: 'tasks.ruins4h',  fallback: '4 ساعات' },
+      { sec: 28800, labelKey: 'tasks.ruins8h',  fallback: '8 ساعات' },
     ]
+
+    const normalizeRuinsSec = (raw: unknown): number => {
+      const n = Number(raw)
+      if ([900, 3600, 14400, 28800].includes(n)) return n
+      if (n === 15) return 900
+      if (n === 1) return 3600
+      if (n === 4) return 14400
+      if (n === 8) return 28800
+      return 14400
+    }
+
+    const ruinsEnabled = Boolean(expRuins.enabled ?? ruinsCfg.enabled ?? false)
+    const ruinsExploreSec = normalizeRuinsSec(expRuins.explore_time ?? ruinsCfg.explore_time ?? 14400)
+
+    const updateRuins = (patch: { enabled?: boolean; explore_time?: number }) => {
+      const nextEnabled = patch.enabled !== undefined ? patch.enabled : ruinsEnabled
+      const nextSec = patch.explore_time !== undefined ? normalizeRuinsSec(patch.explore_time) : ruinsExploreSec
+      update(
+        'march_manager',
+        {
+          ...(nextEnabled ? { enabled: true } : {}),
+          explore_ruins: {
+            enabled: nextEnabled,
+            explore_time: nextSec,
+            formation: activeFormationId,
+          },
+        } as any,
+        150
+      )
+    }
+
+    const te: any = mm.treasure_escort || { enabled: false, free_refresh: true }
+
+    // تحديث حراسة الكنز بدون حفظ formation_id إطلاقاً في قاعدة البيانات
+    const updateTreasureEscort = (patch: { enabled?: boolean }) => {
+      const nextEnabled = patch.enabled !== undefined ? patch.enabled : Boolean(te.enabled)
+      update(
+        'march_manager',
+        {
+          ...(nextEnabled ? { enabled: true } : {}),
+          treasure_escort: { enabled: nextEnabled },
+        } as any,
+        150
+      )
+    }
+
+    const activeFormationId = Number(mm.formation_id ?? expRuins.formation ?? 1)
+    const normalEnabled = Boolean(hm.enabled && hm.monster_type !== 'nebula')
+    const nebulaEnabled = Boolean(hm.enabled && hm.monster_type === 'nebula')
+
+    const normalLevel = normalEnabled
+      ? Number(hm.monster_level ?? 0)
+      : Number(inv.level ?? 0)
+    const nebulaLevel = nebulaEnabled
+      ? Number(hm.monster_level ?? 0)
+      : Number(reb.level ?? 0)
+
+    const FORMATION_SLOTS = [
+      { id: 1, img: '/images/combat/slot1.png' },
+      { id: 2, img: '/images/combat/slot2.png' },
+      { id: 3, img: '/images/combat/slot3.png' },
+      { id: 4, img: '/images/combat/slot4.png' },
+    ]
+
+    // تحديث التشكيلة الموحدة في رأس قسم الهجوم (تنطبق على الوحوش + وحوش السحاب + الأطلال فقط)
+    const setCombatFormation = (slotId: number) => {
+      update(
+        'march_manager',
+        {
+          formation_id: slotId,
+          explore_ruins: {
+            enabled: ruinsEnabled,
+            explore_time: ruinsExploreSec,
+            formation: slotId,
+          },
+        } as any,
+        150
+      )
+    }
+
+    const setMonsterOption = (type: 'normal' | 'nebula', enabled: boolean, level?: number) => {
+      const targetLv = level !== undefined ? level : (type === 'nebula' ? nebulaLevel : normalLevel)
+      update(
+        'march_manager',
+        {
+          ...(enabled ? { enabled: true } : {}),
+          hunt_monsters: {
+            enabled,
+            monster_type: type,
+            monster_level: targetLv,
+          },
+        } as any,
+        150
+      )
+    }
+
+    const handleNebulaLevelChange = (v: number) => {
+      let clean = v
+      if (v > 0 && v < 41) {
+        clean = nebulaLevel === 0 ? 41 : 0
+      }
+      setMonsterOption('nebula', true, clean)
+    }
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* رأس قسم الهجوم: اختيار التشكيلة الموحدة لجميع مهام القسم ما عدا قافلة الغنيمة */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+            padding: '10px 12px',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '12px',
+          }}
+        >
+          <SectionLabel text={t('tasks.formation', 'تشكيلة')} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '6px' }}>
+            {FORMATION_SLOTS.map(slot => {
+              const isSelected = activeFormationId === slot.id
+              return (
+                <button
+                  key={slot.id}
+                  type="button"
+                  onClick={() => setCombatFormation(slot.id)}
+                  className={clsx('task-res-card', isSelected ? 'selected' : 'unselected')}
+                  style={{
+                    padding: '6px 4px',
+                    borderRadius: '8px',
+                    border: isSelected
+                      ? '1.5px solid rgba(var(--theme-primary-rgb),0.65)'
+                      : '1px solid rgba(255,255,255,0.10)',
+                    background: isSelected
+                      ? 'rgba(var(--theme-primary-rgb),0.14)'
+                      : 'rgba(255,255,255,0.04)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '3px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <img
+                    src={slot.img}
+                    alt={`${t('tasks.formation', 'تشكيلة')} ${slot.id}`}
+                    style={{ width: '28px', height: '28px', objectFit: 'contain' }}
+                  />
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: isSelected ? 700 : 500,
+                      color: isSelected ? 'var(--theme-primary-light)' : '#9ca3af',
+                    }}
+                  >
+                    {t('tasks.formation', 'تشكيلة')} {slot.id}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* 1) الوحوش (العادية: 1–40 أو 0 تلقائي) */}
         <TaskRow
-          id="caravan"
+          id="combat_monsters"
+          img="/images/combat/yagmaci.png"
+          label={t('tasks.invaders', 'الوحوش')}
+          enabled={normalEnabled}
+          onToggle={v => setMonsterOption('normal', v)}
+          comingSoon={false}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <SectionLabel text={t('common.level', 'المستوى')} />
+            <Stepper
+              value={normalLevel}
+              min={0}
+              max={40}
+              formatLabel={v => (v === 0 ? t('common.auto', 'تلقائي') : `Lv.${v}`)}
+              onChange={v => setMonsterOption('normal', true, v)}
+            />
+          </div>
+        </TaskRow>
+
+        {/* 2) وحوش السحاب (41–50 أو 0 تلقائي) */}
+        <TaskRow
+          id="combat_nebula"
+          img="/images/combat/elitifrit.png"
+          label={t('tasks.eliteRebels', 'وحوش السحاب')}
+          enabled={nebulaEnabled}
+          onToggle={v => setMonsterOption('nebula', v)}
+          comingSoon={false}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <SectionLabel text={t('common.level', 'المستوى')} />
+            <Stepper
+              value={nebulaLevel}
+              min={0}
+              max={50}
+              formatLabel={v => (v === 0 ? t('common.auto', 'تلقائي') : `Lv.${v}`)}
+              onChange={handleNebulaLevelChange}
+            />
+          </div>
+        </TaskRow>
+
+        {/* 3) الأطلال */}
+        <TaskRow
+          id="combat_ruins"
+          img="/images/combat/kesif.png"
+          label={t('tasks.ruins', 'الأطلال')}
+          enabled={ruinsEnabled}
+          onToggle={v => updateRuins({ enabled: v })}
+          comingSoon={false}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <SectionLabel text={t('tasks.marchDuration', 'مدة المسيرة')} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '6px' }}>
+              {RUINS_DURATIONS.map(d => {
+                const isSelected = ruinsExploreSec === d.sec
+                return (
+                  <button
+                    key={d.sec}
+                    type="button"
+                    onClick={() => updateRuins({ explore_time: d.sec })}
+                    className={clsx('task-troop-btn', isSelected ? 'selected' : 'unselected')}
+                    style={{
+                      padding: '6px 4px',
+                      borderRadius: '7px',
+                      border: isSelected
+                        ? '1.5px solid rgba(var(--theme-primary-rgb),0.65)'
+                        : '1px solid rgba(255,255,255,0.10)',
+                      background: isSelected
+                        ? 'rgba(var(--theme-primary-rgb),0.14)'
+                        : 'rgba(255,255,255,0.04)',
+                      color: isSelected ? 'var(--theme-primary-light)' : '#9ca3af',
+                      fontSize: '11px',
+                      fontWeight: isSelected ? 700 : 500,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {t(d.labelKey, d.fallback)}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </TaskRow>
+
+        {/* 4) حراسة الكنز (بدون حفظ رقم التشكيلة في قاعدة البيانات) */}
+        <TaskRow
+          id="combat_treasure_escort"
           img="/images/daily/ganimetkaravani.png"
-          label={t('tasks.lootCaravan')}
-          enabled={Boolean(crv.enabled)}
-          onToggle={toggle('caravan')}
+          label={t('tasks.treasureEscort', 'حراسة الكنز')}
+          description={t('tasks.treasureEscortDesc')}
+          enabled={Boolean(te.enabled)}
+          onToggle={v => updateTreasureEscort({ enabled: v })}
           comingSoon={false}
         />
-        {combatTasks.map(c => (
-          <TaskRow
-            key={c.key}
-            img={c.img}
-            emoji={c.emoji}
-            label={t(c.labelKey, c.key)}
-            enabled={false}
-            onToggle={() => {}}
-            comingSoon={true}
-          />
-        ))}
       </div>
     )
   }
@@ -1374,15 +1742,222 @@ function TaskTabContentInner({
   // 5. مساعدة الموارد (Transport)
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'transport') {
+    const mm: any = cfg.march_manager || {}
+    const tr: any = mm.transport || { enabled: false, target_x: null, target_y: null, resource_ids: [1002, 1003, 1004] }
+    const rh: any = mm.resource_help || {
+      enabled: Boolean(tr.enabled),
+      target_x: tr.target_x ?? null,
+      target_y: tr.target_y ?? null,
+      resources: 'food,wood,iron',
+      keep_reserve: 0,
+      respect_target_limit: true,
+    }
+
+    const KEY_BY_ID: Record<number, string> = {
+      1002: 'food',
+      1003: 'wood',
+      1004: 'iron',
+      1005: 'silver',
+      1006: 'crystal',
+    }
+    const ID_BY_KEY: Record<string, number> = {
+      food: 1002,
+      wood: 1003,
+      iron: 1004,
+      silver: 1005,
+      mithril: 1005,
+      crystal: 1006,
+    }
+
+    const parseSelectedIds = (): number[] => {
+      if (typeof rh.resources === 'string' && rh.resources.trim()) {
+        const ids = rh.resources
+          .split(',')
+          .map((s: string) => ID_BY_KEY[s.trim().toLowerCase()])
+          .filter((n: number | undefined): n is number => typeof n === 'number')
+        if (ids.length > 0) return Array.from(new Set(ids))
+      }
+      if (Array.isArray(tr.resource_ids) && tr.resource_ids.length > 0) {
+        return tr.resource_ids.map((n: any) => Number(n)).filter((n: number) => Boolean(KEY_BY_ID[n]))
+      }
+      return [1002]
+    }
+
+    const helpEnabled = Boolean(rh.enabled ?? tr.enabled ?? false)
+    const targetX = rh.target_x ?? tr.target_x ?? null
+    const targetY = rh.target_y ?? tr.target_y ?? null
+    const selectedIds = parseSelectedIds()
+
+    const isXValid = targetX != null && Number(targetX) > 0
+    const isYValid = targetY != null && Number(targetY) > 0
+    const hasInvalidCoords = helpEnabled && (!isXValid || !isYValid)
+
+    const updateResourceHelp = (
+      patch: { enabled?: boolean; target_x?: number | null; target_y?: number | null; resource_ids?: number[] },
+      delayMs = 200
+    ) => {
+      const nextEnabled = patch.enabled !== undefined ? patch.enabled : helpEnabled
+      const nextX = patch.target_x !== undefined ? patch.target_x : targetX
+      const nextY = patch.target_y !== undefined ? patch.target_y : targetY
+      const nextIds = patch.resource_ids !== undefined ? patch.resource_ids : selectedIds
+      const cleanIds = nextIds.length > 0 ? nextIds : [1002]
+      const resCsv = cleanIds.map(id => KEY_BY_ID[id]).filter(Boolean).join(',')
+
+      const nextValid = nextX != null && Number(nextX) > 0 && nextY != null && Number(nextY) > 0
+      if (nextEnabled && nextValid) {
+        setCoordsError(false)
+      }
+
+      const mmPatch = {
+        ...(nextEnabled ? { enabled: true } : {}),
+        resource_help: {
+          enabled: nextEnabled,
+          target_x: nextX,
+          target_y: nextY,
+          resources: resCsv,
+        },
+      } as any
+
+      // لا نحفظ تلقائياً إذا كانت الميزة مفعّلة وإحدى الإحداثيات فارغة أو 0
+      if (nextEnabled && !nextValid) {
+        setDraftConfig(prev => {
+          const next = {
+            ...prev,
+            march_manager: { ...(prev.march_manager || {}), ...mmPatch },
+          } as CastleConfig
+          draftConfigRef.current = next
+          return next
+        })
+        return
+      }
+
+      update('march_manager', mmPatch, delayMs)
+    }
+
+    const handleCoordChange = (axis: 'target_x' | 'target_y', raw: string) => {
+      // إزالة أي أحرف غير رقمية ومنع الرقم 0 (إزالة الأصفار البادئة)
+      const digits = raw.replace(/[^0-9]/g, '').replace(/^0+/, '')
+      if (!digits) {
+        updateResourceHelp({ [axis]: null }, 250)
+        return
+      }
+      const num = Math.min(1199, Math.max(1, parseInt(digits, 10)))
+      updateResourceHelp({ [axis]: num }, 250)
+    }
+
+    const toggleHelpResource = (resId: number) => {
+      const exists = selectedIds.includes(resId)
+      if (exists && selectedIds.length <= 1) return // الإبقاء على مورد واحد على الأقل
+      const nextIds = exists
+        ? selectedIds.filter(id => id !== resId)
+        : [...selectedIds, resId]
+      updateResourceHelp({ resource_ids: nextIds }, 150)
+    }
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <TaskRow
+          id="resource_help"
           img="/images/transport/transport.png"
-          label={t('tasks.resourceTransport')}
-          enabled={false}
-          onToggle={() => {}}
-          comingSoon={true}
+          label={t('tasks.transportResources', 'مساعدة الموارد')}
+          enabled={helpEnabled}
+          onToggle={v => updateResourceHelp({ enabled: v }, 150)}
+          comingSoon={false}
         />
+
+        {helpEnabled && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              padding: '12px',
+              background: 'rgba(255,255,255,0.03)',
+              border: hasInvalidCoords || coordsError
+                ? '1px solid rgba(239,68,68,0.55)'
+                : '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '12px',
+            }}
+          >
+            {/* إدخال الإحداثيات X و Y (أكبر من 0 فقط) */}
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: '#9ca3af', fontSize: '12px', fontWeight: 700, minWidth: '14px' }}>X</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[1-9][0-9]*"
+                    placeholder="1 - 1199"
+                    value={targetX != null && Number(targetX) > 0 ? String(targetX) : ''}
+                    onChange={e => handleCoordChange('target_x', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '8px',
+                      background: 'rgba(0,0,0,0.35)',
+                      border: !isXValid
+                        ? '1px solid rgba(239,68,68,0.65)'
+                        : '1px solid rgba(255,255,255,0.12)',
+                      color: '#f0fdf4',
+                      fontSize: '12px',
+                      fontFamily: 'monospace',
+                      textAlign: 'center',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: '#9ca3af', fontSize: '12px', fontWeight: 700, minWidth: '14px' }}>Y</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[1-9][0-9]*"
+                    placeholder="1 - 1199"
+                    value={targetY != null && Number(targetY) > 0 ? String(targetY) : ''}
+                    onChange={e => handleCoordChange('target_y', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: '8px',
+                      background: 'rgba(0,0,0,0.35)',
+                      border: !isYValid
+                        ? '1px solid rgba(239,68,68,0.65)'
+                        : '1px solid rgba(255,255,255,0.12)',
+                      color: '#f0fdf4',
+                      fontSize: '12px',
+                      fontFamily: 'monospace',
+                      textAlign: 'center',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {(hasInvalidCoords || coordsError) && (
+                <div style={{ color: '#f87171', fontSize: '11px', marginTop: '6px' }}>
+                  {t('tasks.invalidCoordsWarning')}
+                </div>
+              )}
+            </div>
+
+            {/* اختيار الموارد المراد المساعدة بها */}
+            <div>
+              <SectionLabel text={t('tasks.resourceType', 'نوع المورد')} />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {TRANSPORT_RESOURCES.map(r => (
+                  <ResCard
+                    key={r.id}
+                    img={r.img}
+                    label={t(r.resKey)}
+                    selected={selectedIds.includes(r.id)}
+                    onClick={() => toggleHelpResource(r.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -3013,11 +3588,11 @@ function TaskTabContentInner({
   }
 
   const transportHasMissingCoords = Boolean(
-    coordsError &&
-    cfg.march_manager?.transport?.enabled &&
-    (!cfg.march_manager.transport.target_x || cfg.march_manager.transport.target_x <= 0 ||
-     !cfg.march_manager.transport.target_y || cfg.march_manager.transport.target_y <= 0)
-  )
+  coordsError &&
+  cfg.march_manager?.resource_help?.enabled &&
+  (!cfg.march_manager.resource_help.target_x || cfg.march_manager.resource_help.target_x <= 0 ||
+   !cfg.march_manager.resource_help.target_y || cfg.march_manager.resource_help.target_y <= 0)
+)
 
   return (
     <div className="relative space-y-4 w-full task-tab-content-root">

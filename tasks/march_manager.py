@@ -141,6 +141,22 @@ DAILY_MARCH_TASKS_SPEC: Dict[str, Tuple[int, int, Optional[int]]] = {
     "gather_silver":   (4, 5, 5),     # جمع الفضة
 }
 
+DAILY_GATHER_MIN_CASTLE_LEVEL: Dict[str, int] = {
+    "gather_food": 1,
+    "gather_wood": 1,
+    "gather_iron": 10,
+    "gather_silver": 15,
+}
+
+# ── إشارات التحكم الموحدة بين المهام الفرعية ومدير المسيرات (Manager Signal Contract) ──
+MANAGER_SIGNAL_CONTINUE = "CONTINUE"
+MANAGER_SIGNAL_WAIT_MONSTER = "WAIT_MONSTER_MARCH"
+MANAGER_SIGNAL_ABORT_MARCHES_FULL = "ABORT_MARCHES_FULL"
+MANAGER_SIGNAL_ABORT_SOLDIER_SHORTAGE = "ABORT_SOLDIER_SHORTAGE"
+MANAGER_SIGNAL_ABORT_TIME_EXPIRED = "ABORT_TIME_EXPIRED"
+MANAGER_SIGNAL_ABORT_DISCONNECTED = "ABORT_DISCONNECTED"
+DEFAULT_WAIT_INTERVAL_SEC = 120.0
+
 # ── البحث عن الموارد وسعات البلاطات الرسمية (findMonsterCtrl.lua & resource.lua) ──
 CMD_WORLD_SEARCH = "2083"
 SUBCMD_SEARCH_RESOURCE = "2"
@@ -471,46 +487,143 @@ class MarchManagerTask(BaseTask):
                 return True
         return False
 
+    def has_active_monster_march(self) -> bool:
+        """التحقق من وجود فيلق واحد على الأقل يهاجم وحوشاً حالياً بالخارج (0-Network)."""
+        for q, _st in self._iter_my_active_queues():
+            q_type = self._safe_int(q.get("type") or q.get("queueType"), 0)
+            m_type = self._safe_int(q.get("moveLineType"), 0)
+            if q_type == MOVE_LINE_TYPE_KILL_NPC or m_type == MOVE_LINE_TYPE_KILL_NPC:
+                return True
+        return False
+
+    def evaluate_march_block_signal(
+        self,
+        require_soldiers: bool = True,
+        soldier_shortage: bool = False,
+    ) -> Tuple[str, str]:
+        """
+        تقييم سبب تعذّر الإرسال وفق قاعدة المدير الحتمية (0-Network):
+          - انقطاع الاتصال / جهاز آخر / حظر -> ABORT_DISCONNECTED
+          - الفيالق ممتلئة (0 شاغرة):
+              * يوجد فيلق وحوش بالخارج -> WAIT_MONSTER_MARCH
+              * لا يوجد فيلق وحوش بالخارج -> ABORT_MARCHES_FULL
+          - نقص جنود:
+              * يوجد فيلق وحوش بالخارج -> WAIT_MONSTER_MARCH
+              * يوجد فيلق+ غير وحوش بالخارج -> ABORT_SOLDIER_SHORTAGE
+              * 0 فيالق بالخارج (القلعة فارغة أصلاً) -> CONTINUE (للسماح لمساعدة الموارد)
+          - وإلا -> OK
+        """
+        if (
+            not self.is_connected
+            or getattr(self.conn, "is_other_device", False)
+            or getattr(self.conn, "is_sealed", False)
+        ):
+            return MANAGER_SIGNAL_ABORT_DISCONNECTED, "انقطع الاتصال ببوابة اللعبة."
+
+        avail_slots = self.get_available_marches_count()
+        active_marches = self.get_active_marches_count()
+        has_monster = self.has_active_monster_march()
+
+        if avail_slots <= 0:
+            if has_monster:
+                return MANAGER_SIGNAL_WAIT_MONSTER, "الفيالق ممتلئة ويوجد فيلق وحوش نشط بالخارج."
+            return MANAGER_SIGNAL_ABORT_MARCHES_FULL, "جميع الفيالق ممتلئة بالخارج ولا يوجد فيلق وحوش نشط."
+
+        if require_soldiers and (soldier_shortage or not self.get_available_soldiers()):
+            if has_monster:
+                return MANAGER_SIGNAL_WAIT_MONSTER, "نقص جنود ويوجد فيلق وحوش نشط بالخارج."
+            if active_marches >= 1:
+                return MANAGER_SIGNAL_ABORT_SOLDIER_SHORTAGE, "نقص جنود مع وجود فيالق غير وحوش بالخارج."
+            return MANAGER_SIGNAL_CONTINUE, "لا يوجد جنود متاحون داخل القلعة (0 فيالق بالخارج)."
+
+        return "OK", ""
+
+    async def sleep_interruptible(self, seconds: float, deadline: Optional[float] = None) -> bool:
+        """
+        انتظار آمن مجزأ كل ثانية ينكسر فوراً عند انقطاع الاتصال أو انتهاء المهلة الكلية.
+        يعيد True إذا اكتمل الانتظار والاتصال سليم والمهلة لم تنتهِ، وإلا False.
+        """
+        target_end = time.monotonic() + max(0.0, float(seconds))
+        if deadline is not None:
+            target_end = min(target_end, deadline)
+
+        while True:
+            if (
+                not self.is_connected
+                or getattr(self.conn, "is_other_device", False)
+                or getattr(self.conn, "is_sealed", False)
+            ):
+                return False
+            now = time.monotonic()
+            if deadline is not None and now >= deadline:
+                return False
+            rem = target_end - now
+            if rem <= 0.0:
+                return True
+            await asyncio.sleep(min(1.0, rem))
+
     def get_daily_march_tasks_status(self) -> Dict[str, Dict[str, Any]]:
         """
-        فحص حالة إنجاز مهام النشاط اليومي الخمس (الوحوش، القمح، الخشب، الحديد، الفضة)
-        من الذاكرة الحية فقط (0-Network) مطابق لـ everydayTaskCtrl:isTaskCompleted():
+        فحص حالة وتوفر وإنجاز مهام النشاط اليومي الخمس (الوحوش، القمح، الخشب، الحديد، الفضة)
+        من الذاكرة الحية فقط (0-Network) مطابق لـ everydayTaskCtrl:
+          - available: False إذا لم تكن القلعة تملك متحكم النشاط اليومي أو المورد مقفل لمستوى القلعة
+                       أو غير موجود ضمن قائمة مهام القلعة اليومية.
           - completed: True إذا كانت المهمة منجزة (progress >= 5)، وإلا False.
-          - has_active_march: يُفحص فقط إذا كانت المهمة غير منجزة (completed=False)
-            للتحقق من وجود مسيرة نشطة حالياً لها في local_queues.
+          - has_active_march: True إذا كانت هناك مسيرة نشطة حالياً لنفس المهمة.
         """
         snapshot = self._get_live_snapshot()
         et_ctrl = snapshot.get("everydayTaskCtrl")
+        has_et_ctrl = isinstance(et_ctrl, dict) and bool(et_ctrl)
         event_info = et_ctrl.get("eventInfo") if isinstance(et_ctrl, dict) else None
         if not isinstance(event_info, dict):
             event_info = {}
 
-        # فحص كسول لطوابير المسيرات (فقط عند الحاجة لمهمة غير منجزة)
+        # إذا احتوى everydayTaskCtrl على قائمة مهام صريحة، نتحقق منها لمعرفة المهام المتوفرة لهذه القلعة
+        explicit_task_types: Optional[Set[int]] = None
+        if isinstance(et_ctrl, dict):
+            for list_key in ("taskInfo", "tasks", "taskList"):
+                raw_tasks = et_ctrl.get(list_key)
+                if isinstance(raw_tasks, (list, dict)) and raw_tasks:
+                    found_types: Set[int] = set()
+                    iterable = raw_tasks.values() if isinstance(raw_tasks, dict) else raw_tasks
+                    for item in iterable:
+                        if isinstance(item, dict):
+                            t_id = self._safe_int(
+                                item.get("type") or item.get("taskType") or item.get("eventType"), 0
+                            )
+                            if t_id > 0:
+                                found_types.add(t_id)
+                    if found_types:
+                        explicit_task_types = found_types
+                        break
+
+        castle_lv = self._safe_int(getattr(self, "castle_level", 1), 1)
         active_gather_res: Optional[Set[int]] = None
         has_monster_march: Optional[bool] = None
 
         result: Dict[str, Dict[str, Any]] = {}
         for task_key, (task_type, target_limit, res_sub_type) in DAILY_MARCH_TASKS_SPEC.items():
+            req_lv = DAILY_GATHER_MIN_CASTLE_LEVEL.get(task_key, 1)
+            available = has_et_ctrl and (castle_lv >= req_lv)
+            if available and explicit_task_types is not None:
+                available = task_type in explicit_task_types
+
             progress = self._safe_int(event_info.get(str(task_type), event_info.get(task_type, 0)), 0)
             completed = progress >= target_limit
 
             has_active_march = False
-            if not completed:
+            if available and not completed:
                 if res_sub_type is None:
-                    # فحص وجود مسيرة هجوم على وحوش نشطة (type=1)
                     if has_monster_march is None:
-                        has_monster_march = any(
-                            self._safe_int(q.get("type") or q.get("queueType"), 0) == MOVE_LINE_TYPE_KILL_NPC
-                            for q, _st in self._iter_my_active_queues()
-                        )
+                        has_monster_march = self.has_active_monster_march()
                     has_active_march = has_monster_march
                 else:
-                    # فحص وجود مسيرة جمع نشطة لهذا المورد تحديداً (0-Network)
                     if active_gather_res is None:
                         active_gather_res = self.get_active_gather_resource_types(force_sync=False)
                     has_active_march = res_sub_type in active_gather_res
 
             result[task_key] = {
+                "available": available,
                 "completed": completed,
                 "has_active_march": has_active_march,
                 "progress": min(progress, target_limit),
@@ -2568,17 +2681,246 @@ class MarchManagerTask(BaseTask):
 
         return True, ""
 
+    def _load_effective_manager_config(self) -> Dict[str, Any]:
+        """
+        تجميع إعدادات مدير المسيرات من self.config (القادمة من قاعدة البيانات عبر CastleBot)،
+        مع قراءة محلية احتياطية من SQLite فقط إذا كان التشغيل مستقلاً ولم تُمرر الإعدادات الفرعية.
+        (0-Network بالكامل).
+        """
+        cfg: Dict[str, Any] = dict(self.config) if isinstance(self.config, dict) else {}
+        priority_keys = (
+            "treasure_escort",
+            "daily_hunt",
+            "daily_gather",
+            "explore_ruins",
+            "resource_help",
+            "hunt_monsters",
+            "gather_resources",
+            "gather_speed_buff",
+        )
+        if any(k in cfg for k in priority_keys):
+            return cfg
+
+        # احتياطي محلي عند التشغيل المباشر من الطرفية: جلب إعدادات march_manager من SQLite إن وجدت
+        email = getattr(getattr(self.conn, "account", None), "email", "") or ""
+        if email:
+            try:
+                import core.database as db
+                db_cfg = db.get_castle_config_only(email)
+                if isinstance(db_cfg, dict):
+                    mm_db = db_cfg.get("march_manager")
+                    if not isinstance(mm_db, dict) and isinstance(db_cfg.get("tasks"), dict):
+                        mm_db = db_cfg["tasks"].get("march_manager")
+                    if isinstance(mm_db, dict):
+                        merged = dict(mm_db)
+                        merged.update(cfg)
+                        return merged
+            except Exception:
+                pass
+        return cfg
+
+    def _get_subtask_db_config(self, mgr_cfg: Dict[str, Any], primary_key: str, aliases: Tuple[str, ...] = ()) -> Dict[str, Any]:
+        """استخراج إعدادات أولوية محددة من إعدادات قاعدة البيانات بدون تعديل الأصل."""
+        for k in (primary_key,) + aliases:
+            val = mgr_cfg.get(k)
+            if isinstance(val, dict):
+                return dict(val)
+        return {}
+
+    def _is_priority_eligible_for_castle(self, priority_key: str, sub_cfg: Dict[str, Any]) -> Tuple[bool, str]:
+        """
+        فحص أهلية القلعة لتنفيذ الأولوية من الذاكرة الحية فقط (0-Network) قبل إنشاء المهمة:
+          - بعض القلاع لا تملك مهام نشاط يومي للوحوش أو الجمع، أو لم تفتح المورد أو السوق أو التحالف.
+        """
+        if priority_key == "treasure_escort":
+            if self.has_treasure_escort_march():
+                return False, "يوجد بالفعل فيلق حراسة كنز نشط بالخارج."
+            return True, ""
+
+        if priority_key == "daily_hunt":
+            daily = self.get_daily_march_tasks_status()
+            info = daily.get("attack_monsters")
+            if not isinstance(info, dict) or not info.get("available", False):
+                return False, "لا توجد مهمة هجوم وحوش في النشاط اليومي لهذه القلعة."
+            if info.get("completed"):
+                return False, "مهمة الهجوم على الوحوش اليومية منجزة بالفعل."
+            return True, ""
+
+        if priority_key == "daily_gather":
+            daily = self.get_daily_march_tasks_status()
+            has_pending = any(
+                isinstance(daily.get(k), dict)
+                and daily[k].get("available", False)
+                and not daily[k].get("completed", False)
+                and not daily[k].get("has_active_march", False)
+                for k in ("gather_food", "gather_wood", "gather_iron", "gather_silver")
+            )
+            if not has_pending:
+                return False, "لا توجد مهام جمع يومية متاحة أو غير منجزة لهذه القلعة."
+            return True, ""
+
+        if priority_key == "explore_ruins":
+            if self.has_relics_explore_march():
+                return False, "يوجد بالفعل فيلق استكشاف أطلال نشط بالخارج."
+            return True, ""
+
+        if priority_key == "resource_help":
+            tx = self._safe_int(sub_cfg.get("target_x", sub_cfg.get("x", -1)), -1)
+            ty = self._safe_int(sub_cfg.get("target_y", sub_cfg.get("y", -1)), -1)
+            if tx < 0 or ty < 0:
+                return False, "إحداثيات القلعة المستلمة لمساعدة الموارد غير مضبوطة في الإعدادات."
+            if self.get_resource_help_transport_capacity() <= 0:
+                return False, "مبنى السوق غير متوفر أو سعة النقل تساوي 0 لهذه القلعة."
+            return True, ""
+
+        if priority_key == "hunt_monsters":
+            return True, ""
+
+        if priority_key == "gather_resources":
+            raw_res = str(sub_cfg.get("resource_type", sub_cfg.get("resource", "wood")) or "wood").strip().lower()
+            if raw_res not in RESOURCE_SEARCH_ALIASES:
+                return False, f"نوع المورد المحدد غير معروف: {raw_res}"
+            _code, res_key = RESOURCE_SEARCH_ALIASES[raw_res]
+            min_lv = {"food": 1, "wood": 1, "iron": 10, "silver": 15, "gold": 1}.get(res_key, 1)
+            c_lv = self._safe_int(getattr(self, "castle_level", 1), 1)
+            if c_lv < min_lv:
+                return False, f"المورد ({res_key}) غير مفتوح لمستوى القلعة الحالي ({c_lv} < {min_lv})."
+            return True, ""
+
+        return True, ""
+
+    async def _maybe_activate_gather_speed_buff(self, mgr_cfg: Dict[str, Any]) -> None:
+        """
+        تفعيل مكافأة سرعة الجمع (صغيرة -> كبيرة -> سوبر) مرة واحدة فقط قبل أول مهمة جمع مؤهلة
+        إذا كانت مفعّلة في قاعدة البيانات (0-Network إذا كان الباف نشطاً، وطلب 1004/2 واحد فقط عند الحاجة).
+        """
+        buff_cfg = self._get_subtask_db_config(mgr_cfg, "gather_speed_buff", ("gather_buff",))
+        if not buff_cfg.get("enabled", False):
+            return
+        try:
+            from tasks.gather_speed_buff import GatherSpeedBuffTask
+            buff_task = GatherSpeedBuffTask(self.conn, self.log, buff_cfg)
+            res = await buff_task.safe_execute()
+            if res.success:
+                self.log(f"✅ [MarchManager -> gather_speed_buff] {res.message}")
+            elif res.skipped:
+                self.log(f"⏭️ [MarchManager -> gather_speed_buff] {res.message}")
+            else:
+                self.log(f"⚠️ [MarchManager -> gather_speed_buff] {res.message}")
+        except ConnectionCircuitBreakerError:
+            raise
+        except Exception as e:
+            if "ConcurrentLogin" in type(e).__name__:
+                raise
+            self.log(f"⚠️ [MarchManager -> gather_speed_buff] تعذر تفعيل مكافأة سرعة الجمع: {e}")
+
+    def _build_official_priority_pipeline(self) -> List[Dict[str, Any]]:
+        """
+        جدول الأولويات السبع الرسمي بالترتيب الصارم المعتمد:
+          1. حراسة الكنز (treasure_escort)
+          2. الهجوم على الوحوش العاديين - مود النشاط اليومي (daily_hunt)      [يرث وقت 20 د]
+          3. جمع الموارد - مود النشاط اليومي (daily_gather)                  [يرث وقت 20 د]
+          4. استكشاف الأطلال (explore_ruins)
+          5. مساعدة الموارد (resource_help)                                   [يرث وقت 20 د | 0 جنود]
+          6. الهجوم على الوحوش - المود العادي: عادي أو سحاب (hunt_monsters)   [يرث وقت 20 د]
+          7. جمع الموارد - المود العادي (gather_resources)
+        """
+        from tasks.escort_treasure import EscortTreasureTask
+        from tasks.hunt_monsters import HuntMonstersTask
+        from tasks.gather_resources import GatherResourcesTask
+        from tasks.explore_ruins import ExploreRuinsTask
+        from tasks.resource_help import ResourceHelpTask
+
+        return [
+            {
+                "key": "treasure_escort",
+                "aliases": ("escort_treasure",),
+                "label": "حراسة الكنز",
+                "cls": EscortTreasureTask,
+                "forced_mode": None,
+                "inherits_time_budget": False,
+                "requires_soldiers": True,
+                "is_gather": False,
+            },
+            {
+                "key": "daily_hunt",
+                "aliases": ("daily_monsters", "hunt_daily"),
+                "label": "الوحوش (النشاط اليومي)",
+                "cls": HuntMonstersTask,
+                "forced_mode": "daily_tasks",
+                "inherits_time_budget": True,
+                "requires_soldiers": True,
+                "is_gather": False,
+            },
+            {
+                "key": "daily_gather",
+                "aliases": ("gather_daily",),
+                "label": "جمع الموارد (النشاط اليومي)",
+                "cls": GatherResourcesTask,
+                "forced_mode": "daily_tasks",
+                "inherits_time_budget": True,
+                "requires_soldiers": True,
+                "is_gather": True,
+            },
+            {
+                "key": "explore_ruins",
+                "aliases": ("ruins",),
+                "label": "استكشاف الأطلال",
+                "cls": ExploreRuinsTask,
+                "forced_mode": None,
+                "inherits_time_budget": False,
+                "requires_soldiers": True,
+                "is_gather": False,
+            },
+            {
+                "key": "resource_help",
+                "aliases": ("market_help",),
+                "label": "مساعدة الموارد",
+                "cls": ResourceHelpTask,
+                "forced_mode": None,
+                "inherits_time_budget": True,
+                "requires_soldiers": False,
+                "is_gather": False,
+            },
+            {
+                "key": "hunt_monsters",
+                "aliases": ("hunt", "monsters"),
+                "label": "الوحوش (المود العادي)",
+                "cls": HuntMonstersTask,
+                "forced_mode": "hunt",
+                "inherits_time_budget": True,
+                "requires_soldiers": True,
+                "is_gather": False,
+            },
+            {
+                "key": "gather_resources",
+                "aliases": ("gather",),
+                "label": "جمع الموارد (العادي)",
+                "cls": GatherResourcesTask,
+                "forced_mode": "resource",
+                "inherits_time_budget": False,
+                "requires_soldiers": True,
+                "is_gather": True,
+            },
+        ]
+
     async def run(self) -> TaskResult:
         """
-        التنفيذ الرئيسي لمدير المسيرات والفيالق:
-        1. بدء قياس الزمن الكلي لدورة المدير (سقف أقصى 20 دقيقة أو حسب الإعدادات).
-        2. فحص سعة الفيالق والمسيرات الحية (0-Network).
-        3. تشغيل المهام الفرعية المسجلة تلو الأخرى مع عزل الأخطاء ومراقبة السقف الزمني.
-        4. الخروج الفوري عند اكتمال المهام أو بلوغ الحد الزمني.
+        المنسّق المركزي لمدير المسيرات والفيالق (MarchManagerTask):
+          1. يقرأ إعدادات القلعة من قاعدة البيانات ويفحص تفعيل وأهلية كل أولوية (0-Network).
+          2. يدير الميزانية الزمنية التراكمية (20 دقيقة افتراضياً) ويمرر remaining_sec للمهام المستحقة.
+          3. يتلقى إشارات الخروج الموحدة (manager_signal) ليقرر فوراً بين المواصلة أو الخروج الكلي،
+             مع السماح للأولوية 5 (مساعدة الموارد) بالعمل عند نقص الجنود طالما يوجد فيلق شاغر.
+          4. يفعّل مكافأة سرعة الجمع تلقائياً قبل أول مهمة جمع مؤهلة إذا كانت مفعّلة في قاعدة البيانات.
         """
         start_time = time.monotonic()
         max_duration = self.max_duration_seconds
         max_minutes = self.max_duration_minutes
+        deadline = start_time + max_duration
+        mgr_cfg = self._load_effective_manager_config()
+        wait_interval_sec = max(
+            10.0, self._safe_float(mgr_cfg.get("wait_interval_sec", DEFAULT_WAIT_INTERVAL_SEC), DEFAULT_WAIT_INTERVAL_SEC)
+        )
 
         summary = self.get_march_status_summary()
         max_cap = summary["max_capacity"]
@@ -2587,72 +2929,210 @@ class MarchManagerTask(BaseTask):
 
         self.log(
             f"⚔️ [MarchManager] بدء دورة مدير المسيرات والفيالق "
-            f"(الحد الأقصى للمدة: {max_minutes} دقيقة | سعة الفيالق: {max_cap} | "
+            f"(الميزانية الكلية: {max_minutes} دقيقة | سعة الفيالق: {max_cap} | "
             f"نشطة بالخارج: {active} | شاغرة حالياً: {avail})."
         )
 
-        subtasks = self.get_registered_subtasks()
+        pipeline = self._build_official_priority_pipeline()
         executed_subtasks = 0
         successful_subtasks = 0
+        gather_buff_checked = False
+        soldier_shortage_pending = False
+        abort_reason = ""
+        final_signal = MANAGER_SIGNAL_CONTINUE
+        reports: List[Dict[str, Any]] = []
 
-        if not subtasks:
-            duration_spent = time.monotonic() - start_time
-            msg = (
-                f"محرك مدير المسيرات جاهز بكفاءة تامة (بانتظار ربط المهام الفرعية لاحقاً). "
-                f"الفيالق: {avail}/{max_cap} متاحة."
-            )
-            self.log(f"ℹ️ [MarchManager] {msg} (استغرق الفحص: {duration_spent:.2f} ثانية).")
-            return TaskResult.ok(msg)
+        # معرفة ما إذا كانت الأولوية 5 (مساعدة الموارد) مفعّلة في قاعدة البيانات لاستثناء نقص الجنود
+        res_help_cfg_preview = self._get_subtask_db_config(mgr_cfg, "resource_help", ("market_help",))
+        res_help_enabled = bool(res_help_cfg_preview.get("enabled", False))
+        res_help_done = False
 
-        for subtask_cls in subtasks:
-            elapsed = time.monotonic() - start_time
-            if elapsed >= max_duration:
-                self.log(
-                    f"⏳ [MarchManager] بلغت المهمة الحد الأقصى للمدة المحددة "
-                    f"({max_minutes} دقيقة) — الخروج فوراً وإنهاء الدورة."
-                )
+        for step in pipeline:
+            p_key = step["key"]
+            p_label = step["label"]
+
+            # فحص قاطع الاتصال قبل كل أولوية
+            if (
+                not self.is_connected
+                or getattr(self.conn, "is_other_device", False)
+                or getattr(self.conn, "is_sealed", False)
+            ):
+                abort_reason = "انقطع الاتصال ببوابة اللعبة — إيقاف دورة مدير المسيرات فوراً."
+                final_signal = MANAGER_SIGNAL_ABORT_DISCONNECTED
+                self.log(f"⚡ [MarchManager] {abort_reason}")
                 break
 
-            sub_name = getattr(subtask_cls, "name", subtask_cls.__name__)
-            sub_alias = getattr(subtask_cls, "alias", "")
-            sub_cfg = (
-                self.config.get(sub_name)
-                or (self.config.get(sub_alias) if sub_alias else None)
-                or {}
-            )
+            # فحص الميزانية الزمنية المتبقية من الـ 20 دقيقة
+            remaining_sec = deadline - time.monotonic()
+            if remaining_sec <= 2.0:
+                abort_reason = f"استُنفدت الميزانية الزمنية الكلية ({max_minutes} دقيقة) — الخروج فوراً."
+                final_signal = MANAGER_SIGNAL_ABORT_TIME_EXPIRED
+                self.log(f"⏳ [MarchManager] {abort_reason}")
+                break
 
+            # إذا رُصد نقص جنود سابقاً مع فيالق غير وحوش بالخارج: نسمح فقط لـ resource_help بالعمل ثم نخرج فوراً
+            if soldier_shortage_pending:
+                if step["requires_soldiers"]:
+                    continue
+                if self.get_available_marches_count() <= 0:
+                    abort_reason = "نقص جنود وامتلاء الفيالق — إيقاف دورة مدير المسيرات فوراً."
+                    final_signal = MANAGER_SIGNAL_ABORT_MARCHES_FULL
+                    self.log(f"🛑 [MarchManager] {abort_reason}")
+                    break
+
+            # 1) التحقق من التفعيل في قاعدة البيانات وجلب بيانات المهمة
+            sub_cfg = self._get_subtask_db_config(mgr_cfg, p_key, step["aliases"])
+            if not sub_cfg.get("enabled", False):
+                continue
+
+            # 2) فحص الأهلية الخاصة بالقلعة من الذاكرة الحية (0-Network)
+            eligible, elig_reason = self._is_priority_eligible_for_castle(p_key, sub_cfg)
+            if not eligible:
+                self.log(f"⏭️ [MarchManager -> {p_label}] غير مؤهلة حالياً: {elig_reason}")
+                reports.append({"priority": p_key, "status": "ineligible", "message": elig_reason})
+                if p_key == "resource_help":
+                    res_help_done = True
+                    if soldier_shortage_pending:
+                        abort_reason = "نقص جنود مع فيالق غير وحوش بالخارج (وتم تخطي مساعدة الموارد لعدم أهليتها) — خروج فوري."
+                        final_signal = MANAGER_SIGNAL_ABORT_SOLDIER_SHORTAGE
+                        break
+                continue
+
+            # 3) تفعيل مكافأة سرعة الجمع تلقائياً (مرة واحدة فقط) قبل أول مهمة جمع مؤهلة
+            if step["is_gather"] and not gather_buff_checked:
+                gather_buff_checked = True
+                await self._maybe_activate_gather_speed_buff(mgr_cfg)
+                remaining_sec = deadline - time.monotonic()
+                if remaining_sec <= 2.0:
+                    abort_reason = f"استُنفدت الميزانية الزمنية الكلية ({max_minutes} دقيقة) — الخروج فوراً."
+                    final_signal = MANAGER_SIGNAL_ABORT_TIME_EXPIRED
+                    break
+
+            # 4) حقن الوضع والوقت المتبقي الدقيق في إعدادات المهمة الفرعية
+            if step["forced_mode"] is not None:
+                sub_cfg["mode"] = step["forced_mode"]
+            if p_key == "daily_hunt":
+                # الوحوش اليومية دائماً من النوع العادي + ضبط تلقائي للمستوى عند الحاجة
+                sub_cfg["monster_type"] = "normal"
+                sub_cfg.setdefault("auto_downgrade", True)
+            elif p_key == "hunt_monsters":
+                # المود العادي يدعم الوحوش العادية أو السحابية + ضبط تلقائي للمستوى
+                sub_cfg.setdefault("monster_type", "normal")
+                sub_cfg.setdefault("auto_downgrade", True)
+
+            if step["inherits_time_budget"]:
+                sub_cfg["max_duration_sec"] = max(0.0, remaining_sec)
+                sub_cfg["wait_interval_sec"] = wait_interval_sec
+
+            # 5) تشغيل المهمة الفرعية واستلام تقريرها المعياري
+            sub_instance = None
             try:
-                self.log(f"▶️ [MarchManager] بدء تشغيل المهمة الفرعية: [{sub_name}]...")
-                sub_instance = subtask_cls(self.conn, self.log, sub_cfg)
+                rem_fmt = self._format_duration_hms(remaining_sec)
+                self.log(
+                    f"▶️ [MarchManager] تشغيل الأولوية [{p_label}] "
+                    f"(المتبقي من الـ {max_minutes}د: {rem_fmt} | الفيالق الشاغرة: {self.get_available_marches_count()})..."
+                )
+                sub_instance = step["cls"](self.conn, self.log, sub_cfg)
                 res = await sub_instance.safe_execute()
                 executed_subtasks += 1
+                if p_key == "resource_help":
+                    res_help_done = True
+
+                res_data = res.data if isinstance(res.data, dict) else {}
+                sig = str(res_data.get("manager_signal") or MANAGER_SIGNAL_CONTINUE)
 
                 if res.success:
                     successful_subtasks += 1
-                    self.log(f"✅ [MarchManager -> {sub_name}] اكتملت بنجاح: {res.message}")
+                    self.log(f"✅ [MarchManager -> {p_label}] {res.message}")
                 elif res.skipped:
-                    self.log(f"⏭️ [MarchManager -> {sub_name}] تم التخطي: {res.message}")
+                    self.log(f"⏭️ [MarchManager -> {p_label}] {res.message}")
                 else:
-                    self.log(f"⚠️ [MarchManager -> {sub_name}] لم تكتمل: {res.message}")
+                    self.log(f"⚠️ [MarchManager -> {p_label}] {res.message}")
+
+                reports.append({
+                    "priority": p_key,
+                    "success": res.success,
+                    "skipped": res.skipped,
+                    "signal": sig,
+                    "message": res.message,
+                })
+
+                # 6) تطبيق قرار المدير بناءً على إشارة الخروج الموحدة (manager_signal)
+                if sig == MANAGER_SIGNAL_ABORT_DISCONNECTED:
+                    abort_reason = f"انقطاع الاتصال أثناء [{p_label}] — إيقاف الدورة فوراً."
+                    final_signal = MANAGER_SIGNAL_ABORT_DISCONNECTED
+                    self.log(f"⚡ [MarchManager] {abort_reason}")
+                    break
+
+                if sig == MANAGER_SIGNAL_ABORT_TIME_EXPIRED:
+                    abort_reason = f"انتهت ميزانية الـ {max_minutes} دقيقة أثناء [{p_label}] — الخروج فوراً."
+                    final_signal = MANAGER_SIGNAL_ABORT_TIME_EXPIRED
+                    self.log(f"⏳ [MarchManager] {abort_reason}")
+                    break
+
+                if sig == MANAGER_SIGNAL_ABORT_MARCHES_FULL:
+                    abort_reason = f"الفيالق ممتلئة بالكامل بلا فيالق وحوش بالخارج (من [{p_label}]) — الخروج فوراً من المدير."
+                    final_signal = MANAGER_SIGNAL_ABORT_MARCHES_FULL
+                    self.log(f"🛑 [MarchManager] {abort_reason}")
+                    break
+
+                if sig == MANAGER_SIGNAL_ABORT_SOLDIER_SHORTAGE:
+                    can_allow_res_help = (
+                        res_help_enabled
+                        and not res_help_done
+                        and self.get_available_marches_count() > 0
+                    )
+                    if can_allow_res_help:
+                        soldier_shortage_pending = True
+                        self.log(
+                            f"⚠️ [MarchManager] رصد نقص جنود في [{p_label}] مع فيالق غير وحوش بالخارج — "
+                            f"السماح للأولوية 5 (مساعدة الموارد - 0 جنود) بالعمل أولاً ثم الخروج فوراً."
+                        )
+                        continue
+                    abort_reason = f"نقص جنود مع وجود فيالق غير وحوش بالخارج (من [{p_label}]) — الخروج فوراً من المدير."
+                    final_signal = MANAGER_SIGNAL_ABORT_SOLDIER_SHORTAGE
+                    self.log(f"🛑 [MarchManager] {abort_reason}")
+                    break
+
+                # إذا كنا في وضع استثناء مساعدة الموارد وانتهت مساعدة الموارد -> نخرج فوراً
+                if soldier_shortage_pending and p_key == "resource_help":
+                    abort_reason = "اكتملت مساعدة الموارد (استثناء 0 جنود) بعد رصد نقص جنود — الخروج فوراً من المدير."
+                    final_signal = MANAGER_SIGNAL_ABORT_SOLDIER_SHORTAGE
+                    self.log(f"🛑 [MarchManager] {abort_reason}")
+                    break
 
             except ConnectionCircuitBreakerError:
-                self.log(f"⚡ [MarchManager] قاطع الاتصال: انقطاع الاتصال أثناء [{sub_name}] — إيقاف الدورة فوراً.")
+                self.log(f"⚡ [MarchManager] قاطع الاتصال: انقطاع الاتصال أثناء [{p_label}] — إيقاف الدورة فوراً.")
                 raise
             except Exception as e:
                 if "ConcurrentLogin" in type(e).__name__:
                     raise
-                self.log(f"❌ [MarchManager] خطأ غير متوقع في المهمة الفرعية [{sub_name}]: {e}")
+                self.log(f"❌ [MarchManager] خطأ غير متوقع في الأولوية [{p_label}]: {e}")
+                reports.append({"priority": p_key, "status": "error", "message": str(e)})
             finally:
                 sub_instance = None
 
         duration_spent = time.monotonic() - start_time
+        reason_suffix = f" | سبب التوقف: {abort_reason}" if abort_reason else ""
         final_msg = (
-            f"اكتملت دورة مدير المسيرات بنجاح "
-            f"(تم تنفيذ: {executed_subtasks} مهام فرعية | نجاح: {successful_subtasks} | "
-            f"الزمن المستغرق: {duration_spent:.1f} ثانية من أصل {max_minutes} دقيقة)."
+            f"اكتملت دورة مدير المسيرات "
+            f"(نُفّذ: {executed_subtasks} | نجح: {successful_subtasks} | "
+            f"الزمن: {duration_spent:.1f}ث / {max_minutes}د{reason_suffix})."
         )
-        self.log(f"🏁 [MarchManager] {final_msg} — الخروج فوراً.")
-        return TaskResult.ok(final_msg)
+        self.log(f"🏁 [MarchManager] {final_msg}")
+        return TaskResult.ok(
+            final_msg,
+            data={
+                "executed_subtasks": executed_subtasks,
+                "successful_subtasks": successful_subtasks,
+                "duration_spent_sec": round(duration_spent, 2),
+                "max_duration_minutes": max_minutes,
+                "final_signal": final_signal,
+                "abort_reason": abort_reason,
+                "reports": reports,
+            },
+            exec_time=round(duration_spent, 2),
+        )
 
 
 # ═════════════════════════════════════════════════════════════════════════════

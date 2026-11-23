@@ -610,15 +610,29 @@ class ResourceHelpTask(MarchManagerTask):
         dry_run = bool(self.config.get("dry_run", False))
         keep_reserve = max(0, self._safe_int(self.config.get("keep_reserve", 0), 0))
         respect_target_limit = bool(self.config.get("respect_target_limit", True))
-        # افتراضياً بلا حد زمني (0 = مفتوح حتى انتهاء الحصة) كما طلب المستخدم
-        max_minutes = max(0.0, self._safe_float(self.config.get("max_minutes", 0.0), 0.0))
-        deadline: Optional[float] = (time.monotonic() + max_minutes * 60.0) if max_minutes > 0 else None
+        # دعم max_duration_sec (الممرر من مدير المسيرات) أو max_minutes (0 = مفتوح في التشغيل المستقل)
+        max_dur_sec_cfg = self.config.get("max_duration_sec")
+        if max_dur_sec_cfg is not None:
+            max_dur_sec = max(0.0, self._safe_float(max_dur_sec_cfg, 0.0))
+            max_minutes = max_dur_sec / 60.0
+            deadline: Optional[float] = time.monotonic() + max_dur_sec
+        else:
+            max_minutes = max(0.0, self._safe_float(self.config.get("max_minutes", 0.0), 0.0))
+            deadline = (time.monotonic() + max_minutes * 60.0) if max_minutes > 0 else None
+        max_wait_dist_km = max(0.0, self._safe_float(self.config.get("max_wait_distance_km", 170.0), 170.0))
 
         # 1) الفحص المسبق (0-Network)
         ok_pre, pre_reason = await self.can_run()
         if not ok_pre:
             self.log(f"⏭️ [مساعدة الموارد] {pre_reason}")
-            return TaskResult(success=False, skipped=True, message=pre_reason)
+            sig = "CONTINUE"
+            if not self.is_connected or getattr(self.conn, "is_other_device", False) or getattr(self.conn, "is_sealed", False):
+                sig = "ABORT_DISCONNECTED"
+            elif not self.has_available_march(require_soldiers=False):
+                blk_sig, _ = self.evaluate_march_block_signal(require_soldiers=False)
+                if blk_sig in ("ABORT_MARCHES_FULL", "ABORT_DISCONNECTED"):
+                    sig = blk_sig
+            return TaskResult(success=False, skipped=True, message=pre_reason, data={"manager_signal": sig})
 
         selected_rids = self._parse_selected_resources(self.config.get("resources", self.config.get("resource")))
         tx, ty = self._get_target_coords()
@@ -698,15 +712,28 @@ class ResourceHelpTask(MarchManagerTask):
                 self.log(f"📊 [مساعدة الموارد] الحصة الصافية المتبقية لاستلام '{target_nick}': {' | '.join(q_parts)}")
 
         # 4) الحلقة المستمرة حتى انتهاء الحصة القابلة للنقل
+        # حساب المسافة الفعلية إلى القلعة الهدف محلياً (0-Network) لتطبيق قاعدة 170 كم
+        target_distance_km = math.hypot(target["x"] - cx, target["y"] - cy)
         sent_trips = 0
         total_sent_by_rid: Dict[int, int] = {rid: 0 for rid in unlocked_rids}
         consecutive_errors = 0
         stop_reason = ""
+        manager_signal = "CONTINUE"
         net_factor = max(0.01, 1.0 - tax_rate)
 
         while True:
+            if (
+                not self.is_connected
+                or getattr(self.conn, "is_other_device", False)
+                or getattr(self.conn, "is_sealed", False)
+            ):
+                stop_reason = "انقطع الاتصال ببوابة اللعبة — إيقاف مساعدة الموارد."
+                manager_signal = "ABORT_DISCONNECTED"
+                break
+
             if deadline is not None and time.monotonic() >= deadline:
-                stop_reason = f"انتهت المهلة المحددة ({max_minutes:g} دقيقة)."
+                stop_reason = f"انتهت المهلة المحددة ({max_minutes:.1f} دقيقة)."
+                manager_signal = "ABORT_TIME_EXPIRED"
                 break
 
             # قراءة الموارد غير المحمية الحية من الذاكرة قبل كل قافلة (0-Network)
@@ -752,24 +779,47 @@ class ResourceHelpTask(MarchManagerTask):
 
             # فحص توفر فيلق شاغر (لا تحتاج جنوداً)
             if not dry_run and not self.has_available_march(require_soldiers=False):
+                # قاعدة المسافة > 170 كم (0-Network): عند امتلاء الفيالق لا ننتظر إطلاقاً
+                if max_wait_dist_km > 0 and target_distance_km > max_wait_dist_km:
+                    stop_reason = (
+                        f"الفيالق ممتلئة والقلعة المستلمة على بُعد {target_distance_km:.1f} كم "
+                        f"(أكبر من {max_wait_dist_km:g} كم) — إيقاف بدون انتظار."
+                    )
+                    manager_signal = (
+                        "CONTINUE" if self.has_active_monster_march() else "ABORT_MARCHES_FULL"
+                    )
+                    break
+
                 active_help = self._get_active_resource_help_queues()
                 if not active_help:
                     stop_reason = "نفدت الفيالق الشاغرة ولا توجد قافلة مساعدة موارد نشطة بالخارج — إيقاف المهمة."
+                    manager_signal = (
+                        "CONTINUE" if self.has_active_monster_march() else "ABORT_MARCHES_FULL"
+                    )
                     break
 
                 sleep_sec = 60.0  # انتظار ثابت: دقيقة كاملة
                 if deadline is not None:
                     rem_dl = deadline - time.monotonic()
                     if rem_dl <= 2.0:
-                        stop_reason = f"انتهت المهلة المحددة ({max_minutes:g} دقيقة)."
+                        stop_reason = f"انتهت المهلة المحددة ({max_minutes:.1f} دقيقة)."
+                        manager_signal = "ABORT_TIME_EXPIRED"
                         break
                     sleep_sec = min(sleep_sec, rem_dl)
 
                 self.log(
-                    f"⏳ [مساعدة الموارد] الفيالق ممتلئة ({len(active_help)} قافلة مساعدة بالخارج) — "
-                    f"انتظار ثابت {int(sleep_sec)}ث قبل إعادة الفحص..."
+                    f"⏳ [مساعدة الموارد] الفيالق ممتلئة ({len(active_help)} قافلة مساعدة بالخارج | "
+                    f"المسافة: {target_distance_km:.1f} كم) — انتظار ثابت {int(sleep_sec)}ث قبل إعادة الفحص..."
                 )
-                await asyncio.sleep(sleep_sec)
+                ok_sleep = await self.sleep_interruptible(sleep_sec, deadline=deadline)
+                if not ok_sleep:
+                    if not self.is_connected or getattr(self.conn, "is_other_device", False) or getattr(self.conn, "is_sealed", False):
+                        stop_reason = "انقطع الاتصال ببوابة اللعبة أثناء الانتظار — إيقاف مساعدة الموارد."
+                        manager_signal = "ABORT_DISCONNECTED"
+                    else:
+                        stop_reason = f"انتهت المهلة المحددة ({max_minutes:.1f} دقيقة)."
+                        manager_signal = "ABORT_TIME_EXPIRED"
+                    break
                 continue
 
             load_summary = " + ".join(
@@ -878,7 +928,9 @@ class ResourceHelpTask(MarchManagerTask):
                     "target": target,
                     "trips_sent": sent_trips,
                     "total_sent_by_rid": total_sent_by_rid,
+                    "target_distance_km": round(target_distance_km, 2),
                     "stop_reason": stop_reason,
+                    "manager_signal": manager_signal,
                 },
             )
 
@@ -887,7 +939,13 @@ class ResourceHelpTask(MarchManagerTask):
             success=False,
             skipped=True,
             message=stop_reason or "لم يتم إرسال أي قافلة مساعدة موارد.",
-            data={"target": target, "trips_sent": 0, "stop_reason": stop_reason},
+            data={
+                "target": target,
+                "trips_sent": 0,
+                "target_distance_km": round(target_distance_km, 2),
+                "stop_reason": stop_reason,
+                "manager_signal": manager_signal,
+            },
         )
 
 

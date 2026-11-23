@@ -559,7 +559,14 @@ class ExploreRuinsTask(MarchManagerTask):
         ok_pre, pre_reason = await self.can_run()
         if not ok_pre:
             self.log(f"⏭️ [استكشاف الأطلال] {pre_reason}")
-            return TaskResult(success=False, skipped=True, message=pre_reason)
+            sig = "CONTINUE"
+            if not self.is_connected or getattr(self.conn, "is_other_device", False) or getattr(self.conn, "is_sealed", False):
+                sig = "ABORT_DISCONNECTED"
+            elif not self.has_available_march(require_soldiers=True):
+                blk_sig, _ = self.evaluate_march_block_signal(require_soldiers=True)
+                if blk_sig in ("ABORT_MARCHES_FULL", "ABORT_SOLDIER_SHORTAGE", "ABORT_DISCONNECTED"):
+                    sig = blk_sig
+            return TaskResult(success=False, skipped=True, message=pre_reason, data={"manager_signal": sig})
 
         formation_index = self._get_formation_index()
         explore_time = self._get_requested_duration()
@@ -580,7 +587,11 @@ class ExploreRuinsTask(MarchManagerTask):
         if not formation.get("ok"):
             msg = str(formation.get("reason") or "تعذر تجهيز التشكيلة المحددة لاستكشاف الأطلال.")
             self.log(f"⏭️ [استكشاف الأطلال] {msg}")
-            return TaskResult(success=False, skipped=True, message=msg, data=formation)
+            blk_sig, _ = self.evaluate_march_block_signal(require_soldiers=True, soldier_shortage=True)
+            sig = blk_sig if blk_sig in ("ABORT_MARCHES_FULL", "ABORT_SOLDIER_SHORTAGE", "ABORT_DISCONNECTED") else "CONTINUE"
+            out_data = dict(formation)
+            out_data["manager_signal"] = sig
+            return TaskResult(success=False, skipped=True, message=msg, data=out_data)
 
         if formation["used_exact_saved"]:
             self.log(

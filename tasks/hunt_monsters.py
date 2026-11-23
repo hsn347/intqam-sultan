@@ -176,7 +176,7 @@ class HuntMonstersTask(MarchManagerTask):
             daily_status = {}
 
         if not isinstance(daily_status, dict) or not daily_status:
-            return False, 1, "تعذر قراءة تقدم مهمة الوحوش اليومية — سيتم التعامل مع هدف واحد."
+            return True, 0, "لا توجد بيانات نشاط يومي متاحة لهذه القلعة."
 
         matched_info: Optional[Dict[str, Any]] = None
         for key in DAILY_MONSTER_TASK_KEYS:
@@ -189,8 +189,8 @@ class HuntMonstersTask(MarchManagerTask):
                     matched_info = v
                     break
 
-        if not matched_info:
-            return False, 1, "مهمة الوحوش غير مدرجة في جدول النشاط اليومي."
+        if not matched_info or matched_info.get("available") is False:
+            return True, 0, "مهمة الهجوم على الوحوش غير متوفرة في النشاط اليومي لهذه القلعة."
 
         done = bool(matched_info.get("done") or matched_info.get("completed"))
         if done:
@@ -432,20 +432,38 @@ class HuntMonstersTask(MarchManagerTask):
         deadline: float,
         wait_interval: float,
         wait_reason: str,
-    ) -> Tuple[bool, str]:
+        is_soldier_shortage: bool = False,
+    ) -> Tuple[bool, str, str]:
         """
         ينتظر دقيقتين (أو المتبقي من مهلة مدير المسيرات إن كان أقل) بشرط وجود فيلق وحوش نشط بالخارج.
-        يعيد: (should_continue, stop_reason)
+        يعيد: (should_continue, stop_reason, manager_signal)
         """
+        if (
+            not self.is_connected
+            or getattr(self.conn, "is_other_device", False)
+            or getattr(self.conn, "is_sealed", False)
+        ):
+            return False, "انقطع الاتصال ببوابة اللعبة — إيقاف الصيد.", "ABORT_DISCONNECTED"
+
         if not self._has_active_monster_march():
+            sig, _ = self.evaluate_march_block_signal(
+                require_soldiers=True,
+                soldier_shortage=is_soldier_shortage,
+            )
+            final_sig = (
+                sig
+                if sig in ("ABORT_MARCHES_FULL", "ABORT_SOLDIER_SHORTAGE", "ABORT_DISCONNECTED")
+                else "CONTINUE"
+            )
             return (
                 False,
                 f"{wait_reason} ولا يوجد أي فيلق وحوش نشط بالخارج (الفيالق الأخرى جمع/أطلال/حراسة كنز) — إيقاف المهمة.",
+                final_sig,
             )
 
         remaining = deadline - time.monotonic()
         if remaining < MIN_REMAINING_TIME_FOR_WAIT_SEC:
-            return False, "انتهت مهلة مهمة مدير المسيرات (20 دقيقة) — إيقاف المهمة."
+            return False, "انتهت مهلة مهمة مدير المسيرات (20 دقيقة) — إيقاف المهمة.", "ABORT_TIME_EXPIRED"
 
         sleep_sec = min(wait_interval, remaining)
         active_monsters = self._count_active_monster_marches()
@@ -453,11 +471,19 @@ class HuntMonstersTask(MarchManagerTask):
             f"⏳ [صيد الوحوش] {wait_reason} — يوجد {active_monsters} فيلق وحوش بالخارج؛ "
             f"الانتظار {int(sleep_sec)}ث قبل إعادة الفحص (المتبقي من المهلة: {_format_hhmmss(int(remaining))})."
         )
-        await asyncio.sleep(sleep_sec)
+        ok_sleep = await self.sleep_interruptible(sleep_sec, deadline=deadline)
+        if not ok_sleep:
+            if (
+                not self.is_connected
+                or getattr(self.conn, "is_other_device", False)
+                or getattr(self.conn, "is_sealed", False)
+            ):
+                return False, "انقطع الاتصال ببوابة اللعبة أثناء الانتظار — إيقاف الصيد.", "ABORT_DISCONNECTED"
+            return False, "انتهت مهلة مهمة مدير المسيرات (20 دقيقة) — إيقاف المهمة.", "ABORT_TIME_EXPIRED"
 
         if time.monotonic() >= deadline:
-            return False, "انتهت مهلة مهمة مدير المسيرات (20 دقيقة) — إيقاف المهمة."
-        return True, ""
+            return False, "انتهت مهلة مهمة مدير المسيرات (20 دقيقة) — إيقاف المهمة.", "ABORT_TIME_EXPIRED"
+        return True, "", "CONTINUE"
 
     # ------------------------------------------------------------------
     # محرك التنفيذ الرئيسي للوضعين (daily_tasks & hunt)
@@ -467,19 +493,42 @@ class HuntMonstersTask(MarchManagerTask):
         mode = self._get_mode()
         monster_type = self._get_monster_type()
         target_type_key = self._get_target_type_key(monster_type)
-        default_lv = 41 if monster_type == "nebula" else 15
-        req_level = self._safe_int(self.config.get("monster_level", default_lv), default_lv)
+        raw_lv = self.config.get("monster_level")
+        if raw_lv is None or str(raw_lv).strip().lower() in ("", "0", "auto", "none"):
+            # ضبط تلقائي لأقصى مستوى مفتوح وتقدر عليه القلعة لأي نوع (عادي 1..40 أو سحاب 41..50)
+            max_unlocked = 0
+            if hasattr(self, "get_max_can_kill_monster_level"):
+                try:
+                    max_unlocked = self._safe_int(self.get_max_can_kill_monster_level(monster_type), 0)
+                except Exception:
+                    max_unlocked = 0
+            if monster_type == "nebula":
+                req_level = max(41, min(50, max_unlocked if max_unlocked >= 41 else 50))
+            else:
+                req_level = max(1, min(40, max_unlocked if max_unlocked >= 1 else 40))
+            auto_downgrade = bool(self.config.get("auto_downgrade", True))
+        else:
+            default_lv = 41 if monster_type == "nebula" else 15
+            req_level = self._safe_int(raw_lv, default_lv)
+            auto_downgrade = bool(self.config.get("auto_downgrade", True))
 
         min_win_ratio = float(self.config.get("min_win_ratio", DEFAULT_COMBAT_MIN_WIN_RATIO))
         strategy = str(self.config.get("strategy", "max_power")).strip().lower()
         combat_buff_factor = float(self.config.get("combat_buff_factor", 1.0))
-        auto_downgrade = bool(self.config.get("auto_downgrade", False))
         min_energy = self._safe_int(self.config.get("min_energy", MIN_LORD_ENERGY), MIN_LORD_ENERGY)
         wait_interval = float(self.config.get("wait_interval_sec", DEFAULT_WAIT_INTERVAL_SEC))
         dry_run = bool(self.config.get("dry_run", False))
 
-        max_dur = float(self.config.get("max_duration_sec", self.max_duration_seconds))
-        deadline = time.monotonic() + max(60.0, max_dur)
+        max_dur = max(0.0, float(self.config.get("max_duration_sec", self.max_duration_seconds)))
+        if max_dur <= 2.0:
+            msg = "انتهت مهلة مهمة مدير المسيرات (20 دقيقة) قبل بدء صيد الوحوش."
+            return TaskResult(
+                success=False,
+                skipped=True,
+                message=msg,
+                data={"mode": mode, "monster_type": monster_type, "sent_count": 0, "stop_reason": msg, "manager_signal": "ABORT_TIME_EXPIRED"},
+            )
+        deadline = time.monotonic() + max_dur
 
         daily_needed: Optional[int] = None
         if mode == "daily_tasks":
@@ -505,13 +554,24 @@ class HuntMonstersTask(MarchManagerTask):
 
         sent_marches: List[Dict[str, Any]] = []
         stop_reason = ""
+        manager_signal = "CONTINUE"
         current_level = req_level
         consecutive_dispatch_errors = 0
 
         while True:
+            if (
+                not self.is_connected
+                or getattr(self.conn, "is_other_device", False)
+                or getattr(self.conn, "is_sealed", False)
+            ):
+                stop_reason = "انقطع الاتصال ببوابة اللعبة — إيقاف صيد الوحوش."
+                manager_signal = "ABORT_DISCONNECTED"
+                break
+
             # 1) فحص مهلة مدير المسيرات الكلية (20 دقيقة)
             if time.monotonic() >= deadline:
                 stop_reason = "انتهت مهلة مهمة مدير المسيرات (20 دقيقة)."
+                manager_signal = "ABORT_TIME_EXPIRED"
                 break
 
             # 2) فحص اكتمال العدد المطلوب في وضع daily_tasks
@@ -527,13 +587,15 @@ class HuntMonstersTask(MarchManagerTask):
 
             # 4) فحص توفر فيلق شاغر
             if not dry_run and not self.has_available_march(require_soldiers=False):
-                should_cont, reason = await self._wait_for_monster_march_return(
+                should_cont, reason, sig = await self._wait_for_monster_march_return(
                     deadline=deadline,
                     wait_interval=wait_interval,
                     wait_reason="نفدت الفيالق الشاغرة",
+                    is_soldier_shortage=False,
                 )
                 if not should_cont:
                     stop_reason = reason
+                    manager_signal = sig
                     break
                 continue
 
@@ -570,15 +632,23 @@ class HuntMonstersTask(MarchManagerTask):
 
                 if err_code in ("NO_AVAILABLE_SOLDIERS", "INSUFFICIENT_SOLDIERS", "INSUFFICIENT_CAPACITY"):
                     if not dry_run and self._has_active_monster_march():
-                        should_cont, reason = await self._wait_for_monster_march_return(
+                        should_cont, reason, sig = await self._wait_for_monster_march_return(
                             deadline=deadline,
                             wait_interval=wait_interval,
                             wait_reason="الجنود الأقوياء حالياً بالخارج والمتبقي في القلعة لا يكفي للقتل المؤكد ضمن سعة الفيلق",
+                            is_soldier_shortage=True,
                         )
                         if not should_cont:
                             stop_reason = reason
+                            manager_signal = sig
                             break
                         continue
+                    blk_sig, _ = self.evaluate_march_block_signal(require_soldiers=True, soldier_shortage=True)
+                    manager_signal = (
+                        blk_sig
+                        if blk_sig in ("ABORT_MARCHES_FULL", "ABORT_SOLDIER_SHORTAGE", "ABORT_DISCONNECTED")
+                        else "CONTINUE"
+                    )
                     stop_reason = (
                         f"{formation.get('reason', 'لا يوجد جنود كافون للقتل المؤكد.')} "
                         f"(أعلى مستوى مؤكد حالياً: {rec_lv} | لا يوجد فيلق وحوش بالخارج)."
@@ -677,6 +747,7 @@ class HuntMonstersTask(MarchManagerTask):
                     "sent_count": len(sent_marches),
                     "marches": sent_marches,
                     "stop_reason": stop_reason,
+                    "manager_signal": manager_signal,
                 },
             )
 
@@ -690,6 +761,7 @@ class HuntMonstersTask(MarchManagerTask):
                 "monster_type": monster_type,
                 "sent_count": 0,
                 "stop_reason": stop_reason,
+                "manager_signal": manager_signal,
             },
         )
 

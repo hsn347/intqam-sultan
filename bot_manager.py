@@ -281,17 +281,55 @@ DEFAULT_BOT_CONFIG: Dict[str, Any] = {
         "caravan": {                          # قافلة الغنيمة
             "enabled": False,
         },
-        "march_manager": {                    # مدير المسيرات والفيالق (العمليات العسكرية بالخارج)
+        "march_manager": {                    # مدير المسيرات والفيالق (الأولويات السبع + مكافأة الجمع)
             "enabled": False,
             "max_duration_minutes": 20,
-            "treasure_escort": {              # حراسة الكنز (كنز القلعة فقط - فيلق كامل)
+            "wait_interval_sec": 120,
+            "gather_speed_buff": {            # تفعيل مكافأة سرعة الجمع (صغيرة -> كبيرة -> سوبر) قبل الجمع
+                "enabled": False,
+            },
+            "treasure_escort": {              # الأولوية 1: حراسة الكنز (كنز القلعة فقط - فيلق واحد)
                 "enabled": False,
                 "free_refresh": True,
-                "formation_id": 1,
-                "use_saved_formation": True,
-                "use_auto_fill": True,
-                "require_full_legion": True,
-                "exclude_defend": False,
+            },
+            "daily_hunt": {                   # الأولوية 2: الهجوم على الوحوش العاديين (مود النشاط اليومي)
+                "enabled": False,
+                "monster_type": "normal",
+                "monster_level": 0,           # 0 = تلقائي حسب أقصى مستوى تقدر عليه القلعة
+                "auto_downgrade": True,
+                "min_energy": 5,
+            },
+            "daily_gather": {                 # الأولوية 3: جمع الموارد (مود النشاط اليومي)
+                "enabled": False,
+                "level": 0,                   # 0 = تلقائي حسب مستوى القلعة
+                "max_distance": 120,
+            },
+            "explore_ruins": {                # الأولوية 4: استكشاف الأطلال
+                "enabled": False,
+                "explore_time": 4,
+                "formation": 1,
+                "max_distance": 120,
+            },
+            "resource_help": {                # الأولوية 5: مساعدة الموارد (0 جنود - حد المسافة للانتظار 170 كم)
+                "enabled": False,
+                "target_x": 0,
+                "target_y": 0,
+                "resources": "food,wood,iron",
+                "keep_reserve": 0,
+                "respect_target_limit": True,
+            },
+            "hunt_monsters": {                # الأولوية 6: الهجوم على الوحوش (المود العادي: عادي أو سحاب)
+                "enabled": False,
+                "monster_type": "normal",     # normal أو nebula
+                "monster_level": 0,           # 0 = تلقائي حسب قدرة القلعة
+                "auto_downgrade": True,
+                "min_energy": 10,
+            },
+            "gather_resources": {             # الأولوية 7: جمع الموارد العادي
+                "enabled": False,
+                "resource": "wood",
+                "level": 0,                   # 0 = تلقائي حسب مستوى القلعة
+                "max_distance": 120,
             },
         },
     }

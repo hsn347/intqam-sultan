@@ -134,19 +134,16 @@ export interface TreasureEscortConfig extends BaseTaskConfig {
 }
 
 export interface MarchManagerConfig extends BaseTaskConfig {
-  max_queues?: number
-  priority_order?: string[]
   max_duration_minutes?: number
-  prestige_invaders?: { enabled: boolean }
-  prestige_gather?: { enabled: boolean }
-  transport: { enabled: boolean; target_x: number | null; target_y: number | null; resource_ids: number[] }
-  treasure_escort?: TreasureEscortConfig
-  ruins: { enabled: boolean; explore_time: number; formation_id: number }
-  combat: { enabled: boolean; choice: 'invaders' | 'rebels'; level: number; formation_id: number }
-  invaders: { enabled: boolean; level: number; formation_id: number }
-  rebels: { enabled: boolean; level: number; formation_id: number }
-  gold_gather?: { enabled: boolean; locations?: GoldLocation[] }
-  gather: { enabled: boolean; res_type: number; level: number; search_range: number }
+  formation_id?: number
+  gather_speed_buff: { enabled: boolean }
+  treasure_escort: { enabled: boolean }
+  daily_hunt: { enabled: boolean }
+  daily_gather: { enabled: boolean }
+  explore_ruins: { enabled: boolean; explore_time: number; formation: number }
+  resource_help: { enabled: boolean; target_x: number | null; target_y: number | null; resources: string }
+  hunt_monsters: { enabled: boolean; monster_type: 'normal' | 'nebula'; monster_level: number }
+  gather_resources: { enabled: boolean; resource: string; level: number }
 }
 
 export interface PrestigeSubtasks {
@@ -288,34 +285,32 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
   march_manager: {
     enabled: false,
     max_duration_minutes: 20,
-    prestige_invaders: { enabled: false },
-    prestige_gather: { enabled: false },
-    transport: { enabled: false, target_x: null, target_y: null, resource_ids: [] },
-    treasure_escort: { enabled: false, free_refresh: true, formation_id: 1, use_saved_formation: true, use_auto_fill: true, require_full_legion: true, exclude_defend: false },
-    ruins: { enabled: false, explore_time: 900, formation_id: 1 },
-    combat: { enabled: false, choice: 'invaders', level: 15, formation_id: 1 },
-    invaders: { enabled: false, level: 15, formation_id: 1 },
-    rebels: { enabled: false, level: 5, formation_id: 1 },
-    gold_gather: { enabled: false, locations: [] },
-    gather: { enabled: true, res_type: 2, level: 4, search_range: 100 },
+    formation_id: 1,
+    gather_speed_buff: { enabled: false },
+    treasure_escort: { enabled: false },
+    daily_hunt: { enabled: false },
+    daily_gather: { enabled: false },
+    explore_ruins: { enabled: false, explore_time: 14400, formation: 1 },
+    resource_help: { enabled: false, target_x: null, target_y: null, resources: 'food,wood,iron' },
+    hunt_monsters: { enabled: false, monster_type: 'normal', monster_level: 0 },
+    gather_resources: { enabled: false, resource: 'wood', level: 0 },
   },
 }
 
 export const FIXED_PRESET_CONFIG: CastleConfig = {
-  // 1. جمع الموارد بتحديد مورد الحديد (Iron = 4)
+  // 1. جمع الموارد بتحديد مورد الحديد
   march_manager: {
     enabled: true,
     max_duration_minutes: 20,
-    prestige_invaders: { enabled: false },
-    prestige_gather: { enabled: false },
-    transport: { enabled: false, target_x: null, target_y: null, resource_ids: [] },
-    treasure_escort: { enabled: false, free_refresh: true, formation_id: 1, use_saved_formation: true, use_auto_fill: true, require_full_legion: true, exclude_defend: false },
-    ruins: { enabled: false, explore_time: 900, formation_id: 1 },
-    combat: { enabled: false, choice: 'invaders', level: 30, formation_id: 1 },
-    invaders: { enabled: false, level: 30, formation_id: 1 },
-    rebels: { enabled: false, level: 5, formation_id: 1 },
-    gold_gather: { enabled: false, locations: [] },
-    gather: { enabled: true, res_type: 4, level: 5, search_range: 100 },
+    formation_id: 1,
+    gather_speed_buff: { enabled: true },
+    treasure_escort: { enabled: false },
+    daily_hunt: { enabled: false },
+    daily_gather: { enabled: false },
+    explore_ruins: { enabled: false, explore_time: 14400, formation: 1 },
+    resource_help: { enabled: false, target_x: null, target_y: null, resources: 'food,wood,iron' },
+    hunt_monsters: { enabled: false, monster_type: 'normal', monster_level: 0 },
+    gather_resources: { enabled: true, resource: 'iron', level: 0 },
   },
   // 2. دعم الموارد لكل الموارد مع حزم الدعم المجانية
   watermill: { enabled: true, resources: ['food', 'wood', 'iron', 'silver', 'crystal'], types: 'all', allow_shop_buy: false },

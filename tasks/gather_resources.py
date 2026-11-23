@@ -105,15 +105,30 @@ class GatherResourcesTask(MarchManagerTask):
         cap = self._safe_int(get_march_capacity_no_heroes(self._get_live_snapshot()), 0)
         return cap if cap > 0 else 1000
 
+    def _resolve_smart_resource_level(self) -> int:
+        """تحديد مستوى بلاطة المورد الابتدائي: من الإعدادات أو تلقائياً حسب مستوى القلعة."""
+        raw = self.config.get("resource_level", self.config.get("level"))
+        if raw is None or str(raw).strip().lower() in ("", "0", "auto", "none"):
+            c_lv = self._safe_int(getattr(self, "castle_level", 1), 1)
+            if c_lv >= 23:
+                return 8
+            if c_lv >= 16:
+                return 7
+            if c_lv >= 10:
+                return 6
+            return 4
+        return max(2, min(10, self._safe_int(raw, 6)))
+
     async def can_run(self) -> Tuple[bool, str]:
-        """الفحص القبلي للجاهزية (0-Network): الاتصال + وجود فيلق شاغر + جنود متاحين."""
+        """الفحص القبلي للجاهزية (0-Network): يسمح بالدخول في daily_tasks إذا كان هناك فيلق وحوش للانتظار."""
         if not self.conn or not getattr(self.conn, "is_connected", False):
             return False, "قاطع الاتصال: لا يوجد اتصال نشط بخادم اللعبة."
         if not self.init_data:
             return False, "بيانات الذاكرة الحية للقلعة غير متوفرة."
-        if not self.has_available_march(require_soldiers=False):
+        has_monster_out = self.has_active_monster_march() if self.gather_mode == "daily_tasks" else False
+        if not self.has_available_march(require_soldiers=False) and not has_monster_out:
             return False, "لا توجد خانات فيالق شاغرة حالياً."
-        if not self.get_available_soldiers():
+        if not self.get_available_soldiers() and not has_monster_out:
             return False, "لا يوجد جنود متاحون داخل القلعة لإرسال مسيرة جمع."
         return True, ""
 
@@ -241,24 +256,31 @@ class GatherResourcesTask(MarchManagerTask):
         """
         start_time = time.monotonic()
         mode = self.gather_mode
-        start_level = max(2, min(10, self._safe_int(self.config.get("resource_level", self.config.get("level", 6)), 6)))
+        start_level = self._resolve_smart_resource_level()
         max_distance = max(10.0, self._safe_float(self.config.get("max_distance", 120.0), 120.0))
         safety_margin = max(0.0, self._safe_float(self.config.get("safety_margin", 0.03), 0.03))
         dry_run = bool(self.config.get("dry_run", False))
+        wait_interval = max(10.0, self._safe_float(self.config.get("wait_interval_sec", 120.0), 120.0))
 
-        avail_slots = self.get_available_marches_count()
-        if avail_slots <= 0:
-            return TaskResult.skip("لا توجد فيالق شاغرة حالياً لبدء جمع الموارد.")
+        max_dur_cfg = self.config.get("max_duration_sec")
+        deadline: Optional[float] = (
+            time.monotonic() + max(0.0, self._safe_float(max_dur_cfg, 0.0))
+            if max_dur_cfg is not None
+            else None
+        )
 
         sent_marches: List[Dict[str, Any]] = []
+        manager_signal = "CONTINUE"
 
-        # ── المود الأول: إنجاز مهام النشاط اليومي ──
+        # ── المود الأول: إنجاز مهام النشاط اليومي (يدعم انتظار دقيقتين لفيالق الوحوش ضمن رصيد الـ 20 دقيقة) ──
         if mode == "daily_tasks":
             daily_status = self.get_daily_march_tasks_status()
             pending_resources: List[str] = []
 
             for task_key, res_key in DAILY_GATHER_TASK_ORDER:
                 info = daily_status.get(task_key, {})
+                if info.get("available") is False:
+                    continue
                 if info.get("completed") or info.get("has_active_march"):
                     continue
                 unlocked, c_lv, req_lv = self._is_resource_unlocked_for_castle(res_key)
@@ -268,18 +290,59 @@ class GatherResourcesTask(MarchManagerTask):
                 pending_resources.append(res_key)
 
             if not pending_resources:
-                return TaskResult.skip("جميع مهام الجمع اليومية المتاحة للقلعة منجزة أو تسير إليها فيالق حالياً.")
+                return TaskResult.skip(
+                    "جميع مهام الجمع اليومية المتاحة للقلعة منجزة أو تسير إليها فيالق حالياً.",
+                    data={"mode": mode, "sent_count": 0, "manager_signal": "CONTINUE"},
+                )
 
             self.log(
                 f"📅 [جمع الموارد - النشاط اليومي] الموارد المطلوبة: {pending_resources} | "
-                f"الفيالق الشاغرة: {avail_slots} | المستوى الابتدائي: {start_level}"
+                f"الفيالق الشاغرة: {self.get_available_marches_count()} | المستوى الابتدائي: {start_level}"
             )
 
-            for idx, res_key in enumerate(pending_resources):
-                if not dry_run and not self.has_available_march(require_soldiers=True):
-                    self.log("ℹ️ [جمع يومي] نفدت الفيالق الشاغرة أو الجنود المتاحون — إيقاف الدورة.")
+            idx = 0
+            while idx < len(pending_resources):
+                if (
+                    not self.is_connected
+                    or getattr(self.conn, "is_other_device", False)
+                    or getattr(self.conn, "is_sealed", False)
+                ):
+                    manager_signal = "ABORT_DISCONNECTED"
                     break
-                if dry_run and len(sent_marches) >= avail_slots:
+                if deadline is not None and time.monotonic() >= deadline:
+                    manager_signal = "ABORT_TIME_EXPIRED"
+                    break
+
+                res_key = pending_resources[idx]
+                if not dry_run and not self.has_available_march(require_soldiers=True):
+                    blk_sig, blk_reason = self.evaluate_march_block_signal(require_soldiers=True)
+                    if blk_sig == "WAIT_MONSTER_MARCH":
+                        rem = (deadline - time.monotonic()) if deadline is not None else wait_interval
+                        if rem < 5.0:
+                            manager_signal = "ABORT_TIME_EXPIRED"
+                            break
+                        sleep_sec = min(wait_interval, rem)
+                        self.log(
+                            f"⏳ [جمع يومي] {blk_reason} — الانتظار {int(sleep_sec)}ث قبل إعادة المحاولة..."
+                        )
+                        ok_sleep = await self.sleep_interruptible(sleep_sec, deadline=deadline)
+                        if not ok_sleep:
+                            manager_signal = (
+                                "ABORT_DISCONNECTED"
+                                if (not self.is_connected or getattr(self.conn, "is_other_device", False) or getattr(self.conn, "is_sealed", False))
+                                else "ABORT_TIME_EXPIRED"
+                            )
+                            break
+                        continue
+                    manager_signal = (
+                        blk_sig
+                        if blk_sig in ("ABORT_MARCHES_FULL", "ABORT_SOLDIER_SHORTAGE", "ABORT_DISCONNECTED")
+                        else "CONTINUE"
+                    )
+                    self.log(f"ℹ️ [جمع يومي] {blk_reason} — إيقاف الدورة.")
+                    break
+
+                if dry_run and len(sent_marches) >= max(1, self.get_available_marches_count()):
                     break
 
                 outcome = await self._send_one_gather_march(
@@ -291,17 +354,43 @@ class GatherResourcesTask(MarchManagerTask):
                 )
                 if outcome.get("success"):
                     sent_marches.append(outcome)
-                    if idx + 1 < len(pending_resources):
+                    idx += 1
+                    if idx < len(pending_resources):
                         await asyncio.sleep(random.uniform(1.2, 2.5))
                 elif outcome.get("stop_all"):
+                    blk_sig, _ = self.evaluate_march_block_signal(require_soldiers=True, soldier_shortage=True)
+                    if not dry_run and blk_sig == "WAIT_MONSTER_MARCH":
+                        rem = (deadline - time.monotonic()) if deadline is not None else wait_interval
+                        if rem < 5.0:
+                            manager_signal = "ABORT_TIME_EXPIRED"
+                            break
+                        sleep_sec = min(wait_interval, rem)
+                        self.log(f"⏳ [جمع يومي] تعذر الإرسال مؤقتاً ويوجد فيلق وحوش بالخارج — الانتظار {int(sleep_sec)}ث...")
+                        ok_sleep = await self.sleep_interruptible(sleep_sec, deadline=deadline)
+                        if not ok_sleep:
+                            manager_signal = "ABORT_DISCONNECTED" if not self.is_connected else "ABORT_TIME_EXPIRED"
+                            break
+                        continue
+                    manager_signal = (
+                        blk_sig
+                        if blk_sig in ("ABORT_MARCHES_FULL", "ABORT_SOLDIER_SHORTAGE", "ABORT_DISCONNECTED")
+                        else "CONTINUE"
+                    )
                     self.log(f"🛑 [جمع يومي] توقف الدورة: {outcome.get('reason')}")
                     break
                 else:
                     self.log(f"⚠️ [جمع يومي] تعذر إرسال فيلق لمورد ({res_key}): {outcome.get('reason')}")
+                    idx += 1
 
             elapsed = round(time.monotonic() - start_time, 2)
             if not sent_marches:
-                return TaskResult.fail("لم يتم إرسال أي فيلق لمهام الجمع اليومية.", exec_time=elapsed)
+                return TaskResult(
+                    success=False,
+                    skipped=(manager_signal != "CONTINUE"),
+                    message="لم يتم إرسال أي فيلق لمهام الجمع اليومية.",
+                    data={"mode": mode, "sent_count": 0, "manager_signal": manager_signal},
+                    exec_time=elapsed,
+                )
             timings = [
                 m["dispatch"]["timing"]
                 for m in sent_marches
@@ -320,20 +409,34 @@ class GatherResourcesTask(MarchManagerTask):
                     "latest_return_formatted": self._format_duration_hms(latest_sec),
                     "marches_timing": timings,
                     "dry_run": dry_run,
+                    "manager_signal": manager_signal,
                 },
                 exec_time=elapsed,
             )
 
         # ── المود الثاني: جمع مورد واحد مختار من المستخدم حتى نفاد الفيالق ──
+        avail_slots = self.get_available_marches_count()
+        if avail_slots <= 0:
+            blk_sig, _ = self.evaluate_march_block_signal(require_soldiers=False)
+            sig = blk_sig if blk_sig in ("ABORT_MARCHES_FULL", "ABORT_DISCONNECTED") else "CONTINUE"
+            return TaskResult.skip(
+                "لا توجد فيالق شاغرة حالياً لبدء جمع الموارد.",
+                data={"mode": mode, "sent_count": 0, "manager_signal": sig},
+            )
+
         raw_res = str(self.config.get("resource_type", self.config.get("resource", "wood")) or "wood").strip().lower()
         if raw_res not in RESOURCE_SEARCH_ALIASES:
-            return TaskResult.fail(f"نوع المورد غير معروف: '{raw_res}'.")
+            return TaskResult.fail(
+                f"نوع المورد غير معروف: '{raw_res}'.",
+                data={"mode": mode, "sent_count": 0, "manager_signal": "CONTINUE"},
+            )
 
         _res_code, res_key = RESOURCE_SEARCH_ALIASES[raw_res]
         unlocked, c_lv, req_lv = self._is_resource_unlocked_for_castle(res_key)
         if not unlocked:
             return TaskResult.skip(
-                f"المورد ({res_key}) غير مفتوح بعد لهذه القلعة (مستوى القلعة {c_lv}، المطلوب مستوى {req_lv})."
+                f"المورد ({res_key}) غير مفتوح بعد لهذه القلعة (مستوى القلعة {c_lv}، المطلوب مستوى {req_lv}).",
+                data={"mode": mode, "sent_count": 0, "manager_signal": "CONTINUE"},
             )
 
         self.log(
@@ -341,10 +444,12 @@ class GatherResourcesTask(MarchManagerTask):
             f"الفيالق الشاغرة: {avail_slots} | أقصى مسافة: {max_distance:g}"
         )
 
-        # استخدام كل الفيالق الشاغرة المتاحة (مع سقف حماية برابر لعدد الخانات الشاغرة الحالية)
         max_loops = max(1, avail_slots)
         for loop_idx in range(max_loops):
             if not dry_run and not self.has_available_march(require_soldiers=True):
+                blk_sig, _ = self.evaluate_march_block_signal(require_soldiers=True)
+                if blk_sig in ("ABORT_MARCHES_FULL", "ABORT_SOLDIER_SHORTAGE", "ABORT_DISCONNECTED"):
+                    manager_signal = blk_sig
                 break
             if dry_run and len(sent_marches) >= avail_slots:
                 break
@@ -361,13 +466,20 @@ class GatherResourcesTask(MarchManagerTask):
                 if loop_idx + 1 < max_loops:
                     await asyncio.sleep(random.uniform(1.5, 3.0))
             else:
+                if outcome.get("stop_all"):
+                    blk_sig, _ = self.evaluate_march_block_signal(require_soldiers=True, soldier_shortage=True)
+                    if blk_sig in ("ABORT_MARCHES_FULL", "ABORT_SOLDIER_SHORTAGE", "ABORT_DISCONNECTED"):
+                        manager_signal = blk_sig
                 self.log(f"⚠️ [جمع الموارد] إيقاف الإرسال بعد {len(sent_marches)} فيلق: {outcome.get('reason')}")
                 break
 
         elapsed = round(time.monotonic() - start_time, 2)
         if not sent_marches:
-            return TaskResult.fail(
-                f"لم يتم إرسال أي فيلق لجمع ({res_key}) مستوى {start_level}.",
+            return TaskResult(
+                success=False,
+                skipped=(manager_signal != "CONTINUE"),
+                message=f"لم يتم إرسال أي فيلق لجمع ({res_key}) مستوى {start_level}.",
+                data={"mode": mode, "resource_type": res_key, "sent_count": 0, "manager_signal": manager_signal},
                 exec_time=elapsed,
             )
 
@@ -390,6 +502,7 @@ class GatherResourcesTask(MarchManagerTask):
                 "latest_return_formatted": self._format_duration_hms(latest_sec),
                 "marches_timing": timings,
                 "dry_run": dry_run,
+                "manager_signal": manager_signal,
             },
             exec_time=elapsed,
         )
