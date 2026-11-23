@@ -1967,7 +1967,6 @@ function TaskTabContentInner({
   // 7. النشاط اليومي (Daily Activity)
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'daily') {
-    const sh = cfg.shield || { enabled: false, duration: '8h', allow_gold: false }
     const fl = cfg.flower || { enabled: false, allow_gold: false }
     const wm = cfg.wonder_merchant || { enabled: false }
     const ms = cfg.material_synthesis || { enabled: false }
@@ -1977,8 +1976,44 @@ function TaskTabContentInner({
     const ar = (cfg as any).arena || { enabled: false, arena_type: 'kingdom', auto_claim_rewards: true }
     const ht = (cfg as any).hero_trial || { enabled: false }
     const ch = (cfg as any).command_hall || { enabled: false, mode: 'daily', allow_marches: false, auto_claim_rewards: true, auto_upgrade_hall: true }
+    const mmDaily: any = cfg.march_manager || {}
+    const dailyHuntEnabled = Boolean(mmDaily.daily_hunt?.enabled)
+    const dailyGatherEnabled = Boolean(mmDaily.daily_gather?.enabled)
+
+    const toggleDailyMarch = (key: 'daily_hunt' | 'daily_gather') => (enabled: boolean) => {
+      update(
+        'march_manager',
+        {
+          ...(enabled ? { enabled: true } : {}),
+          [key]: { enabled },
+        } as any,
+        150
+      )
+    }
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {/* الهجوم على الوحوش (النشاط اليومي - مستوى تلقائي بدون تشكيلة) */}
+        <TaskRow
+          id="daily_hunt"
+          img="/images/combat/yagmaci.png"
+          label={t('tasks.dailyHunt', 'الهجوم على الوحوش (النشاط اليومي)')}
+          description={t('tasks.dailyHuntDesc', 'إنجاز مهمة الوحوش اليومية تلقائياً حسب مستوى قدرة القلعة')}
+          enabled={dailyHuntEnabled}
+          onToggle={toggleDailyMarch('daily_hunt')}
+          comingSoon={false}
+        />
+
+        {/* جمع الموارد (النشاط اليومي - مستوى تلقائي) */}
+        <TaskRow
+          id="daily_gather"
+          img="/images/gather/icon_map_mineral_collect.png"
+          label={t('tasks.dailyGather', 'جمع الموارد (النشاط اليومي)')}
+          description={t('tasks.dailyGatherDesc', 'إرسال فيالق لإنجاز مهام الجمع اليومية المتاحة للقلعة بمستوى تلقائي')}
+          enabled={dailyGatherEnabled}
+          onToggle={toggleDailyMarch('daily_gather')}
+          comingSoon={false}
+        />
         {/* مهام التحالف (التبرع لعلوم التحالف) */}
         <TaskRow
           id="alliance"
@@ -2040,110 +2075,6 @@ function TaskTabContentInner({
             </div>
           </div>
         </TaskRow>
-
-        {/* طاقة القلعة (Stamina Management) */}
-        {(() => {
-          const rawStamina = (cfg.stamina || {}) as Partial<StaminaConfig>
-          const staminaCfg = {
-            enabled: Boolean(rawStamina.enabled),
-            gold_buy_enabled: Boolean(rawStamina.gold_buy_enabled),
-            gold_trigger_stamina: typeof rawStamina.gold_trigger_stamina === 'number' ? rawStamina.gold_trigger_stamina : 50,
-            gold_buy_stamina_amount: typeof rawStamina.gold_buy_stamina_amount === 'number' ? rawStamina.gold_buy_stamina_amount : 50,
-          }
-
-          return (
-            <TaskRow
-              id="stamina"
-              img="/images/daily/dayaniklilik_2.png"
-              label={t('tasks.stamina.title', 'طاقة القلعة')}
-              description={t('tasks.stamina.desc', 'استخدام كافة حزم الطاقة المجانية المتوفرة بالحقيبة')}
-              enabled={staminaCfg.enabled}
-              onToggle={toggle('stamina')}
-              comingSoon={false}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
-                {/* خيار الشراء بالذهب عند نفاذ الحزم المجانية */}
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  padding: '6px 10px',
-                  background: staminaCfg.gold_buy_enabled ? 'rgba(234, 179, 8, 0.08)' : 'rgba(255,255,255,0.03)',
-                  border: staminaCfg.gold_buy_enabled ? '1px solid rgba(234, 179, 8, 0.25)' : '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: '8px',
-                  transition: 'all 0.15s ease',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <img
-                        src="/images/fountain/gold.png"
-                        alt=""
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          objectFit: 'contain',
-                          filter: staminaCfg.gold_buy_enabled ? 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.6))' : 'grayscale(70%) opacity(0.6)',
-                        }}
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                      />
-                      <span style={{
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        color: staminaCfg.gold_buy_enabled ? '#fbbf24' : '#e2e8f0',
-                      }}>
-                        {t('tasks.stamina.goldBuyEnabledLabel', 'السماح بالشراء بالذهب عند نفاذ الحزم المجانية')}
-                      </span>
-                    </div>
-                    <Toggle
-                      value={staminaCfg.gold_buy_enabled}
-                      onChange={v => update('stamina', { gold_buy_enabled: v })}
-                      size="sm"
-                    />
-                  </div>
-
-                  {staminaCfg.gold_buy_enabled && (
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                      paddingTop: '6px',
-                      borderTop: '1px solid rgba(234, 179, 8, 0.12)',
-                    }}>
-                      {/* سقف الطاقة لتفعيل الشراء بالذهب */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <span style={{ fontSize: '11px', color: '#fde68a', fontWeight: 500 }}>
-                          {t('tasks.stamina.goldTriggerStaminaLabel', 'سقف الطاقة لتفعيل الشراء بالذهب')}
-                        </span>
-                        <Stepper
-                          value={staminaCfg.gold_trigger_stamina}
-                          min={10}
-                          max={200}
-                          step={10}
-                          onChange={v => update('stamina', { gold_trigger_stamina: v })}
-                        />
-                      </div>
-
-                      {/* كمية الطاقة للشراء في المرة الواحدة */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <span style={{ fontSize: '11px', color: '#fde68a', fontWeight: 500 }}>
-                          {t('tasks.stamina.goldBuyStaminaAmountLabel', 'كمية الطاقة للشراء في المرة الواحدة')}
-                        </span>
-                        <Stepper
-                          value={staminaCfg.gold_buy_stamina_amount}
-                          min={50}
-                          max={500}
-                          step={50}
-                          onChange={v => update('stamina', { gold_buy_stamina_amount: v })}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </TaskRow>
-          )
-        })()}
-
 
         {/* نافورة الأمنيات الملكية وبئر الحظ (Trevi Fountain) */}
         {(() => {
@@ -2330,76 +2261,6 @@ function TaskTabContentInner({
             </TaskRow>
           )
         })()}
-
-        {/* الدرع التلقائي (Peace Shield) */}
-        <TaskRow
-          id="shield"
-          img="/images/daily/kalkan.png"
-          label={t('tasks.peaceShield')}
-          enabled={Boolean(sh.enabled)}
-          onToggle={toggle('shield')}
-          comingSoon={false}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '2px' }}>
-            {/* مدة الدرع - القائمة المنسدلة */}
-            <div>
-              <select
-                value={sh.duration || '8h'}
-                className="task-shield-select"
-                onChange={e => update('shield', { duration: e.target.value as typeof sh.duration })}
-                style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  borderRadius: '8px',
-                  padding: '6px 10px',
-                  fontSize: '12px',
-                  color: '#f0fdf4',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                <option value="8h" style={{ background: '#111a11', color: '#f0fdf4' }}>
-                  {t('tasks.hours8')}
-                </option>
-                <option value="24h" style={{ background: '#111a11', color: '#f0fdf4' }}>
-                  {t('tasks.hours24')}
-                </option>
-                <option value="3d" style={{ background: '#111a11', color: '#f0fdf4' }}>
-                  {t('tasks.days3')}
-                </option>
-              </select>
-            </div>
-
-            {/* خيار السماح بالشراء بالذهب (allow_gold) */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '6px 10px',
-              background: sh.allow_gold ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.03)',
-              border: sh.allow_gold ? '1px solid rgba(245,158,11,0.25)' : '1px solid rgba(255,255,255,0.06)',
-              borderRadius: '8px',
-              transition: 'all 0.15s ease',
-            }}>
-              <div>
-                <div style={{
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: sh.allow_gold ? '#fbbf24' : '#e2e8f0',
-                }}>
-                  {t('tasks.buyWithGold')}
-                </div>
-              </div>
-              <Toggle
-                value={Boolean(sh.allow_gold)}
-                onChange={v => update('shield', { allow_gold: v })}
-                size="sm"
-              />
-            </div>
-          </div>
-        </TaskRow>
 
         {/* إهداء الزهور (النشاط اليومي) */}
         <TaskRow
@@ -2782,6 +2643,7 @@ function TaskTabContentInner({
   if (tab === 'building') {
     const bld = cfg.building
     const sk = cfg.skills || { enabled: false, target_skills: [] }
+    const sh = cfg.shield || { enabled: false, duration: '8h', allow_gold: false }
     const targetSkills = Array.isArray(sk.target_skills) ? sk.target_skills : []
 
     const mw = (cfg as any).material_workshop || { enabled: false, selected_materials: DEFAULT_WORKSHOP_MATERIAL_IDS }
@@ -3577,6 +3439,179 @@ function TaskTabContentInner({
                   </button>
                 )
               })}
+            </div>
+          </div>
+        </TaskRow>
+
+        {/* طاقة القلعة (Stamina Management) */}
+        {(() => {
+          const rawStamina = (cfg.stamina || {}) as Partial<StaminaConfig>
+          const staminaCfg = {
+            enabled: Boolean(rawStamina.enabled),
+            gold_buy_enabled: Boolean(rawStamina.gold_buy_enabled),
+            gold_trigger_stamina: typeof rawStamina.gold_trigger_stamina === 'number' ? rawStamina.gold_trigger_stamina : 50,
+            gold_buy_stamina_amount: typeof rawStamina.gold_buy_stamina_amount === 'number' ? rawStamina.gold_buy_stamina_amount : 50,
+          }
+
+          return (
+            <TaskRow
+              id="stamina"
+              img="/images/daily/dayaniklilik_2.png"
+              label={t('tasks.stamina.title', 'طاقة القلعة')}
+              description={t('tasks.stamina.desc', 'استخدام كافة حزم الطاقة المجانية المتوفرة بالحقيبة')}
+              enabled={staminaCfg.enabled}
+              onToggle={toggle('stamina')}
+              comingSoon={false}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
+                {/* خيار الشراء بالذهب عند نفاذ الحزم المجانية */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  padding: '6px 10px',
+                  background: staminaCfg.gold_buy_enabled ? 'rgba(234, 179, 8, 0.08)' : 'rgba(255,255,255,0.03)',
+                  border: staminaCfg.gold_buy_enabled ? '1px solid rgba(234, 179, 8, 0.25)' : '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '8px',
+                  transition: 'all 0.15s ease',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <img
+                        src="/images/fountain/gold.png"
+                        alt=""
+                        style={{
+                          width: '18px',
+                          height: '18px',
+                          objectFit: 'contain',
+                          filter: staminaCfg.gold_buy_enabled ? 'drop-shadow(0 0 4px rgba(234, 179, 8, 0.6))' : 'grayscale(70%) opacity(0.6)',
+                        }}
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                      <span style={{
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        color: staminaCfg.gold_buy_enabled ? '#fbbf24' : '#e2e8f0',
+                      }}>
+                        {t('tasks.stamina.goldBuyEnabledLabel', 'السماح بالشراء بالذهب عند نفاذ الحزم المجانية')}
+                      </span>
+                    </div>
+                    <Toggle
+                      value={staminaCfg.gold_buy_enabled}
+                      onChange={v => update('stamina', { gold_buy_enabled: v })}
+                      size="sm"
+                    />
+                  </div>
+
+                  {staminaCfg.gold_buy_enabled && (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      paddingTop: '6px',
+                      borderTop: '1px solid rgba(234, 179, 8, 0.12)',
+                    }}>
+                      {/* سقف الطاقة لتفعيل الشراء بالذهب */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: '#fde68a', fontWeight: 500 }}>
+                          {t('tasks.stamina.goldTriggerStaminaLabel', 'سقف الطاقة لتفعيل الشراء بالذهب')}
+                        </span>
+                        <Stepper
+                          value={staminaCfg.gold_trigger_stamina}
+                          min={10}
+                          max={200}
+                          step={10}
+                          onChange={v => update('stamina', { gold_trigger_stamina: v })}
+                        />
+                      </div>
+
+                      {/* كمية الطاقة للشراء في المرة الواحدة */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: '#fde68a', fontWeight: 500 }}>
+                          {t('tasks.stamina.goldBuyStaminaAmountLabel', 'كمية الطاقة للشراء في المرة الواحدة')}
+                        </span>
+                        <Stepper
+                          value={staminaCfg.gold_buy_stamina_amount}
+                          min={50}
+                          max={500}
+                          step={50}
+                          onChange={v => update('stamina', { gold_buy_stamina_amount: v })}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TaskRow>
+          )
+        })()}
+
+        {/* الدرع التلقائي (Peace Shield) */}
+        <TaskRow
+          id="shield"
+          img="/images/daily/kalkan.png"
+          label={t('tasks.peaceShield')}
+          enabled={Boolean(sh.enabled)}
+          onToggle={toggle('shield')}
+          comingSoon={false}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '2px' }}>
+            {/* مدة الدرع - القائمة المنسدلة */}
+            <div>
+              <select
+                value={sh.duration || '8h'}
+                className="task-shield-select"
+                onChange={e => update('shield', { duration: e.target.value as typeof sh.duration })}
+                style={{
+                  width: '100%',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: '8px',
+                  padding: '6px 10px',
+                  fontSize: '12px',
+                  color: '#f0fdf4',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <option value="8h" style={{ background: '#111a11', color: '#f0fdf4' }}>
+                  {t('tasks.hours8')}
+                </option>
+                <option value="24h" style={{ background: '#111a11', color: '#f0fdf4' }}>
+                  {t('tasks.hours24')}
+                </option>
+                <option value="3d" style={{ background: '#111a11', color: '#f0fdf4' }}>
+                  {t('tasks.days3')}
+                </option>
+              </select>
+            </div>
+
+            {/* خيار السماح بالشراء بالذهب (allow_gold) */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '6px 10px',
+              background: sh.allow_gold ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.03)',
+              border: sh.allow_gold ? '1px solid rgba(245,158,11,0.25)' : '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '8px',
+              transition: 'all 0.15s ease',
+            }}>
+              <div>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: sh.allow_gold ? '#fbbf24' : '#e2e8f0',
+                }}>
+                  {t('tasks.buyWithGold')}
+                </div>
+              </div>
+              <Toggle
+                value={Boolean(sh.allow_gold)}
+                onChange={v => update('shield', { allow_gold: v })}
+                size="sm"
+              />
             </div>
           </div>
         </TaskRow>
