@@ -2,13 +2,13 @@ import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Search, Users, ChevronDown, ChevronUp, AlertTriangle,
-  X, RefreshCw, Zap, Shield, Trash2, Landmark, CheckCircle2, Lock, Swords
+  X, RefreshCw, Zap, Shield, Trash2, Landmark, CheckCircle2, Lock
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { AdminLayout } from '../components/layout/AdminLayout'
 import { CastleCard } from '../components/accounts/CastleCard'
-import { fetchAdminUsersCastles, deleteCastle, disableElfForAllCastles, AdminUserWithCastles } from '../lib/botApi'
+import { fetchAdminUsersCastles, deleteCastle, AdminUserWithCastles } from '../lib/botApi'
 import { Castle } from '../types'
 
 export function AdminUsersCastlesPage() {
@@ -29,9 +29,6 @@ export function AdminUsersCastlesPage() {
     userUid: string
     userEmail: string
   } | null>(null)
-
-  // ─── Disable Elf All Castles Modal State ────────────────────
-  const [showDisableElfModal, setShowDisableElfModal] = useState(false)
 
   // ─── Query: Fetch All Users with Castles ───────────────────
   const {
@@ -80,22 +77,6 @@ export function AdminUsersCastlesPage() {
     },
     onError: (err: any) => {
       toast.error(err.message || t('accounts.deleteFailed', 'تعذر حذف القلعة'))
-    }
-  })
-
-  // ─── Disable Elf for All Castles Mutation ─────────────────
-  const disableElfMutation = useMutation({
-    mutationFn: async () => {
-      return await disableElfForAllCastles()
-    },
-    onSuccess: (data) => {
-      toast.success(data.message || 'تم إيقاف مهمة العفريت لجميع القلاع بنجاح')
-      qc.invalidateQueries({ queryKey: ['admin_users_castles'] })
-      qc.invalidateQueries({ queryKey: ['admin_stats'] })
-      setShowDisableElfModal(false)
-    },
-    onError: (err: any) => {
-      toast.error(err.message || 'تعذر إيقاف مهمة العفريت')
     }
   })
 
@@ -152,58 +133,48 @@ export function AdminUsersCastlesPage() {
 
   return (
     <AdminLayout title="قلاع المستخدمين">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4">
+      <div className="space-y-4 mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-7xl">
 
         {/* ── Header & KPI Badges ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-[#0c1410] p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-xs">
+        <div className="flex sm:flex-row flex-col justify-between sm:items-center gap-3 bg-white dark:bg-[#0c1410] shadow-xs p-4 sm:p-5 border border-slate-200/80 dark:border-white/10 rounded-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+            <div className="flex justify-center items-center bg-emerald-500/10 border border-emerald-500/20 rounded-xl w-10 h-10 shrink-0">
               <Landmark size={20} className="text-emerald-600 dark:text-emerald-400" />
             </div>
             <div>
-              <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
+              <h1 className="font-black text-slate-900 dark:text-white text-base sm:text-lg leading-tight">
                 قلاع المستخدمين
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="mt-0.5 text-slate-500 dark:text-slate-400 text-xs">
                 إدارة مركزية لجميع مستخدمي المنصة وقلاعهم مع التحكم الكامل
               </p>
             </div>
           </div>
 
           {/* Quick Metrics & Actions */}
-          <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-white/5">
-            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300">
+          <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0 border-slate-100 dark:border-white/5 border-t sm:border-t-0">
+            <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 px-2.5 py-1 border border-slate-200/80 dark:border-white/10 rounded-lg font-semibold text-slate-700 dark:text-slate-300 text-xs">
               <Users size={12} className="text-emerald-500" />
               <span>{stats.totalUsers} مستخدم</span>
             </span>
 
-            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/80 dark:border-emerald-500/25 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+            <span className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 border border-emerald-200/80 dark:border-emerald-500/25 rounded-lg font-semibold text-emerald-700 dark:text-emerald-300 text-xs">
               <Landmark size={12} />
               <span>{stats.totalCastles} قلعة</span>
             </span>
 
             {stats.runningCastles > 0 && (
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-500/15 border border-teal-200/80 dark:border-teal-500/30 text-xs font-bold text-teal-700 dark:text-teal-300 animate-pulse">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+              <span className="flex items-center gap-1.5 bg-teal-50 dark:bg-teal-500/15 px-2.5 py-1 border border-teal-200/80 dark:border-teal-500/30 rounded-lg font-bold text-teal-700 dark:text-teal-300 text-xs animate-pulse">
+                <span className="bg-teal-400 rounded-full w-1.5 h-1.5" />
                 <span>{stats.runningCastles} يعمل الآن</span>
               </span>
             )}
 
             <button
               type="button"
-              onClick={() => setShowDisableElfModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/25 text-xs font-bold transition-colors cursor-pointer"
-              title="إيقاف مهمة الهجوم على العفريت لجميع القلاع في النظام"
-            >
-              <Swords size={12} className="text-amber-500" />
-              <span>إيقاف العفريت للكل</span>
-            </button>
-
-            <button
-              type="button"
               onClick={() => refetch()}
               disabled={isRefetching}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              className="bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white dark:text-slate-400 transition-colors cursor-pointer"
               title="تحديث البيانات"
             >
               <RefreshCw size={13} className={isRefetching ? 'animate-spin text-emerald-500' : ''} />
@@ -212,22 +183,22 @@ export function AdminUsersCastlesPage() {
         </div>
 
         {/* ── Search & Filter Controls ── */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+        <div className="flex sm:flex-row flex-col items-stretch sm:items-center gap-2.5">
           {/* Search Input */}
           <div className="relative flex-1 min-w-0">
-            <Search size={15} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <Search size={15} className="top-1/2 absolute text-slate-400 -translate-y-1/2 pointer-events-none start-3.5" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="بحث بالاسم، بريد المستخدم، بريد القلعة، أو اسم اللورد..."
-              className="w-full ps-9.5 pe-8 py-2 bg-white dark:bg-[#0c1410] border border-slate-200/80 dark:border-white/10 rounded-xl text-xs text-slate-900 dark:text-gray-100 placeholder-slate-400 focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/25 transition-all shadow-xs"
+              className="bg-white dark:bg-[#0c1410] shadow-xs py-2 ps-9.5 pe-8 border border-slate-200/80 focus:border-emerald-500 dark:border-white/10 rounded-xl focus:outline-hidden focus:ring-1 focus:ring-emerald-500/25 w-full text-slate-900 dark:text-gray-100 text-xs transition-all placeholder-slate-400"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded cursor-pointer"
+                className="top-1/2 absolute p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 -translate-y-1/2 cursor-pointer end-2.5"
               >
                 <X size={14} />
               </button>
@@ -235,7 +206,7 @@ export function AdminUsersCastlesPage() {
           </div>
 
           {/* Quick Filter Badges */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 shrink-0 select-none">
+          <div className="flex items-center gap-1 pb-1 sm:pb-0 overflow-x-auto select-none shrink-0">
             {(
               [
                 { id: 'all', label: 'الكل' },
@@ -262,7 +233,7 @@ export function AdminUsersCastlesPage() {
               <button
                 type="button"
                 onClick={collapseAll}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 bg-white dark:bg-white/5 border border-slate-200/80 dark:border-white/10 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+                className="bg-white dark:bg-white/5 px-2.5 py-1.5 border border-slate-200/80 dark:border-white/10 rounded-lg font-medium text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400 text-xs transition-colors cursor-pointer"
                 title="إغلاق كافة الكاردات"
               >
                 طي الكل
@@ -273,22 +244,22 @@ export function AdminUsersCastlesPage() {
 
         {/* ── Users List ── */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3 bg-white dark:bg-[#0c1410] rounded-2xl border border-slate-200/80 dark:border-white/10">
-            <div className="w-8 h-8 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin" />
-            <span className="text-xs text-slate-500 dark:text-slate-400">جاري تحميل المستخدمين وقلاعهم...</span>
+          <div className="flex flex-col justify-center items-center gap-3 bg-white dark:bg-[#0c1410] py-16 border border-slate-200/80 dark:border-white/10 rounded-2xl">
+            <div className="border-2 border-emerald-500/30 border-t-emerald-500 rounded-full w-8 h-8 animate-spin" />
+            <span className="text-slate-500 dark:text-slate-400 text-xs">جاري تحميل المستخدمين وقلاعهم...</span>
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center bg-white dark:bg-[#0c1410] rounded-2xl border border-slate-200/80 dark:border-white/10 p-6">
-            <Users size={36} className="text-slate-300 dark:text-slate-600 mb-2" />
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">لا توجد نتائج مطابقة</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
+          <div className="flex flex-col justify-center items-center bg-white dark:bg-[#0c1410] p-6 py-16 border border-slate-200/80 dark:border-white/10 rounded-2xl text-center">
+            <Users size={36} className="mb-2 text-slate-300 dark:text-slate-600" />
+            <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm">لا توجد نتائج مطابقة</h3>
+            <p className="mt-1 max-w-sm text-slate-500 dark:text-slate-400 text-xs">
               لم نعثر على أي مستخدم أو قلعة تطابق شروط البحث الحالية
             </p>
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="mt-3 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 text-xs font-semibold hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                className="bg-emerald-500/10 hover:bg-emerald-500/20 mt-3 px-3 py-1.5 border border-emerald-500/25 rounded-lg font-semibold text-emerald-600 dark:text-emerald-400 text-xs transition-colors cursor-pointer"
               >
                 مسح البحث
               </button>
@@ -303,40 +274,40 @@ export function AdminUsersCastlesPage() {
               return (
                 <div
                   key={user.uid}
-                  className="bg-white dark:bg-[#0c1410] rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-xs overflow-hidden transition-all duration-200"
+                  className="bg-white dark:bg-[#0c1410] shadow-xs border border-slate-200/80 dark:border-white/10 rounded-2xl overflow-hidden transition-all duration-200"
                 >
                   {/* ── User Row / Header Card (Click to expand/collapse) ── */}
                   <div
                     onClick={() => toggleUser(user.uid)}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] cursor-pointer select-none transition-colors border-b border-transparent"
+                    className="flex sm:flex-row flex-col justify-between sm:items-center gap-3 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] p-3.5 sm:p-4 border-transparent border-b transition-colors cursor-pointer select-none"
                   >
                     {/* Left: User Identity */}
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 flex items-center justify-center font-bold text-sm text-emerald-600 dark:text-emerald-400 shrink-0">
+                      <div className="flex justify-center items-center bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 rounded-xl w-10 h-10 font-bold text-emerald-600 dark:text-emerald-400 text-sm shrink-0">
                         {user.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                       </div>
 
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                          <span className="font-bold text-slate-900 dark:text-white text-sm truncate">
                             {user.display_name || user.email.split('@')[0]}
                           </span>
 
                           {user.is_banned ? (
-                            <span className="px-1.5 py-0.2 rounded-md bg-rose-500/15 border border-rose-500/30 text-[10px] font-bold text-rose-500 dark:text-rose-400">
+                            <span className="bg-rose-500/15 px-1.5 py-0.2 border border-rose-500/30 rounded-md font-bold text-[10px] text-rose-500 dark:text-rose-400">
                               محظور
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.2 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                            <span className="bg-emerald-500/10 px-1.5 py-0.2 border border-emerald-500/20 rounded-md font-bold text-[10px] text-emerald-600 dark:text-emerald-400">
                               {user.subscription?.plan_name || 'نشط'}
                             </span>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5 truncate">
+                        <div className="flex items-center gap-2 mt-0.5 font-mono text-slate-500 dark:text-slate-400 text-xs truncate">
                           <span>{user.email}</span>
                           {user.tenant_domain && (
-                            <span className="text-[10px] px-1 py-0.2 rounded bg-slate-100 dark:bg-white/5 border border-slate-200/60 dark:border-white/10">
+                            <span className="bg-slate-100 dark:bg-white/5 px-1 py-0.2 border border-slate-200/60 dark:border-white/10 rounded text-[10px]">
                               {user.tenant_domain}
                             </span>
                           )}
@@ -345,7 +316,7 @@ export function AdminUsersCastlesPage() {
                     </div>
 
                     {/* Right: Badges & Chevron */}
-                    <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-white/5">
+                    <div className="flex justify-between sm:justify-end items-center gap-2 pt-2 sm:pt-0 border-slate-100 dark:border-white/5 border-t sm:border-t-0">
                       {/* Castles Count */}
                       <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
                         user.castles_count > 0
@@ -358,14 +329,14 @@ export function AdminUsersCastlesPage() {
 
                       {/* Running Count if any */}
                       {user.running_count > 0 && (
-                        <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-50 dark:bg-teal-500/15 border border-teal-200/80 dark:border-teal-500/30 text-[11px] font-bold text-teal-700 dark:text-teal-300">
-                          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+                        <span className="flex items-center gap-1 bg-teal-50 dark:bg-teal-500/15 px-2 py-1 border border-teal-200/80 dark:border-teal-500/30 rounded-lg font-bold text-[11px] text-teal-700 dark:text-teal-300">
+                          <span className="bg-teal-400 rounded-full w-1.5 h-1.5 animate-pulse" />
                           <span>{user.running_count} يعمل</span>
                         </span>
                       )}
 
                       {/* Expand/Collapse Chevron Indicator */}
-                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 flex items-center justify-center text-slate-500 dark:text-slate-400 shrink-0">
+                      <div className="flex justify-center items-center bg-slate-100 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 rounded-lg w-7 h-7 text-slate-500 dark:text-slate-400 shrink-0">
                         {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                       </div>
                     </div>
@@ -373,9 +344,9 @@ export function AdminUsersCastlesPage() {
 
                   {/* ── Dropdown / Collapsed Content: Lazy mounted on expand ── */}
                   {isExpanded && (
-                    <div className="p-3 sm:p-4 bg-slate-50/70 dark:bg-[#070d0a]/60 border-t border-slate-200/80 dark:border-white/10 space-y-3">
+                    <div className="space-y-3 bg-slate-50/70 dark:bg-[#070d0a]/60 p-3 sm:p-4 border-slate-200/80 dark:border-white/10 border-t">
                       {castles.length === 0 ? (
-                        <div className="text-center py-6 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        <div className="py-6 font-medium text-slate-500 dark:text-slate-400 text-xs text-center">
                           لا توجد أي قلاع مسجلة لهذا المستخدم حتى الآن.
                         </div>
                       ) : (
@@ -408,28 +379,28 @@ export function AdminUsersCastlesPage() {
 
         {/* ── Delete Castle Confirmation Dialog ── */}
         {deletingCastle && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-            <div className="bg-white dark:bg-[#0c1410] border border-slate-200 dark:border-white/10 rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+          <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/60 backdrop-blur-xs p-4">
+            <div className="space-y-4 bg-white dark:bg-[#0c1410] shadow-2xl p-5 border border-slate-200 dark:border-white/10 rounded-2xl w-full max-w-sm">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center text-rose-500 shrink-0">
+                <div className="flex justify-center items-center bg-rose-500/10 border border-rose-500/25 rounded-xl w-10 h-10 text-rose-500 shrink-0">
                   <AlertTriangle size={20} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm">
                     تأكيد حذف القلعة
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="mt-0.5 text-slate-500 dark:text-slate-400 text-xs">
                     حذف القلعة من حساب المستخدم نهائياً
                   </p>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 text-xs space-y-1">
-                <div className="flex items-center justify-between">
+              <div className="space-y-1 bg-slate-50 dark:bg-white/5 p-3 border border-slate-200/60 dark:border-white/10 rounded-xl text-xs">
+                <div className="flex justify-between items-center">
                   <span className="text-slate-500">المستخدم:</span>
                   <span className="font-mono text-slate-800 dark:text-slate-200">{deletingCastle.userEmail}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-slate-500">بريد القلعة:</span>
                   <span className="font-mono text-slate-800 dark:text-slate-200">{deletingCastle.castleEmail || deletingCastle.castleId}</span>
                 </div>
@@ -440,7 +411,7 @@ export function AdminUsersCastlesPage() {
                   type="button"
                   onClick={confirmDeleteCastle}
                   disabled={deleteMutation.isPending}
-                  className="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  className="flex flex-1 justify-center items-center gap-1.5 bg-rose-600 hover:bg-rose-700 px-3 py-2 rounded-xl font-bold text-white text-xs transition-colors cursor-pointer"
                 >
                   {deleteMutation.isPending ? 'جاري الحذف...' : 'نعم، احذف القلعة'}
                 </button>
@@ -448,64 +419,7 @@ export function AdminUsersCastlesPage() {
                   type="button"
                   onClick={() => setDeletingCastle(null)}
                   disabled={deleteMutation.isPending}
-                  className="py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
-                >
-                  إلغاء
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Disable Elf Confirmation Dialog ── */}
-        {showDisableElfModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-            <div className="bg-white dark:bg-[#0c1410] border border-slate-200 dark:border-white/10 rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-500 shrink-0">
-                  <Swords size={20} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                    إيقاف هجوم العفريت للجميع
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    تعطيل المهمة لكافة القلاع والدومينات
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 text-xs space-y-2">
-                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                  هل أنت متأكد من رغبتك في إيقاف مهمة الهجوم على العفريت (ضبطها على <span className="font-mono text-amber-500 font-bold">False</span>) لجميع قلاع النظام عبر كافة الدومينات؟
-                </p>
-                <div className="flex items-center justify-between pt-1 border-t border-slate-200/40 dark:border-white/5 text-[11px] text-slate-500">
-                  <span>إجمالي القلاع المتأثرة:</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{stats.totalCastles} قلعة</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => disableElfMutation.mutate()}
-                  disabled={disableElfMutation.isPending}
-                  className="flex-1 py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  {disableElfMutation.isPending ? (
-                    <>
-                      <RefreshCw size={13} className="animate-spin" />
-                      <span>جاري الإيقاف...</span>
-                    </>
-                  ) : (
-                    'تأكيد الإيقاف للكل'
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowDisableElfModal(false)}
-                  disabled={disableElfMutation.isPending}
-                  className="py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 px-4 py-2 rounded-xl font-semibold text-slate-700 dark:text-slate-300 text-xs transition-colors cursor-pointer"
                 >
                   إلغاء
                 </button>

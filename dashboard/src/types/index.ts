@@ -137,18 +137,14 @@ export interface MarchManagerConfig extends BaseTaskConfig {
   max_queues?: number
   priority_order?: string[]
   max_duration_minutes?: number
-  abra?: AbraConfig
   prestige_invaders?: { enabled: boolean }
-  prestige_stronghold?: { enabled: boolean }
   prestige_gather?: { enabled: boolean }
   transport: { enabled: boolean; target_x: number | null; target_y: number | null; resource_ids: number[] }
   treasure_escort?: TreasureEscortConfig
   ruins: { enabled: boolean; explore_time: number; formation_id: number }
-  combat: { enabled: boolean; choice: 'elf' | 'invaders' | 'rebels'; level: number; formation_id: number }
-  elf: { enabled: boolean; formation_id: number }
+  combat: { enabled: boolean; choice: 'invaders' | 'rebels'; level: number; formation_id: number }
   invaders: { enabled: boolean; level: number; formation_id: number }
   rebels: { enabled: boolean; level: number; formation_id: number }
-  stronghold: { enabled: boolean; level: number; count: number; formation_id: number }
   gold_gather?: { enabled: boolean; locations?: GoldLocation[] }
   gather: { enabled: boolean; res_type: number; level: number; search_range: number }
 }
@@ -210,17 +206,9 @@ export interface CastleConfig {
   warrior_exchange?: BaseTaskConfig & { count: number }
   gather_boost?: BaseTaskConfig
   gold_gather?: { enabled: boolean; locations: GoldLocation[] }
-  abra?: AbraConfig
 }
 
 export type BotConfig = CastleConfig
-
-export interface AbraConfig extends BaseTaskConfig {
-  x: number
-  y: number
-  killing_blow: boolean
-  formation_id?: number
-}
 
 
 export interface Castle {
@@ -300,18 +288,14 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
   march_manager: {
     enabled: false,
     max_duration_minutes: 20,
-    abra: { enabled: false, x: 0, y: 0, killing_blow: false, formation_id: 1 },
     prestige_invaders: { enabled: false },
-    prestige_stronghold: { enabled: false },
     prestige_gather: { enabled: false },
     transport: { enabled: false, target_x: null, target_y: null, resource_ids: [] },
     treasure_escort: { enabled: false, free_refresh: true, formation_id: 1, use_saved_formation: true, use_auto_fill: true, require_full_legion: true, exclude_defend: false },
     ruins: { enabled: false, explore_time: 900, formation_id: 1 },
     combat: { enabled: false, choice: 'invaders', level: 15, formation_id: 1 },
-    elf: { enabled: false, formation_id: 1 },
     invaders: { enabled: false, level: 15, formation_id: 1 },
     rebels: { enabled: false, level: 5, formation_id: 1 },
-    stronghold: { enabled: false, level: 5, count: 1, formation_id: 1 },
     gold_gather: { enabled: false, locations: [] },
     gather: { enabled: true, res_type: 2, level: 4, search_range: 100 },
   },
@@ -323,16 +307,13 @@ export const FIXED_PRESET_CONFIG: CastleConfig = {
     enabled: true,
     max_duration_minutes: 20,
     prestige_invaders: { enabled: false },
-    prestige_stronghold: { enabled: false },
     prestige_gather: { enabled: false },
     transport: { enabled: false, target_x: null, target_y: null, resource_ids: [] },
     treasure_escort: { enabled: false, free_refresh: true, formation_id: 1, use_saved_formation: true, use_auto_fill: true, require_full_legion: true, exclude_defend: false },
     ruins: { enabled: false, explore_time: 900, formation_id: 1 },
-    combat: { enabled: false, choice: 'elf', level: 30, formation_id: 1 },
-    elf: { enabled: false, formation_id: 1 },
+    combat: { enabled: false, choice: 'invaders', level: 30, formation_id: 1 },
     invaders: { enabled: false, level: 30, formation_id: 1 },
     rebels: { enabled: false, level: 5, formation_id: 1 },
-    stronghold: { enabled: false, level: 30, count: 2, formation_id: 1 },
     gold_gather: { enabled: false, locations: [] },
     gather: { enabled: true, res_type: 4, level: 5, search_range: 100 },
   },
@@ -403,7 +384,6 @@ export const FIXED_PRESET_CONFIG: CastleConfig = {
   },
   warrior_exchange: { enabled: false, count: 15 },
   gather_boost: { enabled: false },
-  abra: { enabled: false, x: 0, y: 0, killing_blow: false },
 }
 
 export interface CastleLog {

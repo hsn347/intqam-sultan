@@ -212,9 +212,11 @@ class HuntMonstersTask(MarchManagerTask):
         if not isinstance(resp, dict):
             return "NO_RESPONSE"
         err = resp.get("err")
-        if err is None or str(err) in ("0", "", "None", "Err_None"):
+        if err is None:
+            err = resp.get("code")
+        if err is None or str(err).strip() in ("0", "", "None", "Err_None"):
             return "0"
-        return str(err)
+        return str(err).strip()
 
     @staticmethod
     def _build_monster_instance_id(target: Dict[str, Any], monster_type: str, level: int) -> str:
@@ -299,7 +301,15 @@ class HuntMonstersTask(MarchManagerTask):
         if "max_distance" in params and "max_distance" in self.config:
             kwargs["max_distance"] = float(self.config["max_distance"])
 
-        return await fn(**kwargs)
+        res = await fn(**kwargs)
+        if not isinstance(res, dict):
+            return None
+        if "target" in res or "monster" in res:
+            if res.get("success") is False:
+                return None
+            inner = res.get("target") or res.get("monster")
+            return inner if isinstance(inner, dict) else None
+        return res
 
     # ------------------------------------------------------------------
     # التحقق المسبق (0-Network)
@@ -359,6 +369,18 @@ class HuntMonstersTask(MarchManagerTask):
         instance_id = self._build_monster_instance_id(target, monster_type, level)
         target_type_key = self._get_target_type_key(monster_type)
 
+        raw_army = formation.get("army") or {}
+        if isinstance(raw_army, dict):
+            army_payload = [{"id": int(aid), "num": int(cnt)} for aid, cnt in raw_army.items() if int(cnt) > 0]
+        else:
+            army_payload = list(raw_army)
+
+        raw_heroes = formation.get("hero_ids") or []
+        hero_payload = [
+            h if isinstance(h, dict) else {"heroID": int(h)}
+            for h in raw_heroes
+        ]
+
         payload = {
             "moveLineType": MONSTER_ATTACK_MOVE_LINE_TYPE,
             "matrixType": MONSTER_ATTACK_MATRIX_TYPE,
@@ -368,8 +390,8 @@ class HuntMonstersTask(MarchManagerTask):
                     "y": ty,
                     "id": instance_id,
                 },
-                "army": formation["army"],
-                "heroInfo": formation["hero_ids"],
+                "army": army_payload,
+                "heroInfo": hero_payload,
                 "armsInfo": [],
                 "divineBeastInfo": [],
                 "mapId": int(kingdom_id),
@@ -379,7 +401,7 @@ class HuntMonstersTask(MarchManagerTask):
             },
         }
 
-        resp = await self.send_and_wait("1007", "2", payload, timeout=15.0)
+        resp = await self.safe_query("1007", "2", payload, min_delay=0.5, max_delay=1.1)
         err = self._extract_err_code(resp)
         if err != "0":
             await self._safe_release_target(target, target_type_key)
@@ -528,6 +550,16 @@ class HuntMonstersTask(MarchManagerTask):
                 err_code = str(formation.get("error_code", "UNKNOWN"))
                 rec_lv = self._safe_int(formation.get("recommended_max_level"), 0)
 
+                if err_code == "TARGET_LEVEL_LOCKED":
+                    max_unlocked = self._safe_int(formation.get("max_unlocked_level"), rec_lv)
+                    if max_unlocked > 0 and max_unlocked < current_level:
+                        self.log(
+                            f"🔓 [صيد الوحوش] المستوى المطلوب ({current_level}) غير مفتوح بعد — "
+                            f"سيتم الهجوم تلقائياً بأعلى مستوى مفتوح في القلعة: {max_unlocked}."
+                        )
+                        current_level = max_unlocked
+                        continue
+
                 if auto_downgrade and rec_lv > 0 and rec_lv < current_level:
                     self.log(
                         f"📉 [صيد الوحوش] لا يمكن قتل مستوى {current_level} بشكل مؤكد — "
@@ -536,12 +568,12 @@ class HuntMonstersTask(MarchManagerTask):
                     current_level = rec_lv
                     continue
 
-                if err_code in ("NO_AVAILABLE_SOLDIERS", "INSUFFICIENT_SOLDIERS"):
+                if err_code in ("NO_AVAILABLE_SOLDIERS", "INSUFFICIENT_SOLDIERS", "INSUFFICIENT_CAPACITY"):
                     if not dry_run and self._has_active_monster_march():
                         should_cont, reason = await self._wait_for_monster_march_return(
                             deadline=deadline,
                             wait_interval=wait_interval,
-                            wait_reason="الجنود المتاحون في القلعة غير كافيين حالياً للقتل المؤكد",
+                            wait_reason="الجنود الأقوياء حالياً بالخارج والمتبقي في القلعة لا يكفي للقتل المؤكد ضمن سعة الفيلق",
                         )
                         if not should_cont:
                             stop_reason = reason
@@ -781,7 +813,7 @@ def _main() -> None:
     parser.add_argument("--password", "-p", default="", help="كلمة المرور (اختياري إذا كانت في session_cache)")
     parser.add_argument("--mode", default="hunt", choices=["hunt", "daily_tasks"], help="وضع الصيد: hunt (لا نهائي) أو daily_tasks (النشاط اليومي)")
     parser.add_argument("--monster-type", default="normal", choices=["normal", "nebula"], help="نوع الوحش: normal (1..40) أو nebula (41..50)")
-    parser.add_argument("--level", type=int, default=15, help="مستوى الوحش المستهدف (افتراضي 15 للوحوش العادية، 41 للسحابية)")
+    parser.add_argument("--level", type=int, default=None, help="مستوى الوحش المستهدف (افتراضي 15 للوحوش العادية، 41 للسحابية)")
     parser.add_argument("--win-ratio", type=float, default=DEFAULT_COMBAT_MIN_WIN_RATIO, help="عتبة القتل المؤكد (افتراضي 1.5)")
     parser.add_argument("--strategy", default="max_power", choices=["max_power", "exact_threshold", "strict_overkill"], help="استراتيجية تشكيل الجيش")
     parser.add_argument("--buff-factor", type=float, default=1.0, help="معامل بوف القلعة القتالي (افتراضي 1.0)")

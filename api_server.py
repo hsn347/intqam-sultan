@@ -1245,10 +1245,6 @@ def admin_network_mode():
 def admin_toggle_network_mode():
     return {"mode": "direct", "status": "ok"}
 
-@app.post("/api/admin/castles/disable-elf-all")
-def admin_disable_elf_all():
-    return {"status": "ok", "message": "Disabled"}
-
 
 # ══════════════════════════════════════════════════════════════════
 # 7. قنوات الـ WebSockets اللحظية (Real-time Sockets)

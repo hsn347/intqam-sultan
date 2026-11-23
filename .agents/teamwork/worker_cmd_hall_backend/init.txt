@@ -1,1 +1,0 @@
-init worker_cmd_hall_backend

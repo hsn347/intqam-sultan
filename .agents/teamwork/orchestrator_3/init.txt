@@ -1,2 +1,0 @@
-# Orchestrator Workspace
-Directory initialized for orchestrator_3.

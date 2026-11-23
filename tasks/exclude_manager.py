@@ -3,8 +3,8 @@
 tasks/exclude_manager.py — مدير استبعاد الأهداف المركزي الآمن (Centralized Exclude Manager)
 ════════════════════════════════════════════════════════════════════════════════════════════════
 
-يحل محل الدوال المكررة (_get_exclude / _add_exclude) المنتشرة في مهام الخريطة (الجمع، الوحوش، الأطلال، المعاقل):
-  - gather.py, stronghold.py, monster.py, ruins.py
+يحل محل الدوال المكررة (_get_exclude / _add_exclude) المنتشرة في مهام الخريطة (الجمع، الوحوش، الأطلال):
+  - gather_resources.py, hunt_monsters.py, explore_ruins.py
 
 الميزات المعمارية:
   1. نمط الحجز والتأكيد والتحرير (Reserve → Confirm → Release pattern):
@@ -29,7 +29,7 @@ tasks/exclude_manager.py — مدير استبعاد الأهداف المركز
 
   6. تصنيف أنواع الأهداف (target_type):
      - يُستنتج تلقائياً من صيغة target_id (X-Y-mapType-subType-serial).
-     - يدعم التمرير الصريح لأنواع خاصة (elf, elite_rebel, pyramid, إلخ).
+     - يدعم التمرير الصريح لأنواع خاصة (elite_rebel, pyramid, إلخ).
 """
 
 from __future__ import annotations
@@ -200,7 +200,6 @@ class ExcludeManager:
             "حراسة الكنز": "escort", "حراسة كنز": "escort", "كنز": "escort", "treasure_escort": "escort",
             "معقل": "stronghold",
             "متمرد": "rebel", "متمردين": "rebel",
-            "عفريت": "elf",
             "نخبة": "elite_rebel", "نخبة المتمردين": "elite_rebel",
         }
         return ar_map.get(tt, tt)

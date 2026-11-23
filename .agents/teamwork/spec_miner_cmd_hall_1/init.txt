@@ -1,1 +1,0 @@
-init spec_miner_cmd_hall_1

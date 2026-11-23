@@ -1,1 +1,0 @@
-field_tester_m3 initialized

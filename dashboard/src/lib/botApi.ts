@@ -846,21 +846,3 @@ export async function fetchAdminUsersCastles(): Promise<AdminUserWithCastles[]> 
     castles: (u.castles || []).map((c: any) => formatCastleFromApi(c)),
   }))
 }
-
-export async function disableElfForAllCastles(): Promise<{
-  status: string
-  total_castles: number
-  updated_count: number
-  message: string
-}> {
-  const authHeaders = await getAuthHeader()
-  const res = await fetch(`${getApiBaseUrl()}/api/admin/castles/disable-elf-all`, {
-    method: 'POST',
-    headers: { ...authHeaders, 'Content-Type': 'application/json' },
-  })
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    throw new Error(data.detail || 'فشل إيقاف مهمة العفريت لجميع القلاع')
-  }
-  return res.json()
-}

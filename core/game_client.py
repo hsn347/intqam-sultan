@@ -251,6 +251,7 @@ CMD_METADATA_MAP: Dict[Tuple[str, str], Tuple[str, str]] = {
     ("1067", "2"): ("🎖️", "ترقية ميدالية الحرب"),
     ("1040", "1"): ("👑", "استعلام VIP"),
     ("1040", "2"): ("👑", "استلام نقاط VIP"),
+    ("1001", "10"): ("📦", "فحص سقف استلام الموارد"),
 }
 
 CMD_MODULE_MAP: Dict[str, Tuple[str, str]] = {
@@ -1836,7 +1837,10 @@ class GameConnection:
                     success, err_code = is_query_success(res)
                     emoji, default_desc = get_cmd_metadata(str(cmd), str(subcmd), data)
                     desc = action if action else default_desc
-                    status_mark = "✅" if success else (f"❌ (كود: {err_code})" if err_code and err_code != "timeout" else "❌")
+                    if str(cmd) == "1001" and str(subcmd) == "10" and str(err_code) == "1022":
+                        status_mark = "ℹ️ (بدون سقف استلام)"
+                    else:
+                        status_mark = "✅" if success else (f"❌ (كود: {err_code})" if err_code and err_code != "timeout" else "❌")
                     acc_name = self.account_short_name
                     line = f"{emoji} [{acc_name}] {desc} ({cmd}/{subcmd}) {status_mark}"
                     self.emit_brief_log(line)

@@ -1,1 +1,0 @@
-spec_miner_cmd_hall_survey_1 initialized

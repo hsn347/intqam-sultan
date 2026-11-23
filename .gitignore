@@ -35,3 +35,11 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Local tools, agents, test scripts, and scratch
+.agents/
+scratch/
+sctipt_test/
+script_test/
+tools/
+

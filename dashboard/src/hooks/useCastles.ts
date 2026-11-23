@@ -36,10 +36,8 @@ export function mergeCastleConfig(fcConfig: Record<string, unknown>): CastleConf
       treasure_escort: { ...def.march_manager.treasure_escort!, ...((fmm?.treasure_escort as Record<string, unknown>) || {}) },
       ruins:       { ...def.march_manager.ruins,       ...rawRuins, explore_time: cleanTime },
     combat:      { ...def.march_manager.combat,      ...((fmm?.combat      as Record<string, unknown>) || {}) },
-    elf:         { ...def.march_manager.elf,         ...((fmm?.elf         as Record<string, unknown>) || {}) },
     invaders:    { ...def.march_manager.invaders,    ...((fmm?.invaders    as Record<string, unknown>) || {}) },
     rebels:      { ...def.march_manager.rebels,      ...((fmm?.rebels      as Record<string, unknown>) || {}) },
-    stronghold:  { ...def.march_manager.stronghold,  ...((fmm?.stronghold  as Record<string, unknown>) || {}) },
     gold_gather: { ...def.march_manager.gold_gather, ...((fmm?.gold_gather as Record<string, unknown>) || {}) },
     gather:      { ...def.march_manager.gather,      ...((fmm?.gather      as Record<string, unknown>) || {}) },
   }

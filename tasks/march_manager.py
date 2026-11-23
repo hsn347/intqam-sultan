@@ -18,6 +18,25 @@ python tasks/march_manager.py --email beetoo3@hotmail.com --search-monster --mon
 
 python tasks/gather_resources.py --email LUCIFER@g4.coom --mode daily_tasks --level 6
 
+
+
+
+python tasks/escort_treasure.py --email beetoo3@hotmail.com
+
+
+
+
+python tasks/explore_ruins.py --email beetoo2@hotmail.com --formation 1 --duration 1h
+
+K:150,X:393,Y:425
+
+python tasks/resource_help.py --email beetoo2@hotmail.com --x 393 --y 425 --resources food,wood,iron
+
+
+
+python tasks/gather_speed_buff.py --email beetoo3@hotmail.com
+
+
 """
 from __future__ import annotations
 
@@ -1441,6 +1460,7 @@ class MarchManagerTask(BaseTask):
         scan_step: int = 75,
         lod: int = 3,
         scan_delay_range: Tuple[float, float] = (1.0, 2.0),
+        skip_coords: Optional[Set[Tuple[int, int]]] = None,
     ) -> Dict[str, Any]:
         """
         البحث الرسمي عن أقرب أطلال (Relics) متاحة بدون أمير داخلها أو يسير إليها
@@ -1574,7 +1594,7 @@ class MarchManagerTask(BaseTask):
                         scan_points.append((px, py))
         scan_points = scan_points[:scans_limit]
 
-        checked_coords: Set[Tuple[int, int]] = set()
+        checked_coords: Set[Tuple[int, int]] = set(skip_coords) if skip_coords else set()
         total_scans = 0
 
         for idx, (sx, sy) in enumerate(scan_points, 1):
@@ -1679,6 +1699,7 @@ class MarchManagerTask(BaseTask):
                     "occupied": False,
                     "kingdom_id": kid,
                     "castle_pos": {"x": cx, "y": cy},
+                    "info_resp": info_resp if isinstance(info_resp, dict) else None,
                 }
                 return {
                     "success": True,
@@ -1817,10 +1838,10 @@ class MarchManagerTask(BaseTask):
                 "hero_payload": [],
             }
 
-        # 2. تحديد السعة القصوى للفيلق (دعم القلاع الصغيرة والكبيرة)
+        # 2. تحديد السعة القصوى للفيلق حصرياً عبر tasks/march_capacity.py
         if max_march_capacity is None:
-            cap_info = self.get_max_attack_march_capacity() if hasattr(self, "get_max_attack_march_capacity") else {}
-            cap = self._safe_int(cap_info.get("max_march_capacity") if isinstance(cap_info, dict) else 0, 0)
+            from tasks.march_capacity import get_march_capacity_no_heroes
+            cap = self._safe_int(get_march_capacity_no_heroes(self._get_live_snapshot()), 0)
         else:
             cap = self._safe_int(max_march_capacity, 0)
 
@@ -2033,6 +2054,7 @@ class MarchManagerTask(BaseTask):
         combat_buff_factor: float = 1.0,
         custom_fc: Optional[int] = None,
         exclude_defend_heroes: bool = False,
+        max_win_ratio: Optional[float] = 3.0,
     ) -> Dict[str, Any]:
         """
         تشكيل الفيلق القتالي المناسب (أبطال + جنود) لقتل هدف محدد بشكل مؤكد (0-Network).
@@ -2116,28 +2138,20 @@ class MarchManagerTask(BaseTask):
             if hid > 0:
                 selected_heroes.append(hid)
 
-        # 5) حساب السعة القصوى الحية للفيلق
-        max_cap = 0
-        try:
-            cap_data = self.get_max_attack_march_capacity()
-            if isinstance(cap_data, dict):
-                max_cap = int(
-                    cap_data.get("total")
-                    or cap_data.get("max_capacity")
-                    or cap_data.get("capacity")
-                    or 0
-                )
-        except Exception:
-            max_cap = 0
+        # 5) حساب السعة القصوى الحية للفيلق حصرياً عبر tasks/march_capacity.py
+        from tasks.march_capacity import get_march_capacity, get_march_capacity_no_heroes
+
+        live_mem = self._get_live_snapshot()
+        max_cap = int(
+            get_march_capacity(
+                live_mem,
+                hero_ids=selected_heroes or None,
+                only_normal_state=exclude_defend_heroes,
+            )
+            or 0
+        )
         if max_cap <= 0:
-            try:
-                c_data = self.get_castle_march_capacity_without_heroes()
-                if isinstance(c_data, dict):
-                    max_cap = int(c_data.get("total") or c_data.get("castle_capacity") or 0)
-            except Exception:
-                max_cap = 0
-        if max_cap <= 0:
-            max_cap = 50000
+            max_cap = int(get_march_capacity_no_heroes(live_mem) or 0)
 
         # 6) ترتيب الجنود المتاحين تنازلياً حسب القوة القتالية للجندي الواحد
         enriched_soldiers: List[Dict[str, Any]] = []
@@ -2160,8 +2174,12 @@ class MarchManagerTask(BaseTask):
             reverse=True,
         )
 
-        # 7) تقييم القوة القصوى الممكنة ضمن سعة الفيلق (وحساب إجمالي قوة القلعة للتمييز بين نقص الجنود وضيق السعة)
+        # 7) تقييم القوة القصوى الممكنة ضمن سعة الفيلق (مع احترام السقف الأعلى max_win_ratio)
         required_power = npc_fc * req_ratio
+        cap_ratio = float(max_win_ratio) if (max_win_ratio is not None and float(max_win_ratio) > 0) else None
+        if cap_ratio is not None and cap_ratio < req_ratio:
+            cap_ratio = req_ratio
+        max_allowed_power = (npc_fc * cap_ratio) if cap_ratio is not None else None
         total_castle_raw_power = sum(x["count"] * x["unit_power"] for x in enriched_soldiers)
 
         remaining_cap = max_cap
@@ -2184,6 +2202,17 @@ class MarchManagerTask(BaseTask):
                 needed_eff = required_power - eff_so_far
                 needed_units = int(math.ceil(needed_eff / max(1e-6, unit_pwr * buff_mul)))
                 take = min(max_take, max(1, needed_units))
+            elif max_allowed_power is not None:
+                eff_so_far = raw_power * buff_mul
+                if eff_so_far >= max_allowed_power:
+                    break
+                room_eff = max_allowed_power - eff_so_far
+                allowed_units = int(math.floor(room_eff / max(1e-6, unit_pwr * buff_mul)))
+                if allowed_units <= 0:
+                    if eff_so_far >= required_power:
+                        break
+                    allowed_units = 1
+                take = min(max_take, allowed_units)
             else:
                 take = max_take
 

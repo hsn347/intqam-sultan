@@ -1,1 +1,0 @@
-init challenger_empirical_1

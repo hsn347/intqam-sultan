@@ -1,1 +1,0 @@
-explorer_cmd_hall_backend_2 initialized

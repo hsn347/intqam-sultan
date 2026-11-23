@@ -99,26 +99,11 @@ class GatherResourcesTask(MarchManagerTask):
         return (castle_lv >= req_lv), castle_lv, req_lv
 
     def _get_live_march_capacity(self) -> int:
-        """قراءة سعة الفيلق القصوى للقلعة من الذاكرة الحية (0-Network)."""
-        if hasattr(self, "get_max_attack_march_capacity"):
-            cap_data = self.get_max_attack_march_capacity()
-            if isinstance(cap_data, dict):
-                cap = self._safe_int(
-                    cap_data.get("max_march_capacity")
-                    or cap_data.get("total_capacity")
-                    or cap_data.get("castle_capacity")
-                    or 0,
-                    0,
-                )
-                if cap > 0:
-                    return cap
-        if hasattr(self, "get_castle_march_capacity_without_heroes"):
-            c_data = self.get_castle_march_capacity_without_heroes()
-            if isinstance(c_data, dict):
-                cap = self._safe_int(c_data.get("total") or c_data.get("castle_capacity") or 0, 0)
-                if cap > 0:
-                    return cap
-        return 1000
+        """قراءة سعة الفيلق القصوى للقلعة حصرياً عبر tasks/march_capacity.py (0-Network)."""
+        from tasks.march_capacity import get_march_capacity_no_heroes
+
+        cap = self._safe_int(get_march_capacity_no_heroes(self._get_live_snapshot()), 0)
+        return cap if cap > 0 else 1000
 
     async def can_run(self) -> Tuple[bool, str]:
         """الفحص القبلي للجاهزية (0-Network): الاتصال + وجود فيلق شاغر + جنود متاحين."""

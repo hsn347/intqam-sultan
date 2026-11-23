@@ -5,7 +5,7 @@ import { Toggle } from '../ui/Toggle'
 import { TaskTabs, TABS } from './TaskTabs'
 import { useUpdateCastleConfig } from '../../hooks/useCastles'
 import { updateCastle } from '../../lib/botApi'
-import type { Castle, TaskTab, CastleConfig, AbraConfig, StaminaConfig } from '../../types'
+import type { Castle, TaskTab, CastleConfig, StaminaConfig } from '../../types'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { localizeApiError } from '../../lib/localize'
@@ -1200,148 +1200,13 @@ function TaskTabContentInner({
   // 3. الهجوم (Combat / march_manager)
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'combat') {
-    const mm = (cfg as any).march_manager || { enabled: false, max_duration_minutes: 20 }
-    const isMmEnabled = Boolean(mm.enabled)
     const combatTasks = [
-      { key: 'elf', img: '/images/combat/elitifrit.png', labelKey: 'tasks.eliteEfreet' },
       { key: 'invaders', img: '/images/combat/yagmaci.png', labelKey: 'tasks.invaders' },
       { key: 'rebels', img: '/images/combat/yagmaci.png', labelKey: 'tasks.eliteRebels' },
-      { key: 'ruins', emoji: '🏛️', labelKey: 'tasks.ruinsAttack' },
-      { key: 'stronghold', emoji: '🏰', labelKey: 'tasks.strongholdAttack' },
-      { key: 'abra', emoji: '👹', labelKey: 'tasks.abra' },
+      { key: 'ruins', emoji: '🏛️', labelKey: 'tasks.ruins' },
     ]
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <TaskRow
-          id="march_manager"
-          img="/images/combat/icon_map_attack.png"
-          label={t('tasks.march_manager', 'مدير المسيرات والفيالق')}
-          description={t('tasks.marchManagerDesc', 'إدارة وتنسيق مسيرات الهجوم والعمليات العسكرية خارج القلعة وفق مدة زمنية محسوبة')}
-          enabled={isMmEnabled}
-          onToggle={toggle('march_manager' as any)}
-          comingSoon={false}
-          badge={
-            isMmEnabled ? (
-              <span style={{ fontSize: '11px', color: '#fbbf24', background: 'rgba(251, 191, 36, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>
-                {`${mm.max_duration_minutes || 20} ${t('minutes', 'دقائق')}`}
-              </span>
-            ) : undefined
-          }
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-              <span style={{ fontSize: '13px', color: '#e5e7eb' }}>
-                {t('tasks.maxDurationMinutes', 'الحد الأقصى للمدة الزمنية لدورة المسيرات:')}
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <input
-                  type="number"
-                  min={1}
-                  max={120}
-                  value={mm.max_duration_minutes || 20}
-                  onChange={e => {
-                    const val = Math.max(1, Math.min(120, parseInt(e.target.value) || 20))
-                    update('march_manager' as any, { max_duration_minutes: val })
-                  }}
-                  style={{
-                    width: '70px',
-                    padding: '4px 8px',
-                    background: 'rgba(0,0,0,0.3)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '4px',
-                    color: '#fff',
-                    textAlign: 'center',
-                    fontSize: '13px',
-                  }}
-                />
-                <span style={{ fontSize: '12px', color: '#9ca3af' }}>{t('minutes', 'دقائق')}</span>
-              </div>
-            </div>
-            <div style={{ fontSize: '11px', color: '#9ca3af', lineHeight: '1.4' }}>
-              {t('tasks.marchManagerDurationHint', 'يقوم المدير بتشغيل المهام تباعاً ويخرج فوراً عند اكتمالها أو بلوغ هذه المدة القصوى (افتراضياً 20 دقيقة).')}
-            </div>
-          </div>
-        </TaskRow>
-        {(() => {
-          const te = mm.treasure_escort || {
-            enabled: false,
-            free_refresh: true,
-            formation_id: 1,
-            use_saved_formation: true,
-            use_auto_fill: true,
-            require_full_legion: true,
-            exclude_defend: false,
-          }
-          const updateTe = (patch: Record<string, unknown>) => {
-            update('march_manager' as any, { treasure_escort: { ...te, ...patch } })
-          }
-          return (
-            <TaskRow
-              id="treasure_escort"
-              emoji="💰"
-              label={t('tasks.treasureEscort', 'حراسة الكنز')}
-              description={t('tasks.treasureEscortDesc', 'إرسال فيلق كامل لحراسة كنز القلعة مع التحديث المجاني للعربة')}
-              enabled={Boolean(te.enabled)}
-              onToggle={() => updateTe({ enabled: !te.enabled })}
-              comingSoon={false}
-              badge={
-                te.enabled ? (
-                  <span style={{ fontSize: '11px', color: '#34d399', background: 'rgba(52, 211, 153, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>
-                    {t('tasks.fullLegionBadge', 'فيلق كامل')}
-                  </span>
-                ) : undefined
-              }
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <span style={{ fontSize: '13px', color: '#e5e7eb' }}>
-                    {t('tasks.treasureEscortFreeRefresh', 'التحديث المجاني للعربة قبل الإرسال')}
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(te.free_refresh)}
-                    onChange={e => updateTe({ free_refresh: e.target.checked })}
-                  />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <span style={{ fontSize: '13px', color: '#e5e7eb' }}>
-                    {t('tasks.treasureEscortFormation', 'رقم التشكيلة المحفوظة (0 للتلقائي فقط)')}
-                  </span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={10}
-                    value={te.formation_id ?? 1}
-                    onChange={e => {
-                      const val = Math.max(0, Math.min(10, parseInt(e.target.value) || 0))
-                      updateTe({ formation_id: val })
-                    }}
-                    style={{
-                      width: '70px',
-                      padding: '4px 8px',
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      borderRadius: '4px',
-                      color: '#fff',
-                      textAlign: 'center',
-                      fontSize: '13px',
-                    }}
-                  />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <span style={{ fontSize: '13px', color: '#e5e7eb' }}>
-                    {t('tasks.treasureEscortAutoFallback', 'التعبئة التلقائية كاحتياطي عند نقص التشكيلة')}
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(te.use_auto_fill)}
-                    onChange={e => updateTe({ use_auto_fill: e.target.checked })}
-                  />
-                </div>
-              </div>
-            </TaskRow>
-          )
-        })()}
         {combatTasks.map(c => (
           <TaskRow
             key={c.key}
