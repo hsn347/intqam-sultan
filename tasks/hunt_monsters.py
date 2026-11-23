@@ -469,21 +469,87 @@ class HuntMonstersTask(MarchManagerTask):
         active_monsters = self._count_active_monster_marches()
         self.log(
             f"⏳ [صيد الوحوش] {wait_reason} — يوجد {active_monsters} فيلق وحوش بالخارج؛ "
-            f"الانتظار {int(sleep_sec)}ث قبل إعادة الفحص (المتبقي من المهلة: {_format_hhmmss(int(remaining))})."
+            f"انتظار حتى عودة الفيلق (بحد أقصى {int(sleep_sec)}ث | المتبقي من المهلة: {_format_hhmmss(int(remaining))})."
         )
-        ok_sleep = await self.sleep_interruptible(sleep_sec, deadline=deadline)
-        if not ok_sleep:
+        wait_until = min(deadline, time.monotonic() + sleep_sec)
+        while time.monotonic() < wait_until:
             if (
                 not self.is_connected
                 or getattr(self.conn, "is_other_device", False)
                 or getattr(self.conn, "is_sealed", False)
             ):
                 return False, "انقطع الاتصال ببوابة اللعبة أثناء الانتظار — إيقاف الصيد.", "ABORT_DISCONNECTED"
-            return False, "انتهت مهلة مهمة مدير المسيرات (20 دقيقة) — إيقاف المهمة.", "ABORT_TIME_EXPIRED"
+            # الاستيقاظ فوراً بمجرد عودة أحد فيالق الوحوش إلى القلعة (0-Network)
+            if self._count_active_monster_marches() < active_monsters:
+                await asyncio.sleep(random.uniform(1.0, 2.0))
+                break
+            await asyncio.sleep(min(1.0, max(0.0, wait_until - time.monotonic())))
 
         if time.monotonic() >= deadline:
             return False, "انتهت مهلة مهمة مدير المسيرات (20 دقيقة) — إيقاف المهمة.", "ABORT_TIME_EXPIRED"
         return True, "", "CONTINUE"
+
+    def _try_build_saved_combat_formation(
+        self,
+        formation_id: int,
+        target_type_key: str,
+        level: int,
+        min_win_ratio: float,
+        combat_buff_factor: float,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        محاولة استخدام التشكيلة المحفوظة رقم formation_id من الذاكرة الحية (0-Network)
+        فقط إذا كانت مضبوطة ومتوفرة وتضمن القتل المؤكد (>= min_win_ratio)،
+        وإلا تُرجع None للتراجع الآمن إلى build_combat_army_formation.
+        """
+        if formation_id <= 0 or not hasattr(self, "get_saved_formation"):
+            return None
+        saved = self.get_saved_formation(formation_id)
+        if not isinstance(saved, dict) or not saved.get("is_configured"):
+            return None
+
+        saved_soldiers: Dict[int, int] = saved.get("soldiers") or {}
+        if not saved_soldiers:
+            return None
+
+        avail_map = self.get_available_soldiers_map()
+        chosen_army: Dict[int, int] = {}
+        total_soldiers = 0
+        for aid, req_cnt in saved_soldiers.items():
+            have = int(avail_map.get(int(aid), 0))
+            take = min(have, int(req_cnt))
+            if take > 0:
+                chosen_army[int(aid)] = take
+                total_soldiers += take
+
+        if total_soldiers <= 0:
+            return None
+
+        avail_heroes = set(self.get_available_hero_ids()) if hasattr(self, "get_available_hero_ids") else set()
+        chosen_heroes = [int(h) for h in (saved.get("hero_ids") or []) if int(h) in avail_heroes]
+
+        target_fc = float(self.get_target_combat_fc(target_type_key, level) or 0.0)
+        if target_fc <= 0.0:
+            return None
+
+        army_power = sum(
+            cnt * float(self._get_soldier_combat_power(aid))
+            for aid, cnt in chosen_army.items()
+        ) * max(0.1, float(combat_buff_factor))
+        win_ratio = army_power / target_fc
+
+        if win_ratio < min_win_ratio:
+            return None
+
+        return {
+            "ok": True,
+            "can_kill": True,
+            "army": chosen_army,
+            "hero_ids": chosen_heroes,
+            "total_soldiers": total_soldiers,
+            "win_ratio": win_ratio,
+            "tier": f"تشكيلة #{formation_id}",
+        }
 
     # ------------------------------------------------------------------
     # محرك التنفيذ الرئيسي للوضعين (daily_tasks & hunt)
@@ -599,14 +665,23 @@ class HuntMonstersTask(MarchManagerTask):
                     break
                 continue
 
-            # 5) تشكيل الفيلق القتالي المضمون (عتبة 1.5×) قبل البحث لتوفير الشبكة (0-Network)
-            formation = self.build_combat_army_formation(
-                target_type=target_type_key,
+            # 5) محاولة استخدام التشكيلة المحفوظة المختارة في المود العادي، وإلا التشكيل القتالي التلقائي المضمون (0-Network)
+            formation_id = self._safe_int(self.config.get("formation_id", 0), 0) if mode == "hunt" else 0
+            formation = self._try_build_saved_combat_formation(
+                formation_id=formation_id,
+                target_type_key=target_type_key,
                 level=current_level,
-                strategy=strategy,
                 min_win_ratio=min_win_ratio,
                 combat_buff_factor=combat_buff_factor,
             )
+            if not formation:
+                formation = self.build_combat_army_formation(
+                    target_type=target_type_key,
+                    level=current_level,
+                    strategy=strategy,
+                    min_win_ratio=min_win_ratio,
+                    combat_buff_factor=combat_buff_factor,
+                )
 
             if not formation.get("ok") or not formation.get("can_kill"):
                 err_code = str(formation.get("error_code", "UNKNOWN"))

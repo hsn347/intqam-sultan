@@ -849,12 +849,26 @@ function TaskTabContentInner({
   ) {
     applyConfigChange(prev => {
       const current = (prev[key] || {}) as Record<string, unknown>
+      const merged: Record<string, unknown> = {
+        ...current,
+        ...(patch as Record<string, unknown>),
+      }
+      if (key === 'march_manager') {
+        const mmAny = merged as any
+        merged.enabled = Boolean(
+          mmAny.treasure_escort?.enabled ||
+          mmAny.daily_hunt?.enabled ||
+          mmAny.daily_gather?.enabled ||
+          mmAny.explore_ruins?.enabled ||
+          mmAny.resource_help?.enabled ||
+          mmAny.hunt_monsters?.enabled ||
+          mmAny.gather_resources?.enabled ||
+          mmAny.gather_speed_buff?.enabled
+        )
+      }
       return {
         ...prev,
-        [key]: {
-          ...current,
-          ...(patch as Record<string, unknown>),
-        } as CastleConfig[K],
+        [key]: merged as CastleConfig[K],
       }
     }, delayMs)
   }
@@ -1314,18 +1328,10 @@ function TaskTabContentInner({
   // ─────────────────────────────────────────────────────────────────────────
   if (tab === 'combat') {
     const mm: any = cfg.march_manager || {}
-    const hm: any = mm.hunt_monsters || {
-      enabled: false,
-      monster_type: 'normal',
-      monster_level: 0,
-      formation_id: 1,
-      auto_downgrade: true,
-      min_energy: 10,
-    }
-    const inv: any = mm.invaders || { enabled: false, level: 0, formation_id: 1 }
-    const reb: any = mm.rebels || { enabled: false, level: 0, formation_id: 1 }
-    const ruinsCfg: any = mm.ruins || { enabled: false, explore_time: 14400, formation_id: 1 }
-    const expRuins: any = mm.explore_ruins || { enabled: false, explore_time: 14400, formation: 1, max_distance: 120 }
+    const hm: any = mm.hunt_monsters || { enabled: false, monster_type: 'normal', monster_level: 0 }
+    const expRuins: any = mm.explore_ruins || { enabled: false, explore_time: 14400, formation: 1 }
+    const te: any = mm.treasure_escort || { enabled: false }
+    const activeFormationId = Number(mm.formation_id ?? expRuins.formation ?? 1)
 
     const RUINS_DURATIONS = [
       { sec: 900,   labelKey: 'tasks.ruins15m', fallback: '15 دقيقة' },
@@ -1344,8 +1350,8 @@ function TaskTabContentInner({
       return 14400
     }
 
-    const ruinsEnabled = Boolean(expRuins.enabled ?? ruinsCfg.enabled ?? false)
-    const ruinsExploreSec = normalizeRuinsSec(expRuins.explore_time ?? ruinsCfg.explore_time ?? 14400)
+    const ruinsEnabled = Boolean(expRuins.enabled ?? false)
+    const ruinsExploreSec = normalizeRuinsSec(expRuins.explore_time ?? 14400)
 
     const updateRuins = (patch: { enabled?: boolean; explore_time?: number }) => {
       const nextEnabled = patch.enabled !== undefined ? patch.enabled : ruinsEnabled
@@ -1353,7 +1359,6 @@ function TaskTabContentInner({
       update(
         'march_manager',
         {
-          ...(nextEnabled ? { enabled: true } : {}),
           explore_ruins: {
             enabled: nextEnabled,
             explore_time: nextSec,
@@ -1364,31 +1369,22 @@ function TaskTabContentInner({
       )
     }
 
-    const te: any = mm.treasure_escort || { enabled: false, free_refresh: true }
-
     // تحديث حراسة الكنز بدون حفظ formation_id إطلاقاً في قاعدة البيانات
     const updateTreasureEscort = (patch: { enabled?: boolean }) => {
       const nextEnabled = patch.enabled !== undefined ? patch.enabled : Boolean(te.enabled)
       update(
         'march_manager',
         {
-          ...(nextEnabled ? { enabled: true } : {}),
           treasure_escort: { enabled: nextEnabled },
         } as any,
         150
       )
     }
 
-    const activeFormationId = Number(mm.formation_id ?? expRuins.formation ?? 1)
     const normalEnabled = Boolean(hm.enabled && hm.monster_type !== 'nebula')
     const nebulaEnabled = Boolean(hm.enabled && hm.monster_type === 'nebula')
-
-    const normalLevel = normalEnabled
-      ? Number(hm.monster_level ?? 0)
-      : Number(inv.level ?? 0)
-    const nebulaLevel = nebulaEnabled
-      ? Number(hm.monster_level ?? 0)
-      : Number(reb.level ?? 0)
+    const normalLevel = normalEnabled ? Number(hm.monster_level ?? 0) : 0
+    const nebulaLevel = nebulaEnabled ? Number(hm.monster_level ?? 0) : 0
 
     const FORMATION_SLOTS = [
       { id: 1, img: '/images/combat/slot1.png' },
@@ -1501,7 +1497,7 @@ function TaskTabContentInner({
         {/* 1) الوحوش (العادية: 1–40 أو 0 تلقائي) */}
         <TaskRow
           id="combat_monsters"
-          img="/images/combat/yagmaci.png"
+          img="/images/combat/monster_all.png"
           label={t('tasks.invaders', 'الوحوش')}
           enabled={normalEnabled}
           onToggle={v => setMonsterOption('normal', v)}
@@ -1996,7 +1992,7 @@ function TaskTabContentInner({
         {/* الهجوم على الوحوش (النشاط اليومي - مستوى تلقائي بدون تشكيلة) */}
         <TaskRow
           id="daily_hunt"
-          img="/images/combat/yagmaci.png"
+          img="/images/combat/monster_all.png"
           label={t('tasks.dailyHunt', 'الهجوم على الوحوش (النشاط اليومي)')}
           description={t('tasks.dailyHuntDesc', 'إنجاز مهمة الوحوش اليومية تلقائياً حسب مستوى قدرة القلعة')}
           enabled={dailyHuntEnabled}

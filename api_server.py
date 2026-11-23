@@ -417,12 +417,6 @@ class StaminaConfigModel(BaseModel):
 
 class TreasureEscortConfigModel(BaseModel):
     enabled: bool = False
-    free_refresh: bool = True
-    formation_id: int = Field(default=1, ge=0, le=10)
-    use_saved_formation: bool = True
-    use_auto_fill: bool = True
-    require_full_legion: bool = True
-    exclude_defend: bool = False
 
 class MarchManagerConfigModel(BaseModel):
     enabled: bool = False

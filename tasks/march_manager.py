@@ -2781,7 +2781,7 @@ class MarchManagerTask(BaseTask):
             if raw_res not in RESOURCE_SEARCH_ALIASES:
                 return False, f"نوع المورد المحدد غير معروف: {raw_res}"
             _code, res_key = RESOURCE_SEARCH_ALIASES[raw_res]
-            min_lv = {"food": 1, "wood": 1, "iron": 10, "silver": 15, "gold": 1}.get(res_key, 1)
+            min_lv = {"food": 1, "wood": 1, "gold": 10, "iron": 10, "silver": 15, "crystal": 30}.get(res_key, 1)
             c_lv = self._safe_int(getattr(self, "castle_level", 1), 1)
             if c_lv < min_lv:
                 return False, f"المورد ({res_key}) غير مفتوح لمستوى القلعة الحالي ({c_lv} < {min_lv})."
@@ -3016,9 +3016,11 @@ class MarchManagerTask(BaseTask):
                 sub_cfg["monster_type"] = "normal"
                 sub_cfg.setdefault("auto_downgrade", True)
             elif p_key == "hunt_monsters":
-                # المود العادي يدعم الوحوش العادية أو السحابية + ضبط تلقائي للمستوى
+                # المود العادي يدعم الوحوش العادية أو السحابية + التشكيلة المختارة + ضبط تلقائي للمستوى
                 sub_cfg.setdefault("monster_type", "normal")
                 sub_cfg.setdefault("auto_downgrade", True)
+                if not sub_cfg.get("formation_id") and mgr_cfg.get("formation_id"):
+                    sub_cfg["formation_id"] = self._safe_int(mgr_cfg.get("formation_id"), 0)
 
             if step["inherits_time_budget"]:
                 sub_cfg["max_duration_sec"] = max(0.0, remaining_sec)
@@ -3041,11 +3043,11 @@ class MarchManagerTask(BaseTask):
                 res_data = res.data if isinstance(res.data, dict) else {}
                 sig = str(res_data.get("manager_signal") or MANAGER_SIGNAL_CONTINUE)
 
-                if res.success:
+                if res.skipped:
+                    self.log(f"⏭️ [MarchManager -> {p_label}] {res.message}")
+                elif res.success:
                     successful_subtasks += 1
                     self.log(f"✅ [MarchManager -> {p_label}] {res.message}")
-                elif res.skipped:
-                    self.log(f"⏭️ [MarchManager -> {p_label}] {res.message}")
                 else:
                     self.log(f"⚠️ [MarchManager -> {p_label}] {res.message}")
 
@@ -3119,18 +3121,29 @@ class MarchManagerTask(BaseTask):
             f"(نُفّذ: {executed_subtasks} | نجح: {successful_subtasks} | "
             f"الزمن: {duration_spent:.1f}ث / {max_minutes}د{reason_suffix})."
         )
+        result_payload = {
+            "executed_subtasks": executed_subtasks,
+            "successful_subtasks": successful_subtasks,
+            "duration_spent_sec": round(duration_spent, 2),
+            "max_duration_minutes": max_minutes,
+            "final_signal": final_signal,
+            "abort_reason": abort_reason,
+            "reports": reports,
+        }
+        if final_signal == MANAGER_SIGNAL_ABORT_DISCONNECTED:
+            self.log(f"⚡ [MarchManager] {final_msg}")
+            return TaskResult(
+                success=False,
+                skipped=False,
+                message=final_msg,
+                data=result_payload,
+                execution_time=round(duration_spent, 2),
+            )
+
         self.log(f"🏁 [MarchManager] {final_msg}")
         return TaskResult.ok(
             final_msg,
-            data={
-                "executed_subtasks": executed_subtasks,
-                "successful_subtasks": successful_subtasks,
-                "duration_spent_sec": round(duration_spent, 2),
-                "max_duration_minutes": max_minutes,
-                "final_signal": final_signal,
-                "abort_reason": abort_reason,
-                "reports": reports,
-            },
+            data=result_payload,
             exec_time=round(duration_spent, 2),
         )
 
