@@ -9,7 +9,7 @@ tasks/building.py — مهمة ترقية القلعة الذكية والمتس
        تتوقف المهمة فوراً بصفر طلبات شبكية لحماية الخادم ومنع الحظر.
   2. ترقية القلعة وحل شجرة المتطلبات المتداخلة (Recursive Cascade):
      - فحص ما إذا كانت القلعة قيد الترقية بالفعل.
-     - فحص المتطلبات المسبقة للقلعة من جدول core/buildings_prereqs.json.
+     - فحص المتطلبات المسبقة للقلعة من جدول core/buildings_prereqs.json وشرط مستوى المملكة (kingdomLv).
      - إذا تطلب الأمر ترقية مبنى آخر (مثل الأسوار 102 أو المستودع 105 أو المنشرة 202)،
        يتم حل وترقية المتطلب الأدنى أولاً بأول بشكل متسلسل استدعائي.
   3. تأمين الموارد المباشر عبر BaseTask.ensure_resources:
@@ -22,11 +22,11 @@ tasks/building.py — مهمة ترقية القلعة الذكية والمتس
      - إذا كان المانع الوحيد لترقية القلعة هو نقص وسام الحرب (301101)،
        يتم تجاوز القلعة مؤقتاً والانتقال لترقية المباني الداعمة لشغل الطوابير.
   6. موازنة المباني الداعمة والمعسكرات (الأقل مستوى دائماً):
-     - ترقية المزارع والمناشر ومناجم الحديد والفضة والمشافي والخيم بالتساوي.
+     - ترقية المزارع والمناشر ومناجم الحديد والفضة والمشافي والخيم بالتساوي مع احترام preCond و unlockedBuild.
   7. تسريع البناء بالأدوات المجانية والحقيبة عند تفعيل خيار التسريع:
      - منع الهدر: حظر التسريع إذا كان الوقت المتبقي أقل من دقيقة (< 60 ثانية).
-     - تجربة التسريع المجاني الفوري أولاً.
-     - استخدام أدوات الحقيبة بنظام الحزم المتناسبة وإنهاء ما دون 5 دقائق بحبة 5 دقائق.
+     - تجربة التسريع المجاني الفوري أولاً (VIP 1-15 و SVIP 16-27).
+     - استخدام أدوات الحقيبة بنظام الحزم المتناسبة وإغلاق الذيل ببطاقة دقيقة ثم 5 دقائق.
   8. الأمان المطلق وحماية الذهب:
      - حظر قطعي لأي عملية تستخدم الذهب (mode: 0 للترقية، mode: 0 أو 2 للتسريع).
 """
@@ -73,8 +73,8 @@ BUILDING_INFO: Dict[str, Dict[str, Any]] = {
     "204": {"name": "🪙 منجم الفضة (Silver Mine)", "name_ar": "منجم الفضة", "category": "resource", "harvest": True, "max_lv": 130},
     "205": {"name": "⛺ الخيمة العسكرية (Military Tent)", "name_ar": "الخيمة العسكرية", "category": "tent", "harvest": False, "max_lv": 130},
     "206": {"name": "🏥 المركز الطبي / المشفى (Hospital)", "name_ar": "المركز الطبي", "category": "hospital", "harvest": False, "max_lv": 130},
-    "207": {"name": "💎 منجم البلور (Crystal Mine)", "name_ar": "منجم البلور", "category": "crystal", "harvest": True, "max_lv": 80},
-    "301": {"name": "🎖️ هيبة السلطان (Sultan's Glory)", "name_ar": "هيبة السلطان", "category": "honor", "harvest": False, "max_lv": 101},
+    "207": {"name": "💎 منجم البلور (Crystal Mine)", "name_ar": "منجم البلور", "category": "crystal", "harvest": True, "max_lv": 130},
+    "301": {"name": "🎖️ هيبة السلطان (Sultan's Glory)", "name_ar": "هيبة السلطان", "category": "honor", "harvest": False, "max_lv": 130},
     "302": {"name": "👑 القصر النخبوي (Elite Palace)", "name_ar": "القصر النخبوي", "category": "elite", "harvest": False, "max_lv": 5},
 }
 
@@ -94,8 +94,8 @@ BUILDING_INTERNAL_QUEUES: Dict[str, str] = {
     "113": "1212",  # المعهد / الأكاديمية -> أبحاث التكنولوجيا (لا يمكن ترقيته أثناء البحث)
     "116": "1204",  # إسطبل الفرسان -> تدريب الفرسان
     "117": "1205",  # ميدان الرماية -> تدريب الرماة
-    "118": "1203",  # مصنع العربات -> تدريب العربات
-    "119": "1206",  # معسكر المشاة -> تدريب المشاة
+    "118": "1203",  # معسكر المشاة -> تدريب المشاة
+    "119": "1206",  # معسكر العربات -> تدريب العربات
     "120": "1207",  # القلعة الحربية / الحصن -> تصنيع الفخاخ
     "206": "1202",  # المشفى / المركز الطبي -> علاج الجرحى
     "115": "1229",  # الحداد -> صناعة العتاد
@@ -111,11 +111,35 @@ FIXED_BUILDING_INDEXES: Dict[str, str] = {
     "103": "1052",  # البرج الدفاعي الأيسر (والأيمن 1054)
     "104": "1055",  # برج المراقبة
     "108": "1068",  # الميناء
+    "207": "1152",  # منجم البلور (الكريستال)
     "301": "1200",  # هيبة السلطان
     "302": "1201",  # القصر النخبوي
     "1151": "1151", # ورشة المواد
-    "1152": "1152", # الكريستال
 }
+
+# مستوى البداية الرسمي عند تشييد مبنى جديد لأول مرة (build301.lua: هيبة السلطان تبدأ من Lv.30)
+BUILDING_START_LV: Dict[str, int] = {
+    "301": 30,
+}
+
+# مستوى القلعة المطلوب لفتح تشييد المباني المساندة (من unlockedBuild في build101.lua)
+SUPPORT_BUILDING_UNLOCK_CASTLE_LV: Dict[str, int] = {
+    "201": 1,
+    "202": 1,
+    "203": 10,  # منجم الحديد
+    "204": 15,  # منجم الفضة
+    "205": 1,
+    "206": 1,
+}
+
+# الحد الأدنى لمستوى المملكة المطلوب لترقية القلعة Lv.81-130 (من kingdomLv في build101.lua)
+CASTLE_KINGDOM_LV_REQ: List[Tuple[int, int]] = [
+    (121, 50),
+    (111, 40),
+    (101, 30),
+    (91, 20),
+    (81, 10),
+]
 
 PREFER_INNER_CITY_INDEXES_STABLES: List[int] = [
     1064, 1063, 1067, 1061, 1062, 1065, 1058, 1059, 1060
@@ -187,7 +211,6 @@ def get_can_build_index(
         _add(1051)
         for idx in range(1056, 1068):
             _add(idx)
-        _add(1200)
     else:
         if bid_int in PREFER_OUTER_CITY_INDEXES_SPECIAL:
             for idx in PREFER_OUTER_CITY_INDEXES_SPECIAL[bid_int]:
@@ -202,9 +225,6 @@ def get_can_build_index(
                     min_idx, max_idx = OPEN_GROUND_AREAS[area_id]
                     for idx in range(min_idx, max_idx + 1):
                         _add(idx)
-        else:
-            for idx in range(1115, 1135):
-                _add(idx)
 
     for idx in candidate_indexes:
         idx_str = str(idx)
@@ -230,7 +250,7 @@ VIP_FREE_SPEEDUP_SECONDS: Dict[int, int] = {
     12: 9000,   # 150 د (ساعتان ونصف)
     13: 10800,  # 180 د (3 ساعات)
     14: 12600,  # 210 د (3.5 ساعات)
-    15: 14400,  # 240 د (4 ساعات)
+    15: 14400,  # 240 د (4 ساعات — وينطبق أيضاً على SVIP 16-27)
 }
 BASE_FREE_SPEEDUP_SECONDS: int = 300  # 5 دقائق لغير المشتركين في VIP
 
@@ -380,8 +400,8 @@ class BuildingTask(BaseTask):
                     "1212": "أبحاث علمية جارية في المعهد",
                     "1204": "تدريب فرسان جاري",
                     "1205": "تدريب رماة جاري",
-                    "1203": "تدريب عربات جاري",
-                    "1206": "تدريب مشاة جاري",
+                    "1203": "تدريب مشاة جاري",
+                    "1206": "تدريب عربات جاري",
                     "1207": "تصنيع فخاخ جاري",
                     "1202": "علاج جرحى جاري",
                     "1229": "صناعة عتاد جارية",
@@ -403,13 +423,15 @@ class BuildingTask(BaseTask):
         حساب ثواني التسريع المجاني الفوري المتاحة ديناميكياً للحساب:
         1. قراءة lordInfoCtrl.vip من الذاكرة الحية (0-Network).
         2. التحقق من سريان VIP بدقة (vipEndTime > 0 و vipEndTime > time.time()).
-        3. استخدام جدول الامتياز 7201 الرسمي (من 360ث لـ VIP 1 حتى 14,400ث لـ VIP 15).
+        3. استخدام جدول الامتياز 7201 الرسمي (من 360ث لـ VIP 1 حتى 14,400ث لـ VIP 15 و SVIP 16-27).
         4. العودة للحد الأساسي (300ث = 5 دقائق) عند انتهاء VIP أو عدم توفره.
         """
         base_free = BASE_FREE_SPEEDUP_SECONDS
         vip_active, vip_lv = self._is_vip_active()
 
         if vip_active and vip_lv > 0:
+            if vip_lv >= 15:
+                return VIP_FREE_SPEEDUP_SECONDS[15]
             return VIP_FREE_SPEEDUP_SECONDS.get(vip_lv, base_free)
 
         return base_free
@@ -644,15 +666,18 @@ class BuildingTask(BaseTask):
             "raw": qctrl.get(qtype_str, {}) if isinstance(qctrl, dict) else {},
         }
 
-        # 4. خصم الموارد محلياً من cityCtrl.reslist
+        # 4. خصم الموارد محلياً من cityCtrl.reslist و cityCtrl.resList معاً (مع منع الخصم المزدوج إن كانا نفس الكائن)
         if cost_res and isinstance(cost_res, dict):
-            reslist = city.get("reslist", {})
-            if isinstance(reslist, dict):
-                for res_id, req_amt in cost_res.items():
-                    k = str(res_id)
-                    if k in reslist:
-                        curr_v = float(reslist[k] or 0)
-                        reslist[k] = str(max(0.0, curr_v - float(req_amt or 0)))
+            seen_dict_ids: Set[int] = set()
+            for res_key in ("reslist", "resList"):
+                res_dict = city.get(res_key)
+                if isinstance(res_dict, dict) and id(res_dict) not in seen_dict_ids:
+                    seen_dict_ids.add(id(res_dict))
+                    for res_id, req_amt in cost_res.items():
+                        k = str(res_id)
+                        if k in res_dict:
+                            curr_v = float(res_dict[k] or 0)
+                            res_dict[k] = str(max(0.0, curr_v - float(req_amt or 0)))
 
     def sync_in_memory_completed_queue(
         self,
@@ -764,7 +789,7 @@ class BuildingTask(BaseTask):
         """
         تشييد مبنى مفقود غير موجود إطلاقاً في المدينة:
         1. تحديد خانة البناء الشاغرة المناسبة عبر خوارزمية اللعبة الرسمية get_can_build_index.
-        2. تأمين موارد المستوى 1 عبر BaseTask.ensure_resources.
+        2. تأمين موارد مستوى البداية الرسمي عبر BaseTask.ensure_resources.
         3. إرسال أمر التشييد عبر CMD 1001 / SubCMD 2 (mode: "0").
         """
         bid_str = str(bid)
@@ -792,8 +817,9 @@ class BuildingTask(BaseTask):
             msg = f"🛑 طوابير البناء ممتلئة ({len(self.active_queues)}/{self.max_build_slots}) — تعذر بناء {b_name}."
             return False, msg
 
-        # تأمين الموارد المطلوبة للمستوى 1 عبر BaseTask.ensure_resources
-        lv1_cfg = get_building_level_config(bid_str, 1)
+        # تأمين الموارد المطلوبة لمستوى البداية الرسمي (Lv.1 لمعظم المباني و Lv.30 لهيبة السلطان 301)
+        start_lv = BUILDING_START_LV.get(bid_str, 1)
+        lv1_cfg = get_building_level_config(bid_str, start_lv)
         cost_res = lv1_cfg.get("costRes", {})
         cost_time = int(lv1_cfg.get("costTime", 3600) or 3600)
 
@@ -829,7 +855,7 @@ class BuildingTask(BaseTask):
             self.upgraded_prereq_bids.add(bid_str)
             # تحديث الذاكرة الحية محلياً دون أي طلب شبكي (0-Network Sync)
             allocated_qtype = "1200" if "1200" not in self.active_queues else "1201"
-            self.sync_in_memory_upgrade(allocated_qtype, bid_str, 1, str(target_index), cost_time, cost_res)
+            self.sync_in_memory_upgrade(allocated_qtype, bid_str, start_lv, str(target_index), cost_time, cost_res)
             return True, msg
         elif err in ("1001", "1008"):
             return False, f"🛑 طوابير البناء ممتلئة بالسيرفر — تعذر بناء {b_name}."
@@ -845,7 +871,7 @@ class BuildingTask(BaseTask):
         تتبع شجرة المتطلبات تكرارياً من الأسفل إلى الأعلى (Bottom-Up Post-Order Traversal)
         لاستخراج المباني الجاهزة فوراً للترقية (الأوراق Ready Leaves)، لدعم إشغال كلا الطابورين بالتوازي (R1).
         - تفحص المتطلبات المسبقة حتى أقصى عمق (8 مستويات).
-        - تكتشف المباني المفقودة (Lv.0) كأولوية أولى للتشييد.
+        - تكتشف المباني المفقودة (Lv.0) كأولوية أولى للتشييد بمستوى البداية الفعلي.
         - تتجاوز المباني التي هي قيد الترقية حالياً لمنع التكرار وتفحص الفروع المستقلة الأخرى.
         - تفحص صمامات الأمان ضد الأنشطة الداخلية (أبحاث، تدريب، علاج، تصنيع).
         - تعيد قائمة الأوراق الجاهزة مرتبة بالأعمق أولاً وبشكل فريد (Unique BIDs).
@@ -865,11 +891,11 @@ class BuildingTask(BaseTask):
                 if isinstance(b, dict) and isinstance(b.get("binfo"), dict) and str(b.get("binfo", {}).get("bid", "")) == bid_str
             ]
 
-            # 1. مبنى مفقود تماماً في المدينة (Lv.0) -> ورقة ذات أولوية قصوى للتشييد
+            # 1. مبنى مفقود تماماً في المدينة (Lv.0) -> ورقة ذات أولوية قصوى للتشييد بمستوى البداية الفعلي
             if not instances:
                 ready_candidates.append({
                     "bid": bid_str,
-                    "target_lv": req_lv,
+                    "target_lv": BUILDING_START_LV.get(bid_str, 1),
                     "current_lv": 0,
                     "action": "construct",
                     "instance": {},
@@ -945,6 +971,60 @@ class BuildingTask(BaseTask):
 
         return unique_candidates
 
+    def _get_kingdom_level(self) -> int:
+        """جلب مستوى المملكة الحالي من الذاكرة الحية (0-Network)"""
+        k_ctrl = self.get_ctrl("playerKingdomLevelCtrl")
+        if isinstance(k_ctrl, dict):
+            try:
+                return int(k_ctrl.get("level", 0) or 0)
+            except (ValueError, TypeError):
+                return 0
+        return 0
+
+    @staticmethod
+    def _get_required_kingdom_level(target_castle_lv: int) -> int:
+        """الحد الأدنى لمستوى المملكة المطلوب لترقية القلعة (build101.lua)"""
+        for min_clv, req_klv in CASTLE_KINGDOM_LV_REQ:
+            if target_castle_lv >= min_clv:
+                return req_klv
+        return 0
+
+    def _get_city_max_levels(self) -> Dict[str, int]:
+        """خريطة أعلى مستوى قائم لكل مبنى في المدينة (0-Network)"""
+        city_max: Dict[str, int] = {}
+        for b in self._get_city_buildings():
+            bi = b.get("binfo", {})
+            if not isinstance(bi, dict):
+                continue
+            b_id = str(bi.get("bid", ""))
+            lv = int(bi.get("lv", 0) or 0)
+            if b_id and lv > city_max.get(b_id, 0):
+                city_max[b_id] = lv
+        return city_max
+
+    def _are_preconds_met(
+        self,
+        bid: str,
+        next_lv: int,
+        castle_lv: int,
+        city_max_levels: Optional[Dict[str, int]] = None,
+    ) -> Tuple[bool, str]:
+        """فحص متطلبات preCond الرسمية للمستوى التالي من buildings_prereqs.json (0-Network)"""
+        cfg = get_building_level_config(str(bid), int(next_lv))
+        pre_cond = cfg.get("preCond", {})
+        if not pre_cond:
+            return True, ""
+        if city_max_levels is None:
+            city_max_levels = self._get_city_max_levels()
+        for p_bid, p_lv in pre_cond.items():
+            p_bid_str = str(p_bid)
+            req_p_lv = int(p_lv)
+            curr_p_lv = castle_lv if p_bid_str == "101" else city_max_levels.get(p_bid_str, 0)
+            if curr_p_lv < req_p_lv:
+                p_name = BUILDING_INFO.get(p_bid_str, {}).get("name_ar", f"مبنى #{p_bid_str}")
+                return False, f"يتطلب {p_name} Lv.{req_p_lv} (الحالي: Lv.{curr_p_lv})"
+        return True, ""
+
     def is_castle_ready(self, target_clv: int) -> bool:
         """فحص هل القلعة جاهزة للترقية مباشرة (كافة متطلباتها مستوفاة وليست مشغولة)"""
         blist = self._get_city_buildings()
@@ -957,6 +1037,13 @@ class BuildingTask(BaseTask):
         if str(castle_inst.get("state", "0")) == "2" or any(str(q.get("bid")) == "101" for q in self.active_queues.values()):
             return False
 
+        # فحص شرط مستوى المملكة لترقية القلعة Lv.81-130 (0-Network)
+        req_klv = self._get_required_kingdom_level(target_clv)
+        if req_klv > 0:
+            curr_klv = self._get_kingdom_level()
+            if curr_klv > 0 and curr_klv < req_klv:
+                return False
+
         # فحص المتطلبات المسبقة
         cfg = get_building_level_config("101", target_clv)
         pre_cond = cfg.get("preCond", {})
@@ -965,18 +1052,7 @@ class BuildingTask(BaseTask):
             if target_clv >= 41:
                 pre_cond["301"] = curr_lv
 
-        city_max: Dict[str, int] = {}
-        for b in blist:
-            if not isinstance(b, dict):
-                continue
-            bi = b.get("binfo", {})
-            if not isinstance(bi, dict):
-                continue
-            bid = str(bi.get("bid", ""))
-            lv = int(bi.get("lv", 0) or 0)
-            if lv > city_max.get(bid, 0):
-                city_max[bid] = lv
-
+        city_max = self._get_city_max_levels()
         for p_bid, p_lv in pre_cond.items():
             if city_max.get(str(p_bid), 0) < int(p_lv):
                 return False
@@ -997,6 +1073,7 @@ class BuildingTask(BaseTask):
     async def execute_building_action(self, cand: Dict[str, Any]) -> Tuple[bool, str, Optional[str]]:
         """
         تنفيذ إجراء بناء أو ترقية لمبنى مرشح:
+        - التحقق من شرط مستوى المملكة للقلعة قبل فتح الصناديق (0-Network).
         - التحقق من الموارد وتأمينها عبر BaseTask.ensure_resources مع فحص العجز بالذاكرة الحية (0-Network).
         - التحقق من الأدوات وأوسمة الحرب في الحقيبة (0-Network Pre-flight).
         - جمع المحصول إن كان مبنى موارد ولديه محصول متاح (curres > 0).
@@ -1004,14 +1081,24 @@ class BuildingTask(BaseTask):
         - مزامنة الذاكرة الحية محلياً فور النجاح وإرجاع الطابور المخصص بدقة.
         """
         bid_str = str(cand["bid"])
-        target_lv = int(cand["target_lv"])
         action = cand.get("action", "upgrade")
+        target_lv = BUILDING_START_LV.get(bid_str, 1) if action == "construct" else int(cand["target_lv"])
         b_meta = BUILDING_INFO.get(bid_str, {"name": f"مبنى #{bid_str}"})
         b_name = b_meta["name"]
 
         # التحقق من توفر طابور بناء
         if len(self.active_queues) >= self.max_build_slots:
             return False, f"طوابير البناء مشغولة ({len(self.active_queues)}/{self.max_build_slots})", None
+
+        # فحص شرط مستوى المملكة قبل فتح أي صناديق موارد (0-Network)
+        if bid_str == "101" and action == "upgrade":
+            req_klv = self._get_required_kingdom_level(target_lv)
+            if req_klv > 0:
+                curr_klv = self._get_kingdom_level()
+                if curr_klv > 0 and curr_klv < req_klv:
+                    reason = f"مستوى المملكة الحالي ({curr_klv}) أقل من المطلوب ({req_klv}) لترقية القلعة إلى Lv.{target_lv}"
+                    self.log(f"⚠️ [Building] {reason}")
+                    return False, reason, None
 
         cfg = get_building_level_config(bid_str, target_lv)
         cost_res = cfg.get("costRes", {})
@@ -1079,7 +1166,7 @@ class BuildingTask(BaseTask):
                 self.log(msg)
                 self.upgraded_prereq_bids.add(bid_str)
                 allocated_qtype = "1200" if "1200" not in self.active_queues else "1201"
-                self.sync_in_memory_upgrade(allocated_qtype, bid_str, 1, str(target_index), cost_time, cost_res)
+                self.sync_in_memory_upgrade(allocated_qtype, bid_str, target_lv, str(target_index), cost_time, cost_res)
                 return True, msg, allocated_qtype
             else:
                 return False, f"فشل أمر تشييد {b_name} (خطأ: {err})", None
@@ -1164,6 +1251,10 @@ class BuildingTask(BaseTask):
         if next_lv > b_meta.get("max_lv", 130) or next_lv > castle_lv:
             return False, [], f"{b_name} بلغ الحد الأقصى للمستوى المسموح"
 
+        pre_ok, pre_reason = self._are_preconds_met(bid_str, next_lv, castle_lv)
+        if not pre_ok:
+            return False, [], f"{b_name} غير مؤهل لـ Lv.{next_lv}: {pre_reason}"
+
         is_busy, busy_desc = self.is_building_busy_with_activity(bid_str)
         if is_busy:
             return False, [], f"{b_name} مشغول بـ {busy_desc}"
@@ -1187,7 +1278,7 @@ class BuildingTask(BaseTask):
         1. التحقق من الطابور ووقت البقاء (> 60 ثانية).
         2. تجربة التسريع المجاني الفوري أولاً (mode: "0") بناءً على ثواني VIP الديناميكية (امتياز 7201).
         3. تجميع أدوات التسريع من الحقيبة بحلّال جشع (أدوات البناء 5011xx أولاً ثم العامة 5006xx).
-        4. إغلاق الذيل (Tail Closure) بحبة 5 دقائق إذا بقي ما بين 60 و 300 ثانية.
+        4. إغلاق الذيل (Tail Closure) بحبة دقيقة للبقية <= 60ث أو 5 دقائق للبقية <= 300ث.
         5. إرسال طلب واحد مجمّع (CMD 1003 / SubCMD 2 mode "2") لتقليص كافة الأدوات دفعة واحدة.
         6. تجربة التسريع المجاني لالتقاط الذيل المتبقي.
         7. إذا لم تكفِ الأدوات لإتمام 100%: استهلاك المتاح، وترك البناء يكتمل بالوقت المتبقي.
@@ -1256,9 +1347,15 @@ class BuildingTask(BaseTask):
             rem -= reduction
             total_reduction += reduction
 
-        # إغلاق الذيل (Tail Closure) إذا بقي ما بين 60 ثانية و 300 ثانية فوق حد التسريع المجاني
-        if (rem - target_rem) > 0 and (rem - target_rem) <= 300:
-            for it_id in [501101, 500601]:
+        # إغلاق الذيل (Tail Closure): تفضيل بطاقة دقيقة للبقية <= 60ث ثم 5 دقائق للبقية <= 300ث
+        over_rem = rem - target_rem
+        if 0 < over_rem <= 300:
+            tail_candidates = (
+                [(501106, 60), (500606, 60), (501101, 300), (500601, 300)]
+                if over_rem <= 60
+                else [(501101, 300), (500601, 300)]
+            )
+            for it_id, it_sec in tail_candidates:
                 s_id = str(it_id)
                 item_val = bag.get(s_id, 0)
                 avail = int(item_val.get("count", 0)) if isinstance(item_val, dict) else int(item_val or 0)
@@ -1272,8 +1369,8 @@ class BuildingTask(BaseTask):
                             break
                     if not found_existing:
                         items_to_use.append({"id": it_id, "count": 1})
-                    rem = max(0.0, rem - 300)
-                    total_reduction += 300
+                    rem = max(0.0, rem - it_sec)
+                    total_reduction += it_sec
                     break
 
         if not items_to_use:
@@ -1335,34 +1432,34 @@ class BuildingTask(BaseTask):
 
     def get_eligible_supportive_candidates(self) -> List[Dict[str, Any]]:
         """
-        جلب قائمة المباني الداعمة المؤهلة للترقية (مرتبة بالأقل مستوى أولاً، وأقل من مستوى القلعة):
-        - تستبعد المباني قيد الترقية حالياً.
+        جلب قائمة المباني الداعمة المؤهلة للترقية (مرتبة بالأقل مستوى أولاً، ومستوفية preCond و unlockedBuild):
+        - تستبعد النسخة قيد الترقية حالياً بناءً على رقم الخانة index للسماح بترقية نسخة ثانية على 1201.
         - تستبعد المباني المشغولة بأنشطة داخلية.
-        - تشمل تشييد المباني المفقودة (Lv.0) بأولوية أولى.
+        - تشمل تشييد المباني المفقودة (Lv.0) المفتوحة فقط بمستوى القلعة بأولوية أولى.
         """
         selected_bids = set(self.get_selected_support_bids())
         blist = self._get_city_buildings()
         castle_lv = self._get_castle_level()
-        city_bids = {
-            str(b.get("binfo", {}).get("bid", ""))
-            for b in blist
-            if isinstance(b, dict) and isinstance(b.get("binfo"), dict)
-        }
+        city_max_levels = self._get_city_max_levels()
+        city_bids = set(city_max_levels.keys())
 
         candidates: List[Dict[str, Any]] = []
 
-        # 1. المباني المفقودة تماماً من المدينة
+        # 1. المباني المفقودة تماماً من المدينة (بشرط أن يكون مستوى القلعة فتحها رسمياً)
         for s_bid in selected_bids:
             if s_bid not in city_bids:
+                unlock_clv = SUPPORT_BUILDING_UNLOCK_CASTLE_LV.get(s_bid, 1)
+                if castle_lv < unlock_clv:
+                    continue
                 candidates.append({
                     "bid": s_bid,
-                    "target_lv": 1,
+                    "target_lv": BUILDING_START_LV.get(s_bid, 1),
                     "current_lv": 0,
                     "action": "construct",
                     "instance": {},
                 })
 
-        # 2. المباني القائمة ذات المستوى الأقل
+        # 2. المباني القائمة ذات المستوى الأقل (مقارنة برقم الخانة index للسماح بترقية نسختين على 1200 و 1201)
         for item in blist:
             if not isinstance(item, dict):
                 continue
@@ -1373,17 +1470,26 @@ class BuildingTask(BaseTask):
             if bid_k in selected_bids:
                 st = str(bi.get("state", "0"))
                 lv = int(bi.get("lv", 0) or 0)
-                is_upgrading = (st == "2") or any(str(q.get("bid")) == bid_k for q in self.active_queues.values())
+                next_lv = lv + 1
+                idx_k = str(bi.get("index", ""))
+                is_upgrading = (st == "2") or any(
+                    str(q.get("bid")) == bid_k and (not q.get("index") or str(q.get("index")) == idx_k)
+                    for q in self.active_queues.values()
+                )
                 if is_upgrading:
                     continue
-                if lv >= castle_lv:
+                max_lv = BUILDING_INFO.get(bid_k, {}).get("max_lv", 130)
+                if next_lv > max_lv or lv >= castle_lv:
+                    continue
+                pre_ok, _ = self._are_preconds_met(bid_k, next_lv, castle_lv, city_max_levels)
+                if not pre_ok:
                     continue
                 is_busy, _ = self.is_building_busy_with_activity(bid_k)
                 if is_busy:
                     continue
                 candidates.append({
                     "bid": bid_k,
-                    "target_lv": lv + 1,
+                    "target_lv": next_lv,
                     "current_lv": lv,
                     "action": "upgrade",
                     "instance": bi,
@@ -1530,7 +1636,7 @@ class BuildingTask(BaseTask):
                             "depth": 0,
                         }]
                     else:
-                        # شجرة المتطلبات مقفلة (بانتظار بناء حالي، أو نقص موارد/أدوات)
+                        # شجرة المتطلبات مقفلة (بانتظار بناء حالي، أو مستوى مملكة، أو نقص موارد/أدوات)
                         break
 
                 upgraded_in_pass = 0

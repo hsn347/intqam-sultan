@@ -1518,7 +1518,7 @@ function TaskTabContentInner({
         {/* 2) وحوش السحاب (41–50 أو 0 تلقائي) */}
         <TaskRow
           id="combat_nebula"
-          img="/images/combat/elitifrit.png"
+          img="/images/combat/nebula_monster.png"
           label={t('tasks.eliteRebels', 'وحوش السحاب')}
           enabled={nebulaEnabled}
           onToggle={v => setMonsterOption('nebula', v)}
@@ -2443,7 +2443,7 @@ function TaskTabContentInner({
         {/* تدريب جنود النشاط اليومي (Daily Activity Troop Training) */}
         <TaskRow
           id="daily_train"
-          img="/images/daily/egitim_stratejisi.png"
+          img="/images/soldiers/icon_building_training_finish.png"
           label={t('tasks.dailyTrain', 'تدريب جنود النشاط اليومي (250 وحدة Lv.1)')}
           enabled={Boolean(dt.enabled)}
           onToggle={toggle('daily_train' as any)}
@@ -2463,6 +2463,48 @@ function TaskTabContentInner({
           comingSoon={false}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                {t('tasks.arena.modeLabel', 'نمط التنفيذ:')}
+              </span>
+              <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '2px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <button
+                  type="button"
+                  onClick={() => update('arena' as any, { mode: 'daily' }, 150)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: ar.mode !== 'per_cycle' ? 600 : 400,
+                    background: ar.mode !== 'per_cycle' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                    border: ar.mode !== 'per_cycle' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid transparent',
+                    color: ar.mode !== 'per_cycle' ? '#60a5fa' : '#94a3b8',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {t('tasks.arena.modeDaily', 'النشاط اليومي فقط (3/3)')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => update('arena' as any, { mode: 'per_cycle' }, 150)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: ar.mode === 'per_cycle' ? 600 : 400,
+                    background: ar.mode === 'per_cycle' ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                    border: ar.mode === 'per_cycle' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid transparent',
+                    color: ar.mode === 'per_cycle' ? '#60a5fa' : '#94a3b8',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {t('tasks.arena.modePerCycle', 'تحدي واحد كل دورة')}
+                </button>
+              </div>
+            </div>
+
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '12px', color: '#94a3b8' }}>
                 {t('tasks.arena.typeLabel', 'نوع الحلبة:')}

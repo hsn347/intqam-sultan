@@ -104,7 +104,7 @@ export function mergeCastleConfig(fcConfig: Record<string, unknown>): CastleConf
     forge_equipment:    { ...(def.forge_equipment || { enabled: false, category: 'weapon' }), ...((fc.forge_equipment as Record<string, unknown>) || {}) },
     daily_train:        { ...(def.daily_train || { enabled: false }), ...((fc.daily_train as Record<string, unknown>) || {}) },
     daily_quest:        { ...(def.daily_quest || { enabled: true }), ...((fc.daily_quest as Record<string, unknown>) || {}) },
-    arena:              { ...(def.arena || { enabled: false, arena_type: 'kingdom', auto_claim_rewards: true }), ...((fc.arena as Record<string, unknown>) || {}) },
+    arena:              { ...(def.arena || { enabled: false, mode: 'daily', arena_type: 'kingdom', auto_claim_rewards: true }), ...((fc.arena as Record<string, unknown>) || {}) },
     hero_trial:         { ...(def.hero_trial || { enabled: false }), ...((fc.hero_trial as Record<string, unknown>) || {}) },
     command_hall:       { ...(def.command_hall || { enabled: false, mode: 'daily', allow_marches: true, allow_snipe: true, allow_rescue: true, allow_dialogue: true, allow_army_group: true, auto_claim_rewards: true, auto_upgrade_hall: true }), ...((fc.command_hall as Record<string, unknown>) || {}) },
     stamina: {

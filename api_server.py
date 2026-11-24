@@ -368,8 +368,15 @@ class BuildingConfigModel(BaseModel):
 
 class ArenaConfigModel(BaseModel):
     enabled: bool = False
+    mode: Literal["daily", "per_cycle"] = "daily"
     arena_type: Literal["kingdom", "global"] = "kingdom"
     auto_claim_rewards: bool = True
+
+    @field_validator("mode", mode="before")
+    @classmethod
+    def normalize_arena_mode(cls, v: Any) -> str:
+        val = str(v or "daily").lower().strip()
+        return val if val in ("daily", "per_cycle") else "daily"
 
     @field_validator("arena_type", mode="before")
     @classmethod

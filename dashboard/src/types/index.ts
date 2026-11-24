@@ -87,6 +87,7 @@ export interface BaseTaskConfig {
 export type SimpleToggleConfig = BaseTaskConfig
 
 export interface ArenaConfig extends BaseTaskConfig {
+  mode?: 'daily' | 'per_cycle'
   arena_type: 'kingdom' | 'global'
   auto_claim_rewards: boolean
 }
@@ -240,7 +241,7 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
   cure_wounded: { enabled: false, mode: 'daily' },
   forge_equipment: { enabled: false, category: 'weapon' },
   daily_quest: { enabled: true },
-  arena: { enabled: false, arena_type: 'kingdom', auto_claim_rewards: true },
+  arena: { enabled: false, mode: 'daily', arena_type: 'kingdom', auto_claim_rewards: true },
   hero_trial: { enabled: false },
   command_hall: { enabled: false, mode: 'daily', allow_marches: true, allow_snipe: true, allow_rescue: true, allow_dialogue: true, allow_army_group: true, auto_claim_rewards: true, auto_upgrade_hall: true, min_safety_stamina: 10 },
   stamina: {

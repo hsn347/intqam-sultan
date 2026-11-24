@@ -236,8 +236,9 @@ DEFAULT_BOT_CONFIG: Dict[str, Any] = {
                 "military_tent": True,
             },
         },
-        "arena": {                            # تحدي الحلبة: مهام النشاط اليومي واستلام الجوائز التراكمية
+        "arena": {                            # تحدي الحلبة: النشاط اليومي أو تحدي واحد بكل دورة
             "enabled": False,
+            "mode": "daily",                  # "daily" (النشاط اليومي 3/3) أو "per_cycle" (تحدي واحد كل دورة)
             "arena_type": "kingdom",          # "kingdom" (حلبة المملكة) أو "global" (حلبة العالم)
             "auto_claim_rewards": True,       # استلام جوائز الترتيب التراكمية تلقائياً
         },
@@ -645,10 +646,18 @@ class CastleBot:
             return False
 
         # انتظار اكتمال تفريغ متحكمات القلعة في الذاكرة الحية (CMD 1000)
+        # مهلة 25ث تغطي التأخير البشري (1.5-3ث) + تحميل حزمة القلاع الكبيرة (حتى 22ث)
         try:
-            await asyncio.wait_for(self.conn.controllers_ready.wait(), timeout=12.0)
+            await asyncio.wait_for(self.conn.controllers_ready.wait(), timeout=25.0)
         except asyncio.TimeoutError:
-            msg = "فشل تحميل متحكمات القلعة بعد الاتصال (Timeout 12s) — قطع الاتصال بأمان لحماية الحساب من الحظر."
+            if getattr(self.conn, "is_other_device", False):
+                return False
+            loaded_cnt = len(getattr(self.conn, "init_data", {}) or {})
+            alive_flag = getattr(self.conn, "_alive", False)
+            msg = (
+                f"فشل تحميل متحكمات القلعة بعد الاتصال (Timeout 25s | المستلم: {loaded_cnt} متحكم | السوكت: {'نشط' if alive_flag else 'مغلق'}) "
+                f"— قطع الاتصال بأمان لحماية الحساب من الحظر."
+            )
             self.log(f"⚠️ {msg}")
             if self.conn:
                 await self.conn.close()
@@ -927,9 +936,9 @@ class CastleBot:
                         self._set_state("error", "انقطع الاتصال بالسيرفر وتكرر فشل استعادة الجلسة")
                         break
 
-                    backoff_delay = min(reconnect_wait, random.randint(5, 12))
-                    self.log(f"⏳ تهدئة واستعادة الاتصال ({self.reconnect_attempt}/{max_reconnect}) بعد {backoff_delay} ثانية...")
-                    self._set_state("reconnecting", f"إعادة الاتصال بعد قاطع الاتصال خلال {backoff_delay} ثانية...")
+                    backoff_delay = 120  # انتظار دقيقتين قبل إعادة الاتصال
+                    self.log(f"⏳ انقطع الاتصال — تهدئة وانتظار دقيقتين ({backoff_delay} ثانية) قبل إعادة المحاولة ({self.reconnect_attempt}/{max_reconnect})...")
+                    self._set_state("reconnecting", f"إعادة الاتصال خلال دقيقتين ({backoff_delay} ثانية)...")
                     # الحفاظ على رقم الدورة الحالي حتى لا تتزايد الدورات خلال الاستعادة
                     self.iteration = max(0, self.iteration - 1)
                     await asyncio.sleep(backoff_delay)
@@ -956,7 +965,9 @@ class CastleBot:
                         self.log(f"🛑 تم استنفاد الحد الأقصى لمحاولات إعادة الاتصال ({max_reconnect}). إيقاف البوت مؤقتاً لحماية الحساب.")
                         self._set_state("error", "انقطع الاتصال بالسيرفر بعد دورة المهام")
                         break
-                    backoff_delay = min(reconnect_wait, random.randint(5, 12))
+                    backoff_delay = 120  # انتظار دقيقتين قبل إعادة الاتصال
+                    self.log(f"⏳ انقطع الاتصال — انتظار دقيقتين ({backoff_delay} ثانية) قبل إعادة المحاولة ({self.reconnect_attempt}/{max_reconnect})...")
+                    self._set_state("reconnecting", f"إعادة الاتصال خلال دقيقتين ({backoff_delay} ثانية)...")
                     self.iteration = max(0, self.iteration - 1)
                     await asyncio.sleep(backoff_delay)
                     continue

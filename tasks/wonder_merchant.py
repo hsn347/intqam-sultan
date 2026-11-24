@@ -31,22 +31,19 @@ class WonderMerchantTask(BaseTask):
     # ═════════════════════════════════════════════════════════════════════════
 
     def _get_resource_balance(self, price_type: int) -> float:
-        """استخراج رصيد القلعة الإجمالي (الحر + الآمن) من الذاكرة الحية (0-Network)."""
+        """استخراج الرصيد الإجمالي الحقيقي للقلعة من الذاكرة الحية (0-Network) مطابقاً لـ cityCtrl:getResCount()."""
         # 1001 هو الذهب
         if price_type == 1001:
             lord = self.get_ctrl("lordInfoCtrl")
             base = lord.get("base", {}) if isinstance(lord, dict) else {}
             return float(base.get("gold", 0) or 0)
 
-        # الموارد الأساسية والبلور في cityCtrl (دمج الرصيد الحر + الرصيد الآمن)
+        # في cityCtrl.lua: resList يحتوي الإجمالي الكلي أصلاً (الحر + الآمن)، ولا يجوز جمع saferes فوقه
         city = self.get_ctrl("cityCtrl")
         if isinstance(city, dict):
             res_list = city.get("resList") or city.get("reslist") or {}
-            safe_res = city.get("saferes") or {}
             k = str(price_type)
-            free_val = float(res_list.get(k, 0) or 0)
-            safe_val = float(safe_res.get(k, 0) or 0)
-            return free_val + safe_val
+            return float(res_list.get(k, 0) or 0)
         return 0.0
 
     def _deduct_resource(self, price_type: int, amount: float):

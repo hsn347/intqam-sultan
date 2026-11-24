@@ -71,8 +71,8 @@ log = logging.getLogger("march_manager")
 DEFAULT_MAX_DURATION_MINUTES = 20
 DEFAULT_MAX_DURATION_SECONDS = DEFAULT_MAX_DURATION_MINUTES * 60
 
-# ── حالات طابور المسيرة النشط خارج القلعة ──
-ACTIVE_MARCH_QUEUE_STATUSES: Tuple[int, ...] = (0, 1, 2, 3, 4, 7)
+# ── حالات طابور المسيرة النشط خارج القلعة (استبعاد 3 = moveLineStatusTypeFinished) ──
+ACTIVE_MARCH_QUEUE_STATUSES: Tuple[int, ...] = (0, 1, 2, 4, 7)
 
 # ── حالات البطل الرسمية (src/app/constdef/heroDef.lua -> gHeroState) ──
 HERO_STATE_NORMAL = 1      # داخل القلعة ومتاح للإرسال
@@ -360,10 +360,25 @@ class MarchManagerTask(BaseTask):
         return self.init_data if isinstance(self.init_data, dict) else {}
 
     def _iter_my_active_queues(self) -> Iterator[Tuple[Dict[str, Any], int]]:
-        """تصفية وإرجاع طوابير المسيرات النشطة التابعة لهذه القلعة فقط من local_queues."""
+        """تصفية وإرجاع طوابير المسيرات النشطة التابعة لهذه القلعة فقط مطابقاً لـ localUserQueueMgr.lua."""
         queues = self._read_live_local_queues(self.conn)
         my_uid = str(getattr(self, "uid", "") or "").strip()
 
+        # استبعاد الطوابير الأصلية التي صدر لها طابور عودة (alreadyReturnQueueMap)
+        already_returned_org_ids: Set[str] = set()
+        for q in queues:
+            if not isinstance(q, dict):
+                continue
+            q_uid = q.get("uid")
+            if my_uid and q_uid not in (None, "", 0, "0") and str(q_uid).strip() != my_uid:
+                continue
+            q_type = self._safe_int(q.get("queueType") if q.get("queueType") is not None else q.get("type"), 0)
+            if q_type == 10:
+                org_id = str(q.get("orgQueueId") or q.get("orgId") or "").strip()
+                if org_id:
+                    already_returned_org_ids.add(org_id)
+
+        seen_ids: Set[str] = set()
         for q in queues:
             if not isinstance(q, dict):
                 continue
@@ -381,6 +396,16 @@ class MarchManagerTask(BaseTask):
                 continue
             if status not in ACTIVE_MARCH_QUEUE_STATUSES:
                 continue
+
+            q_type = self._safe_int(q.get("queueType") if q.get("queueType") is not None else q.get("type"), 0)
+            if q_type == 10 and bool(q.get("isHeroReturn")):
+                continue
+
+            qid = str(q.get("id") or q.get("queueId") or "").strip()
+            if qid:
+                if qid in already_returned_org_ids or qid in seen_ids:
+                    continue
+                seen_ids.add(qid)
 
             yield q, status
 

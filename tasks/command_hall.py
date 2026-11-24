@@ -38,8 +38,8 @@ TASK_STATUE_PREPARE = 1   # قيد الإعداد
 TASK_STATUE_READY = 2     # جاهزة للتنفيذ
 TASK_STATUE_FINISH = 3    # مكتملة وبانتظار الاستلام
 
-# تكلفة الطاقة الافتراضية لكل مهمة معركة
-STAMINA_COST_PER_BATTLE = 10
+# تكلفة الطاقة الافتراضية لكل مهمة معركة (مطابق لـ newcommandhalltask.lua -> consume = 5)
+STAMINA_COST_PER_BATTLE = 5
 
 # الحد الأدنى لأمان الطاقة المحفوظة في القلعة لمنع تصفير طاقة اللورد
 DEFAULT_MIN_SAFETY_STAMINA = 10
@@ -48,8 +48,8 @@ DEFAULT_MIN_SAFETY_STAMINA = 10
 class CommandHallTask(BaseTask):
     """
     محرك مهام قاعة القيادة التلقائي المتكامل:
-    ينفذ مهام المعارك والمسير (فريق الغزاة 5 وطليعة الغزاة 2) بتسلسل آمن،
-    ويتحقق من طاقة اللورد والشواغر، وقابل للتوسع لاحتضان باقي المهام لاحقاً.
+    ينفذ مهام المعارك والمسير (فريق الغزاة 5 وطليعة الغزاة 2) بفيلق واحد فقط بالتسلسل،
+    ويتحقق من طاقة اللورد والشواغر وقوة القتل المؤكد عبر MarchManagerTask و march_capacity.py.
     """
     name: str = "command_hall"
     alias: str = "command_hall"
@@ -73,14 +73,32 @@ class CommandHallTask(BaseTask):
 
     @property
     def mode(self) -> str:
-        """نمط التنفيذ: 'daily' (دورة كاملة حتى إتمام النشاط اليومي ثم التجاوز لباقي اليوم) أو 'full' (دورة كاملة مستمرة في كل دورة)."""
+        """نمط التنفيذ: 'daily' (إنجاز شرط النشاط اليومي 1/1 ثم التوقف) أو 'full' (إنجاز جميع المهام المتاحة)."""
         return str(self.config.get("mode", "daily")).lower().strip()
 
     @property
     def min_safety_stamina(self) -> int:
-        """حد الأمان الأدنى لطاقة اللورد المطلوب الحفاظ عليه بالقلعة (افتراضياً 10 طاقة)."""
-        cfg_val = self.config.get("min_stamina") or self.config.get("min_safety_stamina")
+        """حد الأمان الأدنى لطاقة اللورد المطلوب الحفاظ عليه بالقلعة (يدعم القيمة 0 بشكل صحيح)."""
+        if self.config.get("min_stamina") is not None:
+            cfg_val = self.config.get("min_stamina")
+        elif self.config.get("min_safety_stamina") is not None:
+            cfg_val = self.config.get("min_safety_stamina")
+        else:
+            cfg_val = DEFAULT_MIN_SAFETY_STAMINA
         return max(0, self._safe_int(cfg_val, DEFAULT_MIN_SAFETY_STAMINA))
+
+    def _is_daily_goal_met(self) -> bool:
+        """التحقق في وضع daily مما إذا كانت مهمة النشاط اليومي (33) قد أُنجزت (1/1) في الذاكرة الحية."""
+        if self.mode != "daily":
+            return False
+        everyday_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
+        if isinstance(everyday_ctrl, dict):
+            event_info = everyday_ctrl.get("eventInfo")
+            if isinstance(event_info, dict):
+                for k in ("33", "4100033", 33, 4100033):
+                    if k in event_info and self._safe_int(event_info.get(k), 0) >= 1:
+                        return True
+        return False
 
     @property
     def allow_marches(self) -> bool:
@@ -225,13 +243,64 @@ class CommandHallTask(BaseTask):
                 circuit_broken = True
 
         # ======================================================================
+        # المرحلة 0.5: استلام جوائز المهام المكتملة مسبقاً (statue == 3) مجاناً (0 طاقة و 0 فيالق)
+        # ======================================================================
+        completed_claimed_count = 0
+        claimable_list = [
+            t for t in tasks_data.get("claimable_tasks", [])
+            if self._safe_int(t.get("statue")) == TASK_STATUE_FINISH
+            and self._safe_int(t.get("type")) in (2, 3, 4, 5, 6)
+            and self._safe_int(t.get("index")) > 0
+        ]
+        if not circuit_broken and claimable_list:
+            self.log(f"🎁 [قاعة القيادة] المرحلة 0.5: رصد {len(claimable_list)} مهمة مكتملة مسبقاً (statue=3) جاهزة للاستلام الفوري...")
+            for c_task in claimable_list:
+                if not self.conn or not getattr(self.conn, "is_connected", False):
+                    circuit_broken = True
+                    break
+                c_idx = self._safe_int(c_task.get("index"), 0)
+                c_type = self._safe_int(c_task.get("type"), 0)
+                try:
+                    c_resp = await self.safe_query(
+                        CMD_COMMAND_HALL_MODULE,
+                        REQ_COMMAND_HALL_COMMIT_TASK,
+                        {"commitType": c_type, "index": c_idx},
+                        min_delay=0.4,
+                        max_delay=0.8,
+                    )
+                except ConnectionCircuitBreakerError:
+                    circuit_broken = True
+                    break
+                if isinstance(c_resp, dict) and str(c_resp.get("err", c_resp.get("code", "0"))).strip() in ("0", "Err_None"):
+                    completed_claimed_count += 1
+                    c_rsp = c_resp.get("rspdata") if isinstance(c_resp.get("rspdata"), dict) else {}
+                    c_rew = c_rsp.get("reward") or c_resp.get("reward") or []
+                    if c_rew:
+                        all_rewards_collected.extend(c_rew)
+                    c_init = c_rsp.get("initData")
+                    if isinstance(c_init, dict) and isinstance(self.conn.init_data, dict):
+                        for ck in ("commandHall", "commandHallCtrl"):
+                            cached = self.conn.init_data.setdefault(ck, {})
+                            if isinstance(cached, dict):
+                                cached.update(c_init)
+                    self.record_daily_quest_event(33, 1)
+                    self.log(f"✅ [قاعة القيادة] تم استلام جائزة المهمة المكتملة مسبقاً #{c_idx} بنجاح!")
+                else:
+                    self.log(f"⚠️ [قاعة القيادة] تعذر استلام المهمة #{c_idx} (الرد: {c_resp}).")
+
+            # تحديث قائمة المهام بعد الاستلام المجاني
+            if completed_claimed_count > 0 and not circuit_broken:
+                tasks_data = await self.get_command_hall_tasks(force_sync=False)
+                summary = tasks_data.get("summary", summary)
+
+        # ======================================================================
         # المرحلة 1: تنفيذ مهام القناص الصامت (Sniper Hunter Tasks - Type 6)
         # ======================================================================
         completed_snipe_count = 0
         failed_snipe_count = 0
 
         eligible_snipe_tasks: List[Dict[str, Any]] = []
-        if not circuit_broken and self.allow_snipe:
+        if not circuit_broken and self.allow_snipe and not self._is_daily_goal_met():
             eligible_snipe_tasks = [
                 t for t in tasks_data.get("executable_tasks", [])
                 if self._safe_int(t.get("type")) == TASK_TYPE_SNIPE
@@ -272,6 +341,10 @@ class CommandHallTask(BaseTask):
                         all_rewards_collected.extend(s_rewards)
                     self.log(f"✅ [قاعة القيادة] اكتملت مهمة القناص الصامت #{task_index} بنجاح!")
 
+                    if self._is_daily_goal_met():
+                        self.log("✅ [قاعة القيادة] تحقق هدف النشاط اليومي (1/1) في نمط daily — التوقف عن باقي مهام القناص.")
+                        break
+
                     # فاصل زمني بشري عشوائي بين مهام القناص
                     if s_idx < len(eligible_snipe_tasks):
                         await asyncio.sleep(random.uniform(1.0, 1.8))
@@ -287,7 +360,7 @@ class CommandHallTask(BaseTask):
         failed_rescue_count = 0
 
         eligible_rescue_tasks: List[Dict[str, Any]] = []
-        if not circuit_broken and self.allow_rescue:
+        if not circuit_broken and self.allow_rescue and not self._is_daily_goal_met():
             eligible_rescue_tasks = [
                 t for t in tasks_data.get("executable_tasks", [])
                 if self._safe_int(t.get("type")) == TASK_TYPE_RESCUE
@@ -342,6 +415,10 @@ class CommandHallTask(BaseTask):
                         all_rewards_collected.extend(r_rewards)
                     self.log(f"✅ [قاعة القيادة] اكتملت مهمة إنقاذ القرويين #{task_index} بنجاح!")
 
+                    if self._is_daily_goal_met():
+                        self.log("✅ [قاعة القيادة] تحقق هدف النشاط اليومي (1/1) في نمط daily — التوقف عن باقي مهام الإنقاذ.")
+                        break
+
                     # فاصل زمني بشري عشوائي بين مهام الإنقاذ
                     if r_idx < len(eligible_rescue_tasks):
                         await asyncio.sleep(random.uniform(1.0, 1.8))
@@ -357,7 +434,7 @@ class CommandHallTask(BaseTask):
         failed_dialogue_count = 0
 
         eligible_dialogue_tasks: List[Dict[str, Any]] = []
-        if not circuit_broken and self.allow_dialogue:
+        if not circuit_broken and self.allow_dialogue and not self._is_daily_goal_met():
             eligible_dialogue_tasks = [
                 t for t in tasks_data.get("executable_tasks", [])
                 if self._safe_int(t.get("type")) == TASK_TYPE_DIALOGUE
@@ -412,6 +489,10 @@ class CommandHallTask(BaseTask):
                         all_rewards_collected.extend(d_rewards)
                     self.log(f"✅ [قاعة القيادة] اكتملت مهمة المعلومات العسكرية #{task_index} بنجاح!")
 
+                    if self._is_daily_goal_met():
+                        self.log("✅ [قاعة القيادة] تحقق هدف النشاط اليومي (1/1) في نمط daily — التوقف عن باقي مهام الحوار.")
+                        break
+
                     # فاصل زمني بشري عشوائي بين مهام الحوار
                     if d_idx < len(eligible_dialogue_tasks):
                         await asyncio.sleep(random.uniform(1.0, 1.8))
@@ -427,7 +508,7 @@ class CommandHallTask(BaseTask):
         failed_battle_count = 0
 
         eligible_battle_tasks: List[Dict[str, Any]] = []
-        if not circuit_broken and self.allow_marches:
+        if not circuit_broken and self.allow_marches and not self._is_daily_goal_met():
             march_tasks = tasks_data.get("march_tasks", [])
             eligible_battle_tasks = [
                 t for t in march_tasks
@@ -440,9 +521,13 @@ class CommandHallTask(BaseTask):
             self.log("ℹ️ [قاعة القيادة] تم تخطي مهام المعارك والمسير (خيار allow_marches غير مفعل في إعدادات القلعة).")
 
         if not circuit_broken and eligible_battle_tasks:
-            self.log(f"⚔️ [قاعة القيادة] المرحلة 4: رصد {len(eligible_battle_tasks)} مهام قتالية جاهزة للتنفيذ (مرتبة بالأعلى جودة أولاً).")
+            self.log(f"⚔️ [قاعة القيادة] المرحلة 4: رصد {len(eligible_battle_tasks)} مهام قتالية جاهزة للتنفيذ (فيلق واحد بالتسلسل بالأعلى جودة أولاً).")
 
             for task_idx, task_item in enumerate(eligible_battle_tasks, 1):
+                if self._is_daily_goal_met():
+                    self.log("✅ [قاعة القيادة] تحقق هدف النشاط اليومي (1/1) في نمط daily — التوقف عن باقي المعارك لحفظ الطاقة.")
+                    break
+
                 # فحص قاطع الاتصال قبل تنفيذ المهمة
                 if not self.conn or not getattr(self.conn, "is_connected", False):
                     self.log("⚡ [قاطع الاتصال] تم رصد انقطاع الاتصال بالسيرفر — إيقاف مهام المعارك والمسير فوراً.")
@@ -454,7 +539,10 @@ class CommandHallTask(BaseTask):
                 task_type = self._safe_int(task_item.get("type"), 5)
                 type_name = "طليعة الغزاة" if task_type == TASK_TYPE_REBEL_PIONEER else "فريق الغزاة"
                 quality_name = task_item.get("quality_name_ar", str(task_item.get("quality", "")))
-                stamina_cost = self._safe_int(task_item.get("stamina_cost"), STAMINA_COST_PER_BATTLE)
+                spec = self.get_command_hall_task_spec(task_id)
+                stamina_cost = self._safe_int(task_item.get("stamina_cost"), spec["consume"])
+                if stamina_cost <= 0:
+                    stamina_cost = spec["consume"]
 
                 # أ) فحص مسبق صارم لطاقة اللورد قبل كل مهمة لحماية حد الأمان
                 min_needed_stamina = stamina_cost + self.min_safety_stamina
@@ -466,28 +554,9 @@ class CommandHallTask(BaseTask):
                     )
                     break
 
-                # ب) التأكد من شاغرية الفيلق قبل إرسال المسير (فيلق واحد فقط في كل مرة)
-                avail_marches = self.get_available_marches_count()
-                if avail_marches <= 0:
-                    self.log("⏳ [قاعة القيادة] انتظار عودة الفيالق النشطة بالخارج...")
-                    waited = 0
-                    while self.get_available_marches_count() <= 0 and waited < 10:
-                        if not self.conn or not getattr(self.conn, "is_connected", False):
-                            circuit_broken = True
-                            break
-                        await asyncio.sleep(2.0)
-                        waited += 2
-
-                    if circuit_broken:
-                        break
-
-                    if self.get_available_marches_count() <= 0:
-                        self.log("⚠️ [قاعة القيادة] تعذر استكمال باقي المعارك لعدم توفر فيالق شاغرة.")
-                        break
-
-                # ج) فحص القوات المقاتلة بالقلعة
-                if self.get_available_troops_count() <= 0:
-                    self.log("⚠️ [قاعة القيادة] نفدت القوات المقاتلة الشاغرة بالقلعة لتشكيل الفيلق. توقف معارك المسير.")
+                # ب) التحقق الفوري من شاغرية الفيلق (تخطي فوري بدون انتظار عند امتلاء الفيالق)
+                if self.get_available_marches_count() <= 0:
+                    self.log("⏭️ [قاعة القيادة] لا توجد فيالق شاغرة حالياً — تخطي مهام المعارك فوراً دون انتظار.")
                     break
 
                 self.log(
@@ -495,13 +564,25 @@ class CommandHallTask(BaseTask):
                     f"(ID: {task_id} | جودة: {quality_name} | استهلاك {stamina_cost} طاقة)..."
                 )
 
-                # د) استدعاء دالة تنفيذ المعركة الرسمية الموثقة في BaseTask
+                # ج) استدعاء دالة تنفيذ المعركة الموحّدة (فيلق واحد فقط + انتظار العودة للقلعة)
                 try:
-                    exec_res = await self.execute_command_hall_battle_task(task_item, wait_seconds=7.0)
+                    exec_res = await self.execute_command_hall_battle_task(
+                        task_item,
+                        wait_seconds=7.0,
+                        wait_for_return=True,
+                    )
                 except ConnectionCircuitBreakerError as e:
                     self.log(f"⚡ [قاطع الاتصال] تم اعتراض مهمة {type_name} #{task_index} لانقطاع الاتصال: {e}")
                     circuit_broken = True
                     break
+
+                if exec_res.get("disconnected"):
+                    circuit_broken = True
+                    break
+
+                if exec_res.get("skipped_unbeatable"):
+                    # تخطي آمن لأن التشكيلة الحالية غير كافية لقتل هذا الهدف (قد تنجح مهمة أضعف تالية)
+                    continue
 
                 if exec_res.get("success"):
                     completed_battle_count += 1
@@ -512,8 +593,8 @@ class CommandHallTask(BaseTask):
 
                     self.log(f"✅ [قاعة القيادة] اكتملت المهمة القتالية #{task_index} بنجاح!")
 
-                    # فاصل بشري عشوائي ذكي وآمن بين المعارك (Human Jitter)
-                    if task_idx < len(eligible_battle_tasks):
+                    # فاصل بشري عشوائي بين المعارك بعد عودة الفيلق فعلياً
+                    if task_idx < len(eligible_battle_tasks) and not self._is_daily_goal_met():
                         jitter = random.uniform(1.0, 2.0)
                         await asyncio.sleep(jitter)
                 else:
@@ -521,26 +602,35 @@ class CommandHallTask(BaseTask):
                     fail_reason = exec_res.get("reason", "خطأ غير محدد")
                     self.log(f"⚠️ [قاعة القيادة] تعذر إنجاز المهمة القتالية #{task_index} ({fail_reason}).")
 
+
         # ======================================================================
         # المرحلة 5: القضاء على فيلق الغزاة وتجديد المهام (Rebel Legion Boss - Type 1)
         # ======================================================================
         completed_army_group_count = 0
         failed_army_group_count = 0
 
-        if not circuit_broken and self.allow_army_group:
+        if not circuit_broken and self.allow_army_group and not self._is_daily_goal_met():
             if not self.conn or not getattr(self.conn, "is_connected", False):
                 self.log("⚡ [قاطع الاتصال] تم رصد انقطاع الاتصال — تخطي هجوم فيلق الغزاة فوراً.")
                 circuit_broken = True
             else:
-                # قراءة حالة فيلق الغزاة من الذاكرة الحية (0-Network)
-                hall_info = self.get_ctrl("commandHall")
+                # إعادة قراءة المهام من الذاكرة الحية لحساب عدد الطلائع النشطة بدقة (0-Network)
+                fresh_hall_data = await self.get_command_hall_tasks(force_sync=False)
+                live_pioneers = [
+                    t for t in (fresh_hall_data.get("executable_tasks", []) + fresh_hall_data.get("claimable_tasks", []))
+                    if self._safe_int(t.get("type")) == TASK_TYPE_REBEL_PIONEER
+                    and self._safe_int(t.get("statue")) in (1, 2, 3)
+                ]
+                hall_info = self.get_ctrl("commandHall") or self.get_ctrl("commandHallCtrl")
                 ag_task = hall_info.get("armyGroupTaskData") if isinstance(hall_info, dict) else None
 
                 if isinstance(ag_task, dict) and ag_task.get("index"):
                     r_hp = self._safe_int(ag_task.get("rabelHp"), 1000)
                     h_hp = self._safe_int(ag_task.get("hurtHp"), 0)
                     st = self._safe_int(ag_task.get("statue"), 2)
-                    p_count = self._safe_int(hall_info.get("armyPioneerTaskCount"), 0)
+                    p_count = len(live_pioneers)
+                    if isinstance(hall_info, dict) and p_count == 0 and self._safe_int(hall_info.get("armyPioneerTaskCount"), 0) > 0:
+                        hall_info["armyPioneerTaskCount"] = 0
 
                     # شرط القضاء على الفيلق: صحة الفيلق 0 (أو statue == 3) وعدم وجود مهام طليعة معلقة
                     if (h_hp >= r_hp or st == 3) and p_count == 0:
@@ -601,13 +691,22 @@ class CommandHallTask(BaseTask):
         # المرحلة 6: تجميع الإحصائيات والنتيجة النهائية
         # ======================================================================
         exec_duration = time.perf_counter() - t0
-        total_completed = completed_snipe_count + completed_rescue_count + completed_dialogue_count + completed_battle_count + completed_army_group_count
+        total_completed = (
+            completed_claimed_count
+            + completed_snipe_count
+            + completed_rescue_count
+            + completed_dialogue_count
+            + completed_battle_count
+            + completed_army_group_count
+        )
         total_failed = failed_snipe_count + failed_rescue_count + failed_dialogue_count + failed_battle_count + failed_army_group_count
 
         if total_completed > 0 or total_hall_upgrades > 0:
             details = []
             if total_hall_upgrades > 0:
                 details.append(f"{total_hall_upgrades} ترقية لمستوى القاعة (وصلت Lv.{summary.get('command_lv')})")
+            if completed_claimed_count > 0:
+                details.append(f"{completed_claimed_count} استلام مهام مكتملة مسبقاً")
             if completed_snipe_count > 0:
                 details.append(f"{completed_snipe_count} قناص صامت")
             if completed_rescue_count > 0:

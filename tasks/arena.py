@@ -86,7 +86,7 @@ class ArenaTask(BaseTask):
                 arena_name = "حلبة المملكة"
 
         my_arena_data = arena_ctrl.get(arena_key, {})
-        if not isinstance(my_arena_data, dict) or None:
+        if not isinstance(my_arena_data, dict) or not my_arena_data:
             self.log(f"ℹ️ بيانات {arena_name} غير متوفرة بالذاكرة — تم التجاوز بأمان.")
             return TaskResult.skip("بيانات نوع الحلبة غير متوفرة")
 
@@ -95,6 +95,7 @@ class ArenaTask(BaseTask):
         # ═════════════════════════════════════════════════════════════════════
         auto_claim = bool(self.config.get("auto_claim_rewards", True))
         pending_rewards = my_arena_data.get("rewards", [])
+        claimed_rank_rewards = False
         if auto_claim and isinstance(pending_rewards, list) and len(pending_rewards) > 0:
             self.log(f"🎁 استلام جوائز ترتيب {arena_name} التراكمية ({len(pending_rewards)} جولة متراكمة)...")
             r_reward = await self.safe_query(
@@ -106,6 +107,7 @@ class ArenaTask(BaseTask):
             )
             if r_reward and str(r_reward.get("err", "0")) == "0":
                 my_arena_data["rewards"] = []
+                claimed_rank_rewards = True
                 self.log(f"✅ تم استلام جوائز ترتيب {arena_name} بنجاح.")
             else:
                 err_code = str(r_reward.get("err", "unknown")) if r_reward else "timeout"
@@ -114,6 +116,10 @@ class ArenaTask(BaseTask):
         # ═════════════════════════════════════════════════════════════════════
         # 3. فحص تقدم النشاط اليومي والمحاولات المتبقية (0-Network Pre-flight)
         # ═════════════════════════════════════════════════════════════════════
+        arena_mode = str(self.config.get("mode", "daily") or "daily").lower().strip()
+        if arena_mode not in ("daily", "per_cycle"):
+            arena_mode = "daily"
+
         everyday_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
         cur_challenges = 0
         if isinstance(everyday_ctrl, dict):
@@ -121,30 +127,109 @@ class ArenaTask(BaseTask):
             if isinstance(event_info, dict):
                 cur_challenges = int(event_info.get(DAILY_QUEST_TYPE_ARENA, 0) or 0)
 
-        # إذا اكتملت تحديات النشاط اليومي الثلاثة
-        if cur_challenges >= TARGET_DAILY_CHALLENGES:
+        # في وضع daily فقط نتوقف عند اكتمال 3/3، أما في per_cycle ننفذ تحدياً واحداً كل دورة
+        if arena_mode == "daily" and cur_challenges >= TARGET_DAILY_CHALLENGES:
+            if claimed_rank_rewards:
+                return TaskResult.ok(
+                    f"تم استلام جوائز ترتيب {arena_name} التراكمية (تحديات النشاط اليومي مكتملة {cur_challenges}/{TARGET_DAILY_CHALLENGES})"
+                )
             self.log(
                 f"ℹ️ تم إنجاز تحديات الحلبة بالنشاط اليومي مسبقاً ({cur_challenges}/{TARGET_DAILY_CHALLENGES}) — تم التجاوز بأمان (0-Network)."
             )
             return TaskResult.skip(f"مكتملة بالنشاط اليومي مسبقاً ({cur_challenges}/{TARGET_DAILY_CHALLENGES})")
 
-        # فحص عدد المحاولات المجانية المتبقية
         remain_times = int(my_arena_data.get("remainTimes", 0) or 0)
         if remain_times <= 0:
+            if claimed_rank_rewards:
+                return TaskResult.ok(f"تم استلام جوائز ترتيب {arena_name} التراكمية (لا توجد محاولات تحدٍ متبقية اليوم)")
             self.log(f"ℹ️ لا توجد محاولات تحدٍ مجانية متبقية في {arena_name} اليوم — تم التجاوز بأمان (0-Network).")
             return TaskResult.skip("لا توجد محاولات مجانية متبقية")
 
-        # فحص التشكيلة الدفاعية (إذا لم تكن مجهزة مسبقاً، نتجاوز بأمان)
-        army_info = my_arena_data.get("armyInfo", {})
-        if not army_info or (isinstance(army_info, (dict, list)) and len(army_info) == 0):
-            self.log("ℹ️ لم يتم تجهيز تشكيلة الحلبة يدوياً في اللعبة مسبقاً — تم التجاوز بأمان لحماية الحساب.")
-            return TaskResult.skip("لم يتم تجهيز تشكيلة الحلبة مسبقاً")
+        # ═════════════════════════════════════════════════════════════════════
+        # 3.5 بناء أقوى تشكيلة هجوم ديناميكياً (ملء 100% من سعة الحلبة عبر march_capacity)
+        # ═════════════════════════════════════════════════════════════════════
+        from tasks.march_manager import MarchManagerTask
+        from tasks.march_capacity import get_march_capacity
 
-        hero_info = my_arena_data.get("heroInfo", [])
+        mgr = MarchManagerTask(self.conn, self.log)
+        live_mem = mgr._get_live_snapshot()
+        saved_army = my_arena_data.get("armyInfo", [])
+        saved_heroes = my_arena_data.get("heroInfo", [])
         arms_info = my_arena_data.get("armsInfo", [])
         divine_beast_info = my_arena_data.get("divineBeastInfo", {})
         arena_group = int(my_arena_data.get("arenaGroup", 1) or 1)
-        my_power = int(my_arena_data.get("fightCapacity", 0) or 0)
+        saved_fc = int(my_arena_data.get("fightCapacity", 0) or 0)
+
+        # اختيار أقوى الأبطال المتاحين (بمن فيهم أبطال السور)
+        max_heroes = self.get_max_battle_hero_num() if hasattr(self, "get_max_battle_hero_num") else 5
+        avail_heroes = mgr.get_available_heroes(exclude_defend=False)
+        selected_hero_ids = [int(h["hero_id"]) for h in avail_heroes[:max_heroes] if int(h.get("hero_id", 0)) > 0]
+        if selected_hero_ids:
+            hero_info = [{"heroID": hid} for hid in selected_hero_ids]
+        else:
+            hero_info = saved_heroes if isinstance(saved_heroes, list) else []
+            selected_hero_ids = [
+                int(h.get("heroID") or h.get("id") or 0)
+                for h in hero_info if isinstance(h, dict) and int(h.get("heroID") or h.get("id") or 0) > 0
+            ]
+
+        # حساب سعة الحلبة الحقيقية (is_arena=True يستثني برج السديم مطابقاً للعبة)
+        arena_cap = int(get_march_capacity(live_mem, hero_ids=selected_hero_ids or None, is_arena=True) or 0)
+
+        # ملء 100% من سعة الحلبة بأقوى الجنود المتاحين في القلعة تنازلياً حسب القوة
+        avail_soldiers = mgr.get_available_soldiers()
+        enriched = []
+        for s in avail_soldiers:
+            sid = int(s.get("army_id") or 0)
+            cnt = int(s.get("count") or 0)
+            lv = int(s.get("level") or 1)
+            if sid > 0 and cnt > 0:
+                enriched.append((mgr._get_soldier_combat_power(sid, lv), lv, sid, cnt))
+        enriched.sort(reverse=True)
+
+        army_info: List[Dict[str, int]] = []
+        remaining_cap = arena_cap
+        dynamic_army_power = 0.0
+        total_arena_soldiers = 0
+        for unit_pwr, _lv, sid, cnt in enriched:
+            if remaining_cap <= 0:
+                break
+            take = min(cnt, remaining_cap)
+            if take > 0:
+                army_info.append({"id": sid, "num": take})
+                dynamic_army_power += take * unit_pwr
+                total_arena_soldiers += take
+                remaining_cap -= take
+
+        # احتياطي: إذا لم يوجد جنود بالداخل لحظياً نستخدم التشكيلة المحفوظة إن وجدت
+        if not army_info:
+            if isinstance(saved_army, list) and len(saved_army) > 0:
+                army_info = saved_army
+                for itm in saved_army:
+                    if isinstance(itm, dict):
+                        sid = int(itm.get("id") or 0)
+                        num = int(itm.get("num") or 0)
+                        dynamic_army_power += num * mgr._get_soldier_combat_power(sid, sid % 100)
+                        total_arena_soldiers += num
+            else:
+                self.log("ℹ️ لا توجد قوات متاحة ولا تشكيلة حلبة محفوظة — تم التجاوز بأمان.")
+                return TaskResult.skip("لا توجد قوات لتشكيل جيش الحلبة")
+
+        # تقدير قوتنا الجديدة (my_dynamic_fc) على نفس مقياس fightCapacity الرسمي في الحلبة
+        saved_army_power = 0.0
+        if isinstance(saved_army, list):
+            for itm in saved_army:
+                if isinstance(itm, dict):
+                    sid = int(itm.get("id") or 0)
+                    num = int(itm.get("num") or 0)
+                    saved_army_power += num * mgr._get_soldier_combat_power(sid, sid % 100)
+        heroes_base_fc = max(0.0, float(saved_fc) - saved_army_power)
+        my_dynamic_fc = int(max(saved_fc, dynamic_army_power + heroes_base_fc))
+
+        self.log(
+            f"🛡️ [الحلبة] تجهيز أقوى تشكيلة هجوم: {total_arena_soldiers:,}/{arena_cap:,} جندي "
+            f"| أبطال: {selected_hero_ids} | القوة التقديرية: {my_dynamic_fc:,}"
+        )
 
         # ═════════════════════════════════════════════════════════════════════
         # 4. استعلام قائمة الخصوم (Ground State)
@@ -171,23 +256,57 @@ class ArenaTask(BaseTask):
             return TaskResult.skip("قائمة الخصوم فارغة")
 
         # ═════════════════════════════════════════════════════════════════════
-        # 5. حلقة التحديات (حتى 3 تحديات لإكمال النشاط اليومي ضد الروبوتات فقط)
+        # 5. حلقة التحديات (انتقاء خصم قابل للهزيمة حسابياً + إيقاف فوري عند أول هزيمة)
         # ═════════════════════════════════════════════════════════════════════
+        MIN_ARENA_WIN_MARGIN = 1.15  # هامش أمان حسابي (+15% فوق قوة الخصم)
         success_battles = 0
+        defeated_stop = False
 
-        while cur_challenges < TARGET_DAILY_CHALLENGES and remain_times > 0 and len(enemy_list) > 0:
-            # تصفية الخصوم لحصرهم على الروبوتات فقط (robotFlag == True)
-            robot_enemies = [
-                e for e in enemy_list
+        def _pick_beatable_target(enemies: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+            valid = [e for e in enemies if isinstance(e, dict)]
+            if not valid:
+                return None
+            # 1) الأولوية القصوى لأضعف روبوت قابل للهزيمة
+            robots = [
+                e for e in valid
                 if (e.get("robotFlag") is True or str(e.get("robotFlag", "")).lower() == "true")
             ]
+            robots.sort(key=lambda e: int(e.get("fightCapacity", 0) or 0))
+            for r in robots:
+                r_pwr = int(r.get("fightCapacity", 0) or 0)
+                if r_pwr <= 0 or my_dynamic_fc >= r_pwr * MIN_ARENA_WIN_MARGIN:
+                    return r
+            # 2) إن لم يوجد روبوت قابل للهزيمة، نختار أضعف خصم في القائمة بشرط تفوقنا الحسابي عليه
+            valid.sort(key=lambda e: int(e.get("fightCapacity", 0) or 0))
+            weakest = valid[0]
+            w_pwr = int(weakest.get("fightCapacity", 0) or 0)
+            if w_pwr <= 0 or my_dynamic_fc >= w_pwr * MIN_ARENA_WIN_MARGIN:
+                return weakest
+            return None
 
-            # إذا لم يتوفر أي روبوت في القائمة الحالية، نقوم بتحديث القائمة (حتى 3 محاولات كحد أقصى لكل معركة)
+        max_battles_this_cycle = 1 if arena_mode == "per_cycle" else max(0, TARGET_DAILY_CHALLENGES - cur_challenges)
+        battles_attempted_this_cycle = 0
+
+        while battles_attempted_this_cycle < max_battles_this_cycle and remain_times > 0 and len(enemy_list) > 0:
+            if not self.is_connected:
+                self.log("⚡ [الحلبة] انقطع الاتصال ببوابة اللعبة — إيقاف التحديات فوراً.")
+                break
+
+            target = _pick_beatable_target(enemy_list)
+
+            # إذا لم نجد خصماً قابلاً للهزيمة حسابياً، نحدث القائمة مجاناً حتى 3 محاولات
             refresh_attempts = 0
-            while not robot_enemies and refresh_attempts < MAX_ROBOT_REFRESH_ATTEMPTS:
+            while target is None and refresh_attempts < MAX_ROBOT_REFRESH_ATTEMPTS:
+                if not self.is_connected:
+                    break
                 refresh_attempts += 1
+                weakest_now = min(
+                    (int(e.get("fightCapacity", 0) or 0) for e in enemy_list if isinstance(e, dict)),
+                    default=0,
+                )
                 self.log(
-                    f"🔄 لا توجد روبوتات في قائمة الخصوم — محاولة تحديث القائمة مجاناً ({refresh_attempts}/{MAX_ROBOT_REFRESH_ATTEMPTS})..."
+                    f"🔄 جميع الخصوم الحاليين أقوى حسابياً (أضعف خصم: {weakest_now:,} | قوتنا: {my_dynamic_fc:,}) — "
+                    f"تحديث قائمة الخصوم مجاناً ({refresh_attempts}/{MAX_ROBOT_REFRESH_ATTEMPTS})..."
                 )
                 r_refresh = await self.safe_query(
                     CMD_ARENA_MODULE,
@@ -201,27 +320,18 @@ class ArenaTask(BaseTask):
                     refreshed_enemies = refresh_data.get("enemyInfo", [])
                     if refreshed_enemies and isinstance(refreshed_enemies, list):
                         enemy_list = refreshed_enemies
-                        robot_enemies = [
-                            e for e in enemy_list
-                            if (e.get("robotFlag") is True or str(e.get("robotFlag", "")).lower() == "true")
-                        ]
+                        target = _pick_beatable_target(enemy_list)
                 else:
                     self.log("⚠️ تعذر تحديث قائمة خصوم الحلبة من السيرفر.")
                     break
 
-            # إذا لم نجد أي روبوت بعد استنفاد محاولات التحديث الـ 3، نتوقف ونتخطى فوراً لحماية القلعة
-            if not robot_enemies:
+            if target is None:
                 self.log(
-                    f"🛡️ لم يتم العثور على أي خصم روبوت بعد {refresh_attempts} محاولات تحديث — تخطي بأمان لمنع مهاجمة اللاعبين البشريين."
+                    f"🛡️ لم يُعثر على خصم يمكن هزيمته حسابياً بعد {refresh_attempts} تحديثات "
+                    f"(قوتنا: {my_dynamic_fc:,}) — تخطي المهمة بأمان."
                 )
                 break
 
-            # فرز الروبوتات تصاعدياً حسب القوة القتالية لاختيار الأضعف دائماً وضمان الفوز 100%
-            sorted_robots = sorted(
-                robot_enemies,
-                key=lambda e: int(e.get("fightCapacity", 0) or 0)
-            )
-            target = sorted_robots[0]
             target_power = int(target.get("fightCapacity", 0) or 0)
             target_uid = target.get("uid")
             if target_uid is not None:
@@ -230,11 +340,13 @@ class ArenaTask(BaseTask):
                 except (ValueError, TypeError):
                     pass
             target_rank = int(target.get("rank", 0) or 0)
-            target_nick = str(target.get("nickName", "خصم روبوت"))
+            target_nick = str(target.get("nickName", "خصم"))
+            is_robot = target.get("robotFlag") is True or str(target.get("robotFlag", "")).lower() == "true"
+            kind_lbl = "الروبوت" if is_robot else "الخصم"
 
-            # خوض التحدي القتالي ضد الروبوت المختار
             self.log(
-                f"🗡️ بدء تحدي الحلبة ({cur_challenges + 1}/{TARGET_DAILY_CHALLENGES}) ضد الروبوت [{target_nick}] (الرتبة: #{target_rank}، القوة: {target_power:,})..."
+                f"🗡️ بدء تحدي الحلبة ({cur_challenges + 1}/{TARGET_DAILY_CHALLENGES}) ضد {kind_lbl} [{target_nick}] "
+                f"(الرتبة: #{target_rank} | قوة الخصم: {target_power:,} | قوتنا: {my_dynamic_fc:,})..."
             )
             challenge_payload = {
                 "targetUid": target_uid,
@@ -267,35 +379,42 @@ class ArenaTask(BaseTask):
             server_remain = fight_rsp.get("remainTimes")
             new_enemies = fight_rsp.get("enemyInfo", [])
 
-            # تحديث الذاكرة الحية فورياً (In-Memory State Sync)
             remain_times = int(server_remain) if server_remain is not None else max(0, remain_times - 1)
             my_arena_data["remainTimes"] = remain_times
             if b_win and new_rank:
                 my_arena_data["myRank"] = new_rank
 
+            battles_attempted_this_cycle += 1
             cur_challenges += 1
+            self.record_daily_quest_event(30, 1)
+
+            if not b_win:
+                defeated_stop = True
+                self.log(
+                    f"🛑 هزيمة في الحلبة ضد [{target_nick}] (قوة الخصم: {target_power:,}) — "
+                    f"إيقاف مهمة الحلبة بالكامل وتخطي باقي التحديات فوراً وفق قواعد الحماية."
+                )
+                break
+
             success_battles += 1
-
-            if isinstance(everyday_ctrl, dict):
-                event_info = everyday_ctrl.get("eventInfo", {})
-                if isinstance(event_info, dict):
-                    event_info[DAILY_QUEST_TYPE_ARENA] = cur_challenges
-
-            result_txt = "فوز ساحق 🏆" if b_win else "هزيمة ⚠️"
             self.log(
-                f"✅ اكتمال التحدي: {result_txt} | الرتبة: #{new_rank} | إنجاز النشاط اليومي: {cur_challenges}/{TARGET_DAILY_CHALLENGES} | المحاولات المتبقية: {remain_times}"
+                f"✅ اكتمال التحدي: فوز ساحق 🏆 | الرتبة: #{new_rank} | "
+                f"إنجاز النشاط اليومي: {cur_challenges}/{TARGET_DAILY_CHALLENGES} | المحاولات المتبقية: {remain_times}"
             )
 
-            # تجديد قائمة الخصوم من رد السيرفر للجولة القادمة إن وُجدت
             if new_enemies and isinstance(new_enemies, list):
                 enemy_list = new_enemies
 
-            # فاصل زمني بشري عشوائي قبل التحدي التالي
-            if cur_challenges < TARGET_DAILY_CHALLENGES and remain_times > 0:
+            if battles_attempted_this_cycle < max_battles_this_cycle and remain_times > 0:
                 await asyncio.sleep(random.uniform(2.0, 3.5))
 
         if success_battles > 0:
+            stop_note = " (توقف بعد رصد هزيمة)" if defeated_stop else ""
             return TaskResult.ok(
-                f"تم تنفيذ {success_battles} تحديات في {arena_name} بنجاح ({cur_challenges}/{TARGET_DAILY_CHALLENGES})"
+                f"تم الفوز في {success_battles} تحديات بـ {arena_name}{stop_note} ({cur_challenges}/{TARGET_DAILY_CHALLENGES})"
             )
-        return TaskResult.skip("لم يتم تنفيذ أي تحديات جديدة في الحلبة (لا توجد روبوتات متاحة للتحدي بأمان)")
+        if claimed_rank_rewards:
+            return TaskResult.ok(f"تم استلام جوائز ترتيب {arena_name} التراكمية وتخطي التحديات بأمان")
+        if defeated_stop:
+            return TaskResult.skip("تم إيقاف وتخطي مهمة الحلبة فوراً بعد رصد هزيمة في التحدي الأول")
+        return TaskResult.skip("لم يتم تنفيذ أي تحديات في الحلبة (لا يوجد خصم قابل للهزيمة حسابياً)")

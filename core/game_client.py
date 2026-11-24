@@ -145,10 +145,10 @@ CMD_METADATA_MAP: Dict[Tuple[str, str], Tuple[str, str]] = {
 
     # ── 2. الموارد والمدينة والبناء (City & Resources) ──
     ("1001", "8"): ("🌾", "حصد الموارد"),
-    ("1001", "2"): ("⏩", "تسريع بناء"),
-    ("1001", "3"): ("❌", "إلغاء بناء"),
-    ("1003", "1"): ("🏰", "ترقية مبنى"),
-    ("1003", "2"): ("🏗️", "استعلام المباني"),
+    ("1001", "2"): ("🏗️", "تشييد مبنى"),
+    ("1001", "3"): ("🔨", "ترقية مبنى"),
+    ("1003", "1"): ("⏳", "استعلام الطوابير"),
+    ("1003", "2"): ("⏩", "تسريع طابور"),
     ("1003", "4"): ("⏩", "تسريع بناء"),
     ("1003", "8"): ("🔨", "إتمام بناء مجاني"),
     ("1004", "1"): ("🌾", "استعلام الموارد"),
@@ -310,9 +310,9 @@ def get_cmd_metadata(cmd: str, subcmd: str, data: Optional[dict] = None) -> Tupl
             return ("🪙", "شراء من المتجر")
         elif c_str == "1004" and s_str == "2":
             item_id = str(data.get("itemID", ""))
-            if any(item_id.startswith(p) for p in ("1002", "1003", "1004", "1005", "1006")):
+            if any(item_id.startswith(p) for p in ("1002", "1003", "1004", "1005", "1006", "1027", "1100", "1101", "1102", "1103", "1106")):
                 return ("🌾", "فتح صناديق موارد")
-            if item_id in ("200001", "200002", "200003", "200004", "200005"):
+            if item_id in ("200001", "200002", "200003", "200004", "200005", "300401", "300402", "300403"):
                 return ("⚡", "استخدام حزم الطاقة")
             if item_id in ("100001", "100002", "100003"):
                 return ("🛡️", "تفعيل درع السلام")
@@ -320,7 +320,13 @@ def get_cmd_metadata(cmd: str, subcmd: str, data: Optional[dict] = None) -> Tupl
         elif c_str == "1001" and s_str == "8":
             return ("🌾", "حصد الموارد")
         elif c_str == "1001" and s_str == "2":
-            return ("⏩", "تسريع بناء")
+            return ("🏗️", "تشييد مبنى")
+        elif c_str == "1001" and s_str == "3":
+            return ("🔨", "ترقية مبنى")
+        elif c_str == "1003" and s_str == "2":
+            if str(data.get("mode", "")) == "0":
+                return ("⚡", "تسريع مجاني")
+            return ("⏩", "تسريع طابور بالأدوات")
         elif c_str == "1005" and s_str == "2":
             return ("⚔️", "تدريب الجنود")
         elif c_str == "1005" and s_str == "4":
@@ -1647,7 +1653,7 @@ class GameConnection:
                     pass
 
             try:
-                await asyncio.wait_for(self.controllers_ready.wait(), timeout=12.0)
+                await asyncio.wait_for(self.controllers_ready.wait(), timeout=22.0)
                 self.emit_brief_log(f"🌐 [{self.account_short_name}] تهيئة اللعبة والذاكرة الحية (1000/1) ✅")
                 log.info(f"[{self.account.email}] ✓ تم تحميل كامل متحكمات القلعة بنجاح ({len(self.init_data)} متحكم متوفر).")
 
