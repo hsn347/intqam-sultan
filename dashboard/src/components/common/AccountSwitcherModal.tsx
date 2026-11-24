@@ -178,19 +178,16 @@ export function AccountSwitcherModal({ isOpen, onClose }: AccountSwitcherModalPr
 
   return (
     <div
-      className="z-50 fixed inset-0 flex justify-center items-center bg-black/75 backdrop-blur-xs p-3 sm:p-4 animate-fade-in"
+      className="z-50 fixed inset-0 flex justify-center items-center bg-black/75 p-3 sm:p-4"
       onClick={onClose}
     >
       {/* Solid Opaque Modal Dialog */}
       <div
-        className="relative bg-white dark:bg-[#0c120f] shadow-2xl border border-gray-200 dark:border-primary-500/25 rounded-2xl w-full max-w-md overflow-hidden"
-        style={{
-          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 35px -5px rgba(var(--theme-primary-rgb), 0.18)',
-        }}
+        className="relative bg-white dark:bg-[#0c120f] shadow-xl border border-gray-200 dark:border-primary-500/25 rounded-2xl w-full max-w-md overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        {/* Top Accent Gradient Line */}
-        <div className="bg-gradient-to-r from-primary-500 via-primary-400 to-primary-600 w-full h-1" />
+        {/* Top Accent Line */}
+        <div className="bg-primary-500 w-full h-1" />
 
         <div className="p-5 sm:p-6">
           {/* Header */}
@@ -222,7 +219,7 @@ export function AccountSwitcherModal({ isOpen, onClose }: AccountSwitcherModalPr
                 else if (promptAccount) setPromptAccount(null)
                 else onClose()
               }}
-              className="hover:bg-gray-100 dark:hover:bg-white/6 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              className="p-1.5 rounded-lg text-gray-400 cursor-pointer"
             >
               <X size={18} />
             </button>
@@ -270,7 +267,7 @@ export function AccountSwitcherModal({ isOpen, onClose }: AccountSwitcherModalPr
                     <button
                       type="button"
                       onClick={() => setShowPromptPassword(v => !v)}
-                      className="absolute inset-y-0 flex items-center text-gray-400 hover:text-gray-200 end-3"
+                      className="absolute inset-y-0 flex items-center text-gray-400 end-3"
                     >
                       {showPromptPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -339,7 +336,7 @@ export function AccountSwitcherModal({ isOpen, onClose }: AccountSwitcherModalPr
                     <button
                       type="button"
                       onClick={() => setShowPassword(v => !v)}
-                      className="absolute inset-y-0 flex items-center text-gray-400 hover:text-gray-200 end-3"
+                      className="absolute inset-y-0 flex items-center text-gray-400 end-3"
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -394,19 +391,19 @@ export function AccountSwitcherModal({ isOpen, onClose }: AccountSwitcherModalPr
                         key={acc.email}
                         onClick={() => !isSwitching && handleSelectAccount(acc)}
                         className={clsx(
-                          'group flex justify-between items-center p-3 border rounded-xl transition-all cursor-pointer select-none',
+                          'flex justify-between items-center p-3 border rounded-xl cursor-pointer select-none',
                           isCurrent
-                            ? 'bg-primary-50/80 dark:bg-primary-950/40 border-primary-500/40 text-primary-950 dark:text-primary-100 shadow-xs'
-                            : 'bg-gray-50 hover:bg-gray-100 dark:bg-[#131b17] dark:hover:bg-[#1a2520] border-gray-200 dark:border-white/10 text-gray-800 dark:text-gray-200 hover:border-gray-300 dark:hover:border-primary-500/30'
+                            ? 'bg-primary-50/80 dark:bg-primary-950/40 border-primary-500/40 text-primary-950 dark:text-primary-100'
+                            : 'bg-gray-50 dark:bg-[#131b17] border-gray-200 dark:border-white/10 text-gray-800 dark:text-gray-200'
                         )}
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           {/* Avatar */}
                           <div
                             className={clsx(
-                              'flex justify-center items-center rounded-full w-9 h-9 font-bold text-xs transition-colors shrink-0',
+                              'flex justify-center items-center rounded-full w-9 h-9 font-bold text-xs shrink-0',
                               isCurrent
-                                ? 'bg-primary-600 text-white shadow-xs'
+                                ? 'bg-primary-600 text-white'
                                 : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                             )}
                           >
@@ -447,7 +444,7 @@ export function AccountSwitcherModal({ isOpen, onClose }: AccountSwitcherModalPr
                               <button
                                 type="button"
                                 onClick={e => handlePromptRemove(e, acc.email)}
-                                className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2 sm:p-1.5 rounded-lg text-rose-500 sm:text-gray-400 sm:hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/15 transition-all cursor-pointer shrink-0"
+                                className="opacity-80 p-2 sm:p-1.5 rounded-lg text-rose-500 cursor-pointer shrink-0"
                                 title={t('accountSwitcher.removeTooltip', 'إزالة من القائمة')}
                               >
                                 <Trash2 size={15} />
@@ -468,7 +465,7 @@ export function AccountSwitcherModal({ isOpen, onClose }: AccountSwitcherModalPr
             <div className="pt-3 border-gray-200 dark:border-white/10 border-t">
               <button
                 onClick={() => setIsAddingNew(true)}
-                className="flex justify-center items-center gap-2 bg-primary-500/5 hover:bg-primary-500/10 px-3 py-2.5 border border-primary-500/40 hover:border-primary-500 border-dashed rounded-xl w-full font-bold text-primary-600 dark:text-primary-400 text-xs transition-all cursor-pointer"
+                className="flex justify-center items-center gap-2 bg-primary-500/5 px-3 py-2.5 border border-primary-500/40 border-dashed rounded-xl w-full font-bold text-primary-600 dark:text-primary-400 text-xs cursor-pointer"
               >
                 <Plus size={15} />
                 <span>{t('accountSwitcher.addNewAccount', '+ إضافة حساب عميل آخر')}</span>

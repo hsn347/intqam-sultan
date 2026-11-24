@@ -251,7 +251,7 @@ BID_TO_DAILY_QUEST: Dict[str, Tuple[str, int]] = {
 }
 
 
-def sync_training_queue_in_memory(
+def mark_training_queue_busy_in_memory(
     conn: Any,
     bid: str,
     armyid: int,
@@ -259,11 +259,8 @@ def sync_training_queue_in_memory(
     retdata: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
-    مزامنة فورية شاملة لحالة طابور التدريب والنشاط اليومي في الذاكرة الحية (conn.init_data):
-      1. إنشاء أو تحديث طابور التدريب في queueCtrl بالمفتاح المناسب (1203..1207).
-      2. تحديث كائن armyCtrl.trainArmy لمعرفة وقت الانتهاء والكمية.
-      3. خصم الموارد من cityCtrl.reslist.
-      4. تحديث عدادات النشاط اليومي في everydayTaskCtrl.eventInfo و questCtrl.point_finish_list.
+    تحديث طابور التدريب وانشغال المبنى فقط في الذاكرة الحية (queueCtrl و armyCtrl.trainArmy)
+    دون خصم موارد ودون حقن نقاط النشاط اليومي (مناسب لحالة انشغال الثكنة 4002).
     """
     if not conn or not hasattr(conn, "init_data") or not isinstance(conn.init_data, dict):
         return
@@ -294,7 +291,6 @@ def sync_training_queue_in_memory(
             },
         }
         queue_ctrl[qtype] = queue_entry
-        # تحديث قائمة queues إذا كانت مستخدمة في الكلاينت
         if "queues" in queue_ctrl and isinstance(queue_ctrl["queues"], list):
             queue_ctrl["queues"] = [
                 q for q in queue_ctrl["queues"]
@@ -318,6 +314,27 @@ def sync_training_queue_in_memory(
                 "updated_at": now_ts,
             }
 
+
+def sync_training_queue_in_memory(
+    conn: Any,
+    bid: str,
+    armyid: int,
+    count: int,
+    retdata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """
+    مزامنة فورية لحالة طابور التدريب والموارد في الذاكرة الحية (conn.init_data) عند بدء التدريب:
+      1. تحديث طابور التدريب في queueCtrl و armyCtrl.trainArmy عبر mark_training_queue_busy_in_memory.
+      2. خصم الموارد المستهلكة من cityCtrl.reslist.
+      (ملاحظة: لا يُحقن everydayTaskCtrl.eventInfo محلياً عند مجرد بدء الطابور لتفادي تضخيم النقاط وخطأ 470002).
+    """
+    if not conn or not hasattr(conn, "init_data") or not isinstance(conn.init_data, dict):
+        return
+
+    mark_training_queue_busy_in_memory(conn, bid, armyid, count, retdata)
+
+    ret = retdata if isinstance(retdata, dict) else {}
+
     # 3. تحديث وخصم الموارد في cityCtrl
     cost_res = ret.get("costres")
     city = conn.init_data.setdefault("cityCtrl", {})
@@ -335,29 +352,6 @@ def sync_training_queue_in_memory(
                     cur_val = float(reslist.get(str(resid), 0) or 0)
                     reslist[str(resid)] = max(0.0, cur_val - (per_unit * count))
             city["resList"] = reslist
-
-    # 4. تحديث everydayTaskCtrl و questCtrl إذا كان التدريب يغطي النشاط اليومي
-    ev_type, q_id = BID_TO_DAILY_QUEST.get(bid_str, (None, None))
-    if ev_type:
-        everyday = conn.init_data.setdefault("everydayTaskCtrl", {})
-        if isinstance(everyday, dict):
-            ev_info = everyday.setdefault("eventInfo", {})
-            if isinstance(ev_info, dict):
-                cur_cycles = int(ev_info.get(ev_type, 0) or 0)
-                add_cycles = max(1, count // 50)
-                new_cycles = min(5, cur_cycles + add_cycles)
-                if count >= 250:
-                    new_cycles = 5
-                ev_info[ev_type] = new_cycles
-        if count >= 250 and q_id:
-            quest_ctrl = conn.init_data.setdefault("questCtrl", {})
-            if isinstance(quest_ctrl, dict):
-                pfl = quest_ctrl.setdefault("point_finish_list", [])
-                if isinstance(pfl, list):
-                    if q_id not in pfl:
-                        pfl.append(q_id)
-                    if str(q_id) not in pfl:
-                        pfl.append(str(q_id))
 
 
 def clear_harvested_queue_in_memory(conn: Any, bid: str) -> None:
@@ -825,8 +819,8 @@ class TrainTask(BaseTask):
                 return True, curr_count, "0"
 
             elif err == "4002":
-                # وضع علامة انشغال فورية بالذاكرة لمنع أي تكرار
-                sync_training_queue_in_memory(self.conn, bid, armyid, curr_count, {"lefttime": 1800, "totaltime": 1800})
+                # وضع علامة انشغال فورية بالذاكرة لمنع أي تكرار (دون خصم موارد أو حقن نشاط يومي)
+                mark_training_queue_busy_in_memory(self.conn, bid, armyid, curr_count, {"lefttime": 1800, "totaltime": 1800})
                 return False, 0, "الثكنة مشغولة بعملية تدريب جارية حالياً"
 
             elif err == "4001":

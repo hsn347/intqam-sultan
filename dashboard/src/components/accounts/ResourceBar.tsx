@@ -57,13 +57,14 @@ export function ResourceBar({ resources, compact }: ResourceBarProps) {
         return (
           <div
             key={key}
-            className={`resource-bar-chip flex items-center rounded-lg bg-gray-100/90 dark:bg-white/5 hover:bg-gray-200/90 dark:hover:bg-white/10 border border-gray-200/80 dark:border-white/8 transition-all min-w-0 ${
-              compact ? 'gap-1 px-1.5 py-1 min-h-[34px]' : 'gap-1.5 px-2 py-1 min-h-[38px]'
+            data-res={key}
+            className={`resource-bar-chip flex items-center rounded-lg bg-gray-100/90 dark:bg-white/[0.04] border border-gray-200/80 dark:border-white/10 min-w-0 ${
+              compact ? 'gap-1 px-1.5 py-0.5 min-h-[32px]' : 'gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-1 min-h-[34px] sm:min-h-[38px]'
             }`}
             title={titleText}
           >
             {/* Icon */}
-            <div className="shrink-0 flex items-center justify-center">
+            <div className="flex justify-center items-center shrink-0">
               {icon && !hasError ? (
                 <img
                   src={icon}
@@ -77,22 +78,22 @@ export function ResourceBar({ resources, compact }: ResourceBarProps) {
             </div>
 
             {/* Numbers: Stacked vertically */}
-            <div className="flex flex-col justify-center min-w-0 leading-tight flex-1">
+            <div className="flex flex-col flex-1 justify-center min-w-0 leading-tight">
               {/* الرصيد الإجمالي المباشر */}
-              <span className="resource-bar-val text-gray-900 dark:text-gray-100 font-bold tabular-nums text-[11px] sm:text-xs truncate">
+              <span className="font-bold tabular-nums text-[11px] text-gray-900 dark:text-gray-100 sm:text-xs truncate resource-bar-val">
                 {formatNum(val)}
               </span>
 
               {/* الموارد غير المحفوظة بالأحمر في كلا الوضعين */}
               {hasUnprotected ? (
                 <span
-                  className="resource-bar-unprotected text-[#dc2626] dark:text-[#f87171] font-bold tabular-nums text-[9px] sm:text-[10px] leading-none mt-0.5 truncate"
+                  className="mt-0.5 font-bold tabular-nums text-[#dc2626] text-[9px] sm:text-[10px] dark:text-[#f87171] truncate leading-none resource-bar-unprotected"
                   title={`${t('resources.unprotected')}: ${unprotectVal.toLocaleString()}`}
                 >
                   {formatNum(unprotectVal)}
                 </span>
               ) : (
-                <span className="text-gray-400 dark:text-gray-500 font-medium text-[9px] sm:text-[10px] leading-none mt-0.5 truncate">
+                <span className="mt-0.5 font-medium text-[9px] text-gray-400 sm:text-[10px] dark:text-gray-500 truncate leading-none">
                   {t(label)}
                 </span>
               )}

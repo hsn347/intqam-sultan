@@ -29,6 +29,12 @@ game_file/decompiled_java
 core/temp/
 database/*.bak*
 
+# Local deploy configuration, bundles, runtime state, and env files
+deploy_logic/deploy_config.json
+deploy_logic/*.tar.gz
+auto_resume.json
+.env
+
 # OS and Editor files
 .DS_Store
 Thumbs.db

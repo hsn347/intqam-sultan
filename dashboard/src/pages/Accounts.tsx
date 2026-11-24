@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useDeferredValue } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Search, Play, Square, Plus, Clock, SlidersHorizontal, Users, Lock, ShieldAlert, AlertTriangle, Copy, CheckCheck, Sparkles, Loader2 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Search, Square, Plus, Clock, SlidersHorizontal, Users, ShieldAlert, AlertTriangle, CheckCheck, Loader2, Crown } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Layout } from '../components/layout/Layout'
 import { CastleCard } from '../components/accounts/CastleCard'
@@ -10,10 +9,9 @@ import { AddCastleModal } from '../components/accounts/AddCastleModal'
 import { EditCastleModal } from '../components/accounts/EditCastleModal'
 import { ConfirmStopModal } from '../components/accounts/ConfirmStopModal'
 import { ConfirmDeleteCastleModal } from '../components/accounts/ConfirmDeleteCastleModal'
-import { ConfirmPresetModal } from '../components/accounts/ConfirmPresetModal'
 import { useAuth } from '../hooks/useAuth'
 import { useCastles, useUpdateBotState, useBotControl, useStopUserBots, useDeleteCastle, useBatchUpdateCastleConfigs } from '../hooks/useCastles'
-import { Castle, CastleConfig, FIXED_PRESET_CONFIG } from '../types'
+import { Castle, CastleConfig } from '../types'
 import toast from 'react-hot-toast'
 
 export function AccountsPage() {
@@ -30,7 +28,6 @@ export function AccountsPage() {
   const [hasOpenedBatch, setHasOpenedBatch] = useState(false)
   const [showTargetAndTemplate, setShowTargetAndTemplate] = useState(false)
   const [showStopAllModal, setShowStopAllModal] = useState(false)
-  const [showBatchPresetModal, setShowBatchPresetModal] = useState(false)
   const [expandedCastleId, setExpandedCastleId] = useState<string | null>(null)
 
   const { data, isLoading } = useCastles(uid)
@@ -64,12 +61,12 @@ export function AccountsPage() {
 
   // Partition into pending vs active
   const pendingCastles = useMemo(() =>
-    filtered.filter(c => (!c.is_active || c.bot_status.state === 'pending') && c.bot_status.state !== 'error' && c.bot_status.conn_state !== 'error'),
+    filtered.filter(c => (!c.is_active || c.bot_status.state === 'pending') && c.bot_status.state !== 'error' && c.bot_status.conn_state !== 'error' && c.bot_status.state !== 'sealed' && c.bot_status.conn_state !== 'sealed'),
     [filtered]
   )
 
   const activeCastles = useMemo(() =>
-    filtered.filter(c => (c.is_active && c.bot_status.state !== 'pending') || c.bot_status.state === 'error' || c.bot_status.conn_state === 'error'),
+    filtered.filter(c => (c.is_active && c.bot_status.state !== 'pending') || c.bot_status.state === 'error' || c.bot_status.conn_state === 'error' || c.bot_status.state === 'sealed' || c.bot_status.conn_state === 'sealed'),
     [filtered]
   )
 
@@ -77,7 +74,7 @@ export function AccountsPage() {
   const isCastleRunning = (c: Castle): boolean => {
     const s = c.bot_status?.state
     const cs = c.bot_status?.conn_state
-    if (s === 'error' || cs === 'error') return false
+    if (s === 'error' || cs === 'error' || s === 'sealed' || cs === 'sealed') return false
     return s === 'running' || s === 'waiting' || cs === 'connected' || cs === 'waiting' || cs === 'reconnecting'
   }
 
@@ -203,23 +200,6 @@ export function AccountsPage() {
     }
   }
 
-  const handleConfirmBatchPreset = async () => {
-    if (selectedBatchIds.length === 0) {
-      toast.error(t('accounts.selectAtLeastOneBatch'))
-      return
-    }
-    try {
-      await batchUpdate.mutateAsync({
-        castleIds: selectedBatchIds,
-        config: FIXED_PRESET_CONFIG,
-      })
-      toast.success(t('accounts.fixedPresetSuccess'))
-      setShowBatchPresetModal(false)
-    } catch {
-      toast.error(t('common.error'))
-    }
-  }
-
   const handleSelectAllBatch = () => {
     if (selectedBatchIds.length === activeCastles.length) {
       setSelectedBatchIds([])
@@ -249,25 +229,45 @@ export function AccountsPage() {
 
   return (
     <Layout title={t('accounts.title')}>
-      <div className="space-y-4">
-        {/* Page header */}
-        <div className="flex sm:flex-row flex-col sm:justify-between sm:items-center gap-3">
-          <div className="flex justify-between items-center">
-            <h1 className="font-bold text-white text-xl sm:text-2xl">{t('accounts.title')}</h1>
-            {/* Quick status pill on mobile */}
-            <div className="sm:hidden flex items-center gap-1.5 bg-white/5 px-2.5 py-1 border border-white/10 rounded-full text-xs">
-              <span className={clsx('rounded-full w-2 h-2', runningCount > 0 ? 'bg-emerald-500' : 'bg-gray-500')} />
-              <span className="font-medium text-gray-300">{activeCastles.length} {t('accounts.accountUnit')}</span>
+      <div className="space-y-3 sm:space-y-4">
+        {/* Royal Command Header */}
+        <div className="flex sm:flex-row flex-col sm:justify-between sm:items-center gap-2.5 sm:gap-3 p-3 sm:p-4 royal-header-card">
+          <div className="flex flex-wrap justify-between items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex justify-center items-center bg-amber-500/12 border border-amber-500/30 rounded-xl w-8 sm:w-9 h-8 sm:h-9 text-amber-500 dark:text-amber-400 shrink-0">
+                <Crown size={17} />
+              </div>
+              <div className="min-w-0">
+                <h1 className="font-bold text-white text-base sm:text-xl leading-tight brand-title">{t('accounts.title')}</h1>
+                <p className="hidden sm:block text-gray-500 dark:text-gray-400 text-xs truncate">
+                  {t('accounts.royalControlSubtitle', 'إدارة وتشغيل القلاع والمهام التلقائية')}
+                </p>
+              </div>
+            </div>
+
+            {/* Live Colored Summary Pills */}
+            <div className="flex flex-wrap items-center gap-1.5 font-bold text-[11px]">
+              <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 px-2 sm:px-2.5 py-0.5 sm:py-1 border border-emerald-500/30 rounded-full tabular-nums text-emerald-700 dark:text-emerald-300">
+                <span className="bg-emerald-500 rounded-full w-1.5 h-1.5" />
+                {runningCount} {t('accounts.runningLabel', 'نشطة')}
+              </span>
+              <span className="inline-flex items-center gap-1.5 bg-slate-500/10 px-2 sm:px-2.5 py-0.5 sm:py-1 border border-slate-500/25 rounded-full tabular-nums text-slate-700 dark:text-gray-300">
+                <span className="bg-slate-400 rounded-full w-1.5 h-1.5" />
+                {idleCount} {t('accounts.idleLabel', 'متوقفة')}
+              </span>
+              <span className="hidden sm:inline-flex items-center gap-1 bg-primary-500/15 px-2.5 py-1 border border-primary-500/30 rounded-full tabular-nums text-primary-700 dark:text-primary-300">
+                {activeCastles.length} {t('accounts.accountUnit')}
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
             <button
               onClick={() => setAddModalOpen(true)}
-              className="flex justify-center items-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl font-bold text-sm active:scale-[0.98] transition-all btn-primary"
+              className="flex sm:flex-initial flex-1 justify-center items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm active:scale-[0.98] btn-primary"
               id="add-account-btn"
             >
-              <Plus size={16} />
+              <Plus size={15} />
               <span>{t('accounts.addAccount')}</span>
             </button>
 
@@ -275,7 +275,7 @@ export function AccountsPage() {
               onClick={handleStopAll}
               disabled={stopAllBots.isPending || runningCount === 0}
               className={clsx(
-                'flex justify-center items-center gap-1.5 px-3 py-2 rounded-xl font-semibold text-xs sm:text-sm active:scale-[0.98] transition-all',
+                'flex sm:flex-initial flex-1 justify-center items-center gap-1.5 px-3 py-2 rounded-xl font-semibold text-xs sm:text-sm active:scale-[0.98]',
                 stopAllBots.isPending
                   ? 'btn-stopping-all bg-slate-100 dark:bg-gray-800 border border-slate-300 dark:border-gray-700 text-slate-700 dark:text-gray-400 cursor-not-allowed'
                   : 'btn-secondary disabled:opacity-50'
@@ -300,11 +300,7 @@ export function AccountsPage() {
 
         {/* Banner if banned or expired */}
         {isBanned && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3.5 bg-rose-500/15 shadow-xs p-3.5 sm:p-4 border border-rose-500/40 rounded-2xl text-rose-950 dark:text-rose-100 account-banner-banned"
-          >
+          <div className="flex items-center gap-3.5 bg-rose-500/15 p-3.5 sm:p-4 border border-rose-500/40 rounded-2xl text-rose-950 dark:text-rose-100 account-banner-banned">
             <div className="flex justify-center items-center bg-rose-500/20 border border-rose-500/40 rounded-xl w-9 h-9 text-rose-400 banner-icon-box shrink-0">
               <ShieldAlert size={20} />
             </div>
@@ -315,15 +311,11 @@ export function AccountsPage() {
               </div>
               <p className="mt-0.5 text-rose-800 dark:text-rose-300/90 text-xs banner-desc">{t('accounts.bannedBanner')}</p>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {!isBanned && isExpired && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3.5 bg-rose-500/15 shadow-xs p-3.5 sm:p-4 border border-rose-500/35 rounded-2xl text-rose-950 dark:text-rose-100 account-banner-expired"
-          >
+          <div className="flex items-center gap-3.5 bg-rose-500/15 p-3.5 sm:p-4 border border-rose-500/35 rounded-2xl text-rose-950 dark:text-rose-100 account-banner-expired">
             <div className="flex justify-center items-center bg-rose-500/20 border border-rose-500/40 rounded-xl w-9 h-9 text-rose-400 banner-icon-box shrink-0">
               <AlertTriangle size={20} />
             </div>
@@ -334,12 +326,12 @@ export function AccountsPage() {
               </div>
               <p className="mt-0.5 text-rose-800 dark:text-rose-300/90 text-xs banner-desc">{t('accounts.expiredBanner')}</p>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* Batch Settings Accordion Header */}
         {activeCastles.length > 0 && (
-          <div className="bg-primary-950/20 shadow-lg border border-primary-500/25 rounded-2xl w-full overflow-hidden batch-settings-card glass-card">
+          <div className="bg-primary-950/20 border border-primary-500/20 rounded-2xl w-full overflow-hidden batch-settings-card glass-card">
             {/* Clickable Header Bar: clicking anywhere on this header bar toggles the batch settings open/closed */}
             <div
               onClick={handleToggleBatchSettings}
@@ -350,11 +342,11 @@ export function AccountsPage() {
                 'flex justify-between items-center px-3.5 sm:px-5 py-2 sm:py-2.5 w-full cursor-pointer select-none batch-settings-header',
                 showBatchSettings
                   ? 'bg-primary-900/30 border-b border-white/10'
-                  : 'hover:bg-primary-900/25 active:bg-primary-900/40'
+                  : 'active:bg-primary-900/40'
               )}
             >
               <div className="flex items-center gap-2.5 sm:gap-3">
-                <div className="flex justify-center items-center bg-primary-500/20 shadow-sm border border-primary-500/30 rounded-lg w-7 sm:w-8 h-7 sm:h-8 text-primary-400 batch-icon-pod shrink-0">
+                <div className="flex justify-center items-center bg-primary-500/20 border border-primary-500/30 rounded-lg w-7 sm:w-8 h-7 sm:h-8 text-primary-400 batch-icon-pod shrink-0">
                   <SlidersHorizontal size={15} />
                 </div>
                 <div className="text-start">
@@ -362,7 +354,7 @@ export function AccountsPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 sm:gap-2 bg-primary-500/15 hover:bg-primary-500/25 px-2.5 sm:px-3 py-1 sm:py-1.5 border border-primary-500/30 rounded-lg font-semibold text-primary-400 text-xs batch-toggle-pill shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-primary-500/15 px-2.5 sm:px-3 py-1 sm:py-1.5 border border-primary-500/30 rounded-lg font-semibold text-primary-400 text-xs batch-toggle-pill shrink-0">
                 <span className="hidden sm:inline">{showBatchSettings ? t('accounts.closeSettings') : t('accounts.openTaskList')}</span>
                 <span className="font-bold text-xs">{showBatchSettings ? '▲' : '▼'}</span>
               </div>
@@ -371,17 +363,17 @@ export function AccountsPage() {
             {hasOpenedBatch && (
               <div
                 className={clsx(
-                  'space-y-4 bg-slate-50/70 dark:bg-black/20 p-3.5 sm:p-5 w-full batch-settings-body',
+                  'space-y-3 sm:space-y-4 bg-slate-50/70 dark:bg-black/20 p-3 sm:p-5 w-full batch-settings-body',
                   showBatchSettings ? 'block' : 'hidden'
                 )}
               >
                 {/* Collapsible Dropdown: Target Accounts & Template Copy (مكون منسدل يغلق ويكون مغلق افتراضياً) */}
                 <div
                   className={clsx(
-                    'border rounded-xl overflow-hidden transition-colors batch-control-box',
+                    'border rounded-xl overflow-hidden batch-control-box',
                     showTargetAndTemplate
-                      ? 'bg-white dark:bg-white/[0.04] border-primary-500/40 shadow-sm'
-                      : 'bg-white/80 dark:bg-white/[0.02] border-gray-200 dark:border-white/8 hover:border-gray-300 dark:hover:border-white/15'
+                      ? 'bg-white dark:bg-white/[0.04] border-primary-500/40'
+                      : 'bg-white/80 dark:bg-white/[0.02] border-gray-200 dark:border-white/8'
                   )}
                 >
                   {/* Collapsible Header */}
@@ -410,7 +402,7 @@ export function AccountsPage() {
 
                     <div className="flex items-center gap-2 shrink-0">
                       <span className={clsx(
-                        'flex justify-center items-center rounded-md w-6 h-6 text-xs transition-transform duration-150',
+                        'flex justify-center items-center rounded-md w-6 h-6 text-xs',
                         showTargetAndTemplate ? 'bg-primary-500/20 text-primary-600 dark:text-primary-300 rotate-180' : 'text-gray-400'
                       )}>
                         ▼
@@ -420,7 +412,7 @@ export function AccountsPage() {
 
                   {/* Collapsible Body */}
                   {showTargetAndTemplate && (
-                    <div className="space-y-4 p-3.5 sm:p-4 pt-3 border-gray-200 dark:border-white/8 border-t">
+                    <div className="space-y-4 p-3 sm:p-4 pt-3 border-gray-200 dark:border-white/8 border-t">
                       {/* 1. الحسابات المستهدفة */}
                       <div className="space-y-2.5">
                         <div className="flex justify-between items-center">
@@ -433,7 +425,7 @@ export function AccountsPage() {
                               e.stopPropagation()
                               handleSelectAllBatch()
                             }}
-                            className="font-medium text-primary-600 hover:text-primary-700 dark:hover:text-primary-300 dark:text-primary-400 text-xs underline transition-colors cursor-pointer batch-select-all"
+                            className="font-medium text-primary-600 dark:text-primary-400 text-xs underline cursor-pointer batch-select-all"
                           >
                             {selectedBatchIds.length === activeCastles.length ? t('accounts.deselectAll') : t('accounts.selectAll')}
                           </button>
@@ -453,15 +445,15 @@ export function AccountsPage() {
                                 type="button"
                                 onClick={() => handleToggleBatchCastle(c.id)}
                                 className={clsx(
-                                  'flex items-center gap-1.5 px-2.5 py-1 border rounded-lg font-medium text-[11px] transition-all duration-150 cursor-pointer batch-castle-chip',
+                                  'flex items-center gap-1.5 px-2.5 py-1 border rounded-lg font-medium text-[11px] cursor-pointer batch-castle-chip',
                                   isSelected
-                                    ? 'chip-selected bg-primary-600/25 border-primary-500/60 text-slate-900 dark:text-white shadow-sm'
-                                    : 'chip-unselected bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/10 text-slate-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-white/20 hover:text-slate-900 dark:hover:text-gray-300'
+                                    ? 'chip-selected bg-primary-600/25 border-primary-500/60 text-slate-900 dark:text-white'
+                                    : 'chip-unselected bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/10 text-slate-600 dark:text-gray-400'
                                 )}
                               >
                                 <span
                                   className={clsx(
-                                    'flex justify-center items-center border rounded w-3.5 h-3.5 font-bold text-[10px] transition-colors chip-checkbox',
+                                    'flex justify-center items-center border rounded w-3.5 h-3.5 font-bold text-[10px] chip-checkbox',
                                     isSelected
                                       ? 'bg-primary-500 border-primary-400 text-white'
                                       : 'border-gray-400 dark:border-gray-600 bg-transparent text-transparent'
@@ -507,31 +499,20 @@ export function AccountsPage() {
                             </select>
                           </div>
 
-                          <div className="flex items-center self-end sm:self-auto gap-2 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => setShowBatchPresetModal(true)}
-                              disabled={batchUpdate.isPending || selectedBatchIds.length === 0}
-                              className="flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 disabled:opacity-50 shadow-sm px-3 py-1.5 border border-amber-500/40 rounded-lg font-bold text-amber-900 dark:text-amber-300 text-xs whitespace-nowrap active:scale-95 transition-all cursor-pointer"
-                              title={t('accounts.fixedPresetTooltip')}
-                            >
-                              <Sparkles size={14} className="text-amber-700 dark:text-amber-400" />
-                              <span>{t('accounts.fixedPreset')}</span>
-                            </button>
-
-                            {templateCastle && (
+                          {templateCastle && (
+                            <div className="flex items-center self-end sm:self-auto gap-2 shrink-0">
                               <button
                                 type="button"
                                 onClick={handleApplyAllTemplateSettings}
                                 disabled={batchUpdate.isPending || selectedBatchIds.length === 0}
-                                className="flex items-center gap-1.5 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 shadow-sm px-3 py-1.5 rounded-lg font-bold text-white text-xs active:scale-95 transition-all cursor-pointer"
+                                className="flex items-center gap-1.5 bg-primary-600 disabled:opacity-50 px-3 py-1.5 rounded-lg font-bold text-white text-xs active:scale-95 cursor-pointer"
                                 title={t('accounts.applyAllFromTemplate')}
                               >
                                 <CheckCheck size={14} />
                                 <span>{t('accounts.applyAllFromTemplate')}</span>
                               </button>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -571,7 +552,7 @@ export function AccountsPage() {
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="top-1/2 absolute bg-white/10 hover:bg-white/15 px-2 py-1 rounded-md text-gray-400 hover:text-white text-xs transition-colors -translate-y-1/2 cursor-pointer end-3"
+                className="top-1/2 absolute bg-white/10 px-2 py-1 rounded-md text-gray-400 text-xs -translate-y-1/2 cursor-pointer end-3"
                 title={t('accounts.clearSearch')}
               >
                 ✕
@@ -685,16 +666,6 @@ export function AccountsPage() {
         isAll={true}
         count={runningCount}
         isPending={stopAllBots.isPending}
-      />
-
-      {/* Confirm Batch Preset Modal */}
-      <ConfirmPresetModal
-        isOpen={showBatchPresetModal}
-        onClose={() => setShowBatchPresetModal(false)}
-        onConfirm={handleConfirmBatchPreset}
-        isBatch={true}
-        count={selectedBatchIds.length}
-        isPending={batchUpdate.isPending}
       />
 
       {/* Confirm Delete Castle Modal */}

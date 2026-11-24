@@ -67,7 +67,7 @@ export function LanguageDropdown({
   }, [isOpen])
 
   return (
-    <div ref={dropdownRef} className={clsx('relative inline-block text-start', className)}>
+    <div ref={dropdownRef} className={clsx('inline-block relative text-start', className)}>
       {/* زر القائمة المنسدلة الرئيسي */}
       <button
         type="button"
@@ -75,18 +75,18 @@ export function LanguageDropdown({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         className={clsx(
-          'flex items-center gap-1.5 rounded-lg border transition-all duration-150 cursor-pointer select-none',
+          'flex items-center gap-1.5 border rounded-lg cursor-pointer select-none',
           variant === 'compact'
             ? 'px-2 py-1 text-xs font-medium'
             : 'w-full px-2.5 py-1.5 text-xs font-medium justify-between',
           isOpen
-            ? 'bg-gray-200 dark:bg-white/12 border-primary-500/50 text-gray-900 dark:text-white shadow-xs'
-            : 'bg-gray-100 hover:bg-gray-200/80 dark:bg-white/6 dark:hover:bg-white/10 border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300'
+            ? 'bg-gray-200 dark:bg-white/12 border-primary-500/50 text-gray-900 dark:text-white'
+            : 'bg-gray-100 dark:bg-white/6 border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300'
         )}
       >
         <div className="flex items-center gap-1.5 min-w-0">
-          <Globe size={13} className="shrink-0 text-primary-600 dark:text-primary-400 opacity-90" />
-          <span className="shrink-0 text-xs leading-none">{currentLang.flag}</span>
+          <Globe size={13} className="opacity-90 text-primary-600 dark:text-primary-400 shrink-0" />
+          <span className="text-xs leading-none shrink-0">{currentLang.flag}</span>
           <span className="font-semibold text-[11px] sm:text-xs">
             {variant === 'compact' ? currentLang.short : currentLang.label}
           </span>
@@ -94,7 +94,7 @@ export function LanguageDropdown({
         <ChevronDown
           size={12}
           className={clsx(
-            'shrink-0 text-gray-400 transition-transform duration-200',
+            'text-gray-400 shrink-0',
             isOpen && 'rotate-180 text-primary-500'
           )}
         />
@@ -105,7 +105,7 @@ export function LanguageDropdown({
         <div
           role="listbox"
           className={clsx(
-            'absolute z-50 min-w-[135px] py-1 bg-white dark:bg-[#121915] border border-gray-200 dark:border-white/12 rounded-xl shadow-xl backdrop-blur-xl animate-in fade-in-50 zoom-in-95 duration-100 select-none',
+            'z-50 absolute bg-white dark:bg-[#121915] shadow-lg py-1 border border-gray-200 dark:border-white/12 rounded-xl min-w-[135px] select-none',
             placement === 'top'
               ? 'bottom-full mb-1.5 end-0'
               : 'top-full mt-1.5 end-0'
@@ -121,18 +121,18 @@ export function LanguageDropdown({
                 aria-selected={isSelected}
                 onClick={() => handleSelect(lang.code)}
                 className={clsx(
-                  'w-full flex items-center justify-between gap-2.5 px-3 py-1.5 text-xs transition-colors cursor-pointer text-start',
+                  'flex justify-between items-center gap-2.5 px-3 py-1.5 w-full text-xs text-start cursor-pointer',
                   isSelected
                     ? 'bg-primary-500/12 text-primary-600 dark:text-primary-400 font-semibold'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/8 hover:text-gray-900 dark:hover:text-white'
+                    : 'text-gray-700 dark:text-gray-300'
                 )}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs shrink-0 leading-none">{lang.flag}</span>
+                  <span className="text-xs leading-none shrink-0">{lang.flag}</span>
                   <span className="truncate">{lang.label}</span>
                 </div>
                 {isSelected && (
-                  <Check size={13} className="shrink-0 text-primary-600 dark:text-primary-400" />
+                  <Check size={13} className="text-primary-600 dark:text-primary-400 shrink-0" />
                 )}
               </button>
             )

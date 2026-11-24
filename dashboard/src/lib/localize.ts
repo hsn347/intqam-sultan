@@ -333,3 +333,57 @@ export function localizeApiError(rawError?: string | null, t?: TFunction): strin
   return str
 }
 
+/**
+ * Translates in-game castle ban/seal codes & raw backend seal reasons into concise localized text (AR, EN, TR).
+ */
+export function localizeCastleSealReason(
+  sealType?: number | null,
+  rawReason?: string | null,
+  t?: TFunction
+): string {
+  const cleanRaw = String(rawReason || '')
+    .replace(/❌\s*\[حساب محظور\]\s*(الحساب مجمد أو محظور من إدارة اللعبة:\s*)?/g, '')
+    .trim()
+
+  const inferCode = (): string | null => {
+    if (sealType !== null && sealType !== undefined && !Number.isNaN(Number(sealType))) {
+      return String(sealType)
+    }
+    const low = cleanRaw.toLowerCase()
+    if (!low) return null
+    if (cleanRaw.includes('بيع أو نقل') || low.includes('sell resource')) return '1'
+    if (cleanRaw.includes('حسابات متعددة') || low.includes('too many accounts')) return '2'
+    if (cleanRaw.includes('الدردشة') || cleanRaw.includes('الشتائم') || low.includes('curse') || low.includes('chat violation')) return '3'
+    if (cleanRaw.includes('محذوف') || cleanRaw.includes('ملغى') || low.includes('account deleted')) return '4'
+    if (cleanRaw.includes('تجميد') || low.includes('suspended') || low.includes('abnormal')) return '5'
+    if (cleanRaw.includes('شحن غير قانوني') || low.includes('illegal recharge')) return '10'
+    if (cleanRaw.includes('دعوة') || low.includes('invite')) return '11'
+    if (cleanRaw.includes('بصمة الجهاز') || low.includes('device signature')) return '99'
+    if (cleanRaw.includes('حظر عام') || low.includes('default seal')) return '0'
+    return null
+  }
+
+  const code = inferCode()
+  if (t && code !== null) {
+    const defaults: Record<string, string> = {
+      '0': 'حظر من إدارة اللعبة',
+      '1': 'حظر بسبب بيع أو نقل الموارد',
+      '2': 'حظر بسبب تعدد الحسابات',
+      '3': 'حظر بسبب مخالفة الدردشة',
+      '4': 'الحساب محذوف أو ملغى',
+      '5': 'تجميد الحساب (نشاط غير طبيعي)',
+      '10': 'حظر بسبب شحن غير قانوني',
+      '11': 'حظر بسبب رسائل الدعوة في الدردشة',
+      '99': 'حظر بصمة الجهاز',
+    }
+    if (code in defaults) {
+      return t(`sealReasons.${code}`, defaults[code])
+    }
+  }
+
+  if (cleanRaw) {
+    return cleanRaw
+  }
+  return t ? t('sealReasons.fallback', 'تم حظر أو تجميد الحساب من إدارة اللعبة') : 'تم حظر أو تجميد الحساب من إدارة اللعبة'
+}
+

@@ -31,15 +31,14 @@ export function Toggle({ value, onChange, disabled, size = 'md' }: ToggleProps) 
         height: `${height}px`,
         minWidth: `${width}px`,
         ...(value ? {
-          background: 'linear-gradient(90deg, var(--theme-primary), var(--theme-primary-light))',
-          boxShadow: '0 0 12px rgba(var(--theme-primary-rgb), 0.5)',
+          backgroundColor: 'var(--theme-primary)',
         } : {}),
       }}
       className={clsx(
-        'relative inline-flex items-center rounded-full transition-all duration-200 cursor-pointer flex-shrink-0 focus:outline-none select-none p-0.5 active:scale-95',
+        'inline-flex relative flex-shrink-0 items-center p-0.5 rounded-full focus:outline-none active:scale-95 transition-colors duration-150 cursor-pointer select-none',
         value
-          ? 'shadow-sm'
-          : 'bg-gray-700 hover:bg-gray-600 border border-white/10 shadow-inner',
+          ? 'border border-transparent'
+          : 'bg-gray-700 border border-white/10',
         disabled && 'opacity-40 cursor-not-allowed active:scale-100'
       )}
     >
@@ -49,7 +48,7 @@ export function Toggle({ value, onChange, disabled, size = 'md' }: ToggleProps) 
           height: `${knobSize}px`,
           transform: value ? `translateX(${travel}px)` : 'translateX(0px)',
         }}
-        className="block rounded-full bg-white shadow-md transition-transform duration-200 ease-out pointer-events-none"
+        className="block bg-white shadow-md rounded-full transition-transform duration-200 ease-out pointer-events-none"
       />
     </button>
   )

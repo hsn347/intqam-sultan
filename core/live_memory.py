@@ -24,7 +24,9 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import json
 import logging
+import re
 import threading
 import time
 from typing import (
@@ -204,6 +206,63 @@ KeySpec = Union[
     Callable[[Dict[str, Any]], Optional[str]],
 ]
 
+_BUFF_EXTRA_RE = re.compile(r"bid_(\d+)_iid_(\d+)")
+
+
+def _extract_buff_extra_bid_iid(item: Any) -> Tuple[Optional[str], Optional[str]]:
+    """Extracts normalized (bid, iid) strings from a buff's extra payload or top-level fields."""
+    if not isinstance(item, Mapping):
+        return None, None
+    bid = item.get("bid")
+    iid = item.get("iid")
+    extra = item.get("extra")
+    if isinstance(extra, str):
+        s = extra.strip()
+        if s.startswith("{"):
+            try:
+                extra = json.loads(s)
+            except Exception:
+                extra = None
+        else:
+            m = _BUFF_EXTRA_RE.search(s)
+            if m:
+                if bid is None:
+                    bid = m.group(1)
+                if iid is None:
+                    iid = m.group(2)
+    if isinstance(extra, Mapping):
+        if bid is None:
+            bid = extra.get("bid")
+        if iid is None:
+            iid = extra.get("iid")
+    bid_str = str(bid).strip() if bid is not None and str(bid).strip() != "" else None
+    iid_str = str(iid).strip() if iid is not None and str(iid).strip() != "" else None
+    return bid_str, iid_str
+
+
+def _extract_buff_identity(item: Dict[str, Any]) -> Optional[str]:
+    """
+    Composite identity key for buffCtrl entries.
+    Building-scoped buffs share identical `id` (e.g. 5020 for all farms) and are
+    uniquely distinguished by `(bid, iid)` inside `extra` (matching Lua buffSourceList).
+    """
+    if not isinstance(item, dict):
+        return None
+    buff_id = item.get("id")
+    if buff_id is None:
+        buff_id = item.get("buffId")
+    if buff_id is None:
+        buff_id = item.get("effectType")
+    if buff_id is None:
+        return None
+
+    base = f"buff:{str(buff_id).strip()}"
+    bid_str, iid_str = _extract_buff_extra_bid_iid(item)
+    if bid_str is not None and iid_str is not None:
+        return f"{base}|bid:{bid_str}|iid:{iid_str}"
+    return base
+
+
 DEFAULT_KEY_MAPS: Dict[str, KeySpec] = {
     # City buildings: match by 'index' (including binfo.index); fallback to (bid, iid)
     "cityCtrl.blist": ("index", ("bid", "iid")),
@@ -214,11 +273,11 @@ DEFAULT_KEY_MAPS: Dict[str, KeySpec] = {
     "heroCtrl": ("id", "heroId", "cId"),
     "heroes": ("id", "heroId", "cId"),
 
-    # Buffs: match by id or buffId
-    "buffCtrl": ("id", "buffId"),
-    "buffCtrl.list": ("id", "buffId"),
-    "buffCtrl.buffList": ("id", "buffId"),
-    "newBuffCtrl": ("id", "buffId"),
+    # Buffs: composite identity (id/buffId + extra.bid + extra.iid when building-scoped)
+    "buffCtrl": _extract_buff_identity,
+    "buffCtrl.list": _extract_buff_identity,
+    "buffCtrl.buffList": _extract_buff_identity,
+    "newBuffCtrl": _extract_buff_identity,
 
     # Queues: match by qtype, queuetype, queueId, or id
     "queueCtrl": ("qtype", "queuetype", "queueId", "id"),
@@ -721,10 +780,10 @@ class LiveMemoryEngine:
         "SERVER_STATUS": ("_handle_notify_server_status", ("serverStatus",), False),
         "NOTIFY_SERVER_STATUS": ("_handle_notify_server_status", ("serverStatus",), False),
 
-        # --- Feature & Base Tasks Controllers (0-Network Direct Merge) ---
-        "55": ("_handle_notify_generic_controller", ("everydayTaskCtrl",), True),
-        "EVERYDAY_TASK": ("_handle_notify_generic_controller", ("everydayTaskCtrl",), True),
-        "NOTIFY_EVERYDAY_TASK": ("_handle_notify_generic_controller", ("everydayTaskCtrl",), True),
+        # --- Feature & Base Tasks Controllers (0-Network Direct Sync) ---
+        "55": ("_handle_notify_everyday_task", ("everydayTaskCtrl",), True),
+        "EVERYDAY_TASK": ("_handle_notify_everyday_task", ("everydayTaskCtrl",), True),
+        "NOTIFY_EVERYDAY_TASK": ("_handle_notify_everyday_task", ("everydayTaskCtrl",), True),
         "49": ("_handle_notify_generic_controller", ("escortCtrl",), True),
         "ESCORT": ("_handle_notify_generic_controller", ("escortCtrl",), True),
         "NOTIFY_ESCORT": ("_handle_notify_generic_controller", ("escortCtrl",), True),
@@ -881,7 +940,11 @@ class LiveMemoryEngine:
                 controllers = self.extract_controllers(packet)
                 if controllers:
                     merged_controllers.extend([k for k in controllers.keys() if k not in merged_controllers])
-                    smart_deep_merge(self.init_data, controllers, in_place=True)
+                    et_payload = controllers.pop("everydayTaskCtrl", None)
+                    if et_payload is not None:
+                        self._apply_everyday_task_payload(et_payload)
+                    if controllers:
+                        smart_deep_merge(self.init_data, controllers, in_place=True)
 
                     # Ensure both 'reslist' and 'resList' are kept in sync in cityCtrl
                     if "cityCtrl" in self.init_data and isinstance(self.init_data["cityCtrl"], dict):
@@ -950,6 +1013,7 @@ class LiveMemoryEngine:
                 "notify_id": str(notify_id) if notify_id is not None else None,
                 "notify_status": notify_status,
                 "notify_detail": notify_detail,
+                "notify_data": notify_data if is_notification else None,
                 "notify_controllers": list(notify_targets),
                 "new_value_summary": notify_summary,
                 "controller_status": controller_status,
@@ -1376,7 +1440,7 @@ class LiveMemoryEngine:
                                         else:
                                             parts.append(f"{cat}.{tid}")
 
-            elif handler_name == "_handle_notify_generic_controller":
+            elif handler_name in ("_handle_notify_generic_controller", "_handle_notify_everyday_task"):
                 keys = detail.get("keys", []) if isinstance(detail, dict) else []
                 keys_str = f" ({', '.join(str(k) for k in keys[:3])})" if keys else ""
                 ctrl_labels = {
@@ -1858,7 +1922,7 @@ class LiveMemoryEngine:
         for item in items:
             if not isinstance(item, dict):
                 continue
-            sync_type = str(item.get("syncType", ""))
+            sync_type = str(item.get("syncType") or item.get("type") or "")
 
             if sync_type == "openBuff":
                 buffs = item.get("list", [])
@@ -1866,18 +1930,38 @@ class LiveMemoryEngine:
                     target_list = _merge_keyed_lists(
                         target_list=target_list,
                         update_list=buffs,
-                        key_spec=("id", "buffId"),
+                        key_spec=_extract_buff_identity,
                         sub_path=("buffCtrl",),
                         key_maps=DEFAULT_KEY_MAPS
                     )
             elif sync_type in ("closeBuff", "buffFinish"):
-                effect_ids = item.get("list") if sync_type == "closeBuff" else [item.get("id")]
-                if isinstance(effect_ids, (list, tuple)):
-                    to_remove = {str(x) for x in effect_ids if x is not None}
-                    target_list = [
-                        b for b in target_list
-                        if not (isinstance(b, dict) and (str(b.get("id")) in to_remove or str(b.get("effectType")) in to_remove))
+                if sync_type == "closeBuff":
+                    effect_ids = item.get("list")
+                    fin_bid, fin_iid = None, None
+                else:
+                    effect_ids = [
+                        val for val in (item.get("id"), item.get("buffId"), item.get("effectType"))
+                        if val is not None
                     ]
+                    fin_bid, fin_iid = _extract_buff_extra_bid_iid(item)
+                if isinstance(effect_ids, (list, tuple)) and effect_ids:
+                    to_remove = {str(x) for x in effect_ids if x is not None}
+
+                    def _matches_buff_to_remove(entry: Any) -> bool:
+                        if not isinstance(entry, dict):
+                            return False
+                        id_match = (
+                            str(entry.get("id")) in to_remove
+                            or str(entry.get("buffId")) in to_remove
+                            or str(entry.get("effectType")) in to_remove
+                        )
+                        if not id_match:
+                            return False
+                        if fin_bid is not None and fin_iid is not None:
+                            return _extract_buff_extra_bid_iid(entry) == (fin_bid, fin_iid)
+                        return True
+
+                    target_list = [b for b in target_list if not _matches_buff_to_remove(b)]
                     # محاكاة سلوك العميل الرسمي (lordSkillModule callback): بدء تبريد مهارة الإنقاذ فور انتهاء الباف بعد المعركة
                     now_ts = int(time.time())
                     if "4501" in to_remove or "26" in to_remove:
@@ -1904,7 +1988,7 @@ class LiveMemoryEngine:
                     target_list = _merge_keyed_lists(
                         target_list=target_list,
                         update_list=[item],
-                        key_spec=("id", "buffId"),
+                        key_spec=_extract_buff_identity,
                         sub_path=("buffCtrl",),
                         key_maps=DEFAULT_KEY_MAPS
                     )
@@ -2079,6 +2163,69 @@ class LiveMemoryEngine:
             time_reward["isReceive"] = 1
             time_reward["sequence"] = 1
             time_reward["isAllReceive"] = 0
+
+    def _apply_everyday_task_payload(self, payload: Any) -> List[str]:
+        """
+        تطبيق تحديثات everydayTaskCtrl بالاستبدال الكامل لحقول النشاط اليومي
+        مطابقاً تماماً لدالة everydayTaskCtrl:notifyHandler في سورس اللعبة الرسمي
+        لمنع تراكم المفاتيح الوهمية أو بقايا اليوم السابق في eventInfo.
+        """
+        if not isinstance(payload, dict):
+            return []
+
+        inner = payload.get("initData") or payload.get("data")
+        src = inner if isinstance(inner, dict) else payload
+
+        current = self.init_data.get("everydayTaskCtrl")
+        if not isinstance(current, dict):
+            current = {}
+            self.init_data["everydayTaskCtrl"] = current
+
+        if src.get("isNewDay"):
+            current["eventInfo"] = {}
+            current["normalRecord"] = {}
+            current["chestRecord"] = {}
+
+        # حقول القواميس التي يستبدلها عميل اللعبة بالكامل ولا يدمجها
+        replace_dict_fields = ("eventInfo", "normalRecord", "chestRecord", "chestReward")
+        updated_keys: List[str] = []
+
+        for k, v in src.items():
+            if k in replace_dict_fields:
+                if isinstance(v, dict):
+                    current[k] = copy.deepcopy(v)
+                elif isinstance(v, list) and k in ("eventInfo", "normalRecord", "chestReward"):
+                    # Lua empty table {} serializes as [] in JSON
+                    current[k] = {}
+                else:
+                    current[k] = copy.deepcopy(v)
+            else:
+                current[k] = copy.deepcopy(v)
+            updated_keys.append(str(k))
+
+        if "everydayTask" in self.init_data:
+            self.init_data["everydayTask"] = self.init_data["everydayTaskCtrl"]
+
+        return updated_keys
+
+    def _handle_notify_everyday_task(self, notify_data: Any) -> Dict[str, Any]:
+        """
+        معالج إشعار النشاط اليومي الرسمي (NOTIFY_EVERYDAY_TASK = 55) باستبدال السجلات بالكامل
+        كما في everydayTaskCtrl:notifyHandler.
+        """
+        if notify_data is None:
+            return {"ctrl": "everydayTaskCtrl", "updated": False}
+
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        updated_keys: List[str] = []
+        for item in items:
+            updated_keys.extend(self._apply_everyday_task_payload(item))
+
+        return {
+            "ctrl": "everydayTaskCtrl",
+            "updated": bool(updated_keys),
+            "keys": list(dict.fromkeys(updated_keys))[:5],
+        }
 
     def _handle_notify_generic_controller(self, notify_data: Any, target_ctrl: str) -> Dict[str, Any]:
         """

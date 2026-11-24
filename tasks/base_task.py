@@ -337,7 +337,10 @@ COMMAND_HALL_EXP_BY_LV: Dict[int, int] = {
     12: 2400, 13: 2400, 14: 2400, 15: 2400, 16: 3200,
     17: 3200, 18: 3200, 19: 3200, 20: 3200, 21: 4800,
 }
-COMMAND_HALL_MAX_LEVEL = 21
+COMMAND_HALL_HIGH_LV_EXP = 4800  # newcommandhalllv.lua Index 21: lv = {21, 999}, needExp = 4800
+COMMAND_HALL_OPEN_LV = 3         # constant.lua: COMMANDHALL_OPEN_LV = 3
+COMMAND_HALL_MAX_LEVEL = 99999   # commandHallRead.getCommandLvMax() -> 99999
+COMMAND_HALL_DAILY_QUEST_TARGET = 3  # أكمل 3 مهام من مهام قاعة القيادة (daily_reward_point_config.lua: ID=4100033, type=33, quest=3)
 
 # ═════════════════════════════════════════════════════════════════════════
 # ثوابت وجداول مهارات ومواهب الأمير الرسمية للعبة (Lord Skills Standards)
@@ -897,7 +900,7 @@ RESOURCE_BOOST_KEY_MAP: Dict[str | int, str] = {
     "بلور": "crystal", "البلور": "crystal", "الماس": "crystal", "ألماس": "crystal", "الألماس": "crystal",
     "منجم_بلور": "crystal", "منجم بلور": "crystal", "مناجم بلور": "crystal", "منجم البلور": "crystal",
     "منجم الماس": "crystal", "منجم ألماس": "crystal", "منجم الألماس": "crystal",
-    "217": "crystal", 217: "crystal", "218": "crystal", 218: "crystal", "503201": "crystal", 503201: "crystal",
+    "207": "crystal", 207: "crystal", "217": "crystal", 217: "crystal", "218": "crystal", 218: "crystal", "503201": "crystal", 503201: "crystal",
 
     # 6. التسريعات العامة (General Speedups)
     "general": "general", "speedup": "general", "speedups": "general", "عام": "general", "عامة": "general",
@@ -946,7 +949,7 @@ RESOURCE_BOOST_CATALOG: Dict[str, Dict[str, Any]] = {
         "name_ar": "دعم منجم البلور",
         "name_en": "Crystal Mine Boost",
         "resource": "crystal",
-        "building_id": 217,
+        "building_id": 207,
         "duration_seconds": 86400,  # 24 ساعة = مضاعفة إنتاج منجم بلور لمدة يوم كامل
         "multiplier": 2.0,
     },
@@ -1008,19 +1011,8 @@ RESOURCE_BUILDING_METADATA: Dict[int, Dict[str, Any]] = {
         "boost_item_name": "دعم منجم الفضة",
         "effect_type": 36,
     },
-    217: {
-        "bid": 217,
-        "resource": "crystal",
-        "name_ar": "منجم بلور",
-        "plural_ar": "مناجم البلور",
-        "name_en": "Crystal Mine",
-        "boost_buff_id": 5131,
-        "boost_item_id": 503201,
-        "boost_item_name": "دعم منجم البلور",
-        "effect_type": 98,
-    },
-    218: {
-        "bid": 218,
+    207: {
+        "bid": 207,
         "resource": "crystal",
         "name_ar": "منجم بلور",
         "plural_ar": "مناجم البلور",
@@ -1031,6 +1023,13 @@ RESOURCE_BUILDING_METADATA: Dict[int, Dict[str, Any]] = {
         "effect_type": 98,
     },
 }
+
+# ربط المعرفات الاحتياطية لمنجم البلور بنفس التعريف دون تكرار
+for _legacy_crystal_bid in (217, 218):
+    RESOURCE_BUILDING_METADATA[_legacy_crystal_bid] = {
+        **RESOURCE_BUILDING_METADATA[207],
+        "bid": _legacy_crystal_bid,
+    }
 
 # ═════════════════════════════════════════════════════════════════════════
 # جداول حزم وباقات طاقة اللورد الرسمية للعبة (Stamina Packs Standards)
@@ -4696,6 +4695,168 @@ class BaseTask(ABC):
     # 5. استكشاف وجلب مهام قاعة القيادة (Command Hall Inspection)
     # ═════════════════════════════════════════════════════════════════════════
 
+    def _get_command_hall_ctrl(self) -> Optional[Dict[str, Any]]:
+        """
+        قراءة بيانات قاعة القيادة من الذاكرة الحية أولاً (0-Network Check)
+        مع توحيد المرجع بين المفتاحين الرسميين commandHall و commandHallCtrl.
+        """
+        hall = self.get_ctrl("commandHall")
+        ctrl = self.get_ctrl("commandHallCtrl")
+        chosen = hall if isinstance(hall, dict) and hall else (ctrl if isinstance(ctrl, dict) and ctrl else None)
+        if chosen is None:
+            if isinstance(hall, dict):
+                chosen = hall
+            elif isinstance(ctrl, dict):
+                chosen = ctrl
+
+        init_data = getattr(self.conn, "init_data", None)
+        if isinstance(chosen, dict) and isinstance(init_data, dict):
+            init_data["commandHall"] = chosen
+            init_data["commandHallCtrl"] = chosen
+        return chosen
+
+    def is_command_hall_unlocked(self) -> Tuple[bool, str]:
+        """
+        فحص فتح قاعة القيادة وفق ثابت اللعبة الرسمي (constant.lua -> COMMANDHALL_OPEN_LV = 3) (0-Network).
+        إذا كانت بيانات قاعة القيادة مشحونة فعلاً في الذاكرة الحية تُعتبر القاعة مفتوحة مباشرة.
+        """
+        hall_data = self._get_command_hall_ctrl()
+        has_hall = isinstance(hall_data, dict) and bool(
+            hall_data.get("commandLv") or hall_data.get("commonTaskData") or hall_data.get("armyGroupTaskData")
+        )
+        if has_hall:
+            return True, ""
+        c_lv = int(self.castle_level or 0)
+        if c_lv < COMMAND_HALL_OPEN_LV:
+            return (
+                False,
+                f"قاعة القيادة غير متوفرة لهذه القلعة (مستوى القلعة Lv.{c_lv} أقل من المستوى المطلوب Lv.{COMMAND_HALL_OPEN_LV}).",
+            )
+        return True, ""
+
+    @staticmethod
+    def get_command_hall_need_exp(command_lv: int) -> int:
+        """
+        حساب نقاط الخبرة المطلوبة للترقية من commandLv الحالي (0-Network):
+        مطابق لـ newcommandhalllv.lua و commandHallRead.getCommandLvNeedExp():
+          - المستويات 1..20: من جدول COMMAND_HALL_EXP_BY_LV.
+          - المستويات 21..999+: القيمة الرسمية الثابتة 4800 (Index 21: lv={21, 999}, needExp=4800).
+        """
+        try:
+            lv = int(command_lv or 0)
+        except (TypeError, ValueError):
+            lv = 0
+        if lv <= 0 or lv >= COMMAND_HALL_MAX_LEVEL:
+            return 0
+        return COMMAND_HALL_EXP_BY_LV.get(lv, COMMAND_HALL_HIGH_LV_EXP)
+
+    def _sync_command_hall_init_data(self, new_init: Any) -> Optional[Dict[str, Any]]:
+        """
+        مزامنة initData لقاعة القيادة مطابقاً لـ commandHallCtrl:setInitData في العميل الرسمي:
+        - عند وصول لقطة كاملة من السيرفر (تحتوي commandLv وحقول المهام)، يُستبدل المحتوى بالكامل
+          لمسح أي مهام محذوفة أو منتهية (مثل armyPioneerTaskData) وعدم إبقائها كبيانات شبحية.
+        - عند وصول تحديث جزئي، تُحدّث الحقول المرسلة فقط في الكائن المشترك.
+        - يحافظ على تطابق المرجع بين commandHall و commandHallCtrl دائماً.
+        """
+        if not isinstance(new_init, dict):
+            return None
+
+        init_store = getattr(self.conn, "init_data", None)
+        is_full_snapshot = (
+            "commandLv" in new_init
+            and any(k in new_init for k in ("commonTaskData", "taskList", "armyGroupTaskData", "nextRefreshTime"))
+        )
+
+        if not isinstance(init_store, dict):
+            return dict(new_init)
+
+        existing = init_store.get("commandHall")
+        if not isinstance(existing, dict):
+            existing = init_store.get("commandHallCtrl")
+
+        if isinstance(existing, dict):
+            if is_full_snapshot:
+                existing.clear()
+            existing.update(new_init)
+            target = existing
+        else:
+            target = dict(new_init)
+
+        init_store["commandHall"] = target
+        init_store["commandHallCtrl"] = target
+        return target
+
+    def _mark_command_hall_task_claimed(self, task_index: int, task_type: int = 0) -> None:
+        """تحديث حالة المهمة المسلمة محلياً (statue = 0) عند عدم إرجاع initData في الرد (0-Network)."""
+        idx = self._safe_int(task_index, 0)
+        if idx <= 0:
+            return
+        hall = self._get_command_hall_ctrl()
+        if not isinstance(hall, dict):
+            return
+
+        for task_arr_key in ("commonTaskData", "taskList", "finishTaskData"):
+            arr = hall.get(task_arr_key)
+            items = arr.values() if isinstance(arr, dict) else (arr if isinstance(arr, list) else [])
+            for itm in items:
+                if isinstance(itm, dict) and self._safe_int(itm.get("index"), 0) == idx:
+                    itm["statue"] = 0
+
+        if task_type in (0, 2):
+            ap = hall.get("armyPioneerTaskData")
+            if isinstance(ap, dict) and self._safe_int(ap.get("index"), 0) == idx:
+                ap["statue"] = 0
+
+        if task_type in (0, 1):
+            ag = hall.get("armyGroupTaskData")
+            if isinstance(ag, dict) and self._safe_int(ag.get("index"), 0) == idx:
+                ag["statue"] = 0
+
+    def get_command_hall_daily_status(self) -> Tuple[bool, int, int]:
+        """
+        مصدر الحقيقة الموحد لحالة مهمة قاعة القيادة بالنشاط اليومي (4100033 | type=33 | quest=3 | limitTime=1):
+        1. إذا سجّل السيرفر اكتمال المهمة اليومية في everydayTaskCtrl.eventInfo (قيمة >= 1 عبر 1000/1 أو NOTIFY 55)،
+           يُعد الهدف منجزاً بالكامل (3/3).
+        2. وإلا يقرأ عدد المهام الفرعية المسلَّمة بنجاح (2274/8) في الجلسة الحالية مقارنةً بالهدف الرسمي (3).
+        يعيد: (is_completed, progress_count, target_count)
+        """
+        everyday_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
+        if isinstance(everyday_ctrl, dict):
+            event_info = everyday_ctrl.get("eventInfo")
+            if isinstance(event_info, dict):
+                for k in ("33", "4100033", 33, 4100033):
+                    if k in event_info and self._safe_int(event_info.get(k), 0) >= 1:
+                        return True, COMMAND_HALL_DAILY_QUEST_TARGET, COMMAND_HALL_DAILY_QUEST_TARGET
+
+        local_subtasks = self._safe_int(getattr(self.conn, "_command_hall_daily_subtasks", 0), 0)
+        if local_subtasks >= COMMAND_HALL_DAILY_QUEST_TARGET:
+            return True, min(local_subtasks, COMMAND_HALL_DAILY_QUEST_TARGET), COMMAND_HALL_DAILY_QUEST_TARGET
+        return False, max(0, local_subtasks), COMMAND_HALL_DAILY_QUEST_TARGET
+
+    def _record_command_hall_subtask_completion(self, count: int = 1) -> int:
+        """
+        تسجيل إنجاز مهمة فرعية في قاعة القيادة بعد نجاح الاستلام الفعلي (2274/8) فقط:
+        لا يُرفع عداد النشاط اليومي (33) محلياً إلى 1 إلا بعد بلوغ 3 مهام مكتملة (quest=3)،
+        حتى لا تتوقف الدورة مبكراً بعد 1/3 ولا تُضاف 10 نقاط وهمية إلى DailyQuestTask.
+        """
+        if self.conn is None:
+            return 0
+        cur = self._safe_int(getattr(self.conn, "_command_hall_daily_subtasks", 0), 0) + max(0, int(count))
+        setattr(self.conn, "_command_hall_daily_subtasks", cur)
+
+        if cur >= COMMAND_HALL_DAILY_QUEST_TARGET:
+            everyday_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
+            if isinstance(everyday_ctrl, dict):
+                event_info = everyday_ctrl.setdefault("eventInfo", {})
+                if isinstance(event_info, dict):
+                    already_done = any(
+                        k in event_info and self._safe_int(event_info.get(k), 0) >= 1
+                        for k in ("33", "4100033", 33, 4100033)
+                    )
+                    if not already_done:
+                        self.record_daily_quest_event(33, 1)
+        return cur
+
     async def get_command_hall_tasks(self, force_sync: bool = False) -> Dict[str, Any]:
         """
         جلب وتصنيف كافة مهام قاعة القيادة وحالتها بدقة استناداً إلى كود اللعبة الرسمي:
@@ -4710,16 +4871,17 @@ class BaseTask(ABC):
         - توفير ملخص شامل للقاعة (المستوى، نقاط الخبرة، هل يمكن الترقية، تقدم النشاط اليومي 33).
         """
         # 0. فحص استباقي لمستوى القلعة عبر castle_level لمنع أي استعلام شبكي مشبوه (0-Network Check)
-        if self.castle_level < 5:
+        unlocked, lock_err = self.is_command_hall_unlocked()
+        if not unlocked:
             return {
                 "success": False,
-                "error": f"قاعة القيادة غير متوفرة لهذه القلعة (مستوى القلعة Lv.{self.castle_level} أقل من المستوى المطلوب Lv.5).",
+                "error": lock_err,
                 "castle_level": self.castle_level,
                 "tasks": [],
             }
 
         # 1. فحص الذاكرة الحية (0-Network)
-        hall_data = self.get_ctrl("commandHall")
+        hall_data = self._get_command_hall_ctrl()
         has_cached = isinstance(hall_data, dict) and bool(
             hall_data.get("commandLv") or hall_data.get("commonTaskData") or hall_data.get("armyGroupTaskData")
         )
@@ -4738,16 +4900,7 @@ class BaseTask(ABC):
                     init_data = resp
 
                 if isinstance(init_data, dict):
-                    if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
-                        cached = self.conn.init_data.setdefault("commandHall", {})
-                        if isinstance(cached, dict):
-                            cached.update(init_data)
-                            hall_data = cached
-                        else:
-                            self.conn.init_data["commandHall"] = init_data
-                            hall_data = init_data
-                    else:
-                        hall_data = init_data
+                    hall_data = self._sync_command_hall_init_data(init_data) or init_data
 
         if not isinstance(hall_data, dict):
             return {
@@ -4771,23 +4924,11 @@ class BaseTask(ABC):
         next_refresh_time = self._safe_int(hall_data.get("nextRefreshTime"), 0)
         now_ts = int(time.time())
         next_refresh_remaining = max(0, next_refresh_time - now_ts) if next_refresh_time > 0 else 0
-        need_exp = COMMAND_HALL_EXP_BY_LV.get(cmd_lv, 0)
+        need_exp = self.get_command_hall_need_exp(cmd_lv)
         can_upgrade = (cmd_lv < COMMAND_HALL_MAX_LEVEL) and (need_exp > 0) and (cmd_exp >= need_exp)
 
-        # فحص إنجاز النشاط اليومي (مهمة 33 في everydayTaskCtrl)
-        daily_quest_completed = False
-        daily_progress = 0
-        everyday_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
-        if isinstance(everyday_ctrl, dict):
-            event_info = everyday_ctrl.get("eventInfo")
-            if isinstance(event_info, dict):
-                for k in ("33", "4100033", 33, 4100033):
-                    if k in event_info:
-                        val = self._safe_int(event_info.get(k), 0)
-                        if val >= 1:
-                            daily_quest_completed = True
-                            daily_progress = val
-                            break
+        # فحص إنجاز النشاط اليومي (مهمة 33 في everydayTaskCtrl — 3 مهام قاعة قيادة)
+        daily_quest_completed, daily_progress, _ = self.get_command_hall_daily_status()
 
         summary = {
             "command_lv": cmd_lv,
@@ -4900,7 +5041,12 @@ class BaseTask(ABC):
                     quality = q_mod
             quality_name = COMMAND_HALL_QUALITY_NAMES.get(quality, f"مستوى {quality}")
 
-            stamina_cost = 0 if raw_type == 6 else (5 if raw_type in (3, 4) else self._safe_int(item.get("consume"), 10))
+            default_consume = 0 if raw_type == 1 else self.get_command_hall_task_spec(task_id)["consume"]
+            stamina_cost = (
+                self._safe_int(item.get("consume"), default_consume)
+                if item.get("consume") is not None
+                else default_consume
+            )
 
             pos = None
             obj = item.get("obj")
@@ -5018,10 +5164,14 @@ class BaseTask(ABC):
         if spec:
             return {"recommendArmy": spec[0], "recommendHero": spec[1], "consume": spec[2]}
         # احتياطي في حال أضافت اللعبة مستويات أعلى مستقبلاً
+        if 1000 <= tid < 2000:
+            return {"recommendArmy": 0, "recommendHero": 0, "consume": 0}
         if 2000 <= tid < 3000:
             return {"recommendArmy": 142650, "recommendHero": 320200, "consume": 5}
         if 5000 <= tid < 6000:
             return {"recommendArmy": 110900, "recommendHero": 300200, "consume": 5}
+        if 3000 <= tid < 5000 or 6000 <= tid < 7000:
+            return {"recommendArmy": 0, "recommendHero": 0, "consume": 5}
         return {"recommendArmy": 5630, "recommendHero": 120200, "consume": 5}
 
     def prepare_command_hall_combat_formation(
@@ -5398,23 +5548,11 @@ class BaseTask(ABC):
             # تحديث الذاكرة الحية (كلا المفتاحين commandHall و commandHallCtrl)
             init_data = rspdata.get("initData") if isinstance(rspdata, dict) else None
             if isinstance(init_data, dict):
-                if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
-                    for ck in ("commandHall", "commandHallCtrl"):
-                        cached = self.conn.init_data.setdefault(ck, {})
-                        if isinstance(cached, dict):
-                            cached.update(init_data)
+                self._sync_command_hall_init_data(init_data)
             else:
-                for ck in ("commandHall", "commandHallCtrl"):
-                    cached_hall = self.get_ctrl(ck)
-                    if isinstance(cached_hall, dict):
-                        for task_arr_key in ("commonTaskData", "taskList"):
-                            arr = cached_hall.get(task_arr_key)
-                            items = arr.values() if isinstance(arr, dict) else (arr if isinstance(arr, list) else [])
-                            for itm in items:
-                                if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
-                                    itm["statue"] = 0
+                self._mark_command_hall_task_claimed(task_index, task_type)
 
-            self.record_daily_quest_event(33, 1)
+            self._record_command_hall_subtask_completion(1)
             self.log(f"✅ [قاعة القيادة] تم حسم المعركة واستلام جوائز {task_title} #{task_index} بنجاح!")
         else:
             claim_err = claim_resp.get("err") if isinstance(claim_resp, dict) else "no_response"
@@ -5453,140 +5591,206 @@ class BaseTask(ABC):
             "message": f"تم إنجاز معركة {task_title} #{task_index} واستلام الجوائز بنجاح." if claim_success else f"فشلت معركة {task_title} #{task_index} ولم تُستلم الجائزة.",
         }
 
-    async def execute_command_hall_snipe_task(
+    async def _execute_command_hall_instant_task(
         self,
         task: Dict[str, Any],
-        wait_seconds: float = 2.5,
+        expected_type: int,
+        title_ar: str,
+        icon: str,
+        err_label: str,
+        success_msg: str,
+        wait_seconds: float,
+        sim_jitter: Optional[Tuple[float, float]] = None,
+        min_safety_stamina: int = 10,
+        strict_type: bool = False,
     ) -> Dict[str, Any]:
         """
-        إنجاز مهمة القناص الصامت (Snipe Hunter Task - نوع 6) بقاعة القيادة:
-        1. الفحص القبلي للجاهزية (0-Network Pre-flight):
-           - التحقق من نوع المهمة (type == 6) وصحة معرف الفهرس (index > 0).
-           - التحقق من أن حالة المهمة قابلة للإنجاز (statue in (1, 2)).
-        2. محاكاة السلوك البشري الطبيعي للعبة (Human-like Simulation):
-           - في العميل الرسمي، يشاهد اللاعب حركة الكشاف (2 ثانية) ثم يرمي الأسهم في اللعبة المصغرة (~1.0s).
-           - الانتظار الآمن (افتراضياً 2.5 ثانية) يضمن التوافق التام مع نمط اللعب البشري وحماية الحساب من أي شذوذ.
-        3. إرسال حزمة الإنهاء الرسمية المباشرة للسيرفر:
-           - CMD: 2274 (CMD_COMMAND_HALL_MODULE)
-           - SubCMD: 5 (REQ_COMMAND_HALL_FINISH_TASK)
-           - Payload: {"index": task_index}
-        4. استلام الجوائز المباشرة وتحديث الذاكرة الحية (0-Network Cache Sync):
-           - دمج بيانات initData المحدثة في ذاكرة قاعة القيادة.
-           - تسجيل اكتمال المهمة (statue = 0) في الذاكرة الحية لمنع تكرار استدعائها.
+        منفّذ موحّد للمهام الفورية بقاعة القيادة (القناص 6، إنقاذ القرويين 4، المعلومات العسكرية 3):
+        - فحص 0-Network المسبق للصلاحية والنوع وحد أمان الطاقة (consume = 5 وفق newcommandhalltask.lua).
+        - التخطي الآمن لطلب الإنهاء (2274/5) عند اكتمال المهمة مسبقاً (statue == 3) بدون خصم طاقة إضافي.
+        - تثبيت الإنجاز واستلام الجوائز عبر (2274/8) وتحديث الذاكرة الحية بالكامل.
         """
         if not isinstance(task, dict):
             return {"success": False, "reason": "كائن المهمة غير صالح أو مفقود."}
 
-        task_id = self._safe_int(task.get("task_id") or task.get("taskID") or task.get("Index"), 0)
+        task_id = self._safe_int(task.get("task_id") or task.get("taskID") or task.get("Index") or task.get("id"), 0)
         task_index = self._safe_int(task.get("index"), 0)
         task_type = self._safe_int(task.get("type"), 0)
         if task_type == 0 and task_id > 0:
             task_type = task_id // 1000
+        if task_type == 0 and not strict_type:
+            task_type = expected_type
 
-        # التحقق الصارم من أن المهمة هي مهمة القناص الصامت (نوع 6)
-        if task_type != 6:
-            return {
-                "success": False,
-                "reason": f"هذه الدالة مخصصة حصراً لمهام القناص الصامت (نوع 6) وليست للنوع {task_type}.",
-            }
+        if task_type != expected_type:
+            if strict_type:
+                return {
+                    "success": False,
+                    "reason": f"هذه الدالة مخصصة حصراً لمهام {title_ar} (نوع {expected_type}) وليست للنوع {task_type}.",
+                }
+            self.log(f"⚠️ [قاعة القيادة] تحذير: نوع المهمة (#{task_index}) هو {task_type} وليس {expected_type} ({title_ar}).")
 
         if task_index <= 0:
-            return {"success": False, "reason": "معرف مؤشر المهمة (index) غير صالح."}
-
-        quality_name = task.get("quality_name_ar") or str(task.get("quality", ""))
-        self.log(
-            f"🎯 [قاعة القيادة] بدء مهمة القناص الصامت #{task_index} (ID: {task_id} | جودة: {quality_name})..."
-        )
-
-        # محاكاة زمنية بشرية آمنة لحل اللعبة المصغرة
-        sim_wait = max(1.0, float(wait_seconds))
-        await asyncio.sleep(sim_wait)
-
-        # إرسال طلب الإنهاء الرسمي المباشر للميني جيم (CMD 2274 / SubCMD 5)
-        payload = {"index": task_index}
-        resp = await self.safe_query(
-            CMD_COMMAND_HALL_MODULE,
-            REQ_COMMAND_HALL_FINISH_TASK,
-            payload,
-            min_delay=0.4,
-            max_delay=0.8,
-        )
-
-        if not isinstance(resp, dict) or str(resp.get("err", resp.get("code", "0"))).strip() not in ("0", "Err_None"):
-            err_msg = resp.get("err") if isinstance(resp, dict) else "لم يرد استجابة من السيرفر"
-            self.log(f"⚠️ [قاعة القيادة] تعذر إنجاز مهمة القناص الصامت #{task_index} (الخطأ: {err_msg}).")
             return {
                 "success": False,
-                "reason": f"فشل طلب إنهاء مهمة القناص: {err_msg}",
-                "response": resp,
+                "reason": f"رقم فهرس المهمة غير صالح (index={task_index})" if not strict_type else "معرف مؤشر المهمة (index) غير صالح.",
+                "task_id": task_id,
+                "index": task_index,
             }
 
-        all_rewards: List[Dict[str, Any]] = []
-        rspdata = resp.get("rspdata") if isinstance(resp, dict) else {}
-        if isinstance(rspdata, dict) and "reward" in rspdata:
-            all_rewards.extend(rspdata.get("reward") or [])
-        elif isinstance(resp, dict) and "reward" in resp:
-            all_rewards.extend(resp.get("reward") or [])
+        statue = self._safe_int(task.get("statue"), 2)
+        quality_name = task.get("quality_name_ar") or str(task.get("quality", ""))
+        stamina_cost = self._safe_int(task.get("stamina_cost"), 5)
+        if stamina_cost <= 0:
+            stamina_cost = 5
+        safe_margin = max(0, int(min_safety_stamina))
 
-        # استلام الجوائز وتثبيت الإنجاز النهائي عبر (CMD 2274 / SubCMD 8 - commitTask)
+        current_stamina = self.stamina
+        min_needed = stamina_cost + safe_margin
+        if statue != 3 and current_stamina < min_needed:
+            self.log(
+                f"🛑 [قاعة القيادة] طاقة اللورد غير كافية لمهمة {title_ar} #{task_index} "
+                f"({current_stamina} متوفر | المطلوب {min_needed} تشمل {safe_margin} حد أمان)."
+            )
+            return {
+                "success": False,
+                "reason": f"طاقة اللورد غير كافية ({current_stamina} < {min_needed})",
+                "task_id": task_id,
+                "index": task_index,
+                "stamina_spent": 0,
+            }
+
+        self.log(
+            f"{icon} [قاعة القيادة] بدء مهمة {title_ar} #{task_index} "
+            f"(ID: {task_id} | جودة: {quality_name} | استهلاك {stamina_cost} طاقة)..."
+        )
+
+        all_rewards: List[Dict[str, Any]] = []
+        finish_resp: Optional[Dict[str, Any]] = None
+        final_rspdata: Dict[str, Any] = {}
+
+        if statue != 3:
+            if sim_jitter is not None:
+                sim_wait = max(0.5, float(wait_seconds) + random.uniform(sim_jitter[0], sim_jitter[1]))
+            else:
+                sim_wait = max(1.0, float(wait_seconds))
+            await asyncio.sleep(sim_wait)
+
+            finish_resp = await self.safe_query(
+                CMD_COMMAND_HALL_MODULE,
+                REQ_COMMAND_HALL_FINISH_TASK,
+                {"index": task_index},
+                min_delay=0.4,
+                max_delay=0.8,
+            )
+
+            if not isinstance(finish_resp, dict) or str(finish_resp.get("err", finish_resp.get("code", "0"))).strip() not in ("0", "Err_None"):
+                err_msg = finish_resp.get("err") if isinstance(finish_resp, dict) else "لم يرد استجابة من السيرفر"
+                self.log(f"⚠️ [قاعة القيادة] تعذر إنجاز {title_ar} #{task_index} (الخطأ: {err_msg}).")
+                return {
+                    "success": False,
+                    "reason": f"فشل طلب إنهاء {err_label}: {err_msg}",
+                    "response": finish_resp,
+                    "task_id": task_id,
+                    "index": task_index,
+                    "stamina_spent": 0,
+                }
+
+            rspdata = finish_resp.get("rspdata") if isinstance(finish_resp, dict) else {}
+            if isinstance(rspdata, dict):
+                final_rspdata = rspdata
+                if "reward" in rspdata:
+                    all_rewards.extend(rspdata.get("reward") or [])
+            elif isinstance(finish_resp, dict) and "reward" in finish_resp:
+                all_rewards.extend(finish_resp.get("reward") or [])
+
         await asyncio.sleep(random.uniform(0.6, 1.2))
-        commit_payload = {"commitType": 6, "index": task_index}
         commit_resp = await self.safe_query(
             CMD_COMMAND_HALL_MODULE,
             REQ_COMMAND_HALL_COMMIT_TASK,
-            commit_payload,
+            {"commitType": expected_type, "index": task_index},
             min_delay=0.4,
             max_delay=0.8,
         )
 
-        final_rspdata = rspdata
-        if isinstance(commit_resp, dict) and str(commit_resp.get("err", commit_resp.get("code", "0"))).strip() in ("0", "Err_None"):
-            c_rspdata = commit_resp.get("rspdata")
-            if isinstance(c_rspdata, dict):
-                final_rspdata = c_rspdata
-                c_rewards = c_rspdata.get("reward") or []
-                if c_rewards:
-                    all_rewards.extend(c_rewards)
+        commit_ok = isinstance(commit_resp, dict) and str(commit_resp.get("err", commit_resp.get("code", "0"))).strip() in ("0", "Err_None")
+        if not commit_ok:
+            if isinstance(final_rspdata, dict) and isinstance(final_rspdata.get("initData"), dict):
+                self._sync_command_hall_init_data(final_rspdata["initData"])
+            err_msg = commit_resp.get("err") if isinstance(commit_resp, dict) else "no_response"
+            self.log(f"⚠️ [قاعة القيادة] فشل تسليم {err_label} #{task_index} (كود: {err_msg}).")
+            return {
+                "success": False,
+                "task_id": task_id,
+                "index": task_index,
+                "task_type": expected_type,
+                "stamina_spent": 0,
+                "reason": f"فشل تسليم المهمة (2274/8): {err_msg}",
+                "finish_response": finish_resp,
+                "commit_response": commit_resp,
+            }
 
-        # تحديث الذاكرة الحية الشامل (0-Network Cache Sync)
+        c_rspdata = commit_resp.get("rspdata") if isinstance(commit_resp, dict) else None
+        if isinstance(c_rspdata, dict):
+            final_rspdata = c_rspdata
+            c_rewards = c_rspdata.get("reward") or []
+            if c_rewards:
+                all_rewards.extend(c_rewards)
+
+        actual_stamina_spent = stamina_cost if statue != 3 else 0
+        if actual_stamina_spent > 0:
+            lord = self.get_ctrl("lordInfoCtrl")
+            if isinstance(lord, dict) and isinstance(lord.get("base"), dict) and "health" in lord["base"]:
+                lord["base"]["health"] = max(0, self._safe_int(lord["base"]["health"]) - actual_stamina_spent)
+
         init_data = final_rspdata.get("initData") if isinstance(final_rspdata, dict) else None
         if isinstance(init_data, dict):
-            if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
-                cached = self.conn.init_data.setdefault("commandHall", {})
-                if isinstance(cached, dict):
-                    cached.update(init_data)
+            self._sync_command_hall_init_data(init_data)
         else:
-            # وضع علامة اكتمال على المهمة محلياً بالذاكرة كاحتياط
-            cached_hall = self.get_ctrl("commandHall")
-            if isinstance(cached_hall, dict):
-                for task_arr_key in ("commonTaskData", "taskList"):
-                    arr = cached_hall.get(task_arr_key)
-                    if isinstance(arr, list):
-                        for itm in arr:
-                            if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
-                                itm["statue"] = 0
-                    elif isinstance(arr, dict):
-                        for itm in arr.values():
-                            if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
-                                itm["statue"] = 0
+            self._mark_command_hall_task_claimed(task_index, expected_type)
 
-        self.record_daily_quest_event(33, 1)
+        self._record_command_hall_subtask_completion(1)
         self.log(
-            f"✅ [قاعة القيادة] تم إنجاز مهمة القناص الصامت #{task_index} واستلام {len(all_rewards)} جوائز بنجاح!"
+            f"✅ [قاعة القيادة] تم إنجاز مهمة {title_ar} #{task_index} واستلام {len(all_rewards)} جوائز بنجاح!"
         )
 
         return {
             "success": True,
             "task_id": task_id,
             "index": task_index,
-            "task_type": 6,
-            "stamina_spent": 0,
+            "task_type": expected_type,
+            "stamina_spent": actual_stamina_spent,
             "rewards": all_rewards,
             "rewards_count": len(all_rewards),
-            "message": f"تم إنجاز مهمة القناص الصامت #{task_index} واستلام الجوائز بنجاح.",
-            "finish_response": resp,
+            "message": success_msg,
+            "finish_response": finish_resp,
             "commit_response": commit_resp,
         }
+
+    async def execute_command_hall_snipe_task(
+        self,
+        task: Dict[str, Any],
+        wait_seconds: float = 2.5,
+        min_safety_stamina: int = 10,
+    ) -> Dict[str, Any]:
+        """
+        إنجاز مهمة القناص الصامت (SNIPE_HUNTER_TASK - النوع 6) بقاعة القيادة:
+        - consume = 5 (وفق newcommandhalltask.lua: 6001..6093 و CommandHallTaskPanel.lua).
+        - فحص 0-Network المسبق لطاقة اللورد وحد الأمان.
+        - إنهاء (2274/5) ثم استلام الجوائز والتثبيت (2274/8) ومزامنة الذاكرة الحية.
+        """
+        idx = self._safe_int(task.get("index"), 0) if isinstance(task, dict) else 0
+        return await self._execute_command_hall_instant_task(
+            task=task,
+            expected_type=6,
+            title_ar="القناص الصامت",
+            icon="🎯",
+            err_label="مهمة القناص",
+            success_msg=f"تم إنجاز مهمة القناص الصامت #{idx} واستلام الجوائز بنجاح.",
+            wait_seconds=wait_seconds,
+            sim_jitter=None,
+            min_safety_stamina=min_safety_stamina,
+            strict_type=True,
+        )
 
     async def execute_command_hall_rescue_task(
         self,
@@ -5595,167 +5799,21 @@ class BaseTask(ABC):
         min_safety_stamina: int = 10,
     ) -> Dict[str, Any]:
         """
-        تنفيذ مهمة إنقاذ القرويين (RESCUE_TASK - النوع 4) من مهام قاعة القيادة:
-        - الاستناد الصارم لكود اللعبة الرسمي:
-          * consume = 5 (تستهلك 5 طاقة من اللورد).
-          * checkTaskTypeNeedArmy(4) == False (لا تحتاج جنوداً مقاتلين ولا فيالق مسير).
-          * محاكاة مسير كشاف الاستطلاع (COMMANDHALL_COMMON_TASK_MARCH_TIME = 2s).
-          * الإنجاز الذري عبر (CMD 2274 / SubCMD 5 - reqFinishTask).
-          * استلام الجوائز والتثبيت عبر (CMD 2274 / SubCMD 8 - reqCommitTask).
-        - يدعم الفحص القبلي الذكي للطاقة وحد الأمان، والتنفيذ الفوري إن كانت المهمة مكتملة مسبقاً (statue == 3).
-        - التحديث الآني المتزامن للذاكرة الحية (0-Network Cache Sync).
+        تنفيذ مهمة إنقاذ القرويين (RESCUE_TASK - النوع 4) من مهام قاعة القيادة (consume = 5).
         """
-        task_id = self._safe_int(task.get("task_id") or task.get("Index") or task.get("id"), 0)
-        task_index = self._safe_int(task.get("index"), 0)
-        task_type = self._safe_int(task.get("type"), 4)
-        statue = self._safe_int(task.get("statue"), 2)
-        quality_name = task.get("quality_name_ar", str(task.get("quality", "")))
-        stamina_cost = 5
-
-        # 1. التحقق القبلي من صحة بيانات المهمة (0-Network Pre-flight)
-        if task_index <= 0:
-            return {
-                "success": False,
-                "reason": f"رقم فهرس المهمة غير صالح (index={task_index})",
-                "task_id": task_id,
-                "index": task_index,
-            }
-
-        if task_type != 4:
-            self.log(f"⚠️ [قاعة القيادة] تحذير: نوع المهمة (#{task_index}) هو {task_type} وليس 4 (إنقاذ قرويين).")
-
-        # 2. فحص طاقة اللورد مع حد الأمان
-        current_stamina = self.stamina
-        min_needed = stamina_cost + min_safety_stamina
-        if current_stamina < min_needed and statue != 3:
-            self.log(
-                f"🛑 [قاعة القيادة] طاقة اللورد غير كافية لمهمة إنقاذ القرويين #{task_index} "
-                f"({current_stamina} متوفر | المطلوب {min_needed} تشمل {min_safety_stamina} حد أمان)."
-            )
-            return {
-                "success": False,
-                "reason": f"طاقة اللورد غير كافية ({current_stamina} < {min_needed})",
-                "task_id": task_id,
-                "index": task_index,
-                "stamina_spent": 0,
-            }
-
-        self.log(
-            f"🤝 [قاعة القيادة] بدء مهمة إنقاذ القرويين #{task_index} "
-            f"(ID: {task_id} | جودة: {quality_name} | استهلاك {stamina_cost} طاقة)..."
+        idx = self._safe_int(task.get("index"), 0) if isinstance(task, dict) else 0
+        return await self._execute_command_hall_instant_task(
+            task=task,
+            expected_type=4,
+            title_ar="إنقاذ القرويين",
+            icon="🤝",
+            err_label="مهمة الإنقاذ",
+            success_msg=f"تم إنجاز مهمة إنقاذ القرويين #{idx} بنجاح واستلام الجوائز.",
+            wait_seconds=wait_seconds,
+            sim_jitter=(-0.2, 0.3),
+            min_safety_stamina=min_safety_stamina,
+            strict_type=False,
         )
-
-        all_rewards: List[Dict[str, Any]] = []
-        finish_resp: Optional[Dict[str, Any]] = None
-        final_rspdata: Dict[str, Any] = {}
-
-        # 3. إنجاز مهمة الإنقاذ عبر (CMD 2274 / SubCMD 5) إذا لم تكن مكتملة مسبقاً
-        if statue != 3:
-            # محاكاة مسير كشاف الاستطلاع الطبيعي وفق معايير اللعبة (COMMANDHALL_COMMON_TASK_MARCH_TIME = 2s)
-            sim_wait = max(0.5, wait_seconds + random.uniform(-0.2, 0.3))
-            await asyncio.sleep(sim_wait)
-
-            payload = {"index": task_index}
-            finish_resp = await self.safe_query(
-                CMD_COMMAND_HALL_MODULE,
-                REQ_COMMAND_HALL_FINISH_TASK,
-                payload,
-                min_delay=0.4,
-                max_delay=0.8,
-            )
-
-            if not isinstance(finish_resp, dict) or str(finish_resp.get("err", finish_resp.get("code", "0"))).strip() not in ("0", "Err_None"):
-                err_msg = finish_resp.get("err") if isinstance(finish_resp, dict) else "لم يرد استجابة من السيرفر"
-                self.log(f"⚠️ [قاعة القيادة] تعذر إنجاز إنقاذ القرويين #{task_index} (الخطأ: {err_msg}).")
-                return {
-                    "success": False,
-                    "reason": f"فشل طلب إنهاء مهمة الإنقاذ: {err_msg}",
-                    "response": finish_resp,
-                    "task_id": task_id,
-                    "index": task_index,
-                }
-
-            rspdata = finish_resp.get("rspdata") if isinstance(finish_resp, dict) else {}
-            if isinstance(rspdata, dict):
-                final_rspdata = rspdata
-                if "reward" in rspdata:
-                    all_rewards.extend(rspdata.get("reward") or [])
-            elif isinstance(finish_resp, dict) and "reward" in finish_resp:
-                all_rewards.extend(finish_resp.get("reward") or [])
-
-        # 4. تثبيت الإنجاز واستلام الجوائز النهائية عبر (CMD 2274 / SubCMD 8 - commitTask)
-        await asyncio.sleep(random.uniform(0.6, 1.2))
-        commit_payload = {"commitType": 4, "index": task_index}
-        commit_resp = await self.safe_query(
-            CMD_COMMAND_HALL_MODULE,
-            REQ_COMMAND_HALL_COMMIT_TASK,
-            commit_payload,
-            min_delay=0.4,
-            max_delay=0.8,
-        )
-
-        commit_ok = isinstance(commit_resp, dict) and str(commit_resp.get("err", commit_resp.get("code", "0"))).strip() in ("0", "Err_None")
-        if not commit_ok:
-            err_msg = commit_resp.get("err") if isinstance(commit_resp, dict) else "no_response"
-            self.log(f"⚠️ [قاعة القيادة] فشل تسليم مهمة إنقاذ القرويين #{task_index} (كود: {err_msg}).")
-            return {
-                "success": False,
-                "task_id": task_id,
-                "index": task_index,
-                "task_type": 4,
-                "reason": f"فشل تسليم المهمة (2274/8): {err_msg}",
-                "finish_response": finish_resp,
-                "commit_response": commit_resp,
-            }
-
-        c_rspdata = commit_resp.get("rspdata")
-        if isinstance(c_rspdata, dict):
-            final_rspdata = c_rspdata
-            c_rewards = c_rspdata.get("reward") or []
-            if c_rewards:
-                all_rewards.extend(c_rewards)
-
-        # خصم الطاقة محلياً في الذاكرة الحية (0-Network)
-        lord = self.get_ctrl("lordInfoCtrl")
-        if isinstance(lord, dict) and isinstance(lord.get("base"), dict) and "health" in lord["base"]:
-            lord["base"]["health"] = max(0, self._safe_int(lord["base"]["health"]) - stamina_cost)
-
-        # 5. التحديث الآني المتزامن للذاكرة الحية (0-Network Cache Sync)
-        init_data = final_rspdata.get("initData") if isinstance(final_rspdata, dict) else None
-        if isinstance(init_data, dict):
-            if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
-                for ck in ("commandHall", "commandHallCtrl"):
-                    cached = self.conn.init_data.setdefault(ck, {})
-                    if isinstance(cached, dict):
-                        cached.update(init_data)
-        else:
-            for ck in ("commandHall", "commandHallCtrl"):
-                cached_hall = self.get_ctrl(ck)
-                if isinstance(cached_hall, dict):
-                    for task_arr_key in ("commonTaskData", "taskList"):
-                        arr = cached_hall.get(task_arr_key)
-                        items = arr.values() if isinstance(arr, dict) else (arr if isinstance(arr, list) else [])
-                        for itm in items:
-                            if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
-                                itm["statue"] = 0
-
-        self.record_daily_quest_event(33, 1)
-        self.log(
-            f"✅ [قاعة القيادة] تم إنجاز مهمة إنقاذ القرويين #{task_index} واستلام {len(all_rewards)} جوائز بنجاح!"
-        )
-
-        return {
-            "success": True,
-            "task_id": task_id,
-            "index": task_index,
-            "task_type": 4,
-            "stamina_spent": stamina_cost,
-            "rewards": all_rewards,
-            "rewards_count": len(all_rewards),
-            "message": f"تم إنجاز مهمة إنقاذ القرويين #{task_index} بنجاح واستلام الجوائز.",
-            "finish_response": finish_resp,
-            "commit_response": commit_resp,
-        }
 
     async def execute_command_hall_dialogue_task(
         self,
@@ -5764,167 +5822,21 @@ class BaseTask(ABC):
         min_safety_stamina: int = 10,
     ) -> Dict[str, Any]:
         """
-        تنفيذ مهمة المعلومات العسكرية (DIALOGUE_TASK - النوع 3) من مهام قاعة القيادة:
-        - الاستناد الصارم لكود اللعبة الرسمي:
-          * consume = 5 (تستهلك 5 طاقة من اللورد).
-          * moveType = 0, moveTime = 0 (حوار فوري داخل القلعة بلا مسير كشاف ولا استهلاك فيالق أو جنود).
-          * محاكاة بشرية ذكية لتصفح الحوار التفاعلي (1.2 - 1.8 ثانية) تحاكي CommandHallTalkPanel.
-          * الإنجاز الذري عبر (CMD 2274 / SubCMD 5 - reqFinishTask).
-          * استلام الجوائز وتثبيت الإنجاز النهائي عبر (CMD 2274 / SubCMD 8 - reqCommitTask).
-        - يدعم الفحص القبلي الذكي للطاقة وحد الأمان، والتنفيذ الفوري إن كانت المهمة مكتملة مسبقاً (statue == 3).
-        - التحديث الآني المتزامن للذاكرة الحية (0-Network Cache Sync).
+        تنفيذ مهمة المعلومات العسكرية (DIALOGUE_TASK - النوع 3) من مهام قاعة القيادة (consume = 5).
         """
-        task_id = self._safe_int(task.get("task_id") or task.get("Index") or task.get("id"), 0)
-        task_index = self._safe_int(task.get("index"), 0)
-        task_type = self._safe_int(task.get("type"), 3)
-        statue = self._safe_int(task.get("statue"), 2)
-        quality_name = task.get("quality_name_ar", str(task.get("quality", "")))
-        stamina_cost = 5
-
-        # 1. التحقق القبلي من صحة بيانات المهمة (0-Network Pre-flight)
-        if task_index <= 0:
-            return {
-                "success": False,
-                "reason": f"رقم فهرس المهمة غير صالح (index={task_index})",
-                "task_id": task_id,
-                "index": task_index,
-            }
-
-        if task_type != 3:
-            self.log(f"⚠️ [قاعة القيادة] تحذير: نوع المهمة (#{task_index}) هو {task_type} وليس 3 (معلومات عسكرية).")
-
-        # 2. فحص طاقة اللورد مع حد الأمان
-        current_stamina = self.stamina
-        min_needed = stamina_cost + min_safety_stamina
-        if current_stamina < min_needed and statue != 3:
-            self.log(
-                f"🛑 [قاعة القيادة] طاقة اللورد غير كافية لمهمة المعلومات العسكرية #{task_index} "
-                f"({current_stamina} متوفر | المطلوب {min_needed} تشمل {min_safety_stamina} حد أمان)."
-            )
-            return {
-                "success": False,
-                "reason": f"طاقة اللورد غير كافية ({current_stamina} < {min_needed})",
-                "task_id": task_id,
-                "index": task_index,
-                "stamina_spent": 0,
-            }
-
-        self.log(
-            f"📜 [قاعة القيادة] بدء مهمة المعلومات العسكرية #{task_index} "
-            f"(ID: {task_id} | جودة: {quality_name} | استهلاك {stamina_cost} طاقة)..."
+        idx = self._safe_int(task.get("index"), 0) if isinstance(task, dict) else 0
+        return await self._execute_command_hall_instant_task(
+            task=task,
+            expected_type=3,
+            title_ar="المعلومات العسكرية",
+            icon="📜",
+            err_label="مهمة المعلومات العسكرية",
+            success_msg=f"تم إنجاز مهمة المعلومات العسكرية #{idx} بنجاح واستلام الجوائز.",
+            wait_seconds=wait_seconds,
+            sim_jitter=(-0.3, 0.3),
+            min_safety_stamina=min_safety_stamina,
+            strict_type=False,
         )
-
-        all_rewards: List[Dict[str, Any]] = []
-        finish_resp: Optional[Dict[str, Any]] = None
-        final_rspdata: Dict[str, Any] = {}
-
-        # 3. إنجاز مهمة الحوار عبر (CMD 2274 / SubCMD 5) إذا لم تكن مكتملة مسبقاً
-        if statue != 3:
-            # محاكاة بشرية ذكية لتصفح الحوار والنقر على التالي
-            sim_wait = max(0.5, wait_seconds + random.uniform(-0.3, 0.3))
-            await asyncio.sleep(sim_wait)
-
-            payload = {"index": task_index}
-            finish_resp = await self.safe_query(
-                CMD_COMMAND_HALL_MODULE,
-                REQ_COMMAND_HALL_FINISH_TASK,
-                payload,
-                min_delay=0.4,
-                max_delay=0.8,
-            )
-
-            if not isinstance(finish_resp, dict) or str(finish_resp.get("err", finish_resp.get("code", "0"))).strip() not in ("0", "Err_None"):
-                err_msg = finish_resp.get("err") if isinstance(finish_resp, dict) else "لم يرد استجابة من السيرفر"
-                self.log(f"⚠️ [قاعة القيادة] تعذر إنجاز المعلومات العسكرية #{task_index} (الخطأ: {err_msg}).")
-                return {
-                    "success": False,
-                    "reason": f"فشل طلب إنهاء مهمة المعلومات العسكرية: {err_msg}",
-                    "response": finish_resp,
-                    "task_id": task_id,
-                    "index": task_index,
-                }
-
-            rspdata = finish_resp.get("rspdata") if isinstance(finish_resp, dict) else {}
-            if isinstance(rspdata, dict):
-                final_rspdata = rspdata
-                if "reward" in rspdata:
-                    all_rewards.extend(rspdata.get("reward") or [])
-            elif isinstance(finish_resp, dict) and "reward" in finish_resp:
-                all_rewards.extend(finish_resp.get("reward") or [])
-
-        # 4. تثبيت الإنجاز واستلام الجوائز النهائية عبر (CMD 2274 / SubCMD 8 - commitTask)
-        await asyncio.sleep(random.uniform(0.6, 1.2))
-        commit_payload = {"commitType": 3, "index": task_index}
-        commit_resp = await self.safe_query(
-            CMD_COMMAND_HALL_MODULE,
-            REQ_COMMAND_HALL_COMMIT_TASK,
-            commit_payload,
-            min_delay=0.4,
-            max_delay=0.8,
-        )
-
-        commit_ok = isinstance(commit_resp, dict) and str(commit_resp.get("err", commit_resp.get("code", "0"))).strip() in ("0", "Err_None")
-        if not commit_ok:
-            err_msg = commit_resp.get("err") if isinstance(commit_resp, dict) else "no_response"
-            self.log(f"⚠️ [قاعة القيادة] فشل تسليم مهمة المعلومات العسكرية #{task_index} (كود: {err_msg}).")
-            return {
-                "success": False,
-                "task_id": task_id,
-                "index": task_index,
-                "task_type": 3,
-                "reason": f"فشل تسليم المهمة (2274/8): {err_msg}",
-                "finish_response": finish_resp,
-                "commit_response": commit_resp,
-            }
-
-        c_rspdata = commit_resp.get("rspdata")
-        if isinstance(c_rspdata, dict):
-            final_rspdata = c_rspdata
-            c_rewards = c_rspdata.get("reward") or []
-            if c_rewards:
-                all_rewards.extend(c_rewards)
-
-        # خصم الطاقة محلياً في الذاكرة الحية (0-Network)
-        lord = self.get_ctrl("lordInfoCtrl")
-        if isinstance(lord, dict) and isinstance(lord.get("base"), dict) and "health" in lord["base"]:
-            lord["base"]["health"] = max(0, self._safe_int(lord["base"]["health"]) - stamina_cost)
-
-        # 5. التحديث الآني المتزامن للذاكرة الحية (0-Network Cache Sync)
-        init_data = final_rspdata.get("initData") if isinstance(final_rspdata, dict) else None
-        if isinstance(init_data, dict):
-            if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
-                for ck in ("commandHall", "commandHallCtrl"):
-                    cached = self.conn.init_data.setdefault(ck, {})
-                    if isinstance(cached, dict):
-                        cached.update(init_data)
-        else:
-            for ck in ("commandHall", "commandHallCtrl"):
-                cached_hall = self.get_ctrl(ck)
-                if isinstance(cached_hall, dict):
-                    for task_arr_key in ("commonTaskData", "taskList"):
-                        arr = cached_hall.get(task_arr_key)
-                        items = arr.values() if isinstance(arr, dict) else (arr if isinstance(arr, list) else [])
-                        for itm in items:
-                            if isinstance(itm, dict) and self._safe_int(itm.get("index")) == task_index:
-                                itm["statue"] = 0
-
-        self.record_daily_quest_event(33, 1)
-        self.log(
-            f"✅ [قاعة القيادة] تم إنجاز مهمة المعلومات العسكرية #{task_index} واستلام {len(all_rewards)} جوائز بنجاح!"
-        )
-
-        return {
-            "success": True,
-            "task_id": task_id,
-            "index": task_index,
-            "task_type": 3,
-            "stamina_spent": stamina_cost,
-            "rewards": all_rewards,
-            "rewards_count": len(all_rewards),
-            "message": f"تم إنجاز مهمة المعلومات العسكرية #{task_index} بنجاح واستلام الجوائز.",
-            "finish_response": finish_resp,
-            "commit_response": commit_resp,
-        }
 
     async def execute_command_hall_army_group_task(
         self,
@@ -5946,7 +5858,7 @@ class BaseTask(ABC):
            - دمج حزمة initData الجديدة مباشرة في الذاكرة الحية (لتوليد وتجديد حزمة المهام الجديدة تلقائياً).
         """
         # 1. جلب بيانات المهمة وقاعة القيادة من الذاكرة الحية
-        hall_data = self.get_ctrl("commandHall")
+        hall_data = self._get_command_hall_ctrl()
         if not isinstance(hall_data, dict):
             return {"success": False, "reason": "بيانات قاعة القيادة غير متوفرة في الذاكرة الحية."}
 
@@ -6040,16 +5952,14 @@ class BaseTask(ABC):
 
         new_init = rspdata.get("initData")
         if isinstance(new_init, dict):
-            cached_hall = self.get_ctrl("commandHall")
-            if isinstance(cached_hall, dict):
-                cached_hall.update(new_init)
-            elif hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
-                self.conn.init_data["commandHall"] = new_init
+            self._sync_command_hall_init_data(new_init)
+        else:
+            self._mark_command_hall_task_claimed(task_index, 1)
 
         new_legion_id = new_init.get("armyGroupID") if isinstance(new_init, dict) else "محدث"
         new_tasks_count = len(new_init.get("commonTaskData", [])) if isinstance(new_init, dict) else 0
 
-        self.record_daily_quest_event(33, 1)
+        self._record_command_hall_subtask_completion(1)
         self.log(
             f"🎉 [قاعة القيادة] تم القضاء على فيلق الغزاة #{task_index} بنجاح! استلام {len(all_rewards)} جوائز "
             f"وتجديد {new_tasks_count} مهمة جديدة للفيلق القادم (المستوى {new_legion_id})!"
@@ -6090,7 +6000,7 @@ class BaseTask(ABC):
            - استلام وتجميع جوائز الترقية المكتسبة.
         4. دعم الترقيات المتتالية (Multi-level upgrade) عند توفر نقاط خبرة كافية لأكثر من مستوى.
         """
-        hall_data = self.get_ctrl("commandHall")
+        hall_data = self._get_command_hall_ctrl()
         if not isinstance(hall_data, dict):
             return {"success": False, "reason": "بيانات قاعة القيادة غير متوفرة في الذاكرة الحية."}
 
@@ -6101,7 +6011,7 @@ class BaseTask(ABC):
 
         for _ in range(max(1, max_upgrades)):
             cur_exp = self._safe_int(hall_data.get("commandExp"), 0)
-            need_exp = COMMAND_HALL_EXP_BY_LV.get(cur_lv, 0)
+            need_exp = self.get_command_hall_need_exp(cur_lv)
 
             # شرط الترقية
             if cur_lv >= COMMAND_HALL_MAX_LEVEL:
@@ -6143,13 +6053,7 @@ class BaseTask(ABC):
             # دمج initData الجديد فورياً في الذاكرة الحية
             new_init = rspdata.get("initData")
             if isinstance(new_init, dict):
-                cached_hall = self.get_ctrl("commandHall")
-                if isinstance(cached_hall, dict):
-                    cached_hall.update(new_init)
-                    hall_data = cached_hall
-                elif hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
-                    self.conn.init_data["commandHall"] = new_init
-                    hall_data = new_init
+                hall_data = self._sync_command_hall_init_data(new_init) or new_init
                 cur_lv = self._safe_int(hall_data.get("commandLv"), cur_lv + 1)
             else:
                 cur_lv += 1
@@ -6720,14 +6624,21 @@ class BaseTask(ABC):
             extra = b.get("extra", {})
             b_bid = None
             b_iid = None
+            if isinstance(extra, str):
+                s_extra = extra.strip()
+                if s_extra.startswith("{"):
+                    try:
+                        extra = json.loads(s_extra)
+                    except Exception:
+                        extra = None
+                else:
+                    m = re.search(r'bid_(\d+)_iid_(\d+)', s_extra)
+                    if m:
+                        b_bid = int(m.group(1))
+                        b_iid = int(m.group(2))
             if isinstance(extra, dict):
                 b_bid = extra.get("bid")
                 b_iid = extra.get("iid")
-            elif isinstance(extra, str):
-                m = re.search(r'bid_(\d+)_iid_(\d+)', extra)
-                if m:
-                    b_bid = int(m.group(1))
-                    b_iid = int(m.group(2))
 
             if b_bid is None and "bid" in b:
                 b_bid = b["bid"]
@@ -6779,11 +6690,19 @@ class BaseTask(ABC):
         for b_entry in blist:
             if not isinstance(b_entry, dict):
                 continue
-            binfo = b_entry.get("binfo", {})
+            # السيرفر يُرسل البيانات داخل binfo أحياناً وأحياناً مباشرة في الكائن
+            binfo = b_entry.get("binfo") or {}
             if not isinstance(binfo, dict):
-                continue
+                binfo = {}
 
-            bid = int(binfo.get("bid", 0) or 0)
+            # الأولوية لـ binfo ثم المستوى الخارجي لـ b_entry
+            def _get_b(field: str, default=0):
+                v = binfo.get(field)
+                if v is None:
+                    v = b_entry.get(field)
+                return v if v is not None else default
+
+            bid = int(_get_b("bid") or 0)
             if bid not in RESOURCE_BUILDING_METADATA:
                 continue
 
@@ -6792,12 +6711,12 @@ class BaseTask(ABC):
             if filter_res is not None and r_type != filter_res:
                 continue
 
-            iid = int(binfo.get("iid", 0) or 0)
-            lv = int(binfo.get("lv", 0) or 0)
-            star_lv = int(binfo.get("starLv", 0) or 0)
-            idx = int(binfo.get("index", 0) or 0)
-            cur_res = float(binfo.get("curres", 0) or 0.0)
-            state = int(binfo.get("state", 0) or 0)
+            iid = int(_get_b("iid") or 0)
+            lv = int(_get_b("lv") or _get_b("level") or 0)
+            star_lv = int(_get_b("starLv") or 0)
+            idx = int(_get_b("index") or 0)
+            cur_res = float(_get_b("curres") or 0.0)
+            state = int(_get_b("state") or 0)
 
             # مطابقة الباف الخاص بالحقل
             is_boosted = False

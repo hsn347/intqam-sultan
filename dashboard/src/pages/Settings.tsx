@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { User, Lock, Eye, EyeOff, Check, Sparkles, ShieldCheck } from 'lucide-react'
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, updateProfile } from 'firebase/auth'
-import { motion, AnimatePresence } from 'framer-motion'
 import { Layout } from '../components/layout/Layout'
 import { useAuth } from '../hooks/useAuth'
 import { auth } from '../lib/firebase'
@@ -93,21 +92,21 @@ export function SettingsPage() {
 
   return (
     <Layout title={t('settings.title')}>
-      <div className="space-y-6 mx-auto max-w-2xl">
+      <div className="space-y-4 sm:space-y-6 mx-auto max-w-2xl">
         {/* Header */}
-        <div>
-          <h1 className="font-bold text-white text-2xl settings-page-title">{t('settings.title')}</h1>
-          <p className="mt-1 text-gray-500 text-sm settings-page-desc">{t('settings.profileDesc')}</p>
+        <div className="p-3.5 sm:p-4 royal-header-card">
+          <h1 className="font-bold text-white text-xl sm:text-2xl settings-page-title">{t('settings.title')}</h1>
+          <p className="mt-1 text-gray-500 text-xs sm:text-sm settings-page-desc">{t('settings.profileDesc')}</p>
         </div>
 
         {/* Profile section */}
-        <div className="space-y-6 p-6 settings-profile-card glass-card">
+        <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 settings-profile-card glass-card">
           {/* Live Profile Header Banner */}
-          <div className="flex flex-wrap justify-between items-center gap-4 bg-gradient-to-r from-primary-950/50 via-primary-900/30 to-black/40 shadow-inner p-4 border border-primary-500/30 rounded-2xl settings-profile-banner">
-            <div className="flex items-center gap-3.5 min-w-0">
+          <div className="flex flex-wrap justify-between items-center gap-3 sm:gap-4 bg-primary-950/30 p-3.5 sm:p-4 border border-primary-500/25 rounded-2xl settings-profile-banner">
+            <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
               {/* Avatar Circle with Ring */}
               <div className="relative shrink-0">
-                <div className="flex justify-center items-center bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 shadow-[0_0_20px_rgba(var(--theme-primary-rgb),0.35)] border border-primary-400/40 rounded-2xl w-13 h-13 font-black text-white text-2xl settings-avatar">
+                <div className="flex justify-center items-center bg-primary-700 border border-primary-400/35 rounded-2xl w-11 sm:w-13 h-11 sm:h-13 font-black text-white text-xl sm:text-2xl settings-avatar">
                   {(user?.username || username || user?.email || '?')[0].toUpperCase()}
                 </div>
               </div>
@@ -115,33 +114,19 @@ export function SettingsPage() {
               {/* Dynamic Live Name Display */}
               <div className="space-y-0.5 min-w-0">
                 <div className="flex items-center gap-2">
-                  <AnimatePresence mode="wait">
-                    <motion.h3
-                      key={user?.username || username}
-                      initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 4 }}
-                      transition={{ duration: 0.2 }}
-                      className="font-bold text-white text-lg sm:text-xl truncate settings-username-display"
-                    >
-                      {user?.username || username || t('settings.newUser')}
-                    </motion.h3>
-                  </AnimatePresence>
+                  <h3 className="font-bold text-white text-base sm:text-xl truncate settings-username-display">
+                    {user?.username || username || t('settings.newUser')}
+                  </h3>
                 </div>
                 <p className="font-mono text-gray-400 text-xs truncate select-all settings-email-display">{user?.email}</p>
               </div>
             </div>
 
             {savedSuccess && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.85 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.85 }}
-                className="flex items-center gap-1.5 bg-primary-500/20 shadow-sm px-3 py-1.5 border border-primary-500/40 rounded-xl font-bold text-primary-300 text-xs settings-success-badge"
-              >
+              <div className="flex items-center gap-1.5 bg-primary-500/20 px-3 py-1.5 border border-primary-500/35 rounded-xl font-bold text-primary-300 text-xs settings-success-badge">
                 <Check size={14} />
                 <span>{t('settings.saved')}</span>
-              </motion.div>
+              </div>
             )}
           </div>
 
@@ -180,9 +165,9 @@ export function SettingsPage() {
               <label className="block mb-1.5 text-gray-400 text-sm settings-label">{t('settings.castleCount')}</label>
               <div className="flex items-center gap-2 opacity-60 cursor-not-allowed settings-stat-input input-field">
                 <span className="text-primary-400">🏰</span>
-                <span className="flex items-center gap-1.5 font-bold font-mono" dir="ltr">
+                <span className="flex items-center gap-1.5 font-mono font-bold" dir="ltr">
                   <span>{user?.subscription?.current_castles_count ?? 0}</span>
-                  <span className="text-gray-400 font-sans font-normal">{t('common.of', 'من')}</span>
+                  <span className="font-sans font-normal text-gray-400">{t('common.of', 'من')}</span>
                   <span>{isAdmin || user?.role === 'admin' ? '∞' : (user?.subscription?.max_castles_allowed ?? 0)}</span>
                 </span>
               </div>
@@ -193,8 +178,8 @@ export function SettingsPage() {
               onClick={handleSaveProfile}
               disabled={savingProfile}
               className={clsx(
-                'flex items-center gap-2 transition-all duration-200 cursor-pointer btn-primary',
-                savedSuccess && 'bg-primary-600 border-primary-400 shadow-[0_0_20px_rgba(var(--theme-primary-rgb),0.5)]'
+                'flex items-center gap-2 cursor-pointer btn-primary',
+                savedSuccess && 'bg-primary-600 border-primary-400'
               )}
             >
               {savingProfile ? (
@@ -218,7 +203,7 @@ export function SettingsPage() {
         </div>
 
         {/* Change password */}
-        <div className="space-y-5 p-6 settings-password-card glass-card">
+        <div className="space-y-4 sm:space-y-5 p-4 sm:p-6 settings-password-card glass-card">
           <div className="flex items-center gap-2">
             <div className="flex justify-center items-center bg-primary-700 rounded-lg w-7 h-7 settings-lock-icon">
               <Lock size={15} className="text-white" />
@@ -241,7 +226,7 @@ export function SettingsPage() {
                   placeholder="••••••••"
                 />
                 <button type="button" onClick={() => setShowCurrent(v => !v)}
-                  className="absolute inset-y-0 flex items-center text-gray-500 hover:text-gray-300 settings-eye-btn end-3">
+                  className="absolute inset-y-0 flex items-center text-gray-500 settings-eye-btn end-3">
                   {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
@@ -262,7 +247,7 @@ export function SettingsPage() {
                   placeholder="••••••••"
                 />
                 <button type="button" onClick={() => setShowNew(v => !v)}
-                  className="absolute inset-y-0 flex items-center text-gray-500 hover:text-gray-300 settings-eye-btn end-3">
+                  className="absolute inset-y-0 flex items-center text-gray-500 settings-eye-btn end-3">
                   {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>

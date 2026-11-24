@@ -423,20 +423,14 @@ class CureWoundedTask(BaseTask):
                 else:
                     army_ctrl["woundedArmy"].pop(a_id, None)
 
-        # 2. تحديث سجل النشاط اليومي everydayTaskCtrl.eventInfo
-        everyday_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
-        if isinstance(everyday_ctrl, dict) and isinstance(everyday_ctrl.get("eventInfo"), dict):
-            # كل 100 جندي تضيف نقطة واحدة في limitTime (بحد أقصى 5)
-            steps_added = max(1, collected_count // DAILY_QUEST_STEP_SOLDIERS)
-            new_val = min(DAILY_QUEST_LIMIT_TIME, completed_times + steps_added)
-            everyday_ctrl["eventInfo"][DAILY_QUEST_CURE_ID] = new_val
-            everyday_ctrl["eventInfo"][DAILY_QUEST_CURE_TYPE] = new_val
-
-        # 3. تحديث طابور المشفى queueCtrl
+        # 2. تحديث طابور المشفى queueCtrl (0-Network Skip أثناء العلاج)
+        #    لا يُحقن everydayTaskCtrl.eventInfo محلياً قبل تأكيد السيرفر (NOTIFY 55)
+        #    أو عندما يكون العدد < 100 لتفادي تضخيم النقاط وخطأ 470002.
         retdata = res.get("data", {}).get("retdata", {}) if isinstance(res.get("data"), dict) else {}
         total_time = _safe_int(retdata.get("totaltime"), 60)
         self._sync_hospital_queue_busy(total_time)
 
-        self.log(f"[CureWounded] ✓ تم علاج {collected_count} جندي مصاب بنجاح دفعة واحدة! (المهمة اليومية: {min(5, completed_times + (collected_count // 100))}/5)")
+        steps_hint = collected_count // DAILY_QUEST_STEP_SOLDIERS
+        self.log(f"[CureWounded] ✓ تم بدء علاج {collected_count} جندي مصاب بنجاح دفعة واحدة (الخطوات التقديرية: +{steps_hint}، المدة: {total_time}ث)")
         return TaskResult.ok(f"Successfully cured {collected_count} wounded soldiers in a single batch")
 

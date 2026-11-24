@@ -271,21 +271,35 @@ export function useBotStatusLive(
 }
 
 // ─── Real process status via WebSocket ────────────────────
-type RealStatus = 'running' | 'starting' | 'idle' | 'disconnected' | 'reconnecting' | 'waiting' | 'offline' | 'deploying' | 'error'
+type RealStatus = 'running' | 'starting' | 'idle' | 'disconnected' | 'reconnecting' | 'waiting' | 'offline' | 'deploying' | 'error' | 'sealed'
 
 export interface RealBotStatusResult {
   status: RealStatus
   next_run_time?: string | null
   status_message?: string | null
+  is_sealed?: boolean
+  seal_type?: number | null
+  seal_reason?: string | null
 }
 
 export function useRealBotStatus(castleId: string, enabled: boolean = true): RealBotStatusResult {
   const [status, setStatus] = useState<RealStatus>('offline')
   const [nextRunTime, setNextRunTime] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [isSealed, setIsSealed] = useState<boolean>(false)
+  const [sealType, setSealType] = useState<number | null>(null)
+  const [sealReason, setSealReason] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!enabled || !castleId) return
+    if (!enabled || !castleId) {
+      setStatus('offline')
+      setNextRunTime(null)
+      setStatusMessage(null)
+      setIsSealed(false)
+      setSealType(null)
+      setSealReason(null)
+      return
+    }
 
     const WS_BASE = getWsBaseUrl()
     let ws: WebSocket | null = null
@@ -306,6 +320,9 @@ export function useRealBotStatus(castleId: string, enabled: boolean = true): Rea
               if (parsed.status) setStatus(parsed.status as RealStatus)
               if (parsed.next_run_time !== undefined) setNextRunTime(parsed.next_run_time)
               if (parsed.status_message !== undefined) setStatusMessage(parsed.status_message)
+              if (parsed.is_sealed !== undefined) setIsSealed(Boolean(parsed.is_sealed))
+              if (parsed.seal_type !== undefined) setSealType(parsed.seal_type)
+              if (parsed.seal_reason !== undefined) setSealReason(parsed.seal_reason)
             } catch {
               // fallback
             }
@@ -339,7 +356,14 @@ export function useRealBotStatus(castleId: string, enabled: boolean = true): Rea
     }
   }, [castleId, enabled])
 
-  return { status, next_run_time: nextRunTime, status_message: statusMessage }
+  return {
+    status,
+    next_run_time: nextRunTime,
+    status_message: statusMessage,
+    is_sealed: isSealed,
+    seal_type: sealType,
+    seal_reason: sealReason,
+  }
 }
 
 // ─── Real-time status for all user castles via a single WebSocket ──────────

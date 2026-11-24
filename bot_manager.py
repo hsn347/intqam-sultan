@@ -355,13 +355,32 @@ class CastleBot:
         config: Optional[Dict[str, Any]] = None,
         log_callback: Optional[Callable[[str], None]] = None,
         stop_event: Optional[threading.Event] = None,
+        castle_id: Optional[str] = None,
+        user_id: Optional[str] = None,
     ):
         self.email = email
         self.password = password
+        self.castle_id: str = castle_id or ""
+        self.user_id: str = user_id or ""
+        self.user_email: str = ""
         self.config = copy.deepcopy(DEFAULT_BOT_CONFIG)
 
         # تحميل إعدادات الحساب وتفضيلات المستخدم المحفوظة في قاعدة البيانات
         self.reload_config_from_db()
+
+        try:
+            import core.database as db
+            if not self.castle_id or not self.user_id:
+                c_meta = db.get_castle_by_id(self.email)
+                if c_meta:
+                    self.castle_id = self.castle_id or str(c_meta.get("castle_id") or "")
+                    self.user_id = self.user_id or str(c_meta.get("user_id") or "")
+            if self.user_id and not self.user_email:
+                u_meta = db.get_user(self.user_id)
+                if u_meta:
+                    self.user_email = str(u_meta.get("email") or "")
+        except Exception:
+            pass
 
         if config:
             if "tasks" in config and isinstance(config["tasks"], dict):
@@ -380,11 +399,13 @@ class CastleBot:
         self.account: Optional[AccountSession] = None
         self.conn: Optional[GameConnection] = None
         self.creds: Optional[GateCredentials] = None
+        self._last_proxy_url: Optional[str] = None
 
         # متغيرات الحالة اللحظية (Live Monitoring State)
         self.is_running: bool = False
         self.is_sealed: bool = False
         self.is_password_error: bool = False
+        self.seal_type: Optional[int] = None
         self.seal_reason: str = ""
         self.conn_state: str = "initialized"   # initialized, starting, connected, waiting, disconnected, sealed, stopped
         self.status_message: str = "تمت التهيئة"
@@ -475,18 +496,87 @@ class CastleBot:
         """استخراج بيانات التشغيل اللحظية الحية في الذاكرة (لربطها بـ api_server)"""
         now = time.time()
         uptime_sec = int(now - self.start_time) if self.start_time > 0 else 0
+
+        conn_alive = bool(self.conn and getattr(self.conn, "is_connected", False))
+        is_other = bool(
+            (self.conn and getattr(self.conn, "is_other_device", False))
+            or (self.conn_state == "disconnected" and "جهاز آخر" in str(self.status_message or ""))
+        )
+        if is_other:
+            live_category = "other_login"
+        elif self.conn_state == "waiting":
+            live_category = "waiting"
+        elif self.conn_state == "reconnecting":
+            live_category = "reconnecting"
+        elif self.conn_state in ("connected", "running"):
+            live_category = "running"
+        else:
+            live_category = "starting"
+
+        conn_info = getattr(self.conn, "active_connection_info", None) if self.conn else None
+        if isinstance(conn_info, dict) and conn_info:
+            real_ip_type = str(conn_info.get("type") or ("socks5" if conn_info.get("is_proxied") else "direct"))
+            real_ip = str(conn_info.get("real_ip") or "")
+            socket_peer = str(conn_info.get("peer") or "")
+            is_proxied = bool(conn_info.get("is_proxied"))
+        elif self._last_proxy_url:
+            try:
+                raw_ip = self._last_proxy_url.split("@")[-1].split(":")[0]
+            except Exception:
+                raw_ip = ""
+            real_ip_type = "socks5"
+            real_ip = raw_ip
+            socket_peer = raw_ip
+            is_proxied = True
+        else:
+            real_ip_type = "direct"
+            try:
+                from proxy import get_proxy_ip_for_email, is_proxy_enabled
+                if is_proxy_enabled():
+                    mapped = get_proxy_ip_for_email(self.email)
+                    if mapped:
+                        real_ip_type = "socks5"
+                        real_ip = mapped
+                        is_proxied = True
+                    else:
+                        real_ip = "direct"
+                        is_proxied = False
+                else:
+                    from proxy import get_server_public_ip
+                    real_ip = get_server_public_ip()
+                    is_proxied = False
+            except Exception:
+                real_ip = "direct"
+                is_proxied = False
+            socket_peer = ""
+
         return {
+            "castle_id": self.castle_id or self.email,
             "email": self.email,
+            "user_id": self.user_id,
+            "user_email": self.user_email,
             "conn_state": self.conn_state,
+            "live_category": live_category,
             "status_message": self.status_message,
             "is_running": self.is_running,
+            "is_stopped": not self.is_running and self.conn_state in ("stopped", "error", "sealed"),
+            "is_connection_alive": conn_alive,
+            "is_live_socket": conn_alive,
             "is_sealed": self.is_sealed,
             "is_password_error": self.is_password_error,
+            "seal_type": self.seal_type,
             "seal_reason": self.seal_reason,
             "uptime_seconds": uptime_sec,
+            "start_time": self.start_time,
             "iteration": self.iteration,
             "next_run_time": self.next_run_time,
+            "last_kick_reason": self.last_kick_reason,
             "last_activity": datetime.fromtimestamp(self.last_activity_time).strftime("%H:%M:%S") if self.last_activity_time else None,
+            "real_ip": real_ip,
+            "proxy_ip": real_ip,
+            "real_ip_type": real_ip_type,
+            "socket_peer": socket_peer,
+            "is_proxied": is_proxied,
             "gate_info": {
                 "uid": self.creds.uid if self.creds else None,
                 "kingdom_id": self.creds.kingdom_id if self.creds else None,
@@ -497,8 +587,28 @@ class CastleBot:
         }
 
     async def connect(self) -> bool:
-        """تحميل الجلسة والمصادقة والاتصال بمقبس البوابة الرسمي"""
+        """تحميل الجلسة والمصادقة والاتصال بمقبس البوابة الرسمي عبر البروكسي أو مباشر وفق إعدادات الشبكة."""
         self._set_state("starting", "جاري قراءة الجلسة والمصادقة...")
+
+        # حسم البروكسي المعتمد للقلعة مرة واحدة لهذه الجلسة مع تطبيق حظر التسريب الصارم
+        effective_proxy_arg: str = ""
+        try:
+            from proxy import get_proxy_for_account, is_proxy_enabled
+            if is_proxy_enabled():
+                resolved_proxy = get_proxy_for_account(self.email, user_id=self.user_id or None)
+                if not resolved_proxy:
+                    msg = "🛑 تعذر تخصيص بروكسي SOCKS5 للقلعة — تم إيقاف الاتصال لمنع تسريب IP السيرفر (Anti-Leak)."
+                    self.log(msg)
+                    self._set_state("error", msg)
+                    return False
+                effective_proxy_arg = resolved_proxy
+        except Exception as e:
+            msg = f"🛑 خطأ في فحص إعدادات البروكسي: {e}"
+            self.log(msg)
+            self._set_state("error", msg)
+            return False
+
+        self._last_proxy_url = effective_proxy_arg or None
 
         # قراءة بيانات الحساب من session_cache.json
         user_id, session_id, matched_email = SessionCache.get_account(self.email)
@@ -518,7 +628,12 @@ class CastleBot:
                 from core.game_client import sdk_login, get_account_device_profile
                 # يجب تمرير device_id لضمان تطابق بصمة الجهاز بين SDK وخادم الدخول
                 _prof = get_account_device_profile(self.email)
-                auth_res = sdk_login(self.email, pwd, device_id=_prof["deviceId"])
+                auth_res = sdk_login(
+                    self.email,
+                    pwd,
+                    device_id=_prof["deviceId"],
+                    proxy_url=effective_proxy_arg or None,
+                )
                 if auth_res.get("success"):
                     user_id = auth_res["userId"]
                     session_id = auth_res["sessionId"]
@@ -569,7 +684,7 @@ class CastleBot:
 
         # المصادقة مع خادم تسجيل الدخول عبر تبادل مفاتيح DH (بحد أقصى محاولتين)
         self.log("جاري الاتصال بخادم تسجيل الدخول...")
-        creds = await async_login(self.account)
+        creds = await async_login(self.account, proxy_url=effective_proxy_arg)
         if not creds:
             if self.account and getattr(self.account, "is_password_error", False):
                 self.is_password_error = True
@@ -591,20 +706,12 @@ class CastleBot:
 
             if self.account and self.account.is_sealed:
                 self.is_sealed = True
+                self.is_running = False
+                self.seal_type = getattr(self.account, "seal_type", 0)
                 self.seal_reason = self.account.seal_reason
                 msg = f"❌ [حساب محظور] الحساب مجمد أو محظور من إدارة اللعبة: {self.seal_reason}"
                 self.log(msg)
                 self._set_state("sealed", msg)
-                try:
-                    import core.database as db
-                    db.upsert_castle_conn_state(
-                        castle_id=self.email,
-                        conn_state="sealed",
-                        state="stopped",
-                        status_message=msg,
-                    )
-                except Exception:
-                    pass
                 return False
 
             msg = "فشلت المصادقة مع خادم تسجيل الدخول (Login Handshake Failed)"
@@ -627,7 +734,7 @@ class CastleBot:
             self.conn = None
 
         # فتح اتصال البوابة غير المتزامن بـ asyncio
-        self.conn = GameConnection(self.account, creds)
+        self.conn = GameConnection(self.account, creds, proxy_url=effective_proxy_arg)
         self.conn.notify_log_callback = None  # معطل مؤقتاً لحذف طباعة إشعارات السوكت في التيرمنال
         self.conn.brief_log_callback = lambda line: self.log_brief(line, print_to_term=False)
         if not self.is_running or self._stop_event.is_set() or self._async_stop.is_set():
@@ -914,10 +1021,16 @@ class CastleBot:
                 try:
                     await self.execute_tasks()
                 except ConcurrentLoginError:
+                    if self.conn and getattr(self.conn, "is_sealed", False):
+                        await self._handle_seal_disconnect()
+                        break
                     await self.handle_concurrent_login()
                     continue
                 except ConnectionCircuitBreakerError as e:
                     self.log(f"⚡ [قاطع الاتصال] تم اعتراض دورة المهام بواسطة قاطع الاتصال: {e}")
+                    if self.conn and getattr(self.conn, "is_sealed", False):
+                        await self._handle_seal_disconnect()
+                        break
                     if self.conn and getattr(self.conn, "is_other_device", False):
                         await self.handle_concurrent_login()
                         continue
@@ -948,8 +1061,11 @@ class CastleBot:
                 except Exception as e:
                     self.log(f"⚠️ خطأ أثناء تنفيذ دورة المهام: {e}")
 
-                # فحص قاطع الاتصال بعد دورة المهام: إذا انقطع الاتصال أو تم طرد الحساب
+                # فحص قاطع الاتصال بعد دورة المهام: إذا انقطع الاتصال أو حُظر الحساب أو طُرد لجهاز آخر
                 if not self.conn or not getattr(self.conn, "is_connected", False):
+                    if self.conn and getattr(self.conn, "is_sealed", False):
+                        await self._handle_seal_disconnect()
+                        break
                     if self.conn and getattr(self.conn, "is_other_device", False):
                         await self.handle_concurrent_login()
                         continue
@@ -1017,6 +1133,26 @@ class CastleBot:
         finally:
             # تنظيف حتمي لا يفشل أبداً حتى عند مقاطعة الكود
             await self.stop()
+
+    async def _handle_seal_disconnect(self):
+        """إيقاف فوري ونهائي عند رصد حظر القلعة لحظياً أثناء الجلسة (NOTIFY_SERVER_STATUS: seal)."""
+        seal_type = getattr(self.conn, "seal_type", None) if self.conn else None
+        seal_reason = (getattr(self.conn, "seal_reason", "") if self.conn else "") or "حظر الحساب من إدارة اللعبة"
+        self.is_sealed = True
+        self.is_running = False
+        self.seal_type = seal_type if seal_type is not None else 0
+        self.seal_reason = seal_reason
+
+        if self.conn:
+            try:
+                await self.conn.close()
+            except Exception:
+                pass
+            self.conn = None
+
+        msg = f"❌ [حساب محظور] الحساب مجمد أو محظور من إدارة اللعبة: {self.seal_reason}"
+        self.log(f"🛑 {msg} — تم إيقاف البوت نهائياً بدون محاولات إعادة اتصال.")
+        self._set_state("sealed", msg)
 
     async def handle_concurrent_login(self):
         """
@@ -1096,7 +1232,7 @@ class CastleBot:
                 db.upsert_castle_conn_state(
                     self.email,
                     conn_state="sealed",
-                    state="stopped",
+                    state="sealed",
                     status_message=self.status_message or "الحساب محظور",
                 )
             except Exception:
@@ -1146,6 +1282,8 @@ class BotManager:
         config: Optional[Dict[str, Any]] = None,
         password: Optional[str] = None,
         log_callback: Optional[Callable[[str], None]] = None,
+        castle_id: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> bool:
         """تشغيل بوت لحساب محدد مع منع التكرار وضمان تنظيف أي بقايا سابقة"""
         castle_lock = self._get_castle_lock(email)
@@ -1179,6 +1317,8 @@ class BotManager:
                 password=password,
                 config=config,
                 log_callback=log_callback,
+                castle_id=castle_id,
+                user_id=user_id,
             )
             bot.conn_state = "starting"
             self.bots[email] = bot

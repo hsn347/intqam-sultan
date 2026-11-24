@@ -199,11 +199,6 @@
     "expiredBanner": "انتهت فترة اشتراكك. تم إيقاف تشغيل البوت لجميع قلاعك، يرجى التواصل مع الإدارة للتجديد.",
     "lockedBanned": "محظور",
     "lockedExpired": "منتهي",
-    "fixedPreset": "الضبط التلقائي",
-    "fixedPresetTooltip": "تطبيق الإعدادات الثابتة المخصصة للقلعة",
-    "confirmFixedPreset": "هل تريد تطبيق الإعدادات الثابتة على هذه القلعة؟\n\nسيتم تفعيل 12 مهمة:\n1. جمع الموارد (حديد)\n2. دعم الموارد (كل الموارد والشراء من المتجر)\n3. قافلة الغنيمة\n4. مهام وتبرعات التحالف\n5. دورية الحيوانات (كلب الكانغال)\n6. دراسة الاستراتيجيات (القلعة الفارغة)\n7. نافورة الأمنيات (كل الموارد)\n8. ورشة المواد (كل المواد)\n9. مكافأة الجمع السريع\n10. مكافأة الحصاد\n11. الزنزانة الأساسية (كل العناصر)\n12. التوسع الإقليمي\n\nوتعطيل باقي المهام.",
-    "fixedPresetSuccess": "تم تطبيق الإعدادات الثابتة بنجاح!",
-    "applyingPreset": "جاري التطبيق...",
     "targetAccountsAndTemplate": "الحسابات المستهدفة وقالب الإعدادات",
     "template": "قالب",
     "selectTargetAccounts": "الحسابات المستهدفة بالتعديل",
@@ -217,7 +212,10 @@
     "passwordErrorFixPrompt": "كلمة المرور غير صحيحة — اضغط ✏️ لتعديلها",
     "mainCastle": "القلعة الرئيسية",
     "castleLevelPrefix": "قلعة",
-    "castleLevelTitle": "القلعة الرئيسية - المستوى: {{level}}"
+    "castleLevelTitle": "القلعة الرئيسية - المستوى: {{level}}",
+    "runningLabel": "نشطة",
+    "idleLabel": "متوقفة",
+    "royalControlSubtitle": "إدارة وتشغيل القلاع والمهام التلقائية"
   },
   "modals": {
     "addCastleTitle": "إضافة حساب جديد",
@@ -255,27 +253,7 @@
     "loggingOut": "جاري الخروج...",
     "cancel": "إلغاء",
     "cancelDismiss": "تراجع / إلغاء",
-    "close": "إغلاق",
-    "presetModalSingleTitle": "تطبيق الضبط التلقائي للقلعة",
-    "presetModalBatchTitle": "تطبيق الضبط التلقائي للمجموعة",
-    "presetModalSingleDesc": "تفعيل الإعدادات الـ 12 المحددة للقلعة",
-    "presetModalBatchDesc": "سيتم تطبيق الإعدادات المخصصة على ({{count}}) حسابات محددة",
-    "presetTasksHeading": "المهام الـ 12 التي سيتم تفعيلها:",
-    "confirmApplyPreset": "تأكيد التطبيق",
-    "presetTasks": {
-      "gatherIron": "جمع الموارد (حديد)",
-      "watermillAll": "دعم الموارد (الكل + المتجر)",
-      "caravan": "قافلة الغنيمة",
-      "alliance": "مهام وتبرعات التحالف",
-      "petPatrol": "دورية الحيوانات (كلب الكانغال)",
-      "tacticsHall": "دراسة الاستراتيجيات (القلعة الفارغة)",
-      "fountain": "نافورة الأمنيات (كل الموارد مجاناً)",
-      "materialWorkshop": "ورشة المواد (جميع الخامات)",
-      "quickGatherSkill": "مكافأة الجمع السريع",
-      "harvestSkill": "مكافأة الحصاد",
-      "basicDungeon": "الزنزانة الأساسية (كافة العناصر)",
-      "territoryExpansion": "التوسع الإقليمي"
-    }
+    "close": "إغلاق"
   },
   "tabs": {
     "all": "جميع المهام",
@@ -612,7 +590,21 @@
     "fullLegionBadge": "فيلق كامل",
     "treasureEscortFreeRefresh": "التحديث المجاني للعربة قبل الإرسال",
     "treasureEscortFormation": "رقم التشكيلة المحفوظة (0 للتلقائي فقط)",
-    "treasureEscortAutoFallback": "التعبئة التلقائية كاحتياطي عند نقص التشكيلة"
+    "treasureEscortAutoFallback": "التعبئة التلقائية كاحتياطي عند نقص التشكيلة",
+    "summaryFreeOnly": "مجاني فقط",
+    "summaryWithGold": "شراء بالذهب",
+    "summaryNoGold": "بدون ذهب",
+    "summaryDailyShort": "يومي",
+    "summaryAllShort": "الكل",
+    "summaryCycleShort": "كل دورة",
+    "summaryKingdomShort": "المملكة",
+    "summaryGlobalShort": "العالم",
+    "summaryMarchesOn": "مسيرات",
+    "summaryCoordsRequired": "حدد الإحداثيات",
+    "summarySelectTroops": "اختر الجنود",
+    "summaryBuildingsCount": "{{count}} مباني",
+    "summaryGoldLimit": "ذهب ({{amount}})",
+    "summaryResourcesRatio": "{{active}}/{{total}} موارد"
   },
   "resources": {
     "food": "القمح",
@@ -648,8 +640,21 @@
     "expired": "منتهي الصلاحية",
     "suspended": "معلق",
     "banned": "متوقف (تم الحظر من الإدارة)",
+    "castleSealed": "محظور من اللعبة",
     "stoppedExpired": "متوقف (انتهى الاشتراك)",
     "passwordError": "كلمة المرور خاطئة"
+  },
+  "sealReasons": {
+    "0": "حظر من إدارة اللعبة",
+    "1": "حظر بسبب بيع أو نقل الموارد",
+    "2": "حظر بسبب تعدد الحسابات",
+    "3": "حظر بسبب مخالفة الدردشة / الإساءة اللفظية",
+    "4": "الحساب محذوف أو ملغى",
+    "5": "تجميد الحساب (نشاط غير طبيعي)",
+    "10": "حظر بسبب شحن غير قانوني",
+    "11": "حظر بسبب رسائل الدعوة في الدردشة",
+    "99": "حظر بصمة الجهاز",
+    "fallback": "تم حظر أو تجميد الحساب من إدارة اللعبة"
   },
   "settings": {
     "title": "الإعدادات",
@@ -793,7 +798,68 @@
       "merchantControl": "تحكم التاجر",
       "logout": "تسجيل الخروج",
       "logoutShort": "خروج",
-      "logoutSuccess": "تم تسجيل الخروج بنجاح"
+      "logoutSuccess": "تم تسجيل الخروج بنجاح",
+      "proxiesShort": "البروكسيات"
+    },
+    "proxies": {
+      "pageTitle": "البروكسيات والشبكة",
+      "headerTitle": "البروكسيات والشبكة",
+      "refresh": "تحديث",
+      "loading": "جاري التحميل...",
+      "fetchError": "تعذر جلب بيانات البروكسيات من السيرفر",
+      "modes": {
+        "residential": "سكنية مدفوعة (Residential)",
+        "free": "مجانية احتياطية (Free)",
+        "direct": "سيرفر مباشر",
+        "directWithIp": "مباشر ({{ip}})",
+        "residentialBtn": "سكنية مدفوعة",
+        "freeBtn": "مجانية احتياطية",
+        "directBtn": "مباشر",
+        "residentialShort": "🌟 سكنية مدفوعة",
+        "freeShort": "🛡️ مجانية احتياطية",
+        "directShort": "🌐 IP مباشر"
+      },
+      "tooltips": {
+        "residentialBtn": "البروكسيات السكنية المدفوعة المعتمدة",
+        "freeBtn": "البروكسيات المجانية كخيار احتياطي",
+        "directBtn": "الاتصال المباشر عبر IP السيرفر"
+      },
+      "stats": {
+        "activeIps": "عناوين IP النشطة",
+        "ipsBreakdown": "({{residential}} سكني | {{free}} مجاني)",
+        "boundCastles": "القلاع المربوطة",
+        "users": "المستخدمين",
+        "currentMode": "النمط الحالي"
+      },
+      "notices": {
+        "residential": "البوتات تعمل الآن عبر بروكسيات سكنية ثابتة (Static Residential) من مزودي خدمة حقيقيين.",
+        "free": "البوتات تعمل بالبروكسيات المجانية الاحتياطية (Free Datacenter). بيانات البروكسيات المدفوعة محفوظة ويمكنك العودة إليها بنقرة واحدة.",
+        "direct": "اتصالات البوتات تخرج حالياً من IP السيرفر مباشرة. جميع بيانات البروكسيات محفوظة وجاهزة للعودة بأي وقت."
+      },
+      "modal": {
+        "title": "تأكيد تغيير نمط الاتصال",
+        "switchingTo": "التحويل إلى:",
+        "residentialDesc": "سيتم تحويل اتصالات البوتات إلى البروكسيات السكنية المدفوعة ({{count}} بروكسي سكني). سيتم توزيع القلاع فور بدء دورتها القادمة.",
+        "freeDesc": "سيتم تحويل اتصالات البوتات إلى البروكسيات المجانية الاحتياطية ({{count}} بروكسي). سيتم تطبيق التغيير مع الدورة القادمة.",
+        "directDesc": "ستتصل البوتات عبر IP السيرفر مباشرة. سيتم تطبيق التغيير تلقائياً مع بدء الدورة القادمة لكل قلعة.",
+        "cancel": "إلغاء",
+        "confirm": "تأكيد التبديل",
+        "toggleSuccess": "تم تحديث نمط الشبكة بنجاح",
+        "toggleError": "فشل تحديث نمط الشبكة"
+      },
+      "card": {
+        "residentialBadge": "سكني",
+        "freeBadge": "مجاني",
+        "castlesLabel": "القلاع:",
+        "castlesCount": "القلاع ({{count}})",
+        "testing": "جاري الفحص...",
+        "testBtn": "فحص الاتصال",
+        "testSuccessToast": "✓ الـ IP ({{ip}}) متصل بنجاح ({{ping}}ms)",
+        "testFailToast": "❌ تعذر الاتصال بالـ IP: {{msg}}",
+        "testErrorToast": "حدث خطأ أثناء فحص البروكسي",
+        "testFailMsg": "فشل الفحص",
+        "testOkMsg": "متصل ومؤمن بنجاح"
+      }
     },
     "live": {
       "title": "العمليات الحية بالذاكرة",
@@ -837,7 +903,12 @@
       "alertWarning": "تنبيه:",
       "disconnectedReason": "تم فصل الاتصال ({{reason}})",
       "otherLoginMsg": "تم تسجيل الدخول للحساب من جهاز آخر، البوت ينتظر لإعادة المحاولة.",
-      "attemptCount": "محاولة {{attempt}} / {{max}}"
+      "attemptCount": "محاولة {{attempt}} / {{max}}",
+      "socksBadgeTooltip": "فحص المقبس الحي: نفق SOCKS5 نشط (الطرف: {{target}}) — بدون تسريب",
+      "directBadgeTooltip": "فحص المقبس الحي: اتصال مباشر عبر IP السيرفر ({{target}})",
+      "directLabel": "مباشر (السيرفر)",
+      "liveSocksSocketTitle": "مقبس حي متصل باللعبة",
+      "liveDirectSocketTitle": "مقبس حي مباشر باللعبة"
     },
     "merchants": {
       "title": "إدارة التجار والموزعين",

@@ -47,7 +47,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Mobile Navigation"
-      className="bottom-nav-glass md:hidden fixed bottom-0 left-0 right-0 w-full z-50 m-0 p-0 border-b-0 transition-all duration-200"
+      className="md:hidden right-0 bottom-0 bottom-nav-glass left-0 z-50 fixed m-0 p-0 border-b-0 w-full"
       style={{
         bottom: 0,
         left: 0,
@@ -58,7 +58,7 @@ export function BottomNav() {
         paddingBottom: 0,
       }}
     >
-      <div className="flex items-center justify-around max-w-lg mx-auto px-3 pt-1 pb-0.5">
+      <div className="flex justify-around items-center mx-auto px-3 pt-1 pb-0.5 max-w-lg">
         {navItems.map((item) => {
           const active = item.isActive(location.pathname)
           const Icon = item.icon
@@ -68,14 +68,14 @@ export function BottomNav() {
               key={item.to}
               to={item.to}
               className={clsx(
-                'bottom-nav-item relative flex flex-col items-center justify-center min-w-[70px] pt-1 pb-0 px-2 rounded-xl transition-all duration-200 active:scale-95 select-none',
+                'bottom-nav-item relative flex flex-col justify-center items-center px-2 pt-1 pb-0 rounded-xl min-w-[70px] active:scale-95 select-none',
                 active ? 'bottom-nav-item-active font-bold' : 'bottom-nav-item-inactive font-medium'
               )}
             >
               {/* Active top bar indicator */}
               {active && (
                 <span
-                  className="bottom-nav-active-pill absolute -top-2 inset-x-3 h-[3px] rounded-full bg-primary-500"
+                  className="-top-2 bottom-nav-active-pill absolute inset-x-3 bg-primary-500 rounded-full h-[3px]"
                   style={{
                     backgroundColor: 'var(--theme-primary)',
                   }}
@@ -86,14 +86,14 @@ export function BottomNav() {
                 <Icon
                   size={20}
                   className={clsx(
-                    'bottom-nav-icon transition-transform duration-200',
-                    active ? 'scale-110 text-primary-400' : 'text-gray-400'
+                    'bottom-nav-icon',
+                    active ? 'text-primary-400' : 'text-gray-400'
                   )}
                 />
 
                 {/* Badge for running accounts */}
                 {item.badge !== undefined && (
-                  <span className="absolute -top-1 -end-2.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-black ring-2 ring-gray-950 animate-pulse">
+                  <span className="-top-1 absolute flex justify-center items-center bg-emerald-500 px-1 rounded-full ring-2 ring-gray-950 min-w-[16px] h-4 font-black text-[10px] text-black -end-2.5">
                     {item.badge}
                   </span>
                 )}
@@ -101,7 +101,7 @@ export function BottomNav() {
 
               <span
                 className={clsx(
-                  'bottom-nav-label text-[11px] mt-1 tracking-tight truncate max-w-[80px]',
+                  'bottom-nav-label mt-1 max-w-[80px] text-[11px] truncate tracking-tight',
                   active ? 'text-primary-400 font-bold' : 'text-gray-400'
                 )}
               >

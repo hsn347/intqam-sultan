@@ -121,13 +121,26 @@ ERROR_CODES = {
 }
 
 SEAL_TYPES = {
-    "0":  "حظر عام (Default Seal)",
+    "0":  "حظر عام من إدارة اللعبة (Default Seal)",
     "1":  "حظر بسبب بيع أو نقل موارد (Sell Resource)",
-    "2":  "حظر بسبب فتح حسابات متعددة غير مسموحة (Too Many Accounts)",
+    "2":  "حظر بسبب تعدد الحسابات (Too Many Accounts)",
     "3":  "حظر بسبب مخالفة الدردشة أو الشتائم (Curse/Chat Violation)",
-    "5":  "حظر تجميد الحساب من إدارة اللعبة (Account Suspended / Sealed)",
+    "4":  "حساب محذوف أو ملغى (Account Deleted)",
+    "5":  "تجميد الحساب بسبب نشاط غير طبيعي (Account Suspended)",
+    "10": "حظر بسبب شحن غير قانوني (Illegal Recharge)",
+    "11": "حظر بسبب رسائل الدعوة في الدردشة (Invite Chat Violation)",
     "99": "حظر بصمة الجهاز (Device Signature Blocked)",
 }
+
+
+def resolve_seal_info(seal_code: Any) -> Tuple[int, str]:
+    """ترجمة رمز حظر اللعبة (gSealAccountType) إلى رقم ووصف واضح."""
+    try:
+        code_int = int(str(seal_code).strip()) if seal_code not in (None, "") else 0
+    except (ValueError, TypeError):
+        code_int = 0
+    reason = SEAL_TYPES.get(str(code_int), f"حظر حساب بكود ({code_int})")
+    return code_int, reason
 
 # ═════════════════════════════════════════════════════════════════════════════
 # خريطة الأوامر والطلبات الشبكية الرسمية (CMD & SubCMD Metadata Map)
@@ -716,13 +729,24 @@ def sdk_login(email: str, password: str, device_id: str = None, proxy_url: str =
     }
 
     try:
-        req = urllib.request.Request(AUTH_API_URL, data=final_json, headers=headers)
-        opener = urllib.request.build_opener()
-        if proxy_url:
-            opener.add_handler(urllib.request.ProxyHandler({'http': proxy_url, 'https': proxy_url}))
+        import requests
 
-        with opener.open(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
+        proxies_dict = None
+        if proxy_url:
+            formatted_proxy = proxy_url.replace("socks5://", "socks5h://")
+            proxies_dict = {
+                "http": formatted_proxy,
+                "https": formatted_proxy,
+            }
+
+        resp = requests.post(
+            AUTH_API_URL,
+            data=final_json,
+            headers=headers,
+            timeout=15,
+            proxies=proxies_dict,
+        )
+        data = resp.json()
 
         rtncode = str(data.get('rtncode', ''))
         if rtncode in ('0', '00000', 'SUCCESS', 0):
@@ -752,6 +776,23 @@ def sdk_login(email: str, password: str, device_id: str = None, proxy_url: str =
                 "error_msg": err_msg,
                 "raw": data
             }
+    except requests.exceptions.Timeout:
+        return {
+            "success": False,
+            "error_msg": "انتهت مهلة الاتصال بسيرفر المصادقة السحابي (Request Timeout)",
+            "raw": None
+        }
+    except requests.exceptions.RequestException as req_err:
+        err_text = str(req_err)
+        if "Missing dependencies for SOCKS support" in err_text:
+            msg = "مكتبة PySocks غير مثبتة لدعم بروكسي SOCKS5 (نفذ: pip install PySocks)"
+        else:
+            msg = f"تعذر الوصول لخوادم المصادقة عبر الشبكة: {req_err}"
+        return {
+            "success": False,
+            "error_msg": msg,
+            "raw": None
+        }
     except Exception as e:
         return {
             "success": False,
@@ -787,10 +828,12 @@ class SessionCache:
             return None, None, None
 
         if email:
-            if email in accs:
-                return accs[email].get('userId'), accs[email].get('sessionId'), email
+            clean_em = email.strip()
+            if clean_em in accs:
+                return accs[clean_em].get('userId'), accs[clean_em].get('sessionId'), clean_em
+            low_em = clean_em.lower()
             for k in accs:
-                if email.lower() in k.lower():
+                if str(k).strip().lower() == low_em:
                     return accs[k].get('userId'), accs[k].get('sessionId'), k
             return None, None, None
 
@@ -920,7 +963,6 @@ class RosClient:
         use_3rdid_user: bool = False
     ):
         self.password = password
-        self.proxy_url = proxy_url
         self.use_3rdid_user = use_3rdid_user
         found_email = None
         from_cache = False
@@ -936,6 +978,12 @@ class RosClient:
                 log.info(f"[RosClient] تم استرجاع جلسة الحساب ({self.email}) من session_cache.json بنجاح.")
 
         self.email = found_email or email or "custom_session"
+        ok_proxy, effective_proxy = _resolve_effective_proxy(self.email, proxy_url)
+        self._proxy_resolution_failed: bool = not ok_proxy
+        self.proxy_url: Optional[str] = effective_proxy
+        if self._proxy_resolution_failed:
+            raise ValueError(f"فشل تخصيص البروكسي للحساب ({self.email}) — تم منع الاتصال المباشر (Anti-Leak)")
+
         prof = get_account_device_profile(self.email)
 
         # استرجاع بصمة الجوال المحفوظة في الكاش لهذا الحساب إن وجدت
@@ -1015,7 +1063,7 @@ class RosClient:
         مصادقة خادم تسجيل الدخول وفق آلة الحالة الرسمية في login.lua و loginCtrl.lua:
         S2C_CHALLENGE -> S2C_SERVERKEY -> S2C_HANDSHAKE -> S2C_AUTH_TOKEN
         """
-        if self.is_sealed:
+        if self.is_sealed or getattr(self, "_proxy_resolution_failed", False):
             return False
 
         for attempt in range(1, max_retries + 1):
@@ -1162,12 +1210,12 @@ class RosClient:
                 elif code == ERR_BE_SEALED or "502" in auth_resp or "Be Sealed" in auth_resp:
                     m_seal = re.search(r"(\d+)\s+(\d+)", auth_resp)
                     seal_code_str = m_seal.group(2) if m_seal else "0"
-                    reason = SEAL_TYPES.get(seal_code_str, f"حظر حساب بكود ({seal_code_str})")
+                    seal_int, reason = resolve_seal_info(seal_code_str)
                     print(f"\n❌ [حساب محظور 502] تم حظر هذا الحساب من قِبل إدارة اللعبة!")
                     print(f"   • البريد:    {self.email}")
                     print(f"   • نوع الحظر: {reason} (الكود: {auth_resp})")
                     self.is_sealed = True
-                    self.seal_type = int(seal_code_str) if seal_code_str.isdigit() else 0
+                    self.seal_type = seal_int
                     self.seal_reason = reason
                     self.error_msg = reason
                     return False
@@ -1238,7 +1286,7 @@ class RosClient:
                         continue
                     return False
 
-            except (socket.timeout, ConnectionError, OSError) as e:
+            except Exception as e:
                 if s:
                     try:
                         s.close()
@@ -1253,13 +1301,20 @@ class RosClient:
         return False
 
     def _handshake_gate_socket(self, ip: str, port: int) -> Optional[socket.socket]:
-        """فتح مقبس البوابة وإرسال مصافحة HMAC (مطابق لـ loginCtrl:gatePortSuccess)"""
+        """فتح مقبس البوابة وإرسال مصافحة HMAC (مطابق لـ loginCtrl:gatePortSuccess) مع دعم SOCKS5 ومنع التسريب"""
+        if getattr(self, "_proxy_resolution_failed", False):
+            return None
         s = None
         try:
             print(f"[*] الاتصال بمقبس البوابة {ip}:{port}...")
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(15)
-            s.connect((ip, port))
+            if self.proxy_url:
+                from python_socks.sync import Proxy
+                proxy = Proxy.from_url(self.proxy_url)
+                s = proxy.connect(dest_host=ip, dest_port=port, timeout=15)
+            else:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(15)
+                s.connect((ip, port))
             s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
             uid_b64 = base64.b64encode(self.gate_info['uid'].encode('utf-8')).decode('utf-8')
@@ -1388,8 +1443,38 @@ class RosClient:
 # 6. المحرك غير المتزامن لإدارة الحسابات (Async Engine & Multi-Account)
 # ═════════════════════════════════════════════════════════════════════════════
 
-async def async_login(account: AccountSession) -> Optional[GateCredentials]:
+def _resolve_effective_proxy(account_key: str, proxy_url: Optional[str]) -> Tuple[bool, Optional[str]]:
+    """
+    تحديد رابط البروكسي الفعلي مع تطبيق حظر التسريب الصارم:
+    - proxy_url == ""  -> اتصال مباشر صريح (يُستخدم فقط عند وضع direct).
+    - proxy_url نصياً -> استخدام هذا البروكسي حصراً.
+    - proxy_url is None -> الفحص التلقائي لوضع الشبكة في proxy_manager.
+    يعيد (مسموح بالمتابعة, رابط البروكسي أو None).
+    """
+    if proxy_url == "":
+        return True, None
+    if proxy_url is not None:
+        return True, proxy_url
+    try:
+        from proxy import get_proxy_for_account, is_proxy_enabled
+        if not is_proxy_enabled():
+            return True, None
+        resolved = get_proxy_for_account(account_key)
+        if not resolved:
+            log.error(f"🛑 [Anti-Leak] نمط البروكسي مفعل ولكن تعذر تخصيص بروكسي للحساب ({account_key}) — تم منع الاتصال المباشر.")
+            return False, None
+        return True, resolved
+    except Exception as e:
+        log.error(f"🛑 [Anti-Leak] خطأ أثناء استرجاع إعداد البروكسي للحساب ({account_key}): {e}")
+        return False, None
+
+
+async def async_login(account: AccountSession, proxy_url: Optional[str] = None) -> Optional[GateCredentials]:
     """المصادقة اللاتزامنية مع خادم تسجيل الدخول باستخدام البروتوكول الرسمي الجديد"""
+    ok_proxy, effective_proxy = _resolve_effective_proxy(account.email or account.user_id, proxy_url)
+    if not ok_proxy:
+        return None
+
     loop = asyncio.get_event_loop()
 
     def _sync_login():
@@ -1397,7 +1482,8 @@ async def async_login(account: AccountSession) -> Optional[GateCredentials]:
             user_id=account.user_id,
             session_id=account.session_id,
             email=account.email,
-            password=account.password
+            password=account.password,
+            proxy_url=effective_proxy,
         )
         ok = client.login(max_retries=2)
         if not ok or not client.gate_info:
@@ -1435,9 +1521,13 @@ class GameConnection:
     اتصال بوابة تفاعلي غير متزامن (Async Gate Client) مزود بـ Heartbeat
     وطابور استجابات غير متزامن وإدارة الذاكرة الحية (Live init_data).
     """
-    def __init__(self, account: AccountSession, creds: GateCredentials):
+    def __init__(self, account: AccountSession, creds: GateCredentials, proxy_url: Optional[str] = None):
         self.account = account
         self.creds = creds
+        ok_proxy, effective_proxy = _resolve_effective_proxy(account.email or account.user_id, proxy_url)
+        self._proxy_resolution_failed: bool = not ok_proxy
+        self.proxy_url: Optional[str] = effective_proxy
+        self.active_connection_info: Dict[str, Any] = {}
         self._reader: Optional[asyncio.StreamReader] = None
         self._writer: Optional[asyncio.StreamWriter] = None
         self._session = 1
@@ -1453,6 +1543,9 @@ class GameConnection:
         self.init_data: Dict[str, Any] = self.memory_engine.init_data
         self.spy_mode: bool = False
         self.is_other_device: bool = False
+        self.is_sealed: bool = False
+        self.seal_type: Optional[int] = None
+        self.seal_reason: str = ""
         self.controllers_ready: asyncio.Event = asyncio.Event()
         self.notify_log_callback: Optional[Callable[[str], None]] = None
         self.brief_log_callback: Optional[Callable[[str], None]] = None
@@ -1566,14 +1659,31 @@ class GameConnection:
                     pass
 
     async def _try_open_and_handshake(self, ip: str, port: int) -> bool:
-        """محاولة فتح الاتصال وإجراء مصافحة HMAC مع عنوان بوابة محدد"""
+        """محاولة فتح الاتصال وإجراء مصافحة HMAC مع عنوان بوابة محدد عبر SOCKS5 أو مباشر مع حظر التسريب."""
+        if getattr(self, "_proxy_resolution_failed", False):
+            log.error(f"[{self.account.email}] 🛑 إيقاف الاتصال بالبوابة لمنع تسريب الـ IP (فشل تخصيص البروكسي).")
+            return False
+
         try:
-            self._reader, self._writer = await asyncio.wait_for(
-                asyncio.open_connection(ip, port),
-                timeout=12
-            )
+            if self.proxy_url:
+                from python_socks.async_.asyncio import Proxy
+                proxy = Proxy.from_url(self.proxy_url)
+                sock = await asyncio.wait_for(
+                    proxy.connect(dest_host=ip, dest_port=port),
+                    timeout=15
+                )
+                self._reader, self._writer = await asyncio.open_connection(sock=sock)
+                log.info(f"[{self.account.email}] [Gate] ✓ متصل بأمان عبر SOCKS5 باتجاه {ip}:{port}")
+            else:
+                self._reader, self._writer = await asyncio.wait_for(
+                    asyncio.open_connection(ip, port),
+                    timeout=12
+                )
         except Exception as e:
-            log.error(f"[{self.account.email}] فشل الاتصال بالبوابة ({ip}:{port}): {e}")
+            if self.proxy_url:
+                log.error(f"[{self.account.email}] [Gate] 🛑 فشل الاتصال عبر البروكسي وتم إيقاف المحاولة لمنع تسريب الـ IP: {e}")
+            else:
+                log.error(f"[{self.account.email}] فشل الاتصال بالبوابة ({ip}:{port}): {e}")
             return False
 
         uid_b64 = base64.b64encode(self.creds.uid.encode('utf-8')).decode('utf-8')
@@ -1629,6 +1739,40 @@ class GameConnection:
         self._recv_task = asyncio.create_task(self._recv_loop())
         self._init_flow_task = asyncio.create_task(self._init_flow())
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+
+        try:
+            peer = self._writer.get_extra_info("peername") if self._writer else None
+        except Exception:
+            peer = None
+
+        if self.proxy_url:
+            raw_ip = ""
+            try:
+                raw_ip = self.proxy_url.split("@")[-1].split(":")[0]
+            except Exception:
+                raw_ip = ""
+            self.active_connection_info = {
+                "type": "socks5",
+                "real_ip": raw_ip,
+                "peer": f"{peer[0]}:{peer[1]}" if peer else raw_ip,
+                "is_proxied": True,
+                "connected_at": time.time(),
+            }
+        else:
+            srv_ip = "direct"
+            try:
+                from proxy import get_server_public_ip
+                srv_ip = get_server_public_ip()
+            except Exception:
+                pass
+            self.active_connection_info = {
+                "type": "direct",
+                "real_ip": srv_ip,
+                "peer": f"{peer[0]}:{peer[1]}" if peer else f"{self.creds.gate_ip}:{self.creds.gate_port}",
+                "is_proxied": False,
+                "connected_at": time.time(),
+            }
+
         log.info(f"[{self.account.email}] ✓ متصل بالبوابة بنجاح (UID={self.creds.uid})")
         return True
 
@@ -1682,6 +1826,44 @@ class GameConnection:
         except Exception as e:
             log.error(f"[{self.account.email}] خطأ في تدفق التهيئة: {e}")
 
+    def _handle_server_status_notification(self, parsed: Dict[str, Any], report: Dict[str, Any]) -> None:
+        """معالجة إشعارات حالة السيرفر (طرد جهاز آخر / حظر الحساب / الصيانة)."""
+        n_id = str(report.get("notify_id", "")).upper()
+        if "SERVER_STATUS" not in n_id:
+            return
+
+        c_data = parsed.get("data") if isinstance(parsed.get("data"), dict) else {}
+        n_items = (
+            report.get("notify_data")
+            or parsed.get("notifyData")
+            or (c_data.get("notifyData") if isinstance(c_data, dict) else None)
+            or report.get("notify_detail")
+            or []
+        )
+        items_list = n_items if isinstance(n_items, list) else [n_items]
+        email_label = getattr(self.account, "email", "")
+        for itm in items_list:
+            if not isinstance(itm, dict):
+                continue
+            st_val = str(itm.get("status", "")).lower().strip()
+            if st_val == "kick":
+                self.is_other_device = True
+                log.warning(f"[{email_label}] ⚠️ تم رصد طرد من السيرفر بسبب دخول متزامن من جهاز آخر (NOTIFY_SERVER_STATUS: kick).")
+                self._alive = False
+            elif st_val == "seal":
+                seal_int, reason = resolve_seal_info(itm.get("sealType"))
+                self.is_sealed = True
+                self.seal_type = seal_int
+                self.seal_reason = reason
+                log.error(
+                    f"[{email_label}] 🛑 تم رصد إشعار إغلاق أو حظر الحساب من اللعبة "
+                    f"(NOTIFY_SERVER_STATUS: seal | sealType={seal_int} | {reason})."
+                )
+                self._alive = False
+            elif st_val == "server_maintenance":
+                log.warning(f"[{email_label}] 🛠️ تم رصد إشعار صيانة السيرفر (NOTIFY_SERVER_STATUS: server_maintenance).")
+                self._alive = False
+
     async def _recv_loop(self):
         while self._alive and self._reader:
             try:
@@ -1706,24 +1888,7 @@ class GameConnection:
                         init_data, report = self.memory_engine.ingest_packet_with_report(parsed)
                         if report.get("is_notification"):
                             self._log_notification(report)
-                            n_id = str(report.get("notify_id", "")).upper()
-                            if "SERVER_STATUS" in n_id:
-                                n_items = report.get("notify_data") or []
-                                items_list = n_items if isinstance(n_items, list) else [n_items]
-                                for itm in items_list:
-                                    if isinstance(itm, dict):
-                                        st_val = str(itm.get("status", "")).lower().strip()
-                                        if st_val == "kick":
-                                            self.is_other_device = True
-                                            log.warning(f"[{self.account.email}] ⚠️ تم رصد طرد من السيرفر بسبب دخول متزامن من جهاز آخر (NOTIFY_SERVER_STATUS: kick).")
-                                            self._alive = False
-                                        elif st_val == "seal":
-                                            self.is_sealed = True
-                                            log.error(f"[{self.account.email}] 🛑 تم رصد إشعار إغلاق أو حظر الحساب من اللعبة (NOTIFY_SERVER_STATUS: seal).")
-                                            self._alive = False
-                                        elif st_val == "server_maintenance":
-                                            log.warning(f"[{self.account.email}] 🛠️ تم رصد إشعار صيانة السيرفر (NOTIFY_SERVER_STATUS: server_maintenance).")
-                                            self._alive = False
+                            self._handle_server_status_notification(parsed, report)
 
                         # إشعار اكتمال تحميل المتحكمات الأساسية
                         if sess_id == 0 or cmd_s in ('1000', 'onemt_1000'):
@@ -1799,7 +1964,10 @@ class GameConnection:
     async def reconnect_full(self) -> bool:
         """إعادة المصادقة الكاملة مع خادم الدخول ثم البوابة عند انتهاء صلاحية الجلسة (404 User Not Found)"""
         await self.close()
-        new_creds = await async_login(self.account)
+        new_creds = await async_login(
+            self.account,
+            proxy_url=self.proxy_url if self.proxy_url is not None else "",
+        )
         if not new_creds:
             return False
         self.creds = new_creds

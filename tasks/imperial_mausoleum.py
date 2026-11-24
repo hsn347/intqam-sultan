@@ -105,6 +105,8 @@ class ImperialMausoleumTask(BaseTask):
         cur_award = award if has_pending_award else None
         total_received: List[Dict[str, Any]] = []
 
+        did_explore = False
+
         # 1. الرمي المجاني الأولي إذا لم تكن هناك جائزة معلقة مسبقاً
         if not cur_award and free_val == 1:
             self.log("🎲 الرمي المجاني متاح في الهرم — جاري رمي النرد (CMD 1045 / SubCMD 3)...")
@@ -113,6 +115,7 @@ class ImperialMausoleumTask(BaseTask):
                 err = resp.get("err") if resp else "لا يوجد رد"
                 return TaskResult.fail(f"تعذر رمي نرد الهرم: {err}")
 
+            did_explore = True
             t_data = resp.get("data", {})
             cur_award = t_data.get("award", {})
             score = t_data.get("score", 0)
@@ -149,8 +152,9 @@ class ImperialMausoleumTask(BaseTask):
                 err = resp_claim.get("err") if resp_claim else "لا يوجد رد"
                 self.log(f"⚠️ تنبيه عند استلام مكافأة الهرم: {err}")
 
-        # 4. تحديث عدادات النشاط والذاكرة محلياً لضمان عدم إعادة المحاولة في نفس اليوم
-        self._mark_completed_in_memory()
+        # 4. تحديث عدادات النشاط والذاكرة محلياً فقط إذا نُفِّذ الرمي أو الاستلام بنجاح
+        if did_explore or total_received:
+            self._mark_completed_in_memory()
 
         if total_received:
             return TaskResult.ok(f"تم إنجاز إستكشاف الهرم المجاني بنجاح (المكافآت المستلمة: {total_received})")
@@ -176,8 +180,7 @@ class ImperialMausoleumTask(BaseTask):
         try:
             ev_ctrl = self.init_data.setdefault("everydayTaskCtrl", {})
             ev_info = ev_ctrl.setdefault("eventInfo", {})
-            cur = int(ev_info.get("26", 0) or 0)
-            ev_info["26"] = max(1, cur + 1)
+            ev_info["26"] = 1
 
             p_ctrl = self.init_data.setdefault("pyramidCtrl", {})
             p_data = p_ctrl.setdefault("data", {})

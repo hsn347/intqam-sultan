@@ -59,10 +59,10 @@ export function TaskTabs({ active, onChange, errorTab }: TaskTabsProps) {
         onClick={() => scroll('left')}
         className="task-tabs-arrow"
         style={{
-          flexShrink: 0, padding: '2px 5px',
-          borderRadius: '6px', border: 'none',
+          flexShrink: 0, padding: '4px 7px', minHeight: '36px',
+          borderRadius: '7px', border: 'none',
           background: 'none', color: '#6b7280',
-          cursor: 'pointer', fontSize: '14px',
+          cursor: 'pointer', fontSize: '16px',
           display: 'flex', alignItems: 'center',
         }}
       >
@@ -74,7 +74,7 @@ export function TaskTabs({ active, onChange, errorTab }: TaskTabsProps) {
         ref={scrollRef}
         style={{
           display: 'flex', alignItems: 'center',
-          gap: '3px', flex: 1,
+          gap: '4px', flex: 1,
           overflowX: 'auto',
           scrollbarWidth: 'none',
         }}
@@ -90,25 +90,25 @@ export function TaskTabs({ active, onChange, errorTab }: TaskTabsProps) {
               className={clsx('task-tab-item', isActive && 'active', isError && 'has-error')}
               style={{
                 flexShrink: 0,
-                display: 'flex', alignItems: 'center', gap: '4px',
-                padding: '3.5px 7.5px',
-                borderRadius: '6px',
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '6px 11px',
+                minHeight: '36px',
+                borderRadius: '8px',
                 border: isError
-                  ? '1px solid rgba(239,68,68,0.7)'
+                  ? '1px solid rgba(239,68,68,0.65)'
                   : isActive
-                  ? '1px solid rgba(var(--theme-primary-rgb, 34,197,94), 0.5)'
+                  ? '1px solid rgba(var(--theme-primary-rgb, 34,197,94), 0.45)'
                   : '1px solid transparent',
                 background: isError
                   ? 'rgba(239,68,68,0.14)'
                   : isActive
-                  ? 'linear-gradient(135deg, rgba(var(--theme-primary-rgb, 5,150,105), 0.3) 0%, rgba(var(--theme-primary-rgb, 16,185,129), 0.15) 100%)'
+                  ? 'rgba(var(--theme-primary-rgb, 16,185,129), 0.16)'
                   : 'none',
                 color: isError ? '#fca5a5' : isActive ? 'var(--theme-primary-light, #6ee7b7)' : '#9ca3af',
-                fontSize: '11px',
+                fontSize: '12px',
                 fontWeight: isActive ? 600 : 400,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                transition: 'all 0.15s',
                 fontFamily: 'inherit',
               }}
             >
@@ -129,7 +129,6 @@ export function TaskTabs({ active, onChange, errorTab }: TaskTabsProps) {
                     height: '6px',
                     borderRadius: '50%',
                     backgroundColor: '#ef4444',
-                    boxShadow: '0 0 6px #ef4444',
                     display: 'inline-block',
                   }}
                 />
@@ -145,8 +144,8 @@ export function TaskTabs({ active, onChange, errorTab }: TaskTabsProps) {
         onClick={() => scroll('right')}
         className="task-tabs-arrow"
         style={{
-          flexShrink: 0, padding: '4px 8px',
-          borderRadius: '8px', border: 'none',
+          flexShrink: 0, padding: '4px 7px', minHeight: '36px',
+          borderRadius: '7px', border: 'none',
           background: 'none', color: '#6b7280',
           cursor: 'pointer', fontSize: '16px',
           display: 'flex', alignItems: 'center',

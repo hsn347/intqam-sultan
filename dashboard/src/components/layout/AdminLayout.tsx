@@ -61,16 +61,9 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   }
 
   return (
-    <div className="admin-layout-wrapper min-h-screen bg-slate-50 dark:bg-[#060a08] text-slate-900 dark:text-gray-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-200 transition-colors">
-      {/* ── Background Ambient Glow (Dark mode only) ── */}
-      <div className="fixed inset-0 pointer-events-none z-0 hidden dark:block">
-        <div className="absolute top-0 start-1/4 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-10 end-1/4 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(var(--theme-primary-rgb,16,185,129),0.15),rgba(255,255,255,0))]" />
-      </div>
-
+    <div className="admin-layout-wrapper min-h-screen bg-slate-50 dark:bg-[#060a08] text-slate-900 dark:text-gray-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
       {/* ── Admin Header ── */}
-      <header className="admin-header sticky top-0 z-30 backdrop-blur-xl bg-white/95 dark:bg-black/75 border-b border-slate-200/80 dark:border-emerald-500/20 shadow-xs transition-colors">
+      <header className="admin-header sticky top-0 z-30 bg-white dark:bg-[#0c120e] border-b border-slate-200/80 dark:border-emerald-500/20 shadow-xs">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           {/* ── Mobile Header (< sm): Clean Single Row with Hamburger Menu ── */}
           <div className="flex items-center justify-between gap-2 py-2.5 sm:hidden">
@@ -79,7 +72,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
               <button
                 type="button"
                 onClick={() => setMobileDrawerOpen(true)}
-                className="p-1.5 rounded-xl text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 active:scale-95 cursor-pointer shadow-xs hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+                className="p-1.5 rounded-xl text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 active:scale-95 cursor-pointer shadow-xs"
                 aria-label="فتح قائمة التنقل"
                 title="قائمة التنقل"
               >
@@ -88,7 +81,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
               <Link
                 to="/admin"
-                className="flex items-center gap-1.5 shrink-0 transition-opacity hover:opacity-90"
+                className="flex items-center gap-1.5 shrink-0"
                 title={t('admin.layout.panelTitle')}
               >
                 <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-primary-500/25 shrink-0 flex items-center justify-center shadow-xs overflow-hidden">
@@ -135,7 +128,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
             <div className="fixed inset-0 z-[9999] sm:hidden">
               {/* Backdrop */}
               <div
-                className="fixed inset-0 bg-black/70 backdrop-blur-xs transition-opacity"
+                className="fixed inset-0 bg-black/70"
                 onClick={() => setMobileDrawerOpen(false)}
               />
 
@@ -167,7 +160,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                   <button
                     type="button"
                     onClick={() => setMobileDrawerOpen(false)}
-                    className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                    className="p-1.5 rounded-xl text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 cursor-pointer"
                     title="إغلاق"
                   >
                     <X size={18} />
@@ -179,10 +172,10 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                   <Link
                     to="/admin"
                     onClick={() => setMobileDrawerOpen(false)}
-                    className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                    className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold cursor-pointer ${
                       isUsersActive
                         ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-500/30 shadow-xs'
-                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                        : 'text-slate-700 dark:text-slate-300'
                     }`}
                   >
                     <Users size={18} className={isUsersActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'} />
@@ -194,23 +187,23 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                       <Link
                         to="/admin/live-processes"
                         onClick={() => setMobileDrawerOpen(false)}
-                        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold cursor-pointer ${
                           isLiveProcessesActive
                             ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-500/30 shadow-xs'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                            : 'text-slate-700 dark:text-slate-300'
                         }`}
                       >
-                        <Activity size={18} className={isLiveProcessesActive ? 'text-emerald-500 animate-pulse' : 'text-slate-500 dark:text-slate-400'} />
+                        <Activity size={18} className={isLiveProcessesActive ? 'text-emerald-500' : 'text-slate-500 dark:text-slate-400'} />
                         <span>العمليات الحية</span>
                       </Link>
 
                       <Link
                         to="/admin/merchants"
                         onClick={() => setMobileDrawerOpen(false)}
-                        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold cursor-pointer ${
                           isMerchantsActive
                             ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-500/30 shadow-xs'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                            : 'text-slate-700 dark:text-slate-300'
                         }`}
                       >
                         <Store size={18} className={isMerchantsActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'} />
@@ -220,23 +213,23 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                       <Link
                         to="/admin/proxies"
                         onClick={() => setMobileDrawerOpen(false)}
-                        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold cursor-pointer ${
                           isProxiesActive
                             ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-500/30 shadow-xs'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                            : 'text-slate-700 dark:text-slate-300'
                         }`}
                       >
                         <ShieldCheck size={18} className={isProxiesActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'} />
-                        <span>البروكسيات</span>
+                        <span>{t('admin.layout.proxiesShort')}</span>
                       </Link>
 
                       <Link
                         to="/admin/users-castles"
                         onClick={() => setMobileDrawerOpen(false)}
-                        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold cursor-pointer ${
                           isUsersCastlesActive
                             ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-500/30 shadow-xs'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                            : 'text-slate-700 dark:text-slate-300'
                         }`}
                       >
                         <Landmark size={18} className={isUsersCastlesActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'} />
@@ -274,7 +267,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
             {/* Brand Identity & Logo */}
             <Link
               to="/admin"
-              className="flex items-center gap-2.5 shrink-0 transition-opacity hover:opacity-90"
+              className="flex items-center gap-2.5 shrink-0"
               title="لوحة التحكم"
             >
               <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-primary-500/25 shrink-0 flex items-center justify-center shadow-xs overflow-hidden">
@@ -298,10 +291,10 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
             <nav className="flex items-center gap-1 bg-slate-100/90 dark:bg-white/5 p-1 rounded-xl border border-slate-200/70 dark:border-white/10 shrink-0">
               <Link
                 to="/admin"
-                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg cursor-pointer ${
                   isUsersActive
                     ? 'bg-white dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs border border-slate-200/80 dark:border-emerald-500/30'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5 font-medium border border-transparent'
+                    : 'text-slate-600 dark:text-slate-300 font-medium border border-transparent'
                 }`}
                 title="المستخدمين"
               >
@@ -314,23 +307,23 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                 <>
                   <Link
                     to="/admin/live-processes"
-                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg cursor-pointer ${
                       isLiveProcessesActive
                         ? 'bg-white dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs border border-slate-200/80 dark:border-emerald-500/30'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5 font-medium border border-transparent'
+                        : 'text-slate-600 dark:text-slate-300 font-medium border border-transparent'
                     }`}
                     title="العمليات الحية"
                   >
-                    <Activity size={14} className={isLiveProcessesActive ? 'text-emerald-500 animate-pulse' : 'text-slate-500 dark:text-slate-400'} />
+                    <Activity size={14} className={isLiveProcessesActive ? 'text-emerald-500' : 'text-slate-500 dark:text-slate-400'} />
                     <span>العمليات الحية</span>
                   </Link>
 
                   <Link
                     to="/admin/merchants"
-                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg cursor-pointer ${
                       isMerchantsActive
                         ? 'bg-white dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs border border-slate-200/80 dark:border-emerald-500/30'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5 font-medium border border-transparent'
+                        : 'text-slate-600 dark:text-slate-300 font-medium border border-transparent'
                     }`}
                     title="التجار"
                   >
@@ -340,23 +333,23 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
                   <Link
                     to="/admin/proxies"
-                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg cursor-pointer ${
                       isProxiesActive
                         ? 'bg-white dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs border border-slate-200/80 dark:border-emerald-500/30'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5 font-medium border border-transparent'
+                        : 'text-slate-600 dark:text-slate-300 font-medium border border-transparent'
                     }`}
-                    title="البروكسيات"
+                    title={t('admin.layout.proxiesShort')}
                   >
                     <ShieldCheck size={14} className={isProxiesActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'} />
-                    <span>البروكسيات</span>
+                    <span>{t('admin.layout.proxiesShort')}</span>
                   </Link>
 
                   <Link
                     to="/admin/users-castles"
-                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg cursor-pointer ${
                       isUsersCastlesActive
                         ? 'bg-white dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs border border-slate-200/80 dark:border-emerald-500/30'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5 font-medium border border-transparent'
+                        : 'text-slate-600 dark:text-slate-300 font-medium border border-transparent'
                     }`}
                     title="قلاع المستخدمين"
                   >
@@ -371,7 +364,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200/80 dark:border-white/10 transition-colors cursor-pointer shadow-xs"
+                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 cursor-pointer shadow-xs"
                 title={theme === 'dark' ? t('common.lightMode') : t('common.darkMode')}
               >
                 {theme === 'dark' ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-emerald-600" />}
@@ -379,7 +372,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
               <button
                 onClick={handleSecureLogout}
-                className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer shadow-xs"
+                className="flex items-center gap-1.5 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 cursor-pointer shadow-xs"
                 title={t('admin.layout.logout')}
               >
                 <LogOut size={14} className="shrink-0" />

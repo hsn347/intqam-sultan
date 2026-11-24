@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import hashlib
 import json
 import logging
 import os
+import re
 import sqlite3
 import threading
 from datetime import datetime, timezone, timedelta
@@ -30,6 +32,7 @@ DEFAULT_DB_PATH = os.path.join(DB_DIR, "castles.db")
 
 _init_lock = threading.Lock()
 _db_initialized = False
+_initialized_paths: set = set()
 
 
 def get_db_path(custom_path: Optional[str] = None) -> str:
@@ -114,13 +117,36 @@ def init_db(db_path: Optional[str] = None) -> None:
                     config TEXT DEFAULT '{}',
                     resources TEXT DEFAULT '{}',
                     castle_info TEXT DEFAULT '{}',
+                    proxy_index INTEGER DEFAULT -1,
                     updated_at TEXT,
                     created_at TEXT
                 );
                 """)
 
+                # ── ترقية آمنة للقواعد القائمة (إضافة عمود proxy_index) ──
+                existing_cols = {
+                    row[1] for row in conn.execute("PRAGMA table_info(castle_states)").fetchall()
+                }
+                if "proxy_index" not in existing_cols:
+                    conn.execute("ALTER TABLE castle_states ADD COLUMN proxy_index INTEGER DEFAULT -1;")
+
+                # ── جدول إعدادات النظام العامة ──
+                conn.execute("""
+                CREATE TABLE IF NOT EXISTS system_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at TEXT
+                );
+                """)
+                conn.execute(
+                    "INSERT OR IGNORE INTO system_settings (key, value, updated_at) VALUES ('network_mode', 'direct', ?);",
+                    (datetime.now(timezone.utc).isoformat(),)
+                )
+
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_castles_user_id ON castle_states(user_id);")
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_castles_email ON castle_states(email);")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_castle_states_lower_email ON castle_states(LOWER(TRIM(email)));")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_castle_states_proxy_index ON castle_states(proxy_index);")
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);")
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_castles_user_active ON castle_states(user_id, is_active);")
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_castles_state ON castle_states(state, conn_state);")
@@ -133,6 +159,7 @@ def init_db(db_path: Optional[str] = None) -> None:
                 """, (datetime.now(timezone.utc).isoformat(),))
 
             _db_initialized = True
+            _initialized_paths.add(path)
             log.info("✓ تم تهيئة قاعدة بيانات SQLite المحلية بنجاح.")
         except Exception as e:
             log.error(f"خطأ أثناء تهيئة قاعدة البيانات: {e}", exc_info=True)
@@ -161,17 +188,18 @@ def get_user_castles(user_id: str) -> List[Dict[str, Any]]:
 
 
 def get_castle_by_id(castle_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """جلب قلعة محددة بالمعرف"""
+    """جلب قلعة محددة بالمعرف أو البريد الإلكتروني الكامل"""
+    lookup = (castle_id or "").strip()
     with get_connection() as conn:
         if user_id:
             row = conn.execute(
-                "SELECT * FROM castle_states WHERE (castle_id = ? OR email = ?) AND user_id = ?",
-                (castle_id, castle_id, user_id)
+                "SELECT * FROM castle_states WHERE (castle_id = ? OR LOWER(TRIM(email)) = LOWER(?)) AND user_id = ?",
+                (lookup, lookup, user_id)
             ).fetchone()
         else:
             row = conn.execute(
-                "SELECT * FROM castle_states WHERE castle_id = ? OR email = ?",
-                (castle_id, castle_id)
+                "SELECT * FROM castle_states WHERE castle_id = ? OR LOWER(TRIM(email)) = LOWER(?)",
+                (lookup, lookup)
             ).fetchone()
         return _row_to_castle(row) if row else None
 
@@ -180,10 +208,51 @@ get_castle = get_castle_by_id
 
 
 def castle_exists_by_email(email: str) -> bool:
-    """هل الحساب مسجل مسبقاً؟"""
+    """هل الحساب مسجل مسبقاً (مقارنة بالبريد الكامل غير حساسة لحالة الأحرف)؟"""
+    clean_email = (email or "").strip()
+    if not clean_email:
+        return False
     with get_connection() as conn:
-        row = conn.execute("SELECT 1 FROM castle_states WHERE email = ?", (email,)).fetchone()
+        row = conn.execute(
+            "SELECT 1 FROM castle_states WHERE LOWER(TRIM(email)) = LOWER(?)",
+            (clean_email,)
+        ).fetchone()
         return row is not None
+
+
+def generate_unique_castle_id(email: str, requested_id: Optional[str] = None) -> str:
+    """
+    توليد معرّف قلعة فريد (castle_id) اعتماداً على كامل البريد الإلكتروني مع بصمة تجزئة قصيرة
+    لمنع تصادم حسابات مختلفة تتشارك نفس البادئة قبل علامة @ (مثل LUCIFER@g2.com و LUCIFER@g4.com).
+    """
+    clean_email = (email or "").strip().lower()
+    req_cid = (requested_id or "").strip()
+
+    prefix_raw = clean_email.split("@")[0] if "@" in clean_email else clean_email
+    safe_prefix = re.sub(r"[^a-zA-Z0-9_-]+", "_", prefix_raw).strip("_") or "castle"
+    email_hash = hashlib.sha1(clean_email.encode("utf-8")).hexdigest()[:8] if clean_email else hashlib.sha1(os.urandom(8)).hexdigest()[:8]
+    base_cid = f"sultan_{safe_prefix}_{email_hash}"
+
+    with get_connection() as conn:
+        if req_cid:
+            row = conn.execute(
+                "SELECT email FROM castle_states WHERE castle_id = ?",
+                (req_cid,)
+            ).fetchone()
+            if not row or (clean_email and str(row["email"] or "").strip().lower() == clean_email):
+                return req_cid
+
+        candidate = base_cid
+        suffix = 2
+        while True:
+            row = conn.execute(
+                "SELECT email FROM castle_states WHERE castle_id = ?",
+                (candidate,)
+            ).fetchone()
+            if not row or (clean_email and str(row["email"] or "").strip().lower() == clean_email):
+                return candidate
+            candidate = f"{base_cid}_{suffix}"
+            suffix += 1
 
 
 def save_castle(castle_data: Dict[str, Any]) -> bool:
@@ -242,16 +311,18 @@ def create_castle_db(
     config: Optional[Dict[str, Any]] = None,
     castle_id: Optional[str] = None
 ) -> Dict[str, Any]:
-    """إنشاء قلعة جديدة وحفظها"""
-    cid = castle_id or f"sultan_{email.split('@')[0]}"
-    name = castle_name or f"قلعة {email.split('@')[0]}"
+    """إنشاء قلعة جديدة وحفظها بمعرّف فريد يعتمد على البريد الكامل"""
+    clean_email = (email or "").strip()
+    prefix = clean_email.split("@")[0] if "@" in clean_email else clean_email
+    cid = generate_unique_castle_id(clean_email, castle_id)
+    name = castle_name or f"قلعة {prefix}"
     cfg = config or {}
     now_iso = datetime.now(timezone.utc).isoformat()
 
     castle_data = {
         "castle_id": cid,
         "user_id": user_id,
-        "email": email,
+        "email": clean_email,
         "password": password,
         "castle_name": name,
         "is_active": 1,
@@ -373,7 +444,7 @@ def upsert_castle_conn_state(
             params.append(next_run_time)
 
         params.extend([castle_id, castle_id])
-        sql = f"UPDATE castle_states SET {', '.join(updates)} WHERE castle_id = ? OR email = ?"
+        sql = f"UPDATE castle_states SET {', '.join(updates)} WHERE castle_id = ? OR LOWER(TRIM(email)) = LOWER(?)"
         conn.execute(sql, params)
 
 
@@ -383,7 +454,7 @@ def upsert_castle_resources(castle_id: str, resources: Dict[str, Any]) -> None:
         res_str = json.dumps(resources, ensure_ascii=False)
         now_iso = datetime.now(timezone.utc).isoformat()
         conn.execute(
-            "UPDATE castle_states SET resources = ?, updated_at = ? WHERE castle_id = ? OR email = ?",
+            "UPDATE castle_states SET resources = ?, updated_at = ? WHERE castle_id = ? OR LOWER(TRIM(email)) = LOWER(?)",
             (res_str, now_iso, castle_id, castle_id)
         )
 
@@ -401,12 +472,12 @@ def update_castle_live_snapshot(
         now_iso = datetime.now(timezone.utc).isoformat()
         if castle_name:
             conn.execute(
-                "UPDATE castle_states SET resources = ?, castle_info = ?, castle_name = ?, updated_at = ? WHERE castle_id = ? OR email = ?",
+                "UPDATE castle_states SET resources = ?, castle_info = ?, castle_name = ?, updated_at = ? WHERE castle_id = ? OR LOWER(TRIM(email)) = LOWER(?)",
                 (res_str, info_str, castle_name, now_iso, castle_id, castle_id)
             )
         else:
             conn.execute(
-                "UPDATE castle_states SET resources = ?, castle_info = ?, updated_at = ? WHERE castle_id = ? OR email = ?",
+                "UPDATE castle_states SET resources = ?, castle_info = ?, updated_at = ? WHERE castle_id = ? OR LOWER(TRIM(email)) = LOWER(?)",
                 (res_str, info_str, now_iso, castle_id, castle_id)
             )
 
@@ -716,3 +787,268 @@ def approve_all_pending_users(days: int = 3, max_castles: int = 10) -> int:
             (new_end, max_castles)
         )
         return res.rowcount
+
+
+# ══════════════════════════════════════════════════════════════════
+# ⚙️ إعدادات النظام العامة ومؤشرات البروكسي (System Settings & Proxies)
+# ══════════════════════════════════════════════════════════════════
+
+def _ensure_init(db_path: Optional[str] = None) -> None:
+    """التأكد التلقائي من تهيئة قاعدة البيانات قبل أي عملية إعدادات أو بروكسي."""
+    path = get_db_path(db_path)
+    if path not in _initialized_paths:
+        init_db(db_path)
+
+
+def get_system_setting(key: str, default: str = "", db_path: Optional[str] = None) -> str:
+    """استرجاع إعداد نظام معين من جدول system_settings."""
+    _ensure_init(db_path)
+    try:
+        with get_connection(db_path) as conn:
+            row = conn.execute("SELECT value FROM system_settings WHERE key = ?", (key,)).fetchone()
+            if row and row["value"] is not None:
+                return str(row["value"])
+    except Exception as e:
+        log.warning(f"⚠️ خطأ في قراءة إعداد النظام {key}: {e}")
+    return default
+
+
+def set_system_setting(key: str, value: str, db_path: Optional[str] = None) -> bool:
+    """حفظ أو تحديث إعداد نظام في جدول system_settings."""
+    _ensure_init(db_path)
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with get_connection(db_path) as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES (?, ?, ?)",
+                (key, str(value), now)
+            )
+        return True
+    except Exception as e:
+        log.warning(f"⚠️ خطأ في حفظ إعداد النظام {key}: {e}")
+        return False
+
+
+def resolve_user_id_by_email(email: str, db_path: Optional[str] = None) -> Optional[str]:
+    """استخراج user_id لصاحب القلعة اعتماداً على البريد الإلكتروني."""
+    clean_email = (email or "").strip().lower()
+    if not clean_email:
+        return None
+    _ensure_init(db_path)
+    try:
+        with get_connection(db_path) as conn:
+            row = conn.execute(
+                "SELECT user_id FROM castle_states WHERE LOWER(TRIM(email)) = ? LIMIT 1",
+                (clean_email,)
+            ).fetchone()
+            if row and row["user_id"]:
+                return str(row["user_id"]).strip()
+    except Exception:
+        pass
+    return None
+
+
+def get_castle_proxy_index(email: str, db_path: Optional[str] = None) -> Optional[int]:
+    """استرجاع مؤشر البروكسي (proxy_index) المحفوظ للقلعة في قاعدة البيانات."""
+    clean_email = (email or "").strip().lower()
+    if not clean_email:
+        return None
+    _ensure_init(db_path)
+    try:
+        with get_connection(db_path) as conn:
+            row = conn.execute(
+                "SELECT proxy_index FROM castle_states WHERE LOWER(TRIM(email)) = ? LIMIT 1",
+                (clean_email,)
+            ).fetchone()
+            if row and row["proxy_index"] is not None and int(row["proxy_index"]) >= 0:
+                return int(row["proxy_index"])
+    except Exception as e:
+        log.warning(f"⚠️ خطأ أثناء قراءة proxy_index للقلعة ({clean_email}): {e}")
+    return None
+
+
+def set_castle_proxy_index(email: str, proxy_index: int, db_path: Optional[str] = None) -> bool:
+    """
+    حفظ أو تحديث مؤشر البروكسي (proxy_index) لقلعة مسجلة في قاعدة البيانات.
+    ملاحظة أمان: يقتصر على UPDATE لتفادي إنشاء صفوف يتيمة تخالف قيد user_id NOT NULL.
+    """
+    clean_email = (email or "").strip().lower()
+    if not clean_email or proxy_index is None:
+        return False
+    _ensure_init(db_path)
+    try:
+        with get_connection(db_path) as conn:
+            cur = conn.execute(
+                "UPDATE castle_states SET proxy_index = ? WHERE LOWER(TRIM(email)) = ?",
+                (int(proxy_index), clean_email)
+            )
+            return cur.rowcount > 0
+    except Exception as e:
+        log.warning(f"⚠️ تعذر حفظ proxy_index للقلعة ({clean_email}): {e}")
+        return False
+
+
+def get_user_proxy_index(user_id: str, db_path: Optional[str] = None) -> Optional[int]:
+    """استرجاع مؤشر البروكسي الخاص بأي قلعة تابعة لنفس المستخدم لتوحيد البروكسي بينهم."""
+    clean_uid = (user_id or "").strip()
+    if not clean_uid:
+        return None
+    _ensure_init(db_path)
+    try:
+        with get_connection(db_path) as conn:
+            row = conn.execute(
+                "SELECT proxy_index FROM castle_states WHERE (user_id = ? OR LOWER(user_id) = ?) AND proxy_index >= 0 LIMIT 1",
+                (clean_uid, clean_uid.lower())
+            ).fetchone()
+            if row and row["proxy_index"] is not None and int(row["proxy_index"]) >= 0:
+                return int(row["proxy_index"])
+    except Exception as e:
+        log.warning(f"⚠️ خطأ أثناء قراءة proxy_index للمستخدم ({clean_uid}): {e}")
+    return None
+
+
+def get_all_castle_proxy_counts(total_proxies: int, db_path: Optional[str] = None) -> Dict[int, int]:
+    """حساب عدد القلاع المربوطة بكل مؤشر بروكسي (0..total_proxies-1) لتحقيق توزيع متوازن."""
+    counts = {i: 0 for i in range(total_proxies)}
+    if total_proxies <= 0:
+        return counts
+    _ensure_init(db_path)
+    try:
+        with get_connection(db_path) as conn:
+            rows = conn.execute(
+                "SELECT proxy_index, count(*) FROM castle_states WHERE proxy_index >= 0 GROUP BY proxy_index"
+            ).fetchall()
+            for r in rows:
+                raw_idx = int(r[0])
+                safe_idx = raw_idx % total_proxies
+                counts[safe_idx] = counts.get(safe_idx, 0) + int(r[1])
+    except Exception as e:
+        log.warning(f"⚠️ خطأ أثناء حساب حمولة مؤشرات البروكسي: {e}")
+    return counts
+
+
+def get_all_castle_proxy_assignments(total_proxies: int, db_path: Optional[str] = None) -> Tuple[Dict[int, List[str]], Dict[int, List[str]]]:
+    """استرجاع خريطة القلاع والمستخدمين المرتبطين بكل مؤشر بروكسي من SQLite."""
+    castle_map: Dict[int, List[str]] = {}
+    user_map: Dict[int, List[str]] = {}
+    if total_proxies <= 0:
+        return castle_map, user_map
+    _ensure_init(db_path)
+    try:
+        with get_connection(db_path) as conn:
+            rows = conn.execute(
+                "SELECT LOWER(TRIM(email)), user_id, proxy_index FROM castle_states WHERE proxy_index >= 0"
+            ).fetchall()
+            for em_row, uid_row, idx_row in rows:
+                if idx_row is None:
+                    continue
+                safe_i = int(idx_row) % total_proxies
+                if em_row:
+                    castle_map.setdefault(safe_i, []).append(str(em_row))
+                if uid_row:
+                    u_str = str(uid_row).strip()
+                    if u_str and u_str not in user_map.get(safe_i, []):
+                        user_map.setdefault(safe_i, []).append(u_str)
+    except Exception as e:
+        log.warning(f"⚠️ خطأ أثناء قراءة ارتباطات البروكسي من قاعدة البيانات: {e}")
+    return castle_map, user_map
+
+
+# ══════════════════════════════════════════════════════════════════
+# دوال إدارة حالة النشر والاستئناف التدريجي (Deploy & Auto-Resume DB Ops)
+# ══════════════════════════════════════════════════════════════════
+
+def reset_stuck_castles_db(exclude_castle_ids: Optional[List[str]] = None, db_path: Optional[str] = None) -> int:
+    """
+    تصفير الحالات العالقة من تشغيل سابق إلى idle عند الإقلاع مع استثناء القلاع المجدولة للاستئناف
+    واستثناء الحسابات المحظورة (sealed / banned) أو المعطلة بخطأ كلمة مرور (error).
+    """
+    _ensure_init(db_path)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    excludes = [str(x).strip() for x in (exclude_castle_ids or []) if x and str(x).strip()]
+    with get_connection(db_path) as conn:
+        base_where = """
+            (state IN ('running', 'deploying') OR conn_state IN ('connected', 'starting', 'waiting', 'deploying', 'reconnecting'))
+            AND COALESCE(conn_state, '') NOT IN ('sealed', 'sealed_banned', 'banned', 'error')
+            AND COALESCE(state, '') NOT IN ('sealed', 'banned', 'error')
+        """
+        if excludes:
+            placeholders = ", ".join("?" for _ in excludes)
+            sql = f"""
+                UPDATE castle_states
+                SET state = 'idle', conn_state = 'idle', status_message = 'جاهز للتشغيل', updated_at = ?
+                WHERE {base_where} AND castle_id NOT IN ({placeholders})
+            """
+            res = conn.execute(sql, [now_iso, *excludes])
+        else:
+            sql = f"""
+                UPDATE castle_states
+                SET state = 'idle', conn_state = 'idle', status_message = 'جاهز للتشغيل', updated_at = ?
+                WHERE {base_where}
+            """
+            res = conn.execute(sql, [now_iso])
+        return res.rowcount or 0
+
+
+def set_castles_deploying_db(
+    castle_ids: List[str],
+    message: str = "جاري رفع التغييرات إلى السيرفر... سيتم استئناف البوت تلقائياً",
+    db_path: Optional[str] = None,
+) -> int:
+    """وسم مجموعة من القلاع بحالة deploying لحماية واجهة المستخدم أثناء النشر أو التشغيل التدريجي."""
+    clean_ids = [str(x).strip() for x in castle_ids if x and str(x).strip()]
+    if not clean_ids:
+        return 0
+    _ensure_init(db_path)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    placeholders = ", ".join("?" for _ in clean_ids)
+    with get_connection(db_path) as conn:
+        res = conn.execute(
+            f"""
+            UPDATE castle_states
+            SET state = 'deploying', conn_state = 'deploying', status_message = ?, updated_at = ?
+            WHERE castle_id IN ({placeholders})
+            """,
+            [message, now_iso, *clean_ids],
+        )
+        return res.rowcount or 0
+
+
+def reset_deploying_castles_to_idle_db(
+    message: str = "تم إلغاء التشغيل التدريجي",
+    db_path: Optional[str] = None,
+) -> int:
+    """تصفير أي قلاع متبقية في حالة deploying إلى idle بعد إلغاء قائمة الانتظار."""
+    _ensure_init(db_path)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with get_connection(db_path) as conn:
+        res = conn.execute(
+            """
+            UPDATE castle_states
+            SET state = 'idle', conn_state = 'idle', status_message = ?, updated_at = ?
+            WHERE conn_state = 'deploying' OR state = 'deploying'
+            """,
+            (message, now_iso),
+        )
+        return res.rowcount or 0
+
+
+def stop_all_castles_idle_db(
+    message: str = "تم إيقاف البوت بواسطة المشرف",
+    db_path: Optional[str] = None,
+) -> int:
+    """تصفير جميع القلاع غير المحظورة إلى حالة idle عند الإيقاف الشامل."""
+    _ensure_init(db_path)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with get_connection(db_path) as conn:
+        res = conn.execute(
+            """
+            UPDATE castle_states
+            SET state = 'idle', conn_state = 'idle', status_message = ?, updated_at = ?
+            WHERE COALESCE(conn_state, '') NOT IN ('sealed', 'sealed_banned', 'banned')
+              AND COALESCE(state, '') NOT IN ('sealed', 'banned')
+            """,
+            (message, now_iso),
+        )
+        return res.rowcount or 0
+

@@ -59,12 +59,12 @@ export function Sidebar({ onLogoutClick }: SidebarProps = {}) {
       {/* Sidebar - Desktop Only (Hidden on Mobile) */}
       <aside
         dir="ltr"
-        className="hidden md:flex glass-sidebar fixed top-0 left-0 h-full z-50 flex-col border-r border-gray-200 dark:border-white/8 sidebar-width"
+        className="hidden top-0 left-0 z-50 fixed md:flex flex-col border-gray-200 dark:border-white/8 border-r h-full glass-sidebar sidebar-width"
       >
         {/* Logo */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-200 dark:border-white/8">
+        <div className="flex justify-between items-center px-4 py-3.5 border-gray-200 dark:border-white/8 border-b">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-primary-500/25 shrink-0 flex items-center justify-center shadow-xs overflow-hidden">
+            <div className="flex justify-center items-center bg-gray-100 dark:bg-white/5 border border-amber-500/30 dark:border-amber-500/35 rounded-xl w-9 h-9 overflow-hidden shrink-0">
               <img
                 src={logoUrl || '/logo.png?v=2'}
                 alt={brandName}
@@ -72,9 +72,9 @@ export function Sidebar({ onLogoutClick }: SidebarProps = {}) {
               />
             </div>
             <div className="min-w-0">
-              <span className="brand-title font-bold text-sm tracking-wide block leading-tight">{brandName}</span>
+              <span className="block font-bold text-sm leading-tight tracking-wide brand-title">{brandName}</span>
               {tagline ? (
-                <span className="brand-tagline text-[11px] font-bold block leading-tight mt-0.5 truncate">
+                <span className="block mt-0.5 font-bold text-[11px] truncate leading-tight brand-tagline">
                   {tagline}
                 </span>
               ) : null}
@@ -84,46 +84,46 @@ export function Sidebar({ onLogoutClick }: SidebarProps = {}) {
 
         {/* User info & Quick Account Switcher trigger */}
         {user && (
-          <div className="p-2 border-b border-gray-200 dark:border-white/8">
+          <div className="p-2 border-gray-200 dark:border-white/8 border-b">
             <button
               type="button"
               onClick={() => setShowAccountSwitcher(true)}
-              className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/6 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-white/10"
+              className="flex justify-between items-center p-2 border border-transparent rounded-xl w-full text-left cursor-pointer"
               title={t('accountSwitcher.title', 'تبديل الحساب')}
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-primary-600 dark:bg-primary-600 text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-xs">
+                <div className="flex justify-center items-center bg-primary-600 dark:bg-primary-600 rounded-full w-8 h-8 font-bold text-white text-xs shrink-0">
                   {user.username?.[0]?.toUpperCase() ?? user.email?.[0]?.toUpperCase() ?? '?'}
                 </div>
                 <div className="min-w-0 text-left">
-                  <div className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                  <div className="font-bold text-gray-900 dark:text-white text-xs truncate">
                     {localizeUsername(user.username, t) || user.email}
                   </div>
-                  <div className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                  <div className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400">
                     <span>{isAdmin ? t('roles.admin', 'Admin') : t('roles.user', 'User')}</span>
                     {savedAccounts.length > 1 && (
-                      <span className="text-[9px] bg-primary-500/15 text-primary-600 dark:text-primary-400 font-mono px-1 py-0.2 rounded font-bold">
+                      <span className="bg-primary-500/15 px-1 py-0.2 rounded font-mono font-bold text-[9px] text-primary-600 dark:text-primary-400">
                         {savedAccounts.length}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
-              <ChevronsUpDown size={14} className="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200 shrink-0 transition-colors" />
+              <ChevronsUpDown size={14} className="text-gray-400 shrink-0" />
             </button>
           </div>
         )}
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
           {navLinks.map(({ to, icon: Icon, label, badge, isSpecial }: any) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) => clsx(
-                'nav-item flex items-center justify-between',
+                'flex justify-between items-center nav-item',
                 isActive && 'active',
-                isSpecial && !isActive && 'text-emerald-400/90 hover:text-emerald-300'
+                isSpecial && !isActive && 'text-emerald-400/90'
               )}
               onClick={() => window.innerWidth < 768 && toggleSidebar()}
             >
@@ -132,7 +132,7 @@ export function Sidebar({ onLogoutClick }: SidebarProps = {}) {
                 <span>{label}</span>
               </div>
               {badge && (
-                <span className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-extrabold px-1.5 py-0.5 rounded tracking-wider">
+                <span className="bg-emerald-500/15 px-1.5 py-0.5 border border-emerald-500/30 rounded font-mono font-extrabold text-[10px] text-emerald-400 tracking-wider">
                   {badge}
                 </span>
               )}
@@ -141,24 +141,24 @@ export function Sidebar({ onLogoutClick }: SidebarProps = {}) {
         </nav>
 
         {/* Bottom: Language + Theme + Logout */}
-        <div className="border-t border-white/8 px-3 py-3 space-y-2">
+        <div className="space-y-2 px-3 py-3 border-white/8 border-t">
           {/* Language selector */}
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs text-gray-500">{t('settings.language')}</span>
+          <div className="flex justify-between items-center px-1">
+            <span className="text-gray-500 text-xs">{t('settings.language')}</span>
             <LanguageDropdown placement="top" variant="compact" />
           </div>
 
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="nav-item w-full"
+            className="w-full nav-item"
           >
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             <span className="text-sm">{theme === 'dark' ? t('common.lightMode') : t('common.darkMode')}</span>
           </button>
 
           {/* Logout */}
-          <button onClick={handleLogout} className="nav-item w-full text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-600/10 transition-colors">
+          <button onClick={handleLogout} className="w-full text-red-600 dark:text-red-400 nav-item">
             <LogOut size={16} />
             <span className="text-sm">{t('nav.logout')}</span>
           </button>

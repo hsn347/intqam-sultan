@@ -199,11 +199,6 @@
     "expiredBanner": "Your subscription has expired. Bot operations are stopped for all castles. Please contact admin to renew.",
     "lockedBanned": "Banned",
     "lockedExpired": "Expired",
-    "fixedPreset": "Default Preset",
-    "fixedPresetTooltip": "Apply fixed preset task settings to this castle",
-    "confirmFixedPreset": "Apply fixed preset settings to this castle? The 12 specified tasks will be enabled and all other tasks disabled.",
-    "fixedPresetSuccess": "Fixed preset settings applied successfully!",
-    "applyingPreset": "Applying...",
     "targetAccountsAndTemplate": "Target Accounts & Settings Template",
     "template": "Template",
     "selectTargetAccounts": "Target Accounts to Modify",
@@ -217,7 +212,10 @@
     "passwordErrorFixPrompt": "Incorrect password — click ✏️ to edit",
     "mainCastle": "Main Castle",
     "castleLevelPrefix": "Castle",
-    "castleLevelTitle": "Main Castle - Level: {{level}}"
+    "castleLevelTitle": "Main Castle - Level: {{level}}",
+    "runningLabel": "Running",
+    "idleLabel": "Idle",
+    "royalControlSubtitle": "Manage and automate your castles and tasks"
   },
   "modals": {
     "addCastleTitle": "Add New Account",
@@ -255,27 +253,7 @@
     "loggingOut": "Signing out...",
     "cancel": "Cancel",
     "cancelDismiss": "Dismiss / Cancel",
-    "close": "Close",
-    "presetModalSingleTitle": "Apply Default Preset to Castle",
-    "presetModalBatchTitle": "Apply Default Preset to Group",
-    "presetModalSingleDesc": "Enable the 12 specified tasks for this castle",
-    "presetModalBatchDesc": "Preset settings will be applied to ({{count}}) selected accounts",
-    "presetTasksHeading": "The 12 tasks that will be enabled:",
-    "confirmApplyPreset": "Confirm Apply",
-    "presetTasks": {
-      "gatherIron": "Gather Resources (Iron)",
-      "watermillAll": "Resource Support (All + Shop Buy)",
-      "caravan": "Loot Caravan",
-      "alliance": "Alliance Tasks & Donations",
-      "petPatrol": "Pet Patrol (Kangal Dog)",
-      "tacticsHall": "Tactics Study (Empty Castle)",
-      "fountain": "Wishing Fountain (All Resources Free)",
-      "materialWorkshop": "Material Workshop (All Materials)",
-      "quickGatherSkill": "Rapid Gather Skill",
-      "harvestSkill": "Harvest Skill",
-      "basicDungeon": "Basic Dungeon (All Items)",
-      "territoryExpansion": "Territory Expansion"
-    }
+    "close": "Close"
   },
   "tabs": {
     "all": "All Tasks",
@@ -612,7 +590,21 @@
     "fullLegionBadge": "Full Legion",
     "treasureEscortFreeRefresh": "Free cart refresh before dispatch",
     "treasureEscortFormation": "Saved formation # (0 for auto only)",
-    "treasureEscortAutoFallback": "Auto-fill fallback if formation is incomplete"
+    "treasureEscortAutoFallback": "Auto-fill fallback if formation is incomplete",
+    "summaryFreeOnly": "Free only",
+    "summaryWithGold": "Gold enabled",
+    "summaryNoGold": "No gold",
+    "summaryDailyShort": "Daily",
+    "summaryAllShort": "All",
+    "summaryCycleShort": "Per cycle",
+    "summaryKingdomShort": "Kingdom",
+    "summaryGlobalShort": "Global",
+    "summaryMarchesOn": "Marches",
+    "summaryCoordsRequired": "Coords needed",
+    "summarySelectTroops": "Pick troops",
+    "summaryBuildingsCount": "{{count}} buildings",
+    "summaryGoldLimit": "Gold ({{amount}})",
+    "summaryResourcesRatio": "{{active}}/{{total}} res"
   },
   "resources": {
     "food": "Food",
@@ -645,8 +637,21 @@
     "expired": "Expired",
     "suspended": "Suspended",
     "banned": "Stopped (Banned by Admin)",
+    "castleSealed": "Banned in Game",
     "stoppedExpired": "Stopped (Subscription Expired)",
     "passwordError": "Wrong Password"
+  },
+  "sealReasons": {
+    "0": "Banned by game administration",
+    "1": "Banned for resource selling / trading",
+    "2": "Banned for multiple accounts violation",
+    "3": "Banned for chat / verbal abuse violation",
+    "4": "Account deleted or cancelled",
+    "5": "Account suspended (abnormal activity)",
+    "10": "Banned for illegal recharge violation",
+    "11": "Banned for chat invite spam violation",
+    "99": "Device signature blocked",
+    "fallback": "Account suspended or banned by the game"
   },
   "settings": {
     "title": "Settings",
@@ -790,7 +795,68 @@
       "merchantControl": "Merchant Control",
       "logout": "Log Out",
       "logoutShort": "Logout",
-      "logoutSuccess": "Logged out successfully"
+      "logoutSuccess": "Logged out successfully",
+      "proxiesShort": "Proxies"
+    },
+    "proxies": {
+      "pageTitle": "Proxies & Network",
+      "headerTitle": "Proxies & Network",
+      "refresh": "Refresh",
+      "loading": "Loading...",
+      "fetchError": "Failed to fetch proxy data from server",
+      "modes": {
+        "residential": "Paid Residential",
+        "free": "Free Backup",
+        "direct": "Direct Server",
+        "directWithIp": "Direct ({{ip}})",
+        "residentialBtn": "Paid Residential",
+        "freeBtn": "Free Backup",
+        "directBtn": "Direct",
+        "residentialShort": "🌟 Paid Residential",
+        "freeShort": "🛡️ Free Backup",
+        "directShort": "🌐 Direct IP"
+      },
+      "tooltips": {
+        "residentialBtn": "Verified paid static residential proxies",
+        "freeBtn": "Free datacenter proxies as backup",
+        "directBtn": "Direct connection via server IP"
+      },
+      "stats": {
+        "activeIps": "Active IPs",
+        "ipsBreakdown": "({{residential}} residential | {{free}} free)",
+        "boundCastles": "Bound Castles",
+        "users": "Users",
+        "currentMode": "Current Mode"
+      },
+      "notices": {
+        "residential": "Bots are currently routing through Static Residential proxies from real ISPs.",
+        "free": "Bots are running on Free Datacenter backup proxies. Paid residential proxy bindings remain preserved.",
+        "direct": "Bot connections are currently using the server IP directly. All proxy bindings remain saved and ready anytime."
+      },
+      "modal": {
+        "title": "Confirm Network Mode Switch",
+        "switchingTo": "Switching to:",
+        "residentialDesc": "Bot connections will switch to Paid Residential proxies ({{count}} IPs). Castles will bind on their next cycle.",
+        "freeDesc": "Bot connections will switch to Free Backup proxies ({{count}} IPs). Changes apply on the next cycle.",
+        "directDesc": "Bots will connect via the server IP directly. Changes apply automatically on each castle's next cycle.",
+        "cancel": "Cancel",
+        "confirm": "Confirm Switch",
+        "toggleSuccess": "Network mode updated successfully",
+        "toggleError": "Failed to update network mode"
+      },
+      "card": {
+        "residentialBadge": "Residential",
+        "freeBadge": "Free",
+        "castlesLabel": "Castles:",
+        "castlesCount": "Castles ({{count}})",
+        "testing": "Testing...",
+        "testBtn": "Test Connection",
+        "testSuccessToast": "✓ IP ({{ip}}) connected ({{ping}}ms)",
+        "testFailToast": "❌ Failed to reach IP: {{msg}}",
+        "testErrorToast": "Error while testing proxy",
+        "testFailMsg": "Test failed",
+        "testOkMsg": "Connected & secured"
+      }
     },
     "live": {
       "title": "Live Memory Processes",
@@ -834,7 +900,12 @@
       "alertWarning": "Notice:",
       "disconnectedReason": "Disconnected ({{reason}})",
       "otherLoginMsg": "Account logged in from another device, bot waiting to retry.",
-      "attemptCount": "Attempt {{attempt}} / {{max}}"
+      "attemptCount": "Attempt {{attempt}} / {{max}}",
+      "socksBadgeTooltip": "Live socket check: Active SOCKS5 tunnel (Peer: {{target}}) — Zero Leak",
+      "directBadgeTooltip": "Live socket check: Direct connection via Server IP ({{target}})",
+      "directLabel": "Direct (Server)",
+      "liveSocksSocketTitle": "Live proxied game socket",
+      "liveDirectSocketTitle": "Live direct game socket"
     },
     "merchants": {
       "title": "Merchants & Resellers Management",

@@ -5,8 +5,7 @@ import { Layout } from '../components/layout/Layout'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { useAuth } from '../hooks/useAuth'
 import { useCastles } from '../hooks/useCastles'
-import { motion } from 'framer-motion'
-import { Plus, Users, Shield, Zap, Bot, Crown, AlertTriangle, AlertCircle, ShieldAlert, Clock } from 'lucide-react'
+import { Plus, Zap, Bot, Crown, AlertTriangle, AlertCircle, ShieldAlert, Clock } from 'lucide-react'
 
 import { localizePlanName, localizeUsername } from '../lib/localize'
 import { useTenant } from '../context/TenantContext'
@@ -36,9 +35,9 @@ export function DashboardPage() {
   const isBanned = !isAdmin && Boolean(user?.is_banned)
 
   const stats = [
-    { label: t('dashboard.totalCastles'),  value: allCastles.length, icon: '🏰', color: 'text-blue-400',   bg: 'bg-blue-600/10 border-blue-600/20' },
-    { label: t('dashboard.activeCastles'), value: running,            icon: '▶️', color: 'text-green-400',  bg: 'bg-green-600/10 border-green-600/20' },
-    { label: t('dashboard.idleCastles'),   value: idle,               icon: '⏸️', color: 'text-gray-400',   bg: 'bg-gray-600/10 border-gray-600/20' },
+    { label: t('dashboard.totalCastles'),  value: allCastles.length, icon: '🏰', color: 'text-blue-400',   bg: 'border-blue-500/25 border-t-2 border-t-blue-500' },
+    { label: t('dashboard.activeCastles'), value: running,            icon: '▶️', color: 'text-emerald-400', bg: 'border-emerald-500/25 border-t-2 border-t-emerald-500' },
+    { label: t('dashboard.idleCastles'),   value: idle,               icon: '⏸️', color: 'text-slate-400',  bg: 'border-slate-500/20 border-t-2 border-t-slate-400' },
     {
       label: t('dashboard.subscription'),
       value: isAdmin ? t('dashboard.superAdminUnlimited') : isBanned ? t('dashboard.bannedBadge') : isPendingApproval ? t('admin.pendingApproval') : (planDisplayName || '—'),
@@ -49,50 +48,51 @@ export function DashboardPage() {
         ? 'text-rose-500 dark:text-rose-400'
         : isPendingApproval || isExpiringSoon
         ? 'text-amber-500 dark:text-amber-400'
-        : 'text-yellow-400',
+        : 'text-amber-400',
       bg: isAdmin
-        ? 'bg-amber-600/10 border-amber-600/20'
+        ? 'border-amber-500/30 border-t-2 border-t-amber-500'
         : isBanned || isExpired
-        ? 'bg-rose-500/15 border-rose-500/40 ring-1 ring-rose-500/30'
+        ? 'border-rose-500/40 border-t-2 border-t-rose-500'
         : isPendingApproval || isExpiringSoon
-        ? 'bg-amber-500/15 border-amber-500/40 ring-1 ring-amber-500/30'
-        : 'bg-yellow-600/10 border-yellow-600/20',
+        ? 'border-amber-500/40 border-t-2 border-t-amber-500'
+        : 'border-amber-500/25 border-t-2 border-t-amber-500',
       badge: isBanned ? t('dashboard.bannedBadge') : isPendingApproval ? t('dashboard.underReview', 'قيد المراجعة') : isExpired ? t('dashboard.expiredBadge') : isExpiringSoon ? t('dashboard.daysRemainingShort', { count: daysRemaining }) : undefined,
     },
   ]
 
   return (
     <Layout title={t('dashboard.title')}>
-      <div className="space-y-6">
-        {/* Page header */}
-        <div className="flex flex-wrap justify-between items-center gap-3">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <h1 className="font-bold text-2xl brand-title">{t('dashboard.title')}</h1>
-              {tagline ? (
-                <span className="inline-flex items-center gap-1.5 bg-primary-500/15 px-2.5 py-0.5 border border-primary-500/30 rounded-full font-bold text-xs brand-tagline brand-tagline-badge">
-                  <span className="bg-primary-500 rounded-full w-1.5 h-1.5" />
-                  {brandName} — {tagline}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 bg-primary-500/15 px-2.5 py-0.5 border border-primary-500/30 rounded-full font-bold text-xs brand-tagline brand-tagline-badge">
-                  <span className="bg-primary-500 rounded-full w-1.5 h-1.5" />
-                  {brandName}
-                </span>
-              )}
+      <div className="space-y-4 sm:space-y-6">
+        {/* Royal Page Header */}
+        <div className="flex flex-wrap justify-between items-center gap-2.5 sm:gap-3 p-3 sm:p-4 royal-header-card">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="flex justify-center items-center bg-gray-100 dark:bg-white/5 border border-amber-500/30 rounded-xl w-9 sm:w-10 h-9 sm:h-10 overflow-hidden shrink-0">
+              <img src={logoUrl || '/logo.png?v=2'} alt={brandName} className="w-full h-full object-cover" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="font-bold text-lg sm:text-2xl brand-title">{t('dashboard.title')}</h1>
+                {tagline ? (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 bg-primary-500/15 px-2.5 py-0.5 border border-primary-500/30 rounded-full font-bold text-xs brand-tagline brand-tagline-badge">
+                    <span className="bg-primary-500 rounded-full w-1.5 h-1.5" />
+                    {brandName} — {tagline}
+                  </span>
+                ) : (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 bg-primary-500/15 px-2.5 py-0.5 border border-primary-500/30 rounded-full font-bold text-xs brand-tagline brand-tagline-badge">
+                    <span className="bg-primary-500 rounded-full w-1.5 h-1.5" />
+                    {brandName}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* ── Pending Approval Alert ── */}
         {isPendingApproval && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3.5 bg-amber-500/10 dark:bg-amber-500/15 shadow-xs p-4 border border-amber-500/30 rounded-2xl text-amber-900 dark:text-amber-100"
-          >
+          <div className="flex items-center gap-3.5 bg-amber-500/10 dark:bg-amber-500/15 p-3.5 sm:p-4 border border-amber-500/30 rounded-2xl text-amber-900 dark:text-amber-100">
             <div className="flex justify-center items-center bg-amber-500/20 border border-amber-500/30 rounded-xl w-10 h-10 text-amber-600 dark:text-amber-400 shrink-0">
-              <Clock size={22} className="animate-pulse" />
+              <Clock size={22} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -105,16 +105,12 @@ export function DashboardPage() {
                 {t('dashboard.pendingApprovalDesc')}
               </p>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* ── Banned Alert ── */}
         {isBanned && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3.5 bg-rose-500/15 shadow-xs p-3.5 sm:p-4 border border-rose-500/40 rounded-2xl text-rose-950 dark:text-rose-100 dashboard-banner-banned"
-          >
+          <div className="flex items-center gap-3.5 bg-rose-500/15 p-3.5 sm:p-4 border border-rose-500/40 rounded-2xl text-rose-950 dark:text-rose-100 dashboard-banner-banned">
             <div className="flex justify-center items-center bg-rose-500/20 border border-rose-500/40 rounded-xl w-10 h-10 text-rose-400 banner-icon-box shrink-0">
               <ShieldAlert size={22} />
             </div>
@@ -129,16 +125,12 @@ export function DashboardPage() {
                 {t('dashboard.bannedDesc')}
               </p>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* ── Expiry Alert: Expired ── */}
         {isExpired && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3.5 bg-rose-500/10 dark:bg-rose-500/15 shadow-xs p-3.5 sm:p-4 border border-rose-500/30 rounded-2xl text-rose-900 dark:text-rose-100"
-          >
+          <div className="flex items-center gap-3.5 bg-rose-500/10 dark:bg-rose-500/15 p-3.5 sm:p-4 border border-rose-500/30 rounded-2xl text-rose-900 dark:text-rose-100">
             <div className="flex justify-center items-center bg-rose-500/20 border border-rose-500/30 rounded-xl w-10 h-10 text-rose-600 dark:text-rose-400 shrink-0">
               <AlertCircle size={22} />
             </div>
@@ -153,16 +145,12 @@ export function DashboardPage() {
                 {t('dashboard.expiredDesc')}
               </p>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* ── Expiry Alert: Expiring Soon (3 days or less) ── */}
         {isExpiringSoon && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3.5 bg-amber-500/10 dark:bg-amber-500/15 shadow-xs p-3.5 sm:p-4 border border-amber-500/35 rounded-2xl text-amber-900 dark:text-amber-100"
-          >
+          <div className="flex items-center gap-3.5 bg-amber-500/10 dark:bg-amber-500/15 p-3.5 sm:p-4 border border-amber-500/35 rounded-2xl text-amber-900 dark:text-amber-100">
             <div className="flex justify-center items-center bg-amber-500/20 border border-amber-500/30 rounded-xl w-10 h-10 text-amber-600 dark:text-amber-400 shrink-0">
               <AlertTriangle size={22} />
             </div>
@@ -175,7 +163,7 @@ export function DashboardPage() {
                     ? t('dashboard.expiringOneDayTitle')
                     : t('dashboard.expiringSoonTitle', { days: daysRemaining })}
                 </h3>
-                <span className="py-0.5 text-[10px] animate-pulse badge badge-yellow">
+                <span className="py-0.5 text-[10px] badge badge-yellow">
                   {daysRemaining === 0 ? t('dashboard.lastDay') : t('dashboard.daysRemainingBadge', { count: daysRemaining })}
                 </span>
               </div>
@@ -183,17 +171,13 @@ export function DashboardPage() {
                 {t('dashboard.expiringSoonDesc')}
               </p>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* ── Empty State ─────────────────────────────────── */}
         {!castlesQuery.isLoading && allCastles.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6 p-8 text-center glass-card"
-          >
-            <div className="flex justify-center items-center bg-gray-100 dark:bg-white/5 shadow-md mx-auto border border-gray-200 dark:border-primary-500/30 rounded-2xl w-20 h-20 overflow-hidden">
+          <div className="space-y-5 p-6 sm:p-8 text-center glass-card">
+            <div className="flex justify-center items-center bg-gray-100 dark:bg-white/5 mx-auto border border-amber-500/30 rounded-2xl w-16 sm:w-20 h-16 sm:h-20 overflow-hidden">
               <img src={logoUrl || "/logo.png?v=2"} alt={brandName} className="w-full h-full object-cover" />
             </div>
             <div>
@@ -207,13 +191,13 @@ export function DashboardPage() {
                 {t('dashboard.welcomeDesc')}
               </p>
             </div>
-            <div className="gap-4 grid grid-cols-1 sm:grid-cols-3 text-start">
+            <div className="gap-3 sm:gap-4 grid grid-cols-1 sm:grid-cols-3 text-start">
               {[
                 { icon: <Plus size={18} />, step: '1', title: t('dashboard.step1Title'), desc: t('dashboard.step1Desc'), clr: 'border-primary-500/30 text-primary-600 dark:text-primary-400 bg-primary-500/10' },
                 { icon: <Zap  size={18} />, step: '2', title: t('dashboard.step2Title'), desc: t('dashboard.step2Desc'), clr: 'border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10' },
                 { icon: <Bot  size={18} />, step: '3', title: t('dashboard.step3Title'), desc: t('dashboard.step3Desc'), clr: 'border-primary-500/30 text-primary-600 dark:text-primary-400 bg-primary-500/10' },
               ].map(s => (
-                <div key={s.step} className={`p-4 rounded-xl border ${s.clr} space-y-2`}>
+                <div key={s.step} className={`p-3.5 sm:p-4 rounded-xl border ${s.clr} space-y-1.5 sm:space-y-2`}>
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${s.clr}`}>{s.icon}</div>
                   <div className="text-gray-500 text-xs">{t('dashboard.stepPrefix')} {s.step}</div>
                   <div className="font-semibold text-sm brand-title">{s.title}</div>
@@ -225,45 +209,42 @@ export function DashboardPage() {
               <Plus size={16} />
               {t('dashboard.addFirstCastle')}
             </Link>
-          </motion.div>
+          </div>
         )}
 
         {/* Stats cards */}
         {allCastles.length > 0 && (
-          <div className="gap-4 grid grid-cols-2 lg:grid-cols-4">
-            {stats.map((s, i) => (
-              <motion.div
+          <div className="gap-2.5 sm:gap-4 grid grid-cols-2 lg:grid-cols-4">
+            {stats.map((s) => (
+              <div
                 key={s.label}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.07 }}
-                className={`glass-card p-5 border ${s.bg}`}
+                className={`glass-card p-3.5 sm:p-5 border ${s.bg}`}
               >
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-2xl">{s.icon}</span>
+                <div className="flex justify-between items-center mb-2 sm:mb-3">
+                  <span className="text-xl sm:text-2xl">{s.icon}</span>
                   {errors > 0 && s.label === t('dashboard.activeCastles') && (
                     <span className="badge badge-red">{t('dashboard.errorCount', { count: errors })}</span>
                   )}
                   {s.badge && (
-                    <span className={`badge ${isExpired ? 'badge-red' : 'badge-yellow animate-pulse'} text-[10px]`}>
+                    <span className={`badge ${isExpired ? 'badge-red' : 'badge-yellow'} text-[10px]`}>
                       {s.badge}
                     </span>
                   )}
                 </div>
-                <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-                <div className="mt-1 text-gray-500 text-xs">{s.label}</div>
-              </motion.div>
+                <div className={`text-xl sm:text-2xl font-bold tabular-nums ${s.color}`}>{s.value}</div>
+                <div className="mt-0.5 sm:mt-1 text-[11px] text-gray-500 sm:text-xs">{s.label}</div>
+              </div>
             ))}
           </div>
         )}
 
         {/* Subscription info */}
         {sub && (
-          <div className={`glass-card p-4 flex items-center justify-between flex-wrap gap-3 transition-all ${
+          <div className={`glass-card p-3.5 sm:p-4 flex items-center justify-between flex-wrap gap-3 ${
             isExpired
-              ? 'border-rose-500/40 bg-rose-50/50 dark:bg-rose-950/20 shadow-xs'
+              ? 'border-rose-500/40 bg-rose-50/50 dark:bg-rose-950/20'
               : isExpiringSoon
-              ? 'border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20 shadow-xs'
+              ? 'border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20'
               : ''
           }`}>
             <div>
@@ -271,7 +252,7 @@ export function DashboardPage() {
                 {isAdmin && <Crown size={15} className="inline text-amber-500" />}
                 <span>{isAdmin ? t('dashboard.superAdminFull') : isPendingApproval ? t('dashboard.pendingApprovalStatus') : planDisplayName}</span>
                 {isExpired && <span className="text-[10px] badge badge-red">{t('dashboard.expiredBadge')}</span>}
-                {isExpiringSoon && <span className="text-[10px] animate-pulse badge badge-yellow">{t('dashboard.expiringSoonBadge')}</span>}
+                {isExpiringSoon && <span className="text-[10px] badge badge-yellow">{t('dashboard.expiringSoonBadge')}</span>}
               </div>
 
             </div>
@@ -283,9 +264,9 @@ export function DashboardPage() {
                 </span>
               </span>
               {!isAdmin && (
-                <div className="bg-slate-200 dark:bg-white/10 rounded-full w-32 h-2 overflow-hidden">
+                <div className="bg-slate-200 dark:bg-white/10 rounded-full w-28 sm:w-32 h-2 overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${
+                    className={`h-full rounded-full ${
                       isExpired ? 'bg-rose-500' : isExpiringSoon ? 'bg-amber-500' : 'bg-primary-500'
                     }`}
                     style={{ width: `${Math.min(100, ((sub.current_castles_count ?? 0) / (sub.max_castles_allowed || 1)) * 100)}%` }}
@@ -299,7 +280,7 @@ export function DashboardPage() {
         {/* Recent castles */}
         {allCastles.length > 0 && (
           <div className="overflow-hidden glass-card">
-            <div className="flex justify-between items-center px-5 py-3.5 border-gray-100 dark:border-white/8 border-b">
+            <div className="flex justify-between items-center px-3.5 sm:px-5 py-3 sm:py-3.5 border-gray-100 dark:border-white/8 border-b">
               <div className="flex items-center gap-2">
                 <img
                   src="/images/castles/main_castle_square.png"
@@ -314,7 +295,7 @@ export function DashboardPage() {
               </div>
               <Link
                 to="/accounts"
-                className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-xs font-semibold transition-colors"
+                className="font-semibold text-primary-600 dark:text-primary-400 text-xs"
               >
                 {t('dashboard.viewAllAccounts')} &larr;
               </Link>
@@ -331,34 +312,33 @@ export function DashboardPage() {
                   <Link
                     key={c.id}
                     to="/accounts"
-                    className="flex justify-between items-center hover:bg-black/2 dark:hover:bg-white/3 px-4 sm:px-5 py-3.5 transition-colors group"
+                    className="flex justify-between items-center px-3.5 sm:px-5 py-2.5 sm:py-3.5"
                   >
-                    <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
-                      {/* أيقونة القلعة الكبيرة والواضحة جداً */}
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                       <div className="relative flex-shrink-0">
-                        <div className="flex justify-center items-center bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-amber-500/5 dark:from-amber-400/20 dark:to-transparent border border-amber-500/30 dark:border-amber-500/35 rounded-2xl w-14 h-14 sm:w-16 sm:h-16 p-1 shadow-sm overflow-hidden group-hover:scale-105 transition-transform duration-200">
+                        <div className="flex justify-center items-center bg-amber-500/10 p-1 border border-amber-500/25 rounded-xl sm:rounded-2xl w-11 sm:w-14 h-11 sm:h-14 overflow-hidden">
                           <img
                             src="/images/castles/main_castle_square.png"
                             alt={displayLordName}
-                            className="w-full h-full object-contain filter drop-shadow-md select-none"
+                            className="w-full h-full object-contain select-none"
                             loading="lazy"
                           />
                         </div>
                         {castleLevel > 0 && (
-                          <span className="absolute -bottom-1 -end-1 bg-gradient-to-r from-amber-600 to-amber-700 text-white font-black text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full border border-amber-300/40 shadow-sm leading-none select-none">
+                          <span className="-bottom-1 absolute bg-amber-600 px-1.5 py-0.5 border border-amber-300/40 rounded-full font-black text-[9px] text-white sm:text-[10px] leading-none select-none -end-1">
                             {castleLevel}
                           </span>
                         )}
                       </div>
 
-                      <div className="min-w-0 flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                          <span className="font-bold text-gray-900 dark:text-white text-sm sm:text-base brand-title truncate">
+                          <span className="font-bold text-gray-900 dark:text-white text-sm sm:text-base truncate brand-title">
                             {displayLordName}
                           </span>
 
                           {castleLevel > 0 && (
-                            <span className="inline-flex items-center gap-1 bg-amber-500/15 px-1.5 sm:px-2 py-0.5 border border-amber-500/30 rounded-md font-bold text-[10px] sm:text-xs text-amber-800 dark:text-amber-300 select-none">
+                            <span className="hidden sm:inline-flex items-center gap-1 bg-amber-500/12 px-2 py-0.5 border border-amber-500/25 rounded-md font-bold text-amber-800 dark:text-amber-300 text-xs select-none">
                               {t('accounts.castleLevelPrefix', 'قلعة')} {castleLevel}
                             </span>
                           )}
@@ -370,19 +350,19 @@ export function DashboardPage() {
                           ) : null}
 
                           {info?.alliance_name ? (
-                            <span className="bg-primary-500/15 px-1.5 py-0.5 border border-primary-500/30 rounded-md font-semibold text-[10px] text-primary-700 dark:text-primary-300 select-none">
+                            <span className="hidden sm:inline-block bg-primary-500/12 px-1.5 py-0.5 border border-primary-500/25 rounded-md font-semibold text-[10px] text-primary-700 dark:text-primary-300 select-none">
                               [{info.alliance_name.split(' ')[0]}]
                             </span>
                           ) : null}
                         </div>
 
-                        <div className="text-gray-500 dark:text-gray-400 text-xs font-mono truncate mt-0.5">
+                        <div className="hidden sm:block mt-0.5 font-mono text-gray-500 dark:text-gray-400 text-xs truncate">
                           {c.email}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex-shrink-0 ms-3">
+                    <div className="flex-shrink-0 ms-2 sm:ms-3">
                       <StatusBadge state={c.bot_status.state} label={t(`status.${c.bot_status.state}`)} />
                     </div>
                   </Link>

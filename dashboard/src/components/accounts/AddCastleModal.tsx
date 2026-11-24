@@ -121,7 +121,7 @@ export function AddCastleModal({ isOpen, onClose, userId }: AddCastleModalProps)
               exit={{ scale: 0.94, opacity: 0, y: 12 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
               onClick={e => e.stopPropagation()}
-              className="edit-castle-modal-box relative w-full max-w-[440px] rounded-2xl overflow-hidden shadow-2xl"
+              className="relative shadow-2xl rounded-2xl w-full max-w-[440px] overflow-hidden edit-castle-modal-box"
               style={{
                 pointerEvents: 'all',
               }}
@@ -137,18 +137,18 @@ export function AddCastleModal({ isOpen, onClose, userId }: AddCastleModalProps)
 
               <div className="p-6 sm:p-7">
                 {/* ─ Header ─ */}
-                <div className="flex items-start justify-between mb-5">
+                <div className="flex justify-between items-start mb-5">
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-xl bg-primary-500/15 border border-primary-500/30 flex items-center justify-center shrink-0 shadow-sm"
+                      className="flex justify-center items-center bg-primary-500/15 shadow-sm border border-primary-500/30 rounded-xl w-10 h-10 shrink-0"
                     >
                       <Sparkles size={18} className="text-primary-500" />
                     </div>
                     <div>
-                      <h2 className="edit-modal-title m-0 text-base font-bold text-gray-900 dark:text-white">
+                      <h2 className="m-0 font-bold text-gray-900 dark:text-white text-base edit-modal-title">
                         {t('modals.addCastleTitle')}
                       </h2>
-                      <p className="edit-modal-subtitle m-0 text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      <p className="m-0 mt-0.5 text-gray-500 dark:text-gray-400 text-xs edit-modal-subtitle">
                         {t('modals.addCastleSubtitle')}
                       </p>
                     </div>
@@ -158,7 +158,7 @@ export function AddCastleModal({ isOpen, onClose, userId }: AddCastleModalProps)
                     type="button"
                     onClick={handleClose}
                     disabled={addCastleMutation.isPending}
-                    className="edit-modal-btn-close p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 border border-gray-200 dark:border-white/8 transition-colors cursor-pointer"
+                    className="bg-gray-100 dark:bg-white/5 p-1.5 border border-gray-200 dark:border-white/8 rounded-lg text-gray-400 cursor-pointer edit-modal-btn-close"
                     title={t('modals.close')}
                   >
                     <X size={16} />
@@ -169,11 +169,11 @@ export function AddCastleModal({ isOpen, onClose, userId }: AddCastleModalProps)
                 <form onSubmit={handleSubmit} autoComplete="off">
                   {/* Email */}
                   <div className="mb-4">
-                    <label className="edit-modal-label block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                    <label className="block mb-1.5 font-semibold text-gray-700 dark:text-gray-300 text-xs edit-modal-label">
                       {t('modals.email', t('settings.email', 'البريد الإلكتروني'))}
                     </label>
                     <div className="relative">
-                      <Mail size={15} className="absolute top-1/2 -translate-y-1/2 end-3 text-gray-400 pointer-events-none" />
+                      <Mail size={15} className="top-1/2 absolute text-gray-400 -translate-y-1/2 pointer-events-none end-3" />
                       <input
                         id="new-castle-email"
                         name="new_castle_account_email"
@@ -185,14 +185,14 @@ export function AddCastleModal({ isOpen, onClose, userId }: AddCastleModalProps)
                         placeholder="example@gmail.com"
                         dir="ltr"
                         autoComplete="off"
-                        className="edit-modal-input w-full bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl py-2.5 pe-9 ps-3.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                        className="bg-white dark:bg-white/5 py-2.5 ps-3.5 pe-9 border border-gray-300 focus:border-primary-500 dark:border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-primary-500/20 w-full text-gray-900 dark:text-white text-sm transition-all edit-modal-input placeholder-gray-400 dark:placeholder-gray-500"
                       />
                     </div>
                   </div>
 
                   {/* Password */}
                   <div className="mb-6">
-                    <label className="edit-modal-label block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                    <label className="block mb-1.5 font-semibold text-gray-700 dark:text-gray-300 text-xs edit-modal-label">
                       {t('modals.password', t('settings.password', 'كلمة المرور'))}
                     </label>
                     <div className="relative">
@@ -206,12 +206,12 @@ export function AddCastleModal({ isOpen, onClose, userId }: AddCastleModalProps)
                         placeholder="••••••••"
                         dir="ltr"
                         autoComplete="new-password"
-                        className="edit-modal-input w-full bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl py-2.5 pe-9 ps-3.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                        className="bg-white dark:bg-white/5 py-2.5 ps-3.5 pe-9 border border-gray-300 focus:border-primary-500 dark:border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-primary-500/20 w-full text-gray-900 dark:text-white text-sm transition-all edit-modal-input placeholder-gray-400 dark:placeholder-gray-500"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(v => !v)}
-                        className="absolute top-1/2 -translate-y-1/2 end-3 p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-primary-400 transition-colors cursor-pointer flex items-center justify-center focus:outline-none"
+                        className="top-1/2 absolute flex justify-center items-center p-1 rounded-md focus:outline-none text-gray-400 -translate-y-1/2 cursor-pointer end-3"
                         title={showPassword ? t('modals.hidePassword') : t('modals.showPassword')}
                         aria-label={showPassword ? t('modals.hidePassword') : t('modals.showPassword')}
                       >
@@ -221,7 +221,7 @@ export function AddCastleModal({ isOpen, onClose, userId }: AddCastleModalProps)
                   </div>
 
                   {/* ─ Divider ─ */}
-                  <div className="edit-modal-divider h-[1px] bg-gray-200 dark:bg-white/8 mb-5" />
+                  <div className="bg-gray-200 dark:bg-white/8 mb-5 h-[1px] edit-modal-divider" />
 
                   {/* ─ Buttons ─ */}
                   <div className="flex gap-2.5">
@@ -230,7 +230,7 @@ export function AddCastleModal({ isOpen, onClose, userId }: AddCastleModalProps)
                       type="button"
                       onClick={handleClose}
                       disabled={addCastleMutation.isPending}
-                      className="edit-modal-btn-cancel flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 border border-gray-300 dark:border-white/10 transition-colors cursor-pointer disabled:opacity-50"
+                      className="flex-1 bg-gray-100 dark:bg-white/5 disabled:opacity-50 px-3 py-2.5 border border-gray-300 dark:border-white/10 rounded-xl font-semibold text-gray-700 dark:text-gray-300 text-xs sm:text-sm cursor-pointer edit-modal-btn-cancel"
                     >
                       {t('modals.cancel')}
                     </button>
@@ -240,7 +240,7 @@ export function AddCastleModal({ isOpen, onClose, userId }: AddCastleModalProps)
                       type="submit"
                       id="submit-add-castle"
                       disabled={addCastleMutation.isPending}
-                      className="edit-modal-btn-submit flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold text-white bg-primary-600 hover:bg-primary-500 shadow-[0_0_20px_rgba(var(--theme-primary-rgb),0.3)] transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-98"
+                      className="flex flex-1 justify-center items-center gap-1.5 bg-primary-600 disabled:opacity-50 px-3 py-2.5 rounded-xl font-bold text-white text-xs sm:text-sm active:scale-98 cursor-pointer edit-modal-btn-submit"
                     >
                       {addCastleMutation.isPending ? (
                         <>

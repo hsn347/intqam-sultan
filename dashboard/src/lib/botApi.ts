@@ -607,18 +607,25 @@ export function formatCastleFromApi(raw: any): Castle {
       safe_diamond:        res.safe_diamond ?? raw.safe_diamond ?? (res.safe_diamond ?? 0),
       last_updated:        res.last_updated || raw.last_updated || new Date().toISOString(),
     },
-    bot_status: {
-      state:            raw.state || 'idle',
-      conn_state:       raw.conn_state || raw.state || 'idle',
-      conn_message:     raw.conn_message || raw.status_message || '',
-      conn_updated:     raw.last_updated || new Date().toISOString(),
-      last_run_time:    raw.last_run_time || null,
-      next_run_time:    raw.next_run_time || null,
-      last_run_message: raw.last_run_message || (raw.state === 'running' ? 'البوت يعمل الآن...' : 'جاهز للتشغيل'),
-      active_marches:   0,
-      max_marches:      2,
-      last_error:       (raw.state === 'error' || raw.conn_state === 'error') ? (raw.conn_message || raw.status_message || 'خطأ في المصادقة أو الاتصال') : (raw.last_error || null),
-    },
+    bot_status: (() => {
+      const isSealed = raw.state === 'sealed' || raw.conn_state === 'sealed' || Boolean(raw.is_sealed)
+      const resolvedMsg = raw.seal_reason || raw.conn_message || raw.status_message || ''
+      return {
+        state:            isSealed ? 'sealed' : (raw.state || 'idle'),
+        conn_state:       isSealed ? 'sealed' : (raw.conn_state || raw.state || 'idle'),
+        conn_message:     raw.conn_message || raw.status_message || '',
+        conn_updated:     raw.last_updated || new Date().toISOString(),
+        last_run_time:    raw.last_run_time || null,
+        next_run_time:    raw.next_run_time || null,
+        last_run_message: raw.last_run_message || (isSealed ? resolvedMsg : (raw.state === 'running' ? 'البوت يعمل الآن...' : 'جاهز للتشغيل')),
+        active_marches:   0,
+        max_marches:      2,
+        last_error:       (raw.state === 'error' || raw.conn_state === 'error' || isSealed) ? (resolvedMsg || 'خطأ في المصادقة أو الاتصال') : (raw.last_error || null),
+        is_sealed:        isSealed,
+        seal_type:        raw.seal_type ?? null,
+        seal_reason:      raw.seal_reason ?? null,
+      }
+    })(),
     config: cfg,
   } as Castle
 }
@@ -739,16 +746,24 @@ export interface ProxyCardInfo {
   ip: string
   port: number
   country: string
+  city?: string
+  asn?: string
+  type?: 'residential' | 'free'
   assigned_castles: string[]
   assigned_users: string[]
   full_url: string
 }
 
+export type NetworkMode = 'residential' | 'free' | 'direct' | 'socks5'
+
 export interface ProxiesStatusResponse {
   enabled: boolean
-  network_mode?: 'socks5' | 'direct'
+  network_mode?: NetworkMode
   server_ip?: string
   total_proxies: number
+  residential_count?: number
+  free_count?: number
+  active_pool_name?: string
   total_bound_castles: number
   total_bound_users: number
   proxies_list: ProxyCardInfo[]
@@ -776,10 +791,13 @@ export async function testAdminProxy(proxyUrl: string): Promise<{ ok: boolean; p
 
 export interface NetworkModeResponse {
   status: string
-  network_mode: 'socks5' | 'direct'
+  network_mode: NetworkMode
   server_ip?: string
   enabled: boolean
   total_proxies: number
+  residential_count?: number
+  free_count?: number
+  active_pool_name?: string
   total_bound_castles: number
   total_bound_users: number
 }
@@ -794,7 +812,7 @@ export async function getAdminNetworkMode(): Promise<NetworkModeResponse> {
 }
 
 export async function toggleAdminNetworkMode(
-  mode: 'socks5' | 'direct'
+  mode: NetworkMode
 ): Promise<{ status: string; network_mode: string; message: string }> {
   const authHeaders = await getAuthHeader()
   const res = await fetch(`${getApiBaseUrl()}/api/admin/network-mode/toggle`, {

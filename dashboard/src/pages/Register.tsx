@@ -159,13 +159,13 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f1f5f2] dark:bg-[#0a0f0a] text-gray-900 dark:text-white transition-colors duration-200 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="relative flex justify-center items-center bg-[#f1f5f2] dark:bg-[#0a0f0a] p-4 min-h-screen overflow-hidden text-gray-900 dark:text-white transition-colors duration-200">
       {/* Top Header Bar with Theme & Language Switches */}
       <AuthHeaderBar />
 
       {/* Background ambient glow */}
       <div
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-20"
+        className="top-1/4 left-1/2 absolute opacity-20 blur-3xl rounded-full w-96 h-96 -translate-x-1/2 pointer-events-none"
         style={{ backgroundColor: 'var(--theme-primary)' }}
       />
 
@@ -177,20 +177,20 @@ export function RegisterPage() {
           borderColor: 'rgba(var(--theme-primary-rgb), 0.25)',
           boxShadow: '0 24px 64px rgba(var(--theme-primary-rgb), 0.12)',
         }}
-        className="relative z-10 w-full max-w-sm p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#0c120f] border overflow-hidden"
+        className="z-10 relative bg-white dark:bg-[#0c120f] p-6 sm:p-8 border rounded-2xl w-full max-w-sm overflow-hidden"
       >
         {/* Top Accent */}
         <div
-          className="absolute top-0 inset-x-0 h-1"
+          className="top-0 absolute inset-x-0 h-1"
           style={{
             background: 'linear-gradient(90deg, var(--theme-primary), var(--theme-primary-light), var(--theme-primary))',
           }}
         />
 
         {/* Logo */}
-        <div className="text-center mb-6">
+        <div className="mb-6 text-center">
           <div
-            className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-white/5 border flex items-center justify-center mx-auto mb-3 shadow-xs overflow-hidden"
+            className="flex justify-center items-center bg-gray-100 dark:bg-white/5 shadow-xs mx-auto mb-3 border rounded-2xl w-14 h-14 overflow-hidden"
             style={{ borderColor: 'rgba(var(--theme-primary-rgb), 0.35)' }}
           >
             <img
@@ -199,17 +199,17 @@ export function RegisterPage() {
               className="w-full h-full object-cover"
             />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-wide">{t('register.title')}</h1>
+          <h1 className="font-bold text-gray-900 dark:text-white text-xl tracking-wide">{t('register.title')}</h1>
           {tagline ? (
-            <p className="font-bold text-xs mt-1" style={{ color: 'var(--theme-primary)' }}>{tagline}</p>
+            <p className="mt-1 font-bold text-xs" style={{ color: 'var(--theme-primary)' }}>{tagline}</p>
           ) : null}
-          <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">{t('register.subtitle', { brand: brandName })}</p>
+          <p className="mt-1 text-gray-500 dark:text-gray-400 text-xs">{t('register.subtitle', { brand: brandName })}</p>
         </div>
 
         {/* General server error alert */}
         {errors.general && (
-          <div className="mb-3.5 flex items-center gap-2 p-3 rounded-xl bg-rose-500/15 border border-rose-500/35 text-rose-600 dark:text-rose-300 text-xs">
-            <AlertCircle size={15} className="shrink-0 text-rose-500" />
+          <div className="flex items-center gap-2 bg-rose-500/15 mb-3.5 p-3 border border-rose-500/35 rounded-xl text-rose-600 dark:text-rose-300 text-xs">
+            <AlertCircle size={15} className="text-rose-500 shrink-0" />
             <span>{errors.general}</span>
           </div>
         )}
@@ -218,7 +218,7 @@ export function RegisterPage() {
         <form noValidate onSubmit={handleSubmit} className="space-y-3.5">
           {/* Username */}
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">{t('register.username')}</label>
+            <label className="block mb-1.5 font-medium text-gray-700 dark:text-gray-300 text-sm">{t('register.username')}</label>
             <input
               id="reg-username"
               type="text"
@@ -226,13 +226,13 @@ export function RegisterPage() {
               onChange={handleUsernameChange}
               onBlur={handleUsernameBlur}
               className={clsx(
-                'input-field bg-gray-50/70 focus:bg-white dark:bg-dark-surface/60 dark:focus:bg-dark-surface border-gray-300 dark:border-white/10 text-gray-900 dark:text-white',
+                'bg-gray-50/70 focus:bg-white dark:focus:bg-dark-surface dark:bg-dark-surface/60 border-gray-300 dark:border-white/10 text-gray-900 dark:text-white input-field',
                 errors.username && '!border-rose-500/80 !ring-1 !ring-rose-500/30 bg-rose-500/5'
               )}
               placeholder={t('register.usernamePlaceholder')}
             />
             {errors.username && (
-              <p className="flex items-center gap-1.5 text-xs text-rose-500 dark:text-rose-400 mt-1.5">
+              <p className="flex items-center gap-1.5 mt-1.5 text-rose-500 dark:text-rose-400 text-xs">
                 <AlertCircle size={13} className="shrink-0" />
                 <span>{errors.username}</span>
               </p>
@@ -241,7 +241,7 @@ export function RegisterPage() {
 
           {/* Email */}
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">{t('register.email')}</label>
+            <label className="block mb-1.5 font-medium text-gray-700 dark:text-gray-300 text-sm">{t('register.email')}</label>
             <input
               id="reg-email"
               type="email"
@@ -254,14 +254,14 @@ export function RegisterPage() {
               onChange={handleEmailChange}
               onBlur={handleEmailBlur}
               className={clsx(
-                'input-field bg-gray-50/70 focus:bg-white dark:bg-dark-surface/60 dark:focus:bg-dark-surface border-gray-300 dark:border-white/10 text-gray-900 dark:text-white',
+                'bg-gray-50/70 focus:bg-white dark:focus:bg-dark-surface dark:bg-dark-surface/60 border-gray-300 dark:border-white/10 text-gray-900 dark:text-white input-field',
                 errors.email && '!border-rose-500/80 !ring-1 !ring-rose-500/30 bg-rose-500/5'
               )}
               placeholder="name@example.com"
               dir="ltr"
             />
             {errors.email && (
-              <p className="flex items-center gap-1.5 text-xs text-rose-500 dark:text-rose-400 mt-1.5">
+              <p className="flex items-center gap-1.5 mt-1.5 text-rose-500 dark:text-rose-400 text-xs">
                 <AlertCircle size={13} className="shrink-0" />
                 <span>{errors.email}</span>
               </p>
@@ -270,7 +270,7 @@ export function RegisterPage() {
 
           {/* Password */}
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">{t('register.password')}</label>
+            <label className="block mb-1.5 font-medium text-gray-700 dark:text-gray-300 text-sm">{t('register.password')}</label>
             <div className="relative">
               <input
                 id="reg-password"
@@ -280,7 +280,7 @@ export function RegisterPage() {
                 onChange={handlePasswordChange}
                 onBlur={handlePasswordBlur}
                 className={clsx(
-                  'input-field pe-10 bg-gray-50/70 focus:bg-white dark:bg-dark-surface/60 dark:focus:bg-dark-surface border-gray-300 dark:border-white/10 text-gray-900 dark:text-white',
+                  'bg-gray-50/70 focus:bg-white dark:focus:bg-dark-surface dark:bg-dark-surface/60 pe-10 border-gray-300 dark:border-white/10 text-gray-900 dark:text-white input-field',
                   errors.password &&
                     '!border-rose-500/80 !ring-1 !ring-rose-500/30 bg-rose-500/5'
                 )}
@@ -289,7 +289,7 @@ export function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowPw(v => !v)}
-                className="absolute inset-y-0 end-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                className="absolute inset-y-0 flex items-center text-gray-400 end-3"
                 tabIndex={-1}
               >
                 {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -298,14 +298,14 @@ export function RegisterPage() {
 
             {/* Password Strength Indicator */}
             {password && pwStrength && (
-              <div className="mt-2 space-y-1.5">
-                <div className="flex items-center justify-between text-[11px]">
+              <div className="space-y-1.5 mt-2">
+                <div className="flex justify-between items-center text-[11px]">
                   <span className="text-gray-500 dark:text-gray-400">{t('validation.passwordStrength', 'قوة كلمة المرور:')}</span>
                   <span className={clsx('font-bold', pwStrength.colorClass)}>
                     {pwStrength.label}
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 h-1">
+                <div className="gap-1.5 grid grid-cols-3 h-1">
                   <div
                     className={clsx(
                       'rounded-full transition-colors duration-300',
@@ -329,7 +329,7 @@ export function RegisterPage() {
             )}
 
             {errors.password && (
-              <p className="flex items-center gap-1.5 text-xs text-rose-500 dark:text-rose-400 mt-1.5">
+              <p className="flex items-center gap-1.5 mt-1.5 text-rose-500 dark:text-rose-400 text-xs">
                 <AlertCircle size={13} className="shrink-0" />
                 <span>{errors.password}</span>
               </p>
@@ -338,7 +338,7 @@ export function RegisterPage() {
 
           {/* Confirm Password */}
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">{t('register.confirmPassword')}</label>
+            <label className="block mb-1.5 font-medium text-gray-700 dark:text-gray-300 text-sm">{t('register.confirmPassword')}</label>
             <input
               id="reg-confirm"
               type="password"
@@ -347,13 +347,13 @@ export function RegisterPage() {
               onChange={handleConfirmChange}
               onBlur={handleConfirmBlur}
               className={clsx(
-                'input-field bg-gray-50/70 focus:bg-white dark:bg-dark-surface/60 dark:focus:bg-dark-surface border-gray-300 dark:border-white/10 text-gray-900 dark:text-white',
+                'bg-gray-50/70 focus:bg-white dark:focus:bg-dark-surface dark:bg-dark-surface/60 border-gray-300 dark:border-white/10 text-gray-900 dark:text-white input-field',
                 errors.confirm && '!border-rose-500/80 !ring-1 !ring-rose-500/30 bg-rose-500/5'
               )}
               placeholder="••••••••"
             />
             {errors.confirm && (
-              <p className="flex items-center gap-1.5 text-xs text-rose-500 dark:text-rose-400 mt-1.5">
+              <p className="flex items-center gap-1.5 mt-1.5 text-rose-500 dark:text-rose-400 text-xs">
                 <AlertCircle size={13} className="shrink-0" />
                 <span>{errors.confirm}</span>
               </p>
@@ -362,7 +362,7 @@ export function RegisterPage() {
 
           {/* Free plan notice */}
           <div
-            className="flex items-center gap-2 p-3 rounded-xl border text-xs"
+            className="flex items-center gap-2 p-3 border rounded-xl text-xs"
             style={{
               backgroundColor: 'rgba(var(--theme-primary-rgb), 0.08)',
               borderColor: 'rgba(var(--theme-primary-rgb), 0.25)',
@@ -379,7 +379,7 @@ export function RegisterPage() {
             type="submit"
             disabled={loading}
             style={{ backgroundColor: 'var(--theme-primary)', color: '#ffffff' }}
-            className="w-full py-3 gap-2 mt-1 shadow-sm rounded-xl font-bold flex items-center justify-center transition-all hover:opacity-90 active:scale-[0.99] cursor-pointer"
+            className="flex justify-center items-center gap-2 shadow-sm mt-1 py-3 rounded-xl w-full font-bold active:scale-[0.99] cursor-pointer"
           >
             {loading ? (
               t('register.loading')
@@ -393,12 +393,12 @@ export function RegisterPage() {
         </form>
 
         {/* Back to login */}
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-5">
+        <p className="mt-5 text-gray-500 dark:text-gray-400 text-sm text-center">
           {t('register.hasAccount')}{' '}
           <Link
             to="/login"
             style={{ color: 'var(--theme-primary)' }}
-            className="font-bold transition-colors hover:underline"
+            className="font-bold"
           >
             {t('register.signIn')}
           </Link>

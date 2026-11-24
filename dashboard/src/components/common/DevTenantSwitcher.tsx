@@ -32,17 +32,17 @@ export function DevTenantSwitcher() {
   }
 
   return (
-    <div className="fixed bottom-3 end-3 z-50 flex items-center gap-1.5 bg-black/85 dark:bg-black/90 backdrop-blur-md text-white px-2.5 py-1.5 rounded-xl border border-white/15 text-xs shadow-2xl font-sans">
-      <span className="text-[10px] text-gray-400 font-semibold hidden sm:inline">
+    <div className="hidden bottom-3 z-50 fixed sm:flex items-center gap-1.5 bg-black/90 shadow-lg px-2.5 py-1.5 border border-white/15 rounded-xl font-sans text-white text-xs end-3">
+      <span className="hidden sm:inline font-semibold text-[10px] text-gray-400">
         {t('dev.domainIdentityTest', 'تجربة هوية النطاق:')}
       </span>
       <button
         type="button"
         onClick={() => handleSelectTenant('main')}
-        className={`px-2 py-0.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+        className={`px-2 py-0.5 rounded-lg text-xs font-bold cursor-pointer ${
           tenant.id === 'main'
             ? 'bg-emerald-600 text-white shadow-xs'
-            : 'text-gray-300 hover:text-white hover:bg-white/10'
+            : 'text-gray-300'
         }`}
         title={t('dev.mainDomain', 'الدومين الرئيسي (IBRA BOT)')}
       >
@@ -54,10 +54,10 @@ export function DevTenantSwitcher() {
           key={m.id}
           type="button"
           onClick={() => handleSelectTenant(m.id)}
-          className={`px-2 py-0.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+          className={`px-2 py-0.5 rounded-lg text-xs font-bold cursor-pointer ${
             tenant.id === m.id
               ? 'text-white shadow-xs'
-              : 'text-gray-300 hover:text-white hover:bg-white/10'
+              : 'text-gray-300'
           }`}
           style={tenant.id === m.id ? { backgroundColor: m.primaryColor } : {}}
           title={t('dev.merchantDomainTest', { domains: m.domains.join(', '), defaultValue: `تجربة دومين التاجر: ${m.domains.join(', ')}` })}

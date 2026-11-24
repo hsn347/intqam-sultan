@@ -9,6 +9,7 @@ import { StatusBadge } from '../components/ui/StatusBadge'
 import { useCastle } from '../hooks/useCastles'
 import { useAuth } from '../hooks/useAuth'
 import { useAppStore } from '../store/appStore'
+import { localizeCastleSealReason } from '../lib/localize'
 
 export function CastleDetailPage() {
   const { t } = useTranslation()
@@ -38,7 +39,7 @@ export function CastleDetailPage() {
         {/* Back button */}
         <button
           onClick={() => navigate('/accounts')}
-          className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-sm transition-colors cursor-pointer"
+          className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm cursor-pointer"
         >
           {isRTL ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
           {t('common.back')}
@@ -48,12 +49,12 @@ export function CastleDetailPage() {
         <div className="p-5 glass-card">
           <div className="flex flex-wrap justify-between items-start gap-4">
             <div className="flex items-start gap-4">
-              <div className="flex flex-shrink-0 justify-center items-center bg-primary-900/60 dark:bg-primary-900/60 border border-primary-700/40 rounded-2xl w-14 h-14 font-bold text-primary-400 text-xl overflow-hidden">
+              <div className="flex flex-shrink-0 justify-center items-center bg-primary-900/60 dark:bg-primary-900/60 border border-primary-700/40 rounded-2xl w-14 h-14 overflow-hidden font-bold text-primary-400 text-xl">
                 {info.avatar && (info.avatar.startsWith('/') || info.avatar.includes('customAvatar')) ? (
                   <img
                     src={`/api/castles/${castle.id}/avatar`}
                     alt={info.lord_name}
-                    className="w-full h-full object-cover rounded-2xl"
+                    className="rounded-2xl w-full h-full object-cover"
                   />
                 ) : (
                   info.castle_level
@@ -63,7 +64,10 @@ export function CastleDetailPage() {
                 <div className="flex flex-wrap items-center gap-3">
                   <h1 className="font-bold text-gray-900 dark:text-white text-xl">{info.lord_name}</h1>
                   <span className="badge badge-blue">{info.castle_name}</span>
-                  <StatusBadge state={bot.state} label={t(`status.${bot.state}`)} />
+                  <StatusBadge
+                    state={bot.state}
+                    label={bot.state === 'sealed' ? t('status.castleSealed', 'محظور من اللعبة') : t(`status.${bot.state}`)}
+                  />
                 </div>
                 <div className="mt-1 text-gray-500 dark:text-gray-400 text-sm">{castle.email}</div>
                 <div className="flex items-center gap-4 mt-2 text-gray-600 dark:text-gray-400 text-sm">
@@ -101,12 +105,16 @@ export function CastleDetailPage() {
             <ResourceBar resources={castle.resources} />
           </div>
 
-          {/* Bot status message */}
-          {bot.last_run_message && (
+          {/* Bot status or game ban reason */}
+          {bot.state === 'sealed' ? (
+            <div className="bg-rose-500/10 mt-3 px-3 py-2 border border-rose-500/30 rounded-lg font-medium text-rose-700 dark:text-rose-300 text-xs">
+              🚫 {localizeCastleSealReason(bot.seal_type, bot.seal_reason || bot.conn_message || bot.last_error, t)}
+            </div>
+          ) : bot.last_run_message ? (
             <div className="bg-black/5 dark:bg-white/3 mt-3 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-400 text-xs">
               💬 {bot.last_run_message}
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Task settings */}

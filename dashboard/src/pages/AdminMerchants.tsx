@@ -60,7 +60,7 @@ export function AdminMerchantsPage() {
           <button
             onClick={() => refetch()}
             disabled={isLoading || isRefetching}
-            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 disabled:opacity-50 shadow-xs px-3 py-1.5 border border-slate-200 dark:border-white/10 rounded-xl font-bold text-slate-700 dark:text-slate-200 text-xs active:scale-95 transition cursor-pointer"
+            className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 disabled:opacity-50 shadow-xs px-3 py-1.5 border border-slate-200 dark:border-white/10 rounded-xl font-bold text-slate-700 dark:text-slate-200 text-xs active:scale-95 cursor-pointer"
           >
             <RefreshCw size={14} className={isRefetching ? 'animate-spin text-emerald-500' : ''} />
             <span>تحديث</span>
@@ -161,7 +161,7 @@ export function AdminMerchantsPage() {
               return (
                 <div
                   key={m.id}
-                  className="bg-white dark:bg-[#0c120f] rounded-2xl border border-slate-200/80 dark:border-white/8 p-5 shadow-xs hover:border-slate-300 dark:hover:border-white/15 transition-all flex flex-col justify-between gap-5"
+                  className="bg-white dark:bg-[#0c120f] rounded-2xl border border-slate-200/80 dark:border-white/8 p-5 shadow-xs flex flex-col justify-between gap-5"
                 >
                   {/* Top Bar: Brand, Badge, Color Swatch */}
                   <div className="flex items-start justify-between gap-3">
@@ -222,7 +222,7 @@ export function AdminMerchantsPage() {
                             href={d.startsWith('http') ? d : `https://${d}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-white dark:bg-black/40 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-emerald-500/20 hover:underline"
+                            className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-white dark:bg-black/40 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-emerald-500/20"
                           >
                             <span>{d}</span>
                             <ExternalLink size={10} />

@@ -44,16 +44,16 @@ export function Layout({ children, title }: LayoutProps) {
   }
 
   return (
-    <div className="min-h-screen" style={{ minHeight: '100vh' }}>
+    <div className="bg-mesh min-h-screen" style={{ minHeight: '100vh' }}>
       <Sidebar onLogoutClick={() => setShowLogoutModal(true)} />
 
       {/* Main content */}
-      <main className="main-offset min-h-screen">
+      <main className="min-h-screen main-offset">
         {/* Mobile App Header (mobile only) */}
-        <header className="mobile-app-header md:hidden flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-white/8 sticky top-0 z-30 bg-white dark:bg-gray-950 shadow-xs">
+        <header className="md:hidden top-0 z-30 sticky flex justify-between items-center bg-white dark:bg-gray-950 px-3 py-1.5 border-gray-200 dark:border-white/8 border-b mobile-app-header">
           {/* Brand Identity */}
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-primary-500/25 shrink-0 flex items-center justify-center shadow-xs overflow-hidden">
+            <div className="flex justify-center items-center bg-gray-100 dark:bg-white/5 border border-amber-500/30 rounded-lg w-7 h-7 overflow-hidden shrink-0">
               <img
                 src={logoUrl || '/logo.png?v=2'}
                 alt={brandName}
@@ -61,12 +61,7 @@ export function Layout({ children, title }: LayoutProps) {
               />
             </div>
             <div className="min-w-0">
-              <span className="brand-title font-bold tracking-wide text-sm leading-tight block truncate">{brandName}</span>
-              {tagline ? (
-                <span className="brand-tagline text-[10px] font-bold block leading-tight truncate">
-                  {tagline}
-                </span>
-              ) : null}
+              <span className="block font-bold text-sm truncate leading-tight tracking-wide brand-title">{brandName}</span>
             </div>
           </div>
 
@@ -80,14 +75,14 @@ export function Layout({ children, title }: LayoutProps) {
                 backgroundColor: 'rgba(var(--theme-primary-rgb), 0.1)',
                 borderColor: 'rgba(var(--theme-primary-rgb), 0.25)',
               }}
-              className="flex items-center gap-1 p-1.5 rounded-lg border transition-colors cursor-pointer hover:opacity-90"
+              className="flex items-center gap-1 p-1.5 border rounded-lg cursor-pointer"
               title={t('accountSwitcher.title', 'تبديل الحساب')}
             >
               <Users size={15} />
               {savedAccounts.length > 1 && (
                 <span
                   style={{ backgroundColor: 'rgba(var(--theme-primary-rgb), 0.2)' }}
-                  className="text-[10px] font-bold font-mono px-1 rounded-full leading-tight"
+                  className="px-1 rounded-full font-mono font-bold text-[10px] leading-tight"
                 >
                   {savedAccounts.length}
                 </span>
@@ -100,7 +95,7 @@ export function Layout({ children, title }: LayoutProps) {
             {/* Quick theme toggle */}
             <button
               onClick={toggleTheme}
-              className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-white/6 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 transition-colors"
+              className="bg-gray-100 dark:bg-white/6 p-1.5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-500 dark:text-gray-400"
               title={theme === 'dark' ? t('common.lightMode') : t('common.darkMode')}
             >
               {theme === 'dark' ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-primary-600" />}
@@ -109,7 +104,7 @@ export function Layout({ children, title }: LayoutProps) {
             {/* Logout button */}
             <button
               onClick={() => setShowLogoutModal(true)}
-              className="p-1.5 rounded-lg text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors cursor-pointer"
+              className="bg-rose-500/10 p-1.5 border border-rose-500/20 rounded-lg text-rose-500 dark:text-rose-400 cursor-pointer"
               title={t('nav.logout')}
             >
               <LogOut size={15} />

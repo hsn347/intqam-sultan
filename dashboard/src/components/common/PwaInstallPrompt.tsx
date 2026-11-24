@@ -76,23 +76,23 @@ export function PwaInstallPrompt() {
   return (
     <aside
       aria-label="PWA Installation Helper"
-      className="fixed bottom-16 md:bottom-6 inset-x-3 sm:inset-x-auto sm:end-6 sm:max-w-md z-50 p-4 rounded-2xl bg-gray-950/95 border border-primary-500/40 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-xl text-white animate-in fade-in slide-in-from-bottom-4 duration-300"
+      className="bottom-16 md:bottom-6 z-50 fixed inset-x-3 sm:inset-x-auto bg-gray-950 shadow-lg p-4 border border-primary-500/35 rounded-2xl sm:max-w-md text-white sm:end-6"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex justify-between items-start gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gray-900 border border-primary-500/30 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+          <div className="flex justify-center items-center bg-gray-900 shadow-sm border border-primary-500/30 rounded-xl w-10 h-10 overflow-hidden shrink-0">
             <img src={logoUrl || '/logo.png?v=2'} alt={brandName} className="w-full h-full object-cover" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
+            <h2 className="flex items-center gap-1.5 font-bold text-white text-sm">
               {t('pwa.title', { brand: brandName })}
               {tagline ? (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-400 border border-primary-500/30">
+                <span className="bg-primary-500/20 px-1.5 py-0.5 border border-primary-500/30 rounded-full text-[10px] text-primary-400">
                   {tagline}
                 </span>
               ) : null}
             </h2>
-            <p className="text-xs text-gray-300 mt-0.5">
+            <p className="mt-0.5 text-gray-300 text-xs">
               {t('pwa.desc')}
             </p>
           </div>
@@ -100,7 +100,7 @@ export function PwaInstallPrompt() {
 
         <button
           onClick={handleDismiss}
-          className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+          className="p-1 rounded-lg text-gray-400 cursor-pointer"
           title={t('pwa.close')}
         >
           <X size={16} />
@@ -108,29 +108,29 @@ export function PwaInstallPrompt() {
       </div>
 
       {isIOS ? (
-        <div className="mt-3 pt-3 border-t border-white/10 space-y-2 text-xs text-gray-300">
-          <p className="font-semibold text-primary-400 flex items-center gap-1.5">
+        <div className="space-y-2 mt-3 pt-3 border-white/10 border-t text-gray-300 text-xs">
+          <p className="flex items-center gap-1.5 font-semibold text-primary-400">
             {t('pwa.iosGuideTitle')}
           </p>
           <ol className="space-y-1.5 ps-1 text-[11px] leading-relaxed">
             <li className="flex items-center gap-2">
-              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-white font-bold text-[10px] shrink-0">1</span>
+              <span className="flex justify-center items-center bg-white/10 rounded-full w-5 h-5 font-bold text-[10px] text-white shrink-0">1</span>
               <span>
                 {t('pwa.iosStep1')}{' '}
-                <Share2 size={13} className="inline text-sky-400 mx-0.5" />{' '}
+                <Share2 size={13} className="inline mx-0.5 text-sky-400" />{' '}
                 {t('pwa.iosStep1Suffix')}
               </span>
             </li>
             <li className="flex items-center gap-2">
-              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-white font-bold text-[10px] shrink-0">2</span>
+              <span className="flex justify-center items-center bg-white/10 rounded-full w-5 h-5 font-bold text-[10px] text-white shrink-0">2</span>
               <span>
                 {t('pwa.iosStep2')}{' '}
                 <strong className="text-white">{t('pwa.iosStep2Highlight')}</strong>{' '}
-                <PlusSquare size={13} className="inline text-primary-400 mx-0.5" />.
+                <PlusSquare size={13} className="inline mx-0.5 text-primary-400" />.
               </span>
             </li>
             <li className="flex items-center gap-2">
-              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-white font-bold text-[10px] shrink-0">3</span>
+              <span className="flex justify-center items-center bg-white/10 rounded-full w-5 h-5 font-bold text-[10px] text-white shrink-0">3</span>
               <span>
                 {t('pwa.iosStep3')}{' '}
                 <strong className="text-white">{t('pwa.iosStep3Highlight')}</strong>{' '}
@@ -140,18 +140,18 @@ export function PwaInstallPrompt() {
           </ol>
           <button
             onClick={handleDismiss}
-            className="w-full mt-2 py-1.5 px-3 rounded-xl bg-primary-600 hover:bg-primary-500 font-bold text-white text-xs transition-colors flex items-center justify-center gap-1.5 shadow-glow"
+            className="flex justify-center items-center gap-1.5 bg-primary-600 mt-2 px-3 py-1.5 rounded-xl w-full font-bold text-white text-xs cursor-pointer"
           >
             <CheckCircle size={14} />
             <span>{t('pwa.gotIt')}</span>
           </button>
         </div>
       ) : (
-        <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2">
+        <div className="flex items-center gap-2 mt-3 pt-3 border-white/10 border-t">
           {deferredPrompt && (
             <button
               onClick={handleInstallClick}
-              className="flex-1 py-2 px-3 rounded-xl bg-primary-600 hover:bg-primary-500 font-bold text-white text-xs transition-colors flex items-center justify-center gap-1.5 shadow-glow"
+              className="flex flex-1 justify-center items-center gap-1.5 bg-primary-600 px-3 py-2 rounded-xl font-bold text-white text-xs cursor-pointer"
             >
               <Download size={14} />
               <span>{t('pwa.installNow')}</span>
@@ -159,7 +159,7 @@ export function PwaInstallPrompt() {
           )}
           <button
             onClick={handleDismiss}
-            className="py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-xs text-gray-300 transition-colors"
+            className="bg-white/10 px-3 py-2 rounded-xl text-gray-300 text-xs cursor-pointer"
           >
             {t('pwa.later')}
           </button>

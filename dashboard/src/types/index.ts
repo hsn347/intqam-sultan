@@ -64,7 +64,7 @@ export interface Resources {
   last_updated: string
 }
 
-export type BotState = 'running' | 'idle' | 'error' | 'paused' | 'pending' | 'disconnected' | 'reconnecting' | 'waiting' | 'deploying'
+export type BotState = 'running' | 'idle' | 'error' | 'sealed' | 'paused' | 'pending' | 'disconnected' | 'reconnecting' | 'waiting' | 'deploying'
 
 export interface BotStatus {
   state: BotState
@@ -74,10 +74,13 @@ export interface BotStatus {
   active_marches: number
   max_marches: number
   last_error: string | null
-  // حالة الاتصال الفعلية (connected | disconnected | reconnecting | waiting | idle)
+  // حالة الاتصال الفعلية (connected | disconnected | reconnecting | waiting | idle | sealed)
   conn_state?: string
   conn_message?: string
   conn_updated?: string
+  is_sealed?: boolean
+  seal_type?: number | null
+  seal_reason?: string | null
 }
 
 // ─── Task Configs ─────────────────────────────────────
@@ -296,90 +299,6 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
     hunt_monsters: { enabled: false, monster_type: 'normal', monster_level: 0 },
     gather_resources: { enabled: false, resource: 'wood', level: 0 },
   },
-}
-
-export const FIXED_PRESET_CONFIG: CastleConfig = {
-  // 1. جمع الموارد بتحديد مورد الحديد
-  march_manager: {
-    enabled: true,
-    max_duration_minutes: 20,
-    formation_id: 1,
-    gather_speed_buff: { enabled: true },
-    treasure_escort: { enabled: false },
-    daily_hunt: { enabled: false },
-    daily_gather: { enabled: false },
-    explore_ruins: { enabled: false, explore_time: 14400, formation: 1 },
-    resource_help: { enabled: false, target_x: null, target_y: null, resources: 'food,wood,iron' },
-    hunt_monsters: { enabled: false, monster_type: 'normal', monster_level: 0 },
-    gather_resources: { enabled: true, resource: 'iron', level: 0 },
-  },
-  // 2. دعم الموارد لكل الموارد مع حزم الدعم المجانية
-  watermill: { enabled: true, resources: ['food', 'wood', 'iron', 'silver', 'crystal'], types: 'all', allow_shop_buy: false },
-  // 3. مهمة قافلة الغنيمة
-  caravan: { enabled: true },
-  // 4. مهام التحالف مع التبرع للتحالف
-  alliance: { enabled: true },
-  // 5. مهمة الحيوان (استلام الجوائز والإطعام المجاني)
-  pet: { enabled: true, target_pet: 1256 },
-  // 6. دراسة الاستراتيجيات على القلعة الفارغة
-  tactics_hall: { enabled: true, tactic: 'القلعة الفارغة' },
-  // 7. نافورة الأمنيات على كل الموارد بدون شراء من المتجر
-  fountain: { enabled: true, resources: ['food', 'wood', 'iron', 'coal', 'diamond'], allow_gold: false, gold_times: 0 },
-  // 8. ورشة المواد على كل المواد
-  material_workshop: { enabled: true, selected_materials: [200101, 200201, 200301, 200401, 200501, 200601] },
-  // 9 & 10. مكافأة الجمع السريع ومكافأة الحصاد
-  skills: { enabled: true, target_skills: ['harvest', 'gather'] },
-  // 11. الزنزانة الأساسية لكل العناصر
-  port_delegate: { enabled: true, shop_item: 'all' },
-  // 12. التوسع الإقليمي
-  territory_expansion: { enabled: true },
-  torch_chest: { enabled: false },
-  open_torch_chest: { enabled: false },
-  hero_consign: { enabled: false },
-
-  // المهام الأساسية
-  city_harvest: { enabled: true },
-  research: { enabled: false },
-  port: { enabled: false },
-  train: { enabled: false, levels: { infantry: 0, cavalry: 0, archers: 0, chariots: 0 } },
-  shield: { enabled: false, duration: '8h', allow_gold: false },
-  flower: { enabled: false, allow_gold: false },
-  wonder_merchant: { enabled: false },
-  material_synthesis: { enabled: false },
-  cure_wounded: { enabled: false, mode: 'daily' },
-  forge_equipment: { enabled: false, category: 'weapon' },
-  stamina: {
-    enabled: false,
-    gold_buy_enabled: false,
-    gold_trigger_stamina: 50,
-    gold_buy_stamina_amount: 50,
-  },
-  hero_draw: { enabled: false },
-  treasure_pavilion: { enabled: true },
-  blacksmith_forge: { enabled: true },
-  imperial_mausoleum: { enabled: true },
-  alliance_treasure: { enabled: true, index: 1 },
-  daily_luxury_gift: { enabled: true },
-  vip_gift: { enabled: true },
-  savings_bank: { enabled: false, days: 7 },
-  building: { enabled: false, upgrade_castle: false, speedup_castle: false, upgrade_support_buildings: false },
-  prestige: {
-    enabled: false,
-    subtasks: {
-      smuggler: false,
-      watermill: false,
-      train: false,
-      fortress: false,
-    },
-  },
-  troy_treasure: {
-    enabled: true,
-    subtasks: {
-      claim_quests: true,
-    },
-  },
-  warrior_exchange: { enabled: false, count: 15 },
-  gather_boost: { enabled: false },
 }
 
 export interface CastleLog {

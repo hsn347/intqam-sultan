@@ -240,8 +240,8 @@ export function LoginPage() {
                     onClick={() => !switchingEmail && handleAccountClick(acc)}
                     style={isLoggingIn ? { borderColor: 'var(--theme-primary)', backgroundColor: 'rgba(var(--theme-primary-rgb), 0.15)' } : {}}
                     className={clsx(
-                      'group flex justify-between items-center p-3 border rounded-xl transition-all cursor-pointer select-none',
-                      !isLoggingIn && 'bg-gray-50 hover:bg-gray-100/90 border-gray-200/80 text-gray-800 dark:bg-white/4 dark:hover:bg-white/8 dark:border-white/8 dark:text-white'
+                      'flex justify-between items-center p-3 border rounded-xl cursor-pointer select-none',
+                      !isLoggingIn && 'bg-gray-50 border-gray-200/80 text-gray-800 dark:bg-white/4 dark:border-white/8 dark:text-white'
                     )}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -283,7 +283,7 @@ export function LoginPage() {
                           <button
                             type="button"
                             onClick={e => handlePromptRemove(e, acc.email)}
-                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-rose-50 dark:hover:bg-rose-500/15 p-2 sm:p-1.5 rounded-lg text-rose-500 sm:text-gray-400 sm:hover:text-rose-500 transition-all cursor-pointer shrink-0"
+                            className="opacity-80 p-2 sm:p-1.5 rounded-lg text-rose-500 cursor-pointer shrink-0"
                             title={t('accountSwitcher.removeTooltip', 'إزالة من القائمة')}
                           >
                             <Trash2 size={15} />
@@ -310,7 +310,7 @@ export function LoginPage() {
                 backgroundColor: 'rgba(var(--theme-primary-rgb), 0.08)',
                 color: 'var(--theme-primary)',
               }}
-              className="flex justify-center items-center gap-2 hover:opacity-90 mt-2 px-3 py-2.5 border border-dashed rounded-xl w-full font-bold text-xs transition-all cursor-pointer"
+              className="flex justify-center items-center gap-2 mt-2 px-3 py-2.5 border border-dashed rounded-xl w-full font-bold text-xs cursor-pointer"
             >
               <Plus size={15} />
               <span>{t('accountSwitcher.useAnotherAccount', 'استخدام حساب آخر')}</span>
@@ -324,7 +324,7 @@ export function LoginPage() {
                 type="button"
                 onClick={() => setViewMode('chooser')}
                 style={{ color: 'var(--theme-primary)' }}
-                className="flex items-center gap-1.5 hover:opacity-80 mb-4 font-bold text-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 mb-4 font-bold text-xs cursor-pointer"
               >
                 <ArrowLeft size={14} />
                 <span>
@@ -389,7 +389,7 @@ export function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPw(v => !v)}
-                    className="absolute inset-y-0 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors end-3"
+                    className="absolute inset-y-0 flex items-center text-gray-400 end-3"
                     tabIndex={-1}
                   >
                     {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -404,7 +404,7 @@ export function LoginPage() {
               </div>
 
               {/* Remember Account Checkbox */}
-              <label className="flex items-center gap-2 py-1 text-gray-600 hover:text-gray-900 dark:hover:text-gray-200 dark:text-gray-400 text-xs cursor-pointer select-none">
+              <label className="flex items-center gap-2 py-1 text-gray-600 dark:text-gray-400 text-xs cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={rememberAccount}
@@ -421,7 +421,7 @@ export function LoginPage() {
                 type="submit"
                 disabled={loading}
                 style={{ backgroundColor: 'var(--theme-primary)', color: '#ffffff' }}
-                className="flex justify-center items-center gap-2 hover:opacity-90 shadow-sm mt-2 py-3 rounded-xl w-full font-bold active:scale-[0.99] transition-all cursor-pointer"
+                className="flex justify-center items-center gap-2 shadow-sm mt-2 py-3 rounded-xl w-full font-bold active:scale-[0.99] cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -442,7 +442,7 @@ export function LoginPage() {
           <Link
             to="/register"
             style={{ color: 'var(--theme-primary)' }}
-            className="font-bold hover:underline transition-colors"
+            className="font-bold"
           >
             {t('login.createAccount')}
           </Link>

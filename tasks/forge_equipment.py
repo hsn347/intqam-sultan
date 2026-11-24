@@ -559,7 +559,6 @@ class ForgeEquipmentTask(BaseTask):
             if isinstance(everyday, dict):
                 ev_info = everyday.setdefault("eventInfo", {})
                 if isinstance(ev_info, dict):
-                    ev_info[DAILY_QUEST_FORGE_ID] = 1
                     ev_info[DAILY_QUEST_FORGE_TYPE] = 1
 
             quest_ctrl = self.get_ctrl("questCtrl")
@@ -761,23 +760,12 @@ class ForgeEquipmentTask(BaseTask):
                 # تسجيل كائن fe داخل equipmentCtrl
                 eq_ctrl["fe"] = forging_data
 
-        # هـ) تحديث عداد النشاط اليومي لمنع أي طلب لاحق في نفس اليوم (0-Network)
-        everyday = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
-        if isinstance(everyday, dict):
-            ev_info = everyday.setdefault("eventInfo", {})
-            if isinstance(ev_info, dict):
-                ev_info[DAILY_QUEST_FORGE_ID] = 1
-                ev_info[DAILY_QUEST_FORGE_TYPE] = 1
-
-        quest_ctrl = self.get_ctrl("questCtrl")
-        if isinstance(quest_ctrl, dict):
-            pfl = quest_ctrl.setdefault("point_finish_list", [])
-            if isinstance(pfl, list) and 4100009 not in pfl:
-                pfl.append(4100009)
-
+        # هـ) تصنيع العتاد يكتمل وتُمنح نقاطه في السيرفر عند الانتهاء/الاستلام،
+        #     ولا يجوز حقن eventInfo['9'] محلياً عند مجرد بدء الطابور (منع خطأ 470002).
+        #     حماية 0-Network في الدورة القادمة تتحقق بالفعل عبر queueCtrl['1229'] و equipmentCtrl['fe'].
         success_msg = (
             f"✓ بدأ تصنيع العتاد بنجاح: {cat_name} Lv.{recipe_lvl} "
-            f"(EID: {recipe_eid}, المدة: {cost_time}ثانية) وإتمام النشاط اليومي"
+            f"(EID: {recipe_eid}, المدة: {cost_time}ثانية) بانتظار الاكتمال والاستلام"
         )
         self.log(success_msg)
 

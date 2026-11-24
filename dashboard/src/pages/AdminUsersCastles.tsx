@@ -174,7 +174,7 @@ export function AdminUsersCastlesPage() {
               type="button"
               onClick={() => refetch()}
               disabled={isRefetching}
-              className="bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white dark:text-slate-400 transition-colors cursor-pointer"
+              className="bg-slate-100 dark:bg-white/5 p-1.5 rounded-lg text-slate-500 dark:text-slate-400 cursor-pointer"
               title="تحديث البيانات"
             >
               <RefreshCw size={13} className={isRefetching ? 'animate-spin text-emerald-500' : ''} />
@@ -192,13 +192,13 @@ export function AdminUsersCastlesPage() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="بحث بالاسم، بريد المستخدم، بريد القلعة، أو اسم اللورد..."
-              className="bg-white dark:bg-[#0c1410] shadow-xs py-2 ps-9.5 pe-8 border border-slate-200/80 focus:border-emerald-500 dark:border-white/10 rounded-xl focus:outline-hidden focus:ring-1 focus:ring-emerald-500/25 w-full text-slate-900 dark:text-gray-100 text-xs transition-all placeholder-slate-400"
+              className="bg-white dark:bg-[#0c1410] shadow-xs py-2 ps-9.5 pe-8 border border-slate-200/80 focus:border-emerald-500 dark:border-white/10 rounded-xl focus:outline-hidden focus:ring-1 focus:ring-emerald-500/25 w-full text-slate-900 dark:text-gray-100 text-xs placeholder-slate-400"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="top-1/2 absolute p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 -translate-y-1/2 cursor-pointer end-2.5"
+                className="top-1/2 absolute p-0.5 rounded text-slate-400 -translate-y-1/2 cursor-pointer end-2.5"
               >
                 <X size={14} />
               </button>
@@ -219,10 +219,10 @@ export function AdminUsersCastlesPage() {
                 key={f.id}
                 type="button"
                 onClick={() => setFilterType(f.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border ${
                   filterType === f.id
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                    : 'bg-white dark:bg-[#0c1410] text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5'
+                    : 'bg-white dark:bg-[#0c1410] text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/10'
                 }`}
               >
                 {f.label}
@@ -233,7 +233,7 @@ export function AdminUsersCastlesPage() {
               <button
                 type="button"
                 onClick={collapseAll}
-                className="bg-white dark:bg-white/5 px-2.5 py-1.5 border border-slate-200/80 dark:border-white/10 rounded-lg font-medium text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400 text-xs transition-colors cursor-pointer"
+                className="bg-white dark:bg-white/5 px-2.5 py-1.5 border border-slate-200/80 dark:border-white/10 rounded-lg font-medium text-slate-500 dark:text-slate-400 text-xs cursor-pointer"
                 title="إغلاق كافة الكاردات"
               >
                 طي الكل
@@ -259,7 +259,7 @@ export function AdminUsersCastlesPage() {
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="bg-emerald-500/10 hover:bg-emerald-500/20 mt-3 px-3 py-1.5 border border-emerald-500/25 rounded-lg font-semibold text-emerald-600 dark:text-emerald-400 text-xs transition-colors cursor-pointer"
+                className="bg-emerald-500/10 mt-3 px-3 py-1.5 border border-emerald-500/25 rounded-lg font-semibold text-emerald-600 dark:text-emerald-400 text-xs cursor-pointer"
               >
                 مسح البحث
               </button>
@@ -274,16 +274,16 @@ export function AdminUsersCastlesPage() {
               return (
                 <div
                   key={user.uid}
-                  className="bg-white dark:bg-[#0c1410] shadow-xs border border-slate-200/80 dark:border-white/10 rounded-2xl overflow-hidden transition-all duration-200"
+                  className="bg-white dark:bg-[#0c1410] shadow-xs border border-slate-200/80 dark:border-white/10 rounded-2xl overflow-hidden"
                 >
                   {/* ── User Row / Header Card (Click to expand/collapse) ── */}
                   <div
                     onClick={() => toggleUser(user.uid)}
-                    className="flex sm:flex-row flex-col justify-between sm:items-center gap-3 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] p-3.5 sm:p-4 border-transparent border-b transition-colors cursor-pointer select-none"
+                    className="flex sm:flex-row flex-col justify-between sm:items-center gap-3 p-3.5 sm:p-4 border-transparent border-b cursor-pointer select-none"
                   >
                     {/* Left: User Identity */}
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex justify-center items-center bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 rounded-xl w-10 h-10 font-bold text-emerald-600 dark:text-emerald-400 text-sm shrink-0">
+                      <div className="flex justify-center items-center bg-emerald-500/15 border border-emerald-500/30 rounded-xl w-10 h-10 font-bold text-emerald-600 dark:text-emerald-400 text-sm shrink-0">
                         {user.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                       </div>
 
@@ -379,7 +379,7 @@ export function AdminUsersCastlesPage() {
 
         {/* ── Delete Castle Confirmation Dialog ── */}
         {deletingCastle && (
-          <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/65 p-4">
             <div className="space-y-4 bg-white dark:bg-[#0c1410] shadow-2xl p-5 border border-slate-200 dark:border-white/10 rounded-2xl w-full max-w-sm">
               <div className="flex items-center gap-3">
                 <div className="flex justify-center items-center bg-rose-500/10 border border-rose-500/25 rounded-xl w-10 h-10 text-rose-500 shrink-0">
@@ -411,7 +411,7 @@ export function AdminUsersCastlesPage() {
                   type="button"
                   onClick={confirmDeleteCastle}
                   disabled={deleteMutation.isPending}
-                  className="flex flex-1 justify-center items-center gap-1.5 bg-rose-600 hover:bg-rose-700 px-3 py-2 rounded-xl font-bold text-white text-xs transition-colors cursor-pointer"
+                  className="flex flex-1 justify-center items-center gap-1.5 bg-rose-600 px-3 py-2 rounded-xl font-bold text-white text-xs cursor-pointer"
                 >
                   {deleteMutation.isPending ? 'جاري الحذف...' : 'نعم، احذف القلعة'}
                 </button>
@@ -419,7 +419,7 @@ export function AdminUsersCastlesPage() {
                   type="button"
                   onClick={() => setDeletingCastle(null)}
                   disabled={deleteMutation.isPending}
-                  className="bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 px-4 py-2 rounded-xl font-semibold text-slate-700 dark:text-slate-300 text-xs transition-colors cursor-pointer"
+                  className="bg-slate-100 dark:bg-white/5 px-4 py-2 rounded-xl font-semibold text-slate-700 dark:text-slate-300 text-xs cursor-pointer"
                 >
                   إلغاء
                 </button>

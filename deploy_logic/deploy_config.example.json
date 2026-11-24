@@ -1,0 +1,13 @@
+{
+  "server_host": "",
+  "server_port": 22,
+  "server_user": "root",
+  "server_password": "",
+  "ssh_key_path": "",
+  "remote_dir": "/var/www/intqam-sultan",
+  "service_name": "sultan-bot.service",
+  "nginx_conf_name": "nginx-sultan.conf",
+  "domain_name": "_",
+  "api_port": 8080,
+  "internal_api_secret": ""
+}

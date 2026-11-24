@@ -145,7 +145,7 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
             <button
               onClick={() => refetch()}
               disabled={isRefreshing}
-              className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 disabled:opacity-50 px-3 py-1.5 border border-slate-200 dark:border-white/10 rounded-xl font-bold text-slate-700 dark:text-gray-200 text-xs transition-all cursor-pointer"
+              className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 disabled:opacity-50 px-3 py-1.5 border border-slate-200 dark:border-white/10 rounded-xl font-bold text-slate-700 dark:text-gray-200 text-xs cursor-pointer"
             >
               <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-emerald-500' : ''} />
               <span>تحديث</span>
@@ -159,10 +159,10 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
           <div
             onClick={() => setActiveFilter('all')}
             className={clsx(
-              'p-3.5 border rounded-xl transition-all cursor-pointer select-none',
+              'p-3.5 border rounded-xl cursor-pointer select-none',
               activeFilter === 'all'
                 ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white border-slate-300 dark:border-white/30 shadow-xs'
-                : 'bg-white dark:bg-[#0c1410] border-slate-200 dark:border-white/10 hover:border-slate-300'
+                : 'bg-white dark:bg-[#0c1410] border-slate-200 dark:border-white/10'
             )}
           >
             <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
@@ -176,10 +176,10 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
           <div
             onClick={() => setActiveFilter('running')}
             className={clsx(
-              'p-3.5 border rounded-xl transition-all cursor-pointer select-none',
+              'p-3.5 border rounded-xl cursor-pointer select-none',
               activeFilter === 'running'
                 ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 shadow-xs font-bold'
-                : 'bg-white dark:bg-[#0c1410] border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40'
+                : 'bg-white dark:bg-[#0c1410] border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
             )}
           >
             <div className="flex justify-between items-center">
@@ -193,10 +193,10 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
           <div
             onClick={() => setActiveFilter('waiting')}
             className={clsx(
-              'p-3.5 border rounded-xl transition-all cursor-pointer select-none',
+              'p-3.5 border rounded-xl cursor-pointer select-none',
               activeFilter === 'waiting'
                 ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40 shadow-xs font-bold'
-                : 'bg-white dark:bg-[#0c1410] border-amber-500/20 text-amber-600 dark:text-amber-400 hover:border-amber-500/40'
+                : 'bg-white dark:bg-[#0c1410] border-amber-500/20 text-amber-600 dark:text-amber-400'
             )}
           >
             <div className="flex justify-between items-center">
@@ -210,10 +210,10 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
           <div
             onClick={() => setActiveFilter('other_login')}
             className={clsx(
-              'p-3.5 border rounded-xl transition-all cursor-pointer select-none',
+              'p-3.5 border rounded-xl cursor-pointer select-none',
               activeFilter === 'other_login'
                 ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/40 shadow-xs font-bold'
-                : 'bg-white dark:bg-[#0c1410] border-rose-500/20 text-rose-600 dark:text-rose-400 hover:border-rose-500/40'
+                : 'bg-white dark:bg-[#0c1410] border-rose-500/20 text-rose-600 dark:text-rose-400'
             )}
           >
             <div className="flex justify-between items-center">
@@ -227,10 +227,10 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
           <div
             onClick={() => setActiveFilter('reconnecting')}
             className={clsx(
-              'col-span-2 sm:col-span-1 p-3.5 border rounded-xl transition-all cursor-pointer select-none',
+              'col-span-2 sm:col-span-1 p-3.5 border rounded-xl cursor-pointer select-none',
               activeFilter === 'reconnecting'
                 ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/40 shadow-xs font-bold'
-                : 'bg-white dark:bg-[#0c1410] border-blue-500/20 text-blue-600 dark:text-blue-400 hover:border-blue-500/40'
+                : 'bg-white dark:bg-[#0c1410] border-blue-500/20 text-blue-600 dark:text-blue-400'
             )}
           >
             <div className="flex justify-between items-center">
@@ -267,10 +267,10 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
                 key={f.id}
                 onClick={() => setActiveFilter(f.id as any)}
                 className={clsx(
-                  'px-3 py-1.5 rounded-lg font-bold text-xs whitespace-nowrap transition-colors cursor-pointer',
+                  'px-3 py-1.5 rounded-lg font-bold text-xs whitespace-nowrap cursor-pointer',
                   activeFilter === f.id
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
+                    : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-gray-400'
                 )}
               >
                 {f.label}
@@ -357,8 +357,8 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
                             <span
                               title={
                                 proc.real_ip_type === 'socks5'
-                                  ? `فحص المقبس الحي: نفق SOCKS5 نشط (الطرف: ${proc.socket_peer || proc.real_ip || proc.proxy_ip}) — بدون تسريب`
-                                  : `فحص المقبس الحي: اتصال مباشر عبر IP السيرفر (${proc.real_ip && proc.real_ip !== 'direct' ? proc.real_ip : 'مباشر'})`
+                                  ? t('admin.live.socksBadgeTooltip', { target: proc.socket_peer || proc.real_ip || proc.proxy_ip })
+                                  : t('admin.live.directBadgeTooltip', { target: proc.real_ip && proc.real_ip !== 'direct' ? proc.real_ip : t('admin.live.directLabel') })
                               }
                               className={clsx(
                                 "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-mono border font-bold shadow-2xs select-none",
@@ -370,9 +370,9 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
                               {(proc.real_ip_type === "direct" || proc.real_ip === "direct" || proc.proxy_ip === "direct") ? (
                                 <>
                                   <span className="text-[10px]">🌐</span>
-                                  <span>{proc.real_ip && proc.real_ip !== 'direct' ? proc.real_ip : 'مباشر (السيرفر)'}</span>
+                                  <span>{proc.real_ip && proc.real_ip !== 'direct' ? proc.real_ip : t('admin.live.directLabel')}</span>
                                   {proc.is_live_socket && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="مقبس حي مباشر باللعبة" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title={t('admin.live.liveDirectSocketTitle')} />
                                   )}
                                 </>
                               ) : (
@@ -380,7 +380,7 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
                                   <span className="text-[10px]">🛡️</span>
                                   <span>{proc.real_ip || proc.proxy_ip}</span>
                                   {proc.is_live_socket && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="مقبس حي متصل باللعبة" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title={t('admin.live.liveSocksSocketTitle')} />
                                   )}
                                 </>
                               )}
@@ -450,7 +450,7 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
                         <button
                           onClick={() => handleStopProcess(proc.castle_id, proc.email)}
                           disabled={isStopping}
-                          className="flex items-center gap-1 bg-rose-50 hover:bg-rose-600 dark:bg-rose-500/10 dark:hover:bg-rose-600 disabled:opacity-50 shadow-xs px-3 py-1.5 border border-rose-200 dark:border-rose-500/30 rounded-lg font-bold text-rose-600 hover:text-white text-xs active:scale-95 transition-all cursor-pointer"
+                          className="flex items-center gap-1 bg-rose-50 dark:bg-rose-500/15 disabled:opacity-50 shadow-xs px-3 py-1.5 border border-rose-200 dark:border-rose-500/30 rounded-lg font-bold text-rose-600 dark:text-rose-400 text-xs active:scale-95 cursor-pointer"
                         >
                           <StopCircle size={14} className={isStopping ? 'animate-spin' : ''} />
                           <span>{isStopping ? 'جاري...' : 'إيقاف'}</span>

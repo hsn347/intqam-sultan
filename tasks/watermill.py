@@ -70,42 +70,59 @@ class WatermillTask(BaseTask):
                             backpack.pop(k, None)
                     break
 
+    @staticmethod
+    def _matches_building_buff(entry: Any, buff_id: int, bid: int, iid: int) -> bool:
+        """التحقق من تطابق إدخال الباف مع نفس المعرف والمبنى (bid, iid) لمنع التكرار."""
+        if not isinstance(entry, dict):
+            return False
+        entry_id = entry.get("id") if entry.get("id") is not None else entry.get("buffId")
+        if str(entry_id) != str(buff_id):
+            return False
+        extra = entry.get("extra")
+        ebid, eiid = entry.get("bid"), entry.get("iid")
+        if isinstance(extra, dict):
+            ebid = extra.get("bid") if ebid is None else ebid
+            eiid = extra.get("iid") if eiid is None else eiid
+        elif isinstance(extra, str) and f"bid_{bid}_iid_{iid}" in extra:
+            return True
+        return str(ebid) == str(bid) and str(eiid) == str(iid)
+
     def _register_buff_in_memory(self, bid: int, iid: int, buff_id: int, item_id: int, duration_sec: int = 86400) -> None:
-        """تسجيل الباف فورياً في الذاكرة الحية لتجنب أي محاولة دعم مكررة لنفس الحقل بالدورة."""
+        """تسجيل أو تحديث الباف فورياً في الذاكرة الحية بصيغة السيرفر لمنع أي طلبات مكررة."""
         now_ts = int(time.time())
         end_ts = now_ts + duration_sec
+        effect_type = RESOURCE_BUILDING_METADATA.get(int(bid), {}).get("effect_type")
+
+        buff_entry: Dict[str, Any] = {
+            "buffId": buff_id,
+            "id": buff_id,
+            "itemId": item_id,
+            "beginTime": now_ts,
+            "time": duration_sec,
+            "duration": duration_sec,
+            "endTime": end_ts,
+            "finishTime": end_ts,
+            "bid": bid,
+            "iid": iid,
+            "extra": {"bid": str(bid), "iid": str(iid)},
+        }
+        if effect_type is not None:
+            buff_entry["effectType"] = effect_type
 
         for ctrl_name in ("buffCtrl", "newBuffCtrl"):
             ctrl = self.get_ctrl(ctrl_name)
             if isinstance(ctrl, list):
-                ctrl.append({
-                    "buffId": buff_id,
-                    "id": buff_id,
-                    "itemId": item_id,
-                    "beginTime": now_ts,
-                    "time": duration_sec,
-                    "duration": duration_sec,
-                    "endTime": end_ts,
-                    "finishTime": end_ts,
-                    "bid": bid,
-                    "iid": iid,
-                    "extra": f"bid_{bid}_iid_{iid}",
-                })
+                replaced = False
+                for idx, existing in enumerate(ctrl):
+                    if self._matches_building_buff(existing, buff_id, bid, iid):
+                        ctrl[idx] = dict(buff_entry)
+                        replaced = True
+                        break
+                if not replaced:
+                    ctrl.append(dict(buff_entry))
             elif isinstance(ctrl, dict):
                 key = f"buff_{buff_id}_{bid}_{iid}"
-                ctrl[key] = {
-                    "buffId": buff_id,
-                    "id": buff_id,
-                    "itemId": item_id,
-                    "beginTime": now_ts,
-                    "time": duration_sec,
-                    "duration": duration_sec,
-                    "endTime": end_ts,
-                    "finishTime": end_ts,
-                    "bid": bid,
-                    "iid": iid,
-                    "extra": f"bid_{bid}_iid_{iid}",
-                }
+                ctrl[key] = dict(buff_entry)
 
     async def can_run(self) -> Tuple[bool, str]:
         """فحص قبلي سريع (0-Network Pre-flight): التحقق من الشروط في الذاكرة قبل ملامسة السيرفر."""
@@ -171,6 +188,7 @@ class WatermillTask(BaseTask):
                 fields_by_res.setdefault(r, []).append(f)
 
         total_boosted = 0
+        synced_already_boosted = 0
         skipped_resources: List[str] = []
 
         # 4. التكرار على كل نوع مورد وتطبيق الحزم
@@ -217,8 +235,9 @@ class WatermillTask(BaseTask):
 
                 resp = await self.safe_query("1001", "9", payload, min_delay=0.8, max_delay=1.4)
                 err = resp.get("err") if isinstance(resp, dict) else -1
+                err_str = str(err)
 
-                if err == 0 or err == "0":
+                if err_str == "0":
                     item_count -= 1
                     total_boosted += 1
 
@@ -230,17 +249,28 @@ class WatermillTask(BaseTask):
                         f"[Watermill] ✅ تم تفعيل {item_name} على {type_name} (مستوى {lv} / خانة {iid}) بنجاح! "
                         f"(المتبقي: {item_count} حزمة)"
                     )
+                elif err_str == "1017":
+                    # Err_RES_BUILD_IS_IN_DOUBLE_BUF: الحقل مفعل عليه مضاعفة الإنتاج مسبقاً في السيرفر (بدون استهلاك حزمة)
+                    self._register_buff_in_memory(bid, iid, buff_id, item_id, 86400)
+                    synced_already_boosted += 1
+                    self.log(
+                        f"[Watermill] ℹ️ {type_name} (مستوى {lv} / خانة {iid}) مفعل عليه الدعم بالفعل في السيرفر (كود 1017) — تمت مزامنة الذاكرة الحية."
+                    )
                 else:
                     self.log(
                         f"[Watermill] ⚠️ فشل تفعيل {item_name} على {type_name} (مستوى {lv} / خانة {iid}) - كود الخطأ: {err}"
                     )
-                    # إذا كان الخطأ يدل على عدم توفر الأداة أو حد أقصى، نتوقف عن هذا المورد
-                    if err in (2001, 2004, "2001", "2004"):
+                    # إذا كان الخطأ يدل على نفاد الأداة (2003) أو عدم توفرها/تجاوز الحد (2001, 2004)، نتوقف عن هذا المورد
+                    if err_str in ("2001", "2003", "2004"):
+                        if err_str == "2003" and r_key not in skipped_resources:
+                            skipped_resources.append(r_key)
                         break
 
         if total_boosted > 0:
             return TaskResult.ok(f"تم تفعيل دعم {total_boosted} حقل/منجم بنجاح وفق الأولويات.")
         elif skipped_resources:
             return TaskResult.skip(f"لم يتم تفعيل أي حقل لنفاد حزم الدعم في الحقيبة ({', '.join(skipped_resources)}).")
+        elif synced_already_boosted > 0:
+            return TaskResult.skip(f"كافة الحقول والمناجم مفعل عليها الدعم بالفعل (تمت مزامنة {synced_already_boosted} حقل في الذاكرة الحية).")
         else:
             return TaskResult.skip("كافة الحقول والمناجم مفعل عليها الدعم بالفعل.")

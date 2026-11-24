@@ -16,18 +16,20 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from collections import defaultdict
 from contextlib import asynccontextmanager
 import copy
 import json
 import logging
 import os
 import queue
+import random
 import re
 import sys
 import threading
 import time
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 if sys.platform == "win32":
     try:
@@ -85,15 +87,46 @@ os.makedirs(_LOGS_DIR, exist_ok=True)
 # ── تهيئة قاعدة البيانات المحلية ────────────────────────────────────
 db.init_db()
 
-# ── تسوية وتصفير حالات القلاع السابقة في قاعدة البيانات عند بدء التشغيل ──
+# ── إدارة النشر الذكي والتشغيل التدريجي الآمن (Deploy & Auto-Resume) ──
+_AUTO_RESUME_FILE = os.path.join(_ROOT, "auto_resume.json")
+INTERNAL_API_SECRET = os.environ.get("INTERNAL_API_SECRET", "sultan_internal_secret_key_2026")
+_deploy_mode: bool = False
+_gradual_running: bool = False
+_deploying_cids: Set[str] = set()
+_deploying_emails: Set[str] = set()
+_gradual_cancel_event: Optional[asyncio.Event] = None
+_gradual_task: Optional[asyncio.Task] = None
+_auto_resume_task: Optional[asyncio.Task] = None
+
+
+def _read_auto_resume_file() -> List[Dict[str, Any]]:
+    if not os.path.exists(_AUTO_RESUME_FILE):
+        return []
+    try:
+        with open(_AUTO_RESUME_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except Exception as exc:
+        log.warning(f"⚠️ تعذر قراءة auto_resume.json: {exc}")
+        return []
+
+
+# ── تسوية وتصفير حالات القلاع السابقة مع حفظ القلاع المجدولة في auto_resume.json ──
 try:
-    with db.get_connection() as _startup_conn:
-        _startup_conn.execute("""
-            UPDATE castle_states 
-            SET state = 'idle', conn_state = 'idle', status_message = 'جاهز للتشغيل' 
-            WHERE state = 'running' OR conn_state IN ('connected', 'starting', 'waiting', 'deploying', 'reconnecting')
-        """)
-    log.info("✓ تمت تسوية وتصفير حالات القلاع السابقة في قاعدة البيانات إلى 'idle'.")
+    _startup_resume_items = _read_auto_resume_file()
+    _startup_resume_cids = [str(x.get("castle_id")).strip() for x in _startup_resume_items if isinstance(x, dict) and x.get("castle_id")]
+    if _startup_resume_cids:
+        _deploy_mode = True
+        _deploying_cids.update(_startup_resume_cids)
+        _deploying_emails.update(
+            str(x.get("email")).strip().lower()
+            for x in _startup_resume_items
+            if isinstance(x, dict) and x.get("email")
+        )
+    _cleaned = db.reset_stuck_castles_db(exclude_castle_ids=_startup_resume_cids or None)
+    log.info(
+        f"✓ تمت تسوية حالات القلاع العالقة عند بدء التشغيل (تنظيف: {_cleaned}، بانتظار الاستئناف: {len(_startup_resume_cids)})."
+    )
 except Exception as _reconcile_err:
     log.warning(f"تعذر تصفير حالات القلاع العالقة عند بدء التشغيل: {_reconcile_err}")
 
@@ -105,6 +138,39 @@ _log_queues: Dict[str, "queue.Queue[str]"] = {}
 _log_lock = threading.Lock()
 # كاش الذاكرة اللحظي لحالات القلاع الخاملة لحماية SQLite من الاستعلام المتكرر كل ثانيتين
 _ws_idle_status_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+
+
+def _invalidate_ws_status_cache(castle_ids: Optional[Iterable[str]] = None) -> None:
+    if castle_ids is None:
+        _ws_idle_status_cache.clear()
+        return
+    for cid in castle_ids:
+        _ws_idle_status_cache.pop(str(cid), None)
+
+
+def _set_deploying_marks(castles: Iterable[Dict[str, Any]], message: str) -> List[str]:
+    cids: List[str] = []
+    for c in castles:
+        cid = str(c.get("castle_id", "")).strip()
+        em = str(c.get("email", "")).strip().lower()
+        if cid:
+            cids.append(cid)
+            _deploying_cids.add(cid)
+        if em:
+            _deploying_emails.add(em)
+    if cids:
+        db.set_castles_deploying_db(cids, message=message)
+        _invalidate_ws_status_cache(cids)
+    return cids
+
+
+def _clear_deploying_mark(castle_id: Optional[str] = None, email: Optional[str] = None) -> None:
+    if castle_id:
+        _deploying_cids.discard(str(castle_id).strip())
+        _invalidate_ws_status_cache([str(castle_id).strip()])
+    if email:
+        _deploying_emails.discard(str(email).strip().lower())
+
 
 def _get_or_create_log_queue(identifier: str) -> "queue.Queue[str]":
     with _log_lock:
@@ -126,14 +192,250 @@ def _push_log(identifier: str, msg: str):
                     pass
 
 # ══════════════════════════════════════════════════════════════════
+# دوال التشغيل التدريجي والاستئناف التلقائي بعد النشر (Async Deploy Logic)
+# ══════════════════════════════════════════════════════════════════
+
+def _interleave_shuffle(castles: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """خلط عشوائي ذكي بنظام Round-Robin لمنع تتالي حسابات نفس المستخدم عند الإقلاع."""
+    groups: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for c in castles:
+        groups[str(c.get("user_id") or "unknown")].append(c)
+    for g in groups.values():
+        random.shuffle(g)
+    queues = list(groups.values())
+    random.shuffle(queues)
+    result: List[Dict[str, Any]] = []
+    while queues:
+        for q in queues:
+            if q:
+                result.append(q.pop(0))
+        queues = [q for q in queues if q]
+    return result
+
+
+def _collect_eligible_castles() -> List[Dict[str, Any]]:
+    """جمع جميع الحسابات المؤهلة للتشغيل التدريجي (موافق عليها + اشتراك صالح + نشطة + غير محظورة)."""
+    eligible: List[Dict[str, Any]] = []
+    sub_cache: Dict[str, Tuple[bool, str]] = {}
+    for c in db.get_all_castles():
+        cid = str(c.get("castle_id", "")).strip()
+        uid = str(c.get("user_id", "")).strip()
+        em = str(c.get("email", "")).strip()
+        if not cid or not em or not c.get("is_active", 1):
+            continue
+        c_st = str(c.get("state", "")).lower()
+        conn_st = str(c.get("conn_state", "")).lower()
+        if c_st in ("pending", "rejected", "error", "sealed", "banned"):
+            continue
+        if conn_st in ("error", "sealed", "sealed_banned", "banned"):
+            continue
+        if uid:
+            if uid not in sub_cache:
+                sub_cache[uid] = db.check_user_subscription_db(uid)
+            if not sub_cache[uid][0]:
+                continue
+        raw_cfg = c.get("config") or {}
+        if isinstance(raw_cfg, str):
+            try:
+                raw_cfg = json.loads(raw_cfg) if raw_cfg.strip() else {}
+            except Exception:
+                raw_cfg = {}
+        eligible.append({
+            "castle_id": cid,
+            "user_id": uid,
+            "email": em,
+            "password": c.get("password", ""),
+            "config": raw_cfg,
+        })
+    return eligible
+
+
+async def _launch_castle_via_manager(castle: Dict[str, Any]) -> bool:
+    """تشغيل قلعة واحدة عبر bot_manager مع تحديث الحالة في الذاكرة و SQLite."""
+    cid = str(castle.get("castle_id", "")).strip()
+    em = str(castle.get("email", "")).strip()
+    uid = str(castle.get("user_id", "")).strip()
+    if not cid or not em:
+        return False
+
+    existing = bot_manager.get_bot(em)
+    if existing and existing.is_running:
+        _clear_deploying_mark(cid, em)
+        return False
+
+    _get_or_create_log_queue(cid)
+    _clear_deploying_mark(cid, em)
+    started = await bot_manager.start_bot(
+        em,
+        config=castle.get("config") if isinstance(castle.get("config"), dict) else {},
+        password=castle.get("password", ""),
+        castle_id=cid,
+        user_id=uid,
+        log_callback=lambda m, cid_ref=cid, em_ref=em: (
+            _push_log(cid_ref, m),
+            _push_log(em_ref, m) if cid_ref != em_ref else None,
+        ),
+    )
+    if started:
+        db.upsert_castle_conn_state(
+            castle_id=cid,
+            conn_state="starting",
+            state="running",
+            status_message="جاري الاتصال واستئناف العمل...",
+        )
+        _invalidate_ws_status_cache([cid])
+    return bool(started)
+
+
+async def _wait_gradual_delay(cancel_event: asyncio.Event, delay_sec: float) -> bool:
+    """انتظار قابل للإلغاء الفوري بين الحسابات. يُعيد True إذا تم الإلغاء."""
+    try:
+        await asyncio.wait_for(cancel_event.wait(), timeout=delay_sec)
+        return True
+    except asyncio.TimeoutError:
+        return cancel_event.is_set()
+
+
+async def _gradual_start_worker(castles: List[Dict[str, Any]], cancel_event: asyncio.Event) -> None:
+    """مهمة خلفية غير متزامنة لتشغيل الحسابات واحداً تلو الآخر بفاصل عشوائي 5-10 ثوانٍ."""
+    global _gradual_running, _deploy_mode
+    started = 0
+    skipped = 0
+    total = len(castles)
+    try:
+        for idx, c in enumerate(castles):
+            if cancel_event.is_set():
+                log.info(f"🛑 [Gradual] تم إلغاء التشغيل التدريجي بعد {started}/{total} حساب.")
+                break
+
+            cid = str(c.get("castle_id", "")).strip()
+            em = str(c.get("email", "")).strip()
+            try:
+                ok = await _launch_castle_via_manager(c)
+                if ok:
+                    started += 1
+                    log.info(f"✅ [Gradual] ({started}/{total}) بدأ: {em or cid[:8]}")
+                else:
+                    skipped += 1
+            except Exception as exc:
+                skipped += 1
+                _clear_deploying_mark(cid, em)
+                log.warning(f"⚠️ [Gradual] تعذر تشغيل {em or cid}: {exc}")
+
+            if idx < total - 1 and not cancel_event.is_set():
+                delay = random.uniform(5.0, 10.0)
+                if await _wait_gradual_delay(cancel_event, delay):
+                    log.info(f"🛑 [Gradual] توقف الانتظار بسبب إشارة الإلغاء ({started}/{total}).")
+                    break
+
+        log.info(f"🎉 [Gradual] اكتمل: شُغّل {started}، تخطي {skipped} من أصل {total}.")
+    except asyncio.CancelledError:
+        log.info(f"🛑 [Gradual] تم إلغاء مهمة التشغيل التدريجي ({started}/{total}).")
+        raise
+    finally:
+        _gradual_running = False
+        _deploy_mode = False
+        _deploying_cids.clear()
+        _deploying_emails.clear()
+        _invalidate_ws_status_cache()
+        log.info("🔓 [Gradual] تم فتح قفل النشر وإنهاء التشغيل التدريجي.")
+
+
+async def _handle_auto_resume() -> None:
+    """استئناف البوتات المحفوظة في auto_resume.json تلقائياً وتدريجياً بعد إعادة التشغيل."""
+    global _deploy_mode, _gradual_running, _gradual_cancel_event
+    try:
+        await asyncio.sleep(1.0)
+        to_resume = _read_auto_resume_file()
+        if os.path.exists(_AUTO_RESUME_FILE):
+            try:
+                os.remove(_AUTO_RESUME_FILE)
+            except Exception as exc:
+                log.warning(f"⚠️ تعذر حذف auto_resume.json بعد قراءته: {exc}")
+
+        if not to_resume:
+            return
+
+        _deploy_mode = True
+        _gradual_running = True
+        cancel_ev = asyncio.Event()
+        _gradual_cancel_event = cancel_ev
+
+        eligible_to_resume: List[Dict[str, Any]] = []
+        for item in to_resume:
+            if not isinstance(item, dict):
+                continue
+            cid = str(item.get("castle_id", "")).strip()
+            uid = str(item.get("user_id", "")).strip()
+            if not cid:
+                continue
+            c = db.get_castle_by_id(cid, uid or None)
+            if not c or not c.get("is_active", 1):
+                _clear_deploying_mark(cid, item.get("email"))
+                db.upsert_castle_conn_state(cid, conn_state="idle", state="idle", status_message="غير نشط")
+                continue
+            effective_uid = uid or str(c.get("user_id", "")).strip()
+            if effective_uid:
+                valid, reason = db.check_user_subscription_db(effective_uid)
+                if not valid:
+                    _clear_deploying_mark(cid, c.get("email"))
+                    db.upsert_castle_conn_state(cid, conn_state="idle", state="idle", status_message=f"متوقف: {reason}")
+                    continue
+            raw_cfg = c.get("config") or {}
+            if isinstance(raw_cfg, str):
+                try:
+                    raw_cfg = json.loads(raw_cfg) if raw_cfg.strip() else {}
+                except Exception:
+                    raw_cfg = {}
+            eligible_to_resume.append({
+                "castle_id": cid,
+                "user_id": effective_uid,
+                "email": c.get("email", item.get("email", "")),
+                "password": c.get("password", ""),
+                "config": raw_cfg,
+            })
+
+        if not eligible_to_resume:
+            _gradual_running = False
+            _deploy_mode = False
+            _deploying_cids.clear()
+            _deploying_emails.clear()
+            return
+
+        shuffled = _interleave_shuffle(eligible_to_resume)
+        log.info(f"🔄 [Auto-Resume] بدء استئناف {len(shuffled)} بوت تدريجياً (5-10 ثوانٍ عشوائياً)...")
+        await _gradual_start_worker(shuffled, cancel_ev)
+    except asyncio.CancelledError:
+        _gradual_running = False
+        _deploy_mode = False
+        raise
+    except Exception as exc:
+        log.error(f"⚠️ [Auto-Resume] خطأ غير متوقع أثناء الاستئناف التلقائي: {exc}", exc_info=True)
+        _gradual_running = False
+        _deploy_mode = False
+        _deploying_cids.clear()
+        _deploying_emails.clear()
+
+
+# ══════════════════════════════════════════════════════════════════
 # FastAPI App & CORS & Lifespan
 # ══════════════════════════════════════════════════════════════════
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """إدارة دورة حياة خادم API مع ضمان الإيقاف الآمن لكافة البوتات النشطة عند الإغلاق"""
+    """إدارة دورة حياة خادم API: استئناف ما قبل التحديث عند الإقلاع وإيقاف آمن عند الإغلاق."""
+    global _auto_resume_task, _gradual_task
+    if _startup_resume_cids or os.path.exists(_AUTO_RESUME_FILE):
+        _auto_resume_task = asyncio.create_task(_handle_auto_resume(), name="sys-auto-resume")
     yield
     log.info("خادم API يستعد للإغلاق، جارٍ إيقاف كافة البوتات النشطة بأمان...")
+    for bg_task in (_gradual_task, _auto_resume_task):
+        if bg_task and not bg_task.done():
+            bg_task.cancel()
+            try:
+                await asyncio.wait_for(bg_task, timeout=2.0)
+            except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+                pass
     try:
         await bot_manager.stop_all()
         log.info("✓ تم إيقاف كافة البوتات النشطة بنجاح.")
@@ -260,6 +562,47 @@ def require_admin(current_user: Dict[str, Any] = Depends(get_current_user)) -> D
     if not is_super_admin(current_user):
         raise HTTPException(status_code=403, detail="هذه العملية مخصصة لمدير النظام فقط")
     return current_user
+
+
+def verify_internal_access(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(security_scheme),
+) -> Dict[str, Any]:
+    """
+    حماية المسارات الداخلية (/api/internal/*) لنظام النشر والاستئناف التدريجي:
+    1. مطابقة ترويسة X-Internal-Token مع INTERNAL_API_SECRET.
+    2. اتصال محلي مباشر (Loopback) مع التحقق من غياب ترويسات البروكسي الخارجية X-Real-IP / X-Forwarded-For.
+    3. مصادقة Bearer Token لمشرف النظام (Super Admin).
+    """
+    internal_token = request.headers.get("x-internal-token")
+    if internal_token and internal_token.strip() == INTERNAL_API_SECRET:
+        return {"source": "internal_token", "authorized": True}
+
+    client_host = getattr(request.client, "host", "") if request.client else ""
+    x_real_ip = (request.headers.get("x-real-ip") or "").strip()
+    x_forwarded_for = (request.headers.get("x-forwarded-for") or "").strip()
+    loopback_hosts = ("127.0.0.1", "::1", "localhost", "testclient")
+    is_direct_loopback = (
+        client_host in loopback_hosts
+        and (not x_real_ip or x_real_ip in loopback_hosts)
+        and (not x_forwarded_for or x_forwarded_for in loopback_hosts)
+    )
+    if is_direct_loopback:
+        return {"source": "loopback", "authorized": True}
+
+    if credentials and credentials.credentials:
+        try:
+            user = get_current_user(request, credentials)
+            if is_super_admin(user):
+                return user
+        except Exception:
+            pass
+
+    log.warning(f"🚨 محاولة وصول غير مصرح بها لمسار داخلي ({request.url.path}) من IP: {client_host}")
+    raise HTTPException(
+        status_code=403,
+        detail="Forbidden: Internal endpoint requires admin role, internal token, or direct local loopback access",
+    )
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -518,6 +861,8 @@ def health_check():
         "status": "ok",
         "game": "Revenge of Sultans",
         "version": "2.1.0",
+        "deploy_mode": _deploy_mode,
+        "gradual_running": _gradual_running,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "summary": summary,
     }
@@ -602,6 +947,94 @@ def get_user_subscription(current_user: Dict[str, Any] = Depends(get_current_use
 # 3. إدارة القلاع والحسابات (Castles & Accounts APIs)
 # ══════════════════════════════════════════════════════════════════
 
+def _extract_seal_details(
+    status_message: Optional[str],
+    seal_type: Optional[int] = None,
+    seal_reason: Optional[str] = None,
+) -> Tuple[Optional[int], str]:
+    """استخراج نوع الحظر وسببه الصافي من البيانات الحية أو رسالة الحالة."""
+    raw_msg = str(status_message or "").strip()
+    clean_reason = str(seal_reason or "").strip()
+    if not clean_reason and raw_msg:
+        clean_reason = raw_msg
+        for prefix in (
+            "❌ [حساب محظور] الحساب مجمد أو محظور من إدارة اللعبة:",
+            "❌ [حساب محظور]",
+        ):
+            if clean_reason.startswith(prefix):
+                clean_reason = clean_reason[len(prefix):].strip()
+                break
+
+    inferred_type = seal_type
+    if inferred_type is None and (clean_reason or raw_msg):
+        txt = f"{clean_reason} {raw_msg}"
+        if "بيع أو نقل" in txt or "Sell Resource" in txt:
+            inferred_type = 1
+        elif "حسابات متعددة" in txt or "Too Many Accounts" in txt:
+            inferred_type = 2
+        elif "الدردشة" in txt or "الشتائم" in txt or "Curse" in txt:
+            inferred_type = 3
+        elif "محذوف" in txt or "Account Deleted" in txt or "ملغى" in txt:
+            inferred_type = 4
+        elif "تجميد" in txt or "Suspended" in txt:
+            inferred_type = 5
+        elif "شحن غير قانوني" in txt or "Illegal Recharge" in txt:
+            inferred_type = 10
+        elif "دعوة" in txt or "Invite" in txt:
+            inferred_type = 11
+        elif "بصمة الجهاز" in txt or "Device Signature" in txt:
+            inferred_type = 99
+        elif "حظر" in txt:
+            inferred_type = 0
+    return inferred_type, clean_reason
+
+
+def _hydrate_castle_runtime_state(castle_obj: Dict[str, Any], bot: Optional[Any]) -> None:
+    """مزامنة حالة التشغيل الفعلية وحالة الحظر والخطأ لبطاقة القلعة من الذاكرة الحية أو قاعدة البيانات."""
+    if bot:
+        live = bot.get_live_info()
+        castle_obj["conn_state"] = live.get("conn_state", castle_obj.get("conn_state"))
+        if live.get("is_password_error") or live.get("conn_state") == "error":
+            castle_obj["state"] = "error"
+            castle_obj["conn_state"] = "error"
+            castle_obj["is_password_error"] = True
+        elif live.get("is_sealed") or live.get("conn_state") == "sealed":
+            castle_obj["state"] = "sealed"
+            castle_obj["conn_state"] = "sealed"
+            castle_obj["is_sealed"] = True
+            s_type, s_reason = _extract_seal_details(
+                live.get("status_message") or castle_obj.get("status_message"),
+                live.get("seal_type"),
+                live.get("seal_reason"),
+            )
+            castle_obj["seal_type"] = s_type
+            castle_obj["seal_reason"] = s_reason
+        else:
+            castle_obj["state"] = "running" if live.get("is_running") else "idle"
+        castle_obj["status_message"] = live.get("status_message", castle_obj.get("status_message"))
+        castle_obj["conn_message"] = castle_obj["status_message"]
+        castle_obj["next_run_time"] = live.get("next_run_time", castle_obj.get("next_run_time"))
+    else:
+        if castle_obj.get("conn_state") == "error" or castle_obj.get("state") == "error":
+            castle_obj["state"] = "error"
+            castle_obj["conn_state"] = "error"
+            if "كلمة" in str(castle_obj.get("status_message", "")) or "password" in str(castle_obj.get("status_message", "")).lower():
+                castle_obj["is_password_error"] = True
+        elif castle_obj.get("conn_state") == "sealed" or castle_obj.get("state") == "sealed":
+            castle_obj["state"] = "sealed"
+            castle_obj["conn_state"] = "sealed"
+            castle_obj["is_sealed"] = True
+            s_type, s_reason = _extract_seal_details(castle_obj.get("status_message"))
+            castle_obj["seal_type"] = s_type
+            castle_obj["seal_reason"] = s_reason
+            castle_obj["conn_message"] = castle_obj.get("status_message")
+        else:
+            castle_obj["state"] = "idle"
+            castle_obj["conn_state"] = "idle"
+            if castle_obj.get("status_message") in ("البوت يعمل الآن...", "جاري الاتصال بخادم اللعبة..."):
+                castle_obj["status_message"] = "متوقف"
+
+
 @app.get("/api/castles")
 def list_castles(
     user_id: Optional[str] = None,
@@ -622,36 +1055,7 @@ def list_castles(
     # دمج الحالة الحية من الذاكرة اللحظية (In-Memory Live Status)
     for c in castles:
         em = c.get("email", "")
-        bot = bot_manager.get_bot(em)
-        if bot:
-            live = bot.get_live_info()
-            c["conn_state"] = live.get("conn_state", c.get("conn_state"))
-            if live.get("is_password_error") or live.get("conn_state") == "error":
-                c["state"] = "error"
-                c["conn_state"] = "error"
-                c["is_password_error"] = True
-            elif live.get("is_sealed") or live.get("conn_state") == "sealed":
-                c["state"] = "sealed"
-                c["conn_state"] = "sealed"
-            else:
-                c["state"] = "running" if live.get("is_running") else "idle"
-            c["status_message"] = live.get("status_message", c.get("status_message"))
-            c["conn_message"] = c["status_message"]
-            c["next_run_time"] = live.get("next_run_time", c.get("next_run_time"))
-        else:
-            if c.get("conn_state") == "error" or c.get("state") == "error":
-                c["state"] = "error"
-                c["conn_state"] = "error"
-                if "كلمة" in str(c.get("status_message", "")) or "password" in str(c.get("status_message", "")).lower():
-                    c["is_password_error"] = True
-            elif c.get("conn_state") == "sealed" or c.get("state") == "sealed":
-                c["state"] = "sealed"
-                c["conn_state"] = "sealed"
-            else:
-                c["state"] = "idle"
-                c["conn_state"] = "idle"
-                if c.get("status_message") in ("البوت يعمل الآن...", "جاري الاتصال بخادم اللعبة..."):
-                    c["status_message"] = "متوقف"
+        _hydrate_castle_runtime_state(c, bot_manager.get_bot(em))
 
     return {"status": "ok", "castles": castles}
 
@@ -672,36 +1076,7 @@ def get_castle_detail(castle_id: str, current_user: Dict[str, Any] = Depends(get
     if not castle:
         raise HTTPException(status_code=404, detail="القلعة غير موجودة")
 
-    bot = bot_manager.get_bot(castle.get("email", ""))
-    if bot:
-        live = bot.get_live_info()
-        castle["conn_state"] = live.get("conn_state", castle.get("conn_state"))
-        if live.get("is_password_error") or live.get("conn_state") == "error":
-            castle["state"] = "error"
-            castle["conn_state"] = "error"
-            castle["is_password_error"] = True
-        elif live.get("is_sealed") or live.get("conn_state") == "sealed":
-            castle["state"] = "sealed"
-            castle["conn_state"] = "sealed"
-        else:
-            castle["state"] = "running" if live.get("is_running") else "idle"
-        castle["status_message"] = live.get("status_message", castle.get("status_message"))
-        castle["conn_message"] = castle["status_message"]
-        castle["next_run_time"] = live.get("next_run_time", castle.get("next_run_time"))
-    else:
-        if castle.get("conn_state") == "error" or castle.get("state") == "error":
-            castle["state"] = "error"
-            castle["conn_state"] = "error"
-            if "كلمة" in str(castle.get("status_message", "")) or "password" in str(castle.get("status_message", "")).lower():
-                castle["is_password_error"] = True
-        elif castle.get("conn_state") == "sealed" or castle.get("state") == "sealed":
-            castle["state"] = "sealed"
-            castle["conn_state"] = "sealed"
-        else:
-            castle["state"] = "idle"
-            castle["conn_state"] = "idle"
-            if castle.get("status_message") in ("البوت يعمل الآن...", "جاري الاتصال بخادم اللعبة..."):
-                castle["status_message"] = "متوقف"
+    _hydrate_castle_runtime_state(castle, bot_manager.get_bot(castle.get("email", "")))
 
     return {"status": "ok", "castle": castle}
 
@@ -709,28 +1084,42 @@ def get_castle_detail(castle_id: str, current_user: Dict[str, Any] = Depends(get
 def create_castle(req: CastleCreateRequest, current_user: Dict[str, Any] = Depends(get_current_user)):
     """إضافة حساب قلعة جديد إلى النظام"""
     uid = current_user.get("uid", "admin_default")
-    if db.castle_exists_by_email(req.email):
+    clean_email = (req.email or "").strip()
+    if db.castle_exists_by_email(clean_email):
         raise HTTPException(status_code=400, detail="هذا البريد الإلكتروني مسجل مسبقاً في النظام")
 
-    # إذا توفرت كلمة المرور، نحاول توثيق الحساب فوراً واستخراج الجلسة
-    if req.email and req.password:
+    # إذا توفرت كلمة المرور، نحاول توثيق الحساب فوراً واستخراج الجلسة عبر البروكسي المعتمد
+    if clean_email and req.password:
         try:
             from core.game_client import sdk_login
-            auth_res = sdk_login(req.email, req.password)
-            if auth_res.get("success"):
-                SessionCache.set_account(req.email, auth_res["userId"], auth_res["sessionId"])
-                log.info(f"✓ تم توثيق الحساب {req.email} فورياً عند إضافته.")
+            from proxy import get_proxy_for_account, is_proxy_enabled
+
+            req_proxy: Optional[str] = None
+            if is_proxy_enabled():
+                req_proxy = get_proxy_for_account(clean_email, user_id=uid)
+            if not is_proxy_enabled() or req_proxy:
+                auth_res = sdk_login(clean_email, req.password, proxy_url=req_proxy)
+                if auth_res.get("success"):
+                    SessionCache.set_account(clean_email, auth_res["userId"], auth_res["sessionId"])
+                    log.info(f"✓ تم توثيق الحساب {clean_email} فورياً عند إضافته.")
+            else:
+                log.warning(f"تعذر تخصيص بروكسي للتوثيق الفوري للحساب {clean_email} — تم تأجيل المصادقة لمنع التسريب.")
         except Exception as e:
-            log.warning(f"تعذر التوثيق الفوري للحساب {req.email}: {e}")
+            log.warning(f"تعذر التوثيق الفوري للحساب {clean_email}: {e}")
 
     created = db.create_castle_db(
         user_id=uid,
-        email=req.email,
+        email=clean_email,
         password=req.password or "",
         castle_name=req.castle_name or "",
         config={},
         castle_id=req.castle_id,
     )
+    try:
+        from proxy import sync_castle_proxy_index
+        sync_castle_proxy_index(clean_email, user_id=uid)
+    except Exception:
+        pass
     return {"status": "ok", "castle": created}
 
 @app.put("/api/castles/{castle_id}")
@@ -839,6 +1228,12 @@ async def delete_castle(castle_id: str, current_user: Dict[str, Any] = Depends(g
         _log_queues.pop(castle["email"], None)
 
     db.delete_castle(castle_id, None if is_admin else current_user["uid"])
+    try:
+        from proxy import remove_castle_proxy
+        if castle.get("email"):
+            remove_castle_proxy(castle["email"])
+    except Exception:
+        pass
     return {"status": "ok", "message": "تم حذف القلعة بنجاح"}
 
 @app.get("/api/castles/data/{email:path}")
@@ -889,6 +1284,12 @@ def get_castle_avatar(castle_id: str):
 @app.post("/api/bot/start")
 async def start_bot_api(payload: BotStartPayload, current_user: Dict[str, Any] = Depends(get_current_user)):
     """بدء تشغيل بوت لحساب معين والاتصال بخادم اللعبة"""
+    if _deploy_mode:
+        raise HTTPException(
+            status_code=503,
+            detail="🚧 السيرفر في وضع التحديث حالياً. يرجى الانتظار قليلاً حتى يكتمل النشر وتستأنف البوتات تلقائياً.",
+        )
+
     cid = payload.castle_id
     email = payload.email
 
@@ -898,7 +1299,7 @@ async def start_bot_api(payload: BotStartPayload, current_user: Dict[str, Any] =
         raise HTTPException(status_code=403, detail=f"لا يمكن تشغيل البوت: {reason}")
 
     # التحقق من أن القلعة موجودة ومفعلة
-    c = db.get_castle_by_id(cid)
+    c = db.get_castle_by_id(cid) or db.get_castle_by_id(email)
     if not c:
         # إذا لم تكن موجودة، ننشئها تلقائياً بالبريد المحدد
         c = db.create_castle_db(user_id=current_user["uid"], email=email, castle_id=cid)
@@ -920,13 +1321,16 @@ async def start_bot_api(payload: BotStartPayload, current_user: Dict[str, Any] =
     # تجهيز طابور السجلات وربطه بالبوت منذ لحظة الانطلاق
     target_cid = c["castle_id"]
     _get_or_create_log_queue(target_cid)
+    _clear_deploying_mark(target_cid, email)
 
-    # إطلاق البوت عبر bot_manager مع تمرير كلمة المرور وكولباك السجلات
+    # إطلاق البوت عبر bot_manager مع تمرير كلمة المرور ومعرّف القلعة والمستخدم وكولباك السجلات
     pwd = payload.password or (c.get("password") if c else "")
     started = await bot_manager.start_bot(
         email,
         config=effective_config,
         password=pwd,
+        castle_id=target_cid,
+        user_id=c.get("user_id") or current_user.get("uid"),
         log_callback=lambda m, cid_ref=target_cid, em_ref=email: (
             _push_log(cid_ref, m),
             _push_log(em_ref, m) if cid_ref != em_ref else None
@@ -939,6 +1343,7 @@ async def start_bot_api(payload: BotStartPayload, current_user: Dict[str, Any] =
         state="running",
         status_message="جاري الاتصال بخادم اللعبة...",
     )
+    _invalidate_ws_status_cache([target_cid])
 
     return {"status": "starting", "castle_id": cid, "email": email}
 
@@ -1022,11 +1427,16 @@ def get_bot_status_api(castle_id: str, current_user: Dict[str, Any] = Depends(ge
 
     if bot:
         live = bot.get_live_info()
+        is_sealed_bot = bool(live.get("is_sealed") or live.get("conn_state") == "sealed")
+        s_type, s_reason = _extract_seal_details(live.get("status_message"), live.get("seal_type"), live.get("seal_reason")) if is_sealed_bot else (None, "")
         return {
             "castle_id": castle_id,
             "is_password_error": bool(c and ("كلمة" in str(c.get("status_message", "")) or "password" in str(c.get("status_message", "")).lower())),
+            "is_sealed": is_sealed_bot,
+            "seal_type": s_type,
+            "seal_reason": s_reason,
             "email": email,
-            "status": "running" if live["is_running"] else ("error" if (live.get("is_password_error") or live.get("conn_state") == "error") else ("sealed" if (live.get("is_sealed") or live.get("conn_state") == "sealed") else "idle")),
+            "status": "running" if live["is_running"] else ("error" if (live.get("is_password_error") or live.get("conn_state") == "error") else ("sealed" if is_sealed_bot else "idle")),
             "conn_state": live["conn_state"],
             "status_message": live["status_message"],
             "uptime_seconds": live["uptime_seconds"],
@@ -1034,13 +1444,33 @@ def get_bot_status_api(castle_id: str, current_user: Dict[str, Any] = Depends(ge
             "next_run_time": live["next_run_time"],
         }
 
+    c_st = (c.get("conn_state") if c else "idle") or "idle"
+    c_msg = (c.get("status_message") if c else "غير قيد التشغيل") or "غير قيد التشغيل"
+    is_deploying_row = (castle_id in _deploying_cids) or (c_st == "deploying") or bool(c and c.get("state") == "deploying")
+    if is_deploying_row:
+        return {
+            "castle_id": castle_id,
+            "is_password_error": False,
+            "is_sealed": False,
+            "seal_type": None,
+            "seal_reason": "",
+            "email": email,
+            "status": "deploying",
+            "conn_state": "deploying",
+            "status_message": c_msg if c_st == "deploying" else "جاري رفع التغييرات إلى السيرفر... سيتم استئناف البوت تلقائياً",
+        }
+    is_sealed_db = (c_st == "sealed")
+    s_type, s_reason = _extract_seal_details(c_msg) if is_sealed_db else (None, "")
     return {
         "castle_id": castle_id,
-        "is_password_error": bool(c and ("كلمة" in str(c.get("status_message", "")) or "password" in str(c.get("status_message", "")).lower())),
+        "is_password_error": bool(c and ("كلمة" in str(c_msg) or "password" in str(c_msg).lower())),
+        "is_sealed": is_sealed_db,
+        "seal_type": s_type,
+        "seal_reason": s_reason,
         "email": email,
-        "status": (c.get("conn_state") if c else "idle") if (c and c.get("conn_state") in ("error", "sealed")) else "idle",
-        "conn_state": (c.get("conn_state") if c else "idle") or "idle",
-        "status_message": (c.get("status_message") if c else "غير قيد التشغيل") or "غير قيد التشغيل"
+        "status": c_st if c_st in ("error", "sealed", "deploying") else "idle",
+        "conn_state": c_st,
+        "status_message": c_msg
     }
 
 @app.get("/api/bots/status")
@@ -1056,10 +1486,287 @@ def get_all_bots_status_api(current_user: Dict[str, Any] = Depends(get_current_u
         bot = bot_manager.get_bot(em)
         if bot and bot.is_running:
             statuses[cid] = "running"
+        elif cid in _deploying_cids or c.get("conn_state") == "deploying" or c.get("state") == "deploying":
+            statuses[cid] = "deploying"
+        elif c.get("conn_state") in ("error", "sealed"):
+            statuses[cid] = c["conn_state"]
         else:
             statuses[cid] = "idle"
 
     return {"status": "ok", "bots": statuses}
+
+
+# ══════════════════════════════════════════════════════════════════
+# 4.5 واجهات النشر الداخلية والتحكم التدريجي (Internal Deploy APIs)
+# ══════════════════════════════════════════════════════════════════
+
+@app.post("/api/internal/deploy-lock", dependencies=[Depends(verify_internal_access)])
+def deploy_lock_endpoint():
+    """قفل وضع النشر لمنع أي تشغيل يدوي جديد أثناء رفع التحديثات."""
+    global _deploy_mode
+    _deploy_mode = True
+    log.warning("🔒 [Deploy Lock] وضع النشر مُفعّل — تم تعليق تشغيل أي بوت جديد حتى انتهاء النشر.")
+    return {"status": "locked", "deploy_mode": True}
+
+
+@app.post("/api/internal/deploy-unlock", dependencies=[Depends(verify_internal_access)])
+def deploy_unlock_endpoint():
+    """إلغاء وضع النشر والسماح بتشغيل البوتات مجدداً."""
+    global _deploy_mode
+    _deploy_mode = False
+    log.info("🔓 [Deploy Unlock] وضع النشر أُلغي — يمكن تشغيل البوتات مجدداً.")
+    return {"status": "unlocked", "deploy_mode": False}
+
+
+@app.post("/api/internal/save-running-state", dependencies=[Depends(verify_internal_access)])
+async def save_running_state_endpoint():
+    """حفظ جميع البوتات النشطة حالياً في auto_resume.json، وسمها بـ deploying، وإيقافها بأمان قبل الريستارت."""
+    global _deploy_mode, _gradual_running
+    _deploy_mode = True
+
+    if _gradual_cancel_event is not None:
+        _gradual_cancel_event.set()
+    if _gradual_task and not _gradual_task.done():
+        _gradual_task.cancel()
+        try:
+            await asyncio.wait_for(_gradual_task, timeout=2.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+            pass
+    _gradual_running = False
+
+    active_entries: List[Dict[str, Any]] = []
+    seen_cids: Set[str] = set()
+    for em, bot in list(bot_manager.bots.items()):
+        task = bot_manager.tasks.get(em)
+        is_alive = bool(
+            bot.is_running
+            or bot.conn_state in ("starting", "running", "connected", "waiting", "reconnecting")
+            or (task and not task.done())
+        )
+        if not is_alive:
+            continue
+        cid = getattr(bot, "castle_id", None) or ""
+        uid = getattr(bot, "user_id", None) or ""
+        if not cid or not uid:
+            c_rec = db.get_castle_by_id(em)
+            if c_rec:
+                cid = cid or str(c_rec.get("castle_id", ""))
+                uid = uid or str(c_rec.get("user_id", ""))
+        if cid and cid not in seen_cids:
+            seen_cids.add(cid)
+            active_entries.append({"castle_id": cid, "user_id": uid, "email": em})
+
+    deploy_msg = "جاري رفع التغييرات إلى السيرفر... سيتم استئناف البوت تلقائياً"
+    if active_entries:
+        _set_deploying_marks(active_entries, deploy_msg)
+        tmp_path = f"{_AUTO_RESUME_FILE}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(active_entries, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, _AUTO_RESUME_FILE)
+        log.info(f"💾 [Auto-Resume Prep] تم حفظ {len(active_entries)} بوت نشط ووسمها بـ deploying.")
+    elif os.path.exists(_AUTO_RESUME_FILE):
+        prev_entries = _read_auto_resume_file()
+        if prev_entries:
+            active_entries = prev_entries
+            log.info(f"💾 [Auto-Resume Prep] تم الاحتفاظ بـ {len(active_entries)} بوت من auto_resume.json السابق.")
+
+    try:
+        await bot_manager.stop_all()
+    except Exception as exc:
+        log.warning(f"⚠️ [Auto-Resume Prep] خطأ أثناء إيقاف البوتات: {exc}")
+
+    return {
+        "status": "success",
+        "count": len(active_entries),
+        "castles": [x["castle_id"] for x in active_entries],
+    }
+
+
+@app.post("/api/internal/gradual-start", dependencies=[Depends(verify_internal_access)])
+async def gradual_start_endpoint():
+    """تشغيل تدريجي عشوائي لجميع الحسابات المؤهلة بفاصل 5-10 ثوانٍ وخلط ذكي للمستخدمين."""
+    global _gradual_running, _deploy_mode, _gradual_cancel_event, _gradual_task
+
+    if _gradual_running and _gradual_task and not _gradual_task.done():
+        return {"status": "rejected", "message": "عملية تشغيل تدريجي جارية بالفعل — انتظر انتهاءها أو ألغِها أولاً"}
+
+    eligible = _collect_eligible_castles()
+    if not eligible:
+        return {"status": "empty", "message": "لا توجد حسابات مؤهلة للتشغيل"}
+
+    _gradual_running = True
+    _deploy_mode = True
+    cancel_ev = asyncio.Event()
+    _gradual_cancel_event = cancel_ev
+
+    _set_deploying_marks(eligible, "جاري استئناف البوت تدريجياً... (وضع التحديث)")
+    shuffled = _interleave_shuffle(eligible)
+    _gradual_task = asyncio.create_task(_gradual_start_worker(shuffled, cancel_ev), name="gradual-start")
+
+    return {
+        "status": "started",
+        "total": len(shuffled),
+        "message": f"بدأ التشغيل التدريجي لـ {len(shuffled)} حساب (5-10 ثوانٍ بين كل حساب)",
+    }
+
+
+@app.post("/api/internal/resume-all-from-db", dependencies=[Depends(verify_internal_access)])
+async def resume_all_from_db_endpoint():
+    """تفويض استئناف الحسابات من قاعدة البيانات إلى محرك التشغيل التدريجي الآمن."""
+    return await gradual_start_endpoint()
+
+
+@app.post("/api/internal/stop-all", dependencies=[Depends(verify_internal_access)])
+async def internal_stop_all_endpoint():
+    """إيقاف جميع البوتات النشطة وإلغاء أي طابور تشغيل تدريجي وتصفير الحالات في SQLite."""
+    global _gradual_running, _deploy_mode
+
+    if _gradual_cancel_event is not None:
+        _gradual_cancel_event.set()
+    if _gradual_task and not _gradual_task.done():
+        _gradual_task.cancel()
+        try:
+            await asyncio.wait_for(_gradual_task, timeout=2.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+            pass
+    _gradual_running = False
+
+    running_count = len(bot_manager.bots)
+    await bot_manager.stop_all()
+    reset_count = db.stop_all_castles_idle_db("تم إيقاف البوت بواسطة المشرف")
+
+    _deploy_mode = False
+    _deploying_cids.clear()
+    _deploying_emails.clear()
+    _invalidate_ws_status_cache()
+
+    log.info(f"🛑 [Stop-All] تم إيقاف {running_count} بوت وتصفير {reset_count} سجل في SQLite.")
+    return {
+        "status": "stopped",
+        "count": running_count or reset_count,
+        "message": f"تم إيقاف البوتات بنجاح ({running_count} نشط)",
+    }
+
+
+@app.post("/api/internal/cancel-start-queue", dependencies=[Depends(verify_internal_access)])
+async def cancel_start_queue_endpoint():
+    """إلغاء التشغيل التدريجي الجاري مع إبقاء البوتات التي بدأت فعلاً قيد التشغيل."""
+    global _gradual_running, _deploy_mode
+
+    was_running = bool(_gradual_running and _gradual_task and not _gradual_task.done())
+    if _gradual_cancel_event is not None:
+        _gradual_cancel_event.set()
+    if _gradual_task and not _gradual_task.done():
+        try:
+            await asyncio.wait_for(_gradual_task, timeout=2.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+            _gradual_task.cancel()
+
+    _gradual_running = False
+    _deploy_mode = False
+    _deploying_cids.clear()
+    _deploying_emails.clear()
+    db.reset_deploying_castles_to_idle_db("تم إلغاء التشغيل التدريجي")
+    _invalidate_ws_status_cache()
+
+    if was_running:
+        log.info("🛑 [Cancel-Queue] تم إلغاء التشغيل التدريجي مع إبقاء الحسابات الشغالة.")
+        return {"status": "cancelled", "message": "تم إلغاء التشغيل التدريجي. الحسابات التي بدأت بالفعل مستمرة في العمل."}
+    return {"status": "no_op", "message": "لا توجد عملية تشغيل تدريجي جارية حالياً. تم تصفير أي حسابات متبقية."}
+
+
+@app.post("/api/internal/restart-all", dependencies=[Depends(verify_internal_access)])
+async def internal_restart_all_endpoint():
+    """إيقاف البوتات العاملة حالياً ثم إعادة تشغيلها تدريجياً بأحدث الإعدادات."""
+    global _gradual_running, _deploy_mode, _gradual_cancel_event, _gradual_task
+
+    if _gradual_running and _gradual_task and not _gradual_task.done():
+        return {"status": "rejected", "message": "عملية تشغيل تدريجي جارية بالفعل — انتظر انتهاءها أو ألغِها أولاً"}
+
+    running_castles: List[Dict[str, Any]] = []
+    seen_cids: Set[str] = set()
+    for em, bot in list(bot_manager.bots.items()):
+        task = bot_manager.tasks.get(em)
+        if not (bot.is_running or (task and not task.done())):
+            continue
+        cid = getattr(bot, "castle_id", None) or ""
+        c_rec = db.get_castle_by_id(cid) if cid else db.get_castle_by_id(em)
+        if c_rec:
+            rcid = str(c_rec.get("castle_id", "")).strip()
+            if rcid and rcid not in seen_cids:
+                seen_cids.add(rcid)
+                raw_cfg = c_rec.get("config") or {}
+                if isinstance(raw_cfg, str):
+                    try:
+                        raw_cfg = json.loads(raw_cfg) if raw_cfg.strip() else {}
+                    except Exception:
+                        raw_cfg = {}
+                running_castles.append({
+                    "castle_id": rcid,
+                    "user_id": str(c_rec.get("user_id", "")),
+                    "email": str(c_rec.get("email", em)),
+                    "password": c_rec.get("password", ""),
+                    "config": raw_cfg,
+                })
+
+    if not running_castles:
+        return {"status": "empty", "message": "لا توجد بوتات شغالة حالياً لإعادة تشغيلها"}
+
+    _gradual_running = True
+    _deploy_mode = True
+    cancel_ev = asyncio.Event()
+    _gradual_cancel_event = cancel_ev
+
+    await bot_manager.stop_all()
+    _set_deploying_marks(running_castles, "جاري إعادة تشغيل البوت تدريجياً...")
+    shuffled = _interleave_shuffle(running_castles)
+
+    async def _delayed_restart() -> None:
+        if await _wait_gradual_delay(cancel_ev, 2.0):
+            return
+        await _gradual_start_worker(shuffled, cancel_ev)
+
+    _gradual_task = asyncio.create_task(_delayed_restart(), name="gradual-restart")
+    return {
+        "status": "restarting",
+        "total": len(shuffled),
+        "message": f"جاري إعادة تشغيل {len(shuffled)} بوت تدريجياً (5-10 ثوانٍ بين كل حساب)",
+    }
+
+
+@app.post("/api/internal/direct-start", dependencies=[Depends(verify_internal_access)])
+async def internal_direct_start_endpoint(payload: BotStartPayload):
+    """تشغيل مباشر لبوت واحد داخلياً (محمي بالوصول الداخلي)."""
+    c = db.get_castle_by_id(payload.castle_id) or db.get_castle_by_id(payload.email)
+    target_cid = str(c["castle_id"]) if c else payload.castle_id
+    target_email = str(c["email"]) if c else payload.email
+    effective_cfg = copy.deepcopy((c.get("config") if c else {}) or {})
+    if payload.config:
+        effective_cfg.update(payload.config)
+    pwd = payload.password or (c.get("password", "") if c else "")
+    ok = await _launch_castle_via_manager({
+        "castle_id": target_cid,
+        "user_id": (c.get("user_id") if c else payload.user_id) or "admin_default",
+        "email": target_email,
+        "password": pwd,
+        "config": effective_cfg,
+    })
+    return {"status": "started" if ok else "already_running", "castle_id": target_cid, "email": target_email}
+
+
+@app.get("/api/internal/debug-state", dependencies=[Depends(verify_internal_access)])
+def debug_state_endpoint():
+    """استعراض الحالة الداخلية للبوتات ووضع النشر للتشخيص السريع."""
+    return {
+        "deploy_mode": _deploy_mode,
+        "gradual_running": _gradual_running,
+        "deploying_count": len(_deploying_cids),
+        "deploying_cids": sorted(_deploying_cids),
+        "auto_resume_pending": os.path.exists(_AUTO_RESUME_FILE),
+        "active_bots_count": len(bot_manager.bots),
+        "active_emails": list(bot_manager.bots.keys()),
+        "tasks_alive": {em: (not t.done()) for em, t in bot_manager.tasks.items()},
+    }
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -1178,9 +1885,30 @@ def admin_ban_user(uid: str, is_banned: bool = Query(True), admin: Dict[str, Any
 
 @app.delete("/api/admin/users/{uid}")
 @app.delete("/api/admin/user/{uid}")
-def admin_delete_user(uid: str, admin: Dict[str, Any] = Depends(require_admin)):
-    """حذف مستخدم بالكامل"""
+async def admin_delete_user(uid: str, admin: Dict[str, Any] = Depends(require_admin)):
+    """حذف مستخدم بالكامل مع إيقاف بوتاته وتنظيف ارتباطات البروكسي الخاصة به وبقلاعه."""
+    target_emails: List[str] = []
+    try:
+        user_castles = db.get_user_castles_summary(uid)
+        for c in user_castles:
+            em = c.get("email")
+            if em:
+                target_emails.append(em)
+                try:
+                    await bot_manager.stop_bot(em)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
     db.delete_user(uid)
+
+    try:
+        from proxy import remove_user_proxy_bindings
+        remove_user_proxy_bindings(uid, target_emails)
+    except Exception:
+        pass
+
     return {"status": "ok", "message": "تم حذف المستخدم"}
 
 @app.post("/api/admin/users/{uid}/approve")
@@ -1220,9 +1948,46 @@ def admin_reject_castle(castle_id: str, reason: str = "", admin: Dict[str, Any] 
 @app.get("/api/admin/live-bots")
 @app.get("/api/admin/live-processes")
 def admin_live_bots(admin: Dict[str, Any] = Depends(require_admin)):
-    """جلب قائمة البوتات النشطة في الذاكرة حالياً"""
+    """جلب قائمة البوتات النشطة في الذاكرة حالياً مع إحصائياتها ومعلومات البروكسي."""
     bots = bot_manager.list_all_bots()
-    return {"status": "ok", "processes": bots, "count": len(bots)}
+    for p in bots:
+        if not p.get("real_ip"):
+            try:
+                from proxy import get_proxy_ip_for_email, is_proxy_enabled
+                if is_proxy_enabled():
+                    em = p.get("email") or ""
+                    resolved_ip = get_proxy_ip_for_email(em) or "direct"
+                    p["real_ip_type"] = "socks5" if resolved_ip != "direct" else "direct"
+                    p["is_proxied"] = (resolved_ip != "direct")
+                else:
+                    from proxy import get_server_public_ip
+                    resolved_ip = get_server_public_ip()
+                    p["real_ip_type"] = "direct"
+                    p["is_proxied"] = False
+                p["real_ip"] = resolved_ip
+                p["proxy_ip"] = resolved_ip
+            except Exception:
+                p["real_ip"] = "direct"
+                p["proxy_ip"] = "direct"
+                p["real_ip_type"] = "direct"
+                p["is_proxied"] = False
+
+    summary = {
+        "total_active": len(bots),
+        "running": sum(1 for p in bots if p.get("live_category") == "running"),
+        "waiting": sum(1 for p in bots if p.get("live_category") == "waiting"),
+        "other_login": sum(1 for p in bots if p.get("live_category") == "other_login"),
+        "reconnecting": sum(1 for p in bots if p.get("live_category") == "reconnecting"),
+        "starting": sum(1 for p in bots if p.get("live_category") == "starting"),
+    }
+    return {
+        "status": "ok",
+        "source": "live_memory",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "summary": summary,
+        "processes": bots,
+        "count": len(bots),
+    }
 
 @app.get("/api/admin/users-castles")
 def admin_users_castles(admin: Dict[str, Any] = Depends(require_admin)):
@@ -1231,20 +1996,57 @@ def admin_users_castles(admin: Dict[str, Any] = Depends(require_admin)):
     return {"status": "ok", "users": data}
 
 @app.get("/api/admin/proxies")
-def admin_proxies():
-    return {"proxies": [], "status": "ok"}
+def admin_proxies(admin: Dict[str, Any] = Depends(require_admin)):
+    """استعلام قائمة البروكسيات مع عدد القلاع والمستخدمين المربوطين بكل IP."""
+    from proxy import proxy_status
+    return proxy_status()
 
 @app.post("/api/admin/proxies/test")
-def admin_test_proxy():
-    return {"status": "ok", "latency_ms": 120}
+async def admin_test_proxy(payload: Dict[str, Any], admin: Dict[str, Any] = Depends(require_admin)):
+    """فحص نفق SOCKS5 لعنوان بروكسي معين وقياس البينج فوراً."""
+    proxy_url = str(payload.get("proxy_url", "") or "").strip()
+    from proxy import test_single_proxy
+    return await test_single_proxy(proxy_url)
 
 @app.get("/api/admin/network-mode")
-def admin_network_mode():
-    return {"mode": "direct", "status": "ok"}
+def admin_network_mode(admin: Dict[str, Any] = Depends(require_admin)):
+    """استعلام نمط الشبكة المعتمد (residential أو free أو direct)."""
+    from proxy import get_network_mode, is_proxy_enabled, proxy_status
+    status = proxy_status()
+    return {
+        "status": "ok",
+        "network_mode": get_network_mode(),
+        "server_ip": status.get("server_ip", ""),
+        "enabled": is_proxy_enabled(),
+        "total_proxies": status.get("total_proxies", 0),
+        "residential_count": status.get("residential_count", 0),
+        "free_count": status.get("free_count", 0),
+        "active_pool_name": status.get("active_pool_name", ""),
+        "total_bound_castles": status.get("total_bound_castles", 0),
+        "total_bound_users": status.get("total_bound_users", 0),
+    }
 
 @app.post("/api/admin/network-mode/toggle")
-def admin_toggle_network_mode():
-    return {"mode": "direct", "status": "ok"}
+def admin_toggle_network_mode(payload: Dict[str, Any], admin: Dict[str, Any] = Depends(require_admin)):
+    """تبديل نمط الاتصال بين البروكسيات السكنية والمجانية والاتصال المباشر."""
+    mode = str(payload.get("mode", "")).strip().lower()
+    if mode not in ("direct", "socks5", "residential", "free"):
+        raise HTTPException(status_code=400, detail="نمط الشبكة غير صالح (يجب أن يكون residential أو free أو direct)")
+
+    from proxy import set_network_mode
+    active_mode = set_network_mode(mode)
+    if active_mode == "residential":
+        label = "البروكسيات السكنية المدفوعة (Static Residential)"
+    elif active_mode == "free":
+        label = "البروكسيات المجانية الاحتياطية (Free Datacenter)"
+    else:
+        label = "IP السيرفر المباشر"
+
+    return {
+        "status": "ok",
+        "network_mode": active_mode,
+        "message": f"تم تفعيل نمط {label} بنجاح"
+    }
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -1320,12 +2122,20 @@ async def ws_single_castle_status(websocket: WebSocket, castle_id: str):
                     "is_password_error": True,
                 }
             elif bot and (getattr(bot, "is_sealed", False) or bot.conn_state == "sealed"):
+                s_type, s_reason = _extract_seal_details(
+                    bot.status_message,
+                    getattr(bot, "seal_type", None),
+                    getattr(bot, "seal_reason", None),
+                )
                 payload = {
-                    "status": "error",
+                    "status": "sealed",
                     "conn_state": "sealed",
                     "status_message": bot.status_message or "الحساب محظور",
                     "next_run_time": None,
                     "is_password_error": False,
+                    "is_sealed": True,
+                    "seal_type": s_type,
+                    "seal_reason": s_reason,
                 }
             else:
                 # القراءة من كاش الذاكرة اللحظي لتجنب استعلام SQLite المتكرر في كل ثانية
@@ -1340,15 +2150,33 @@ async def ws_single_castle_status(websocket: WebSocket, castle_id: str):
 
                 c_st = (c_data.get("conn_state") if c_data else "idle") or "idle"
                 c_msg = (c_data.get("status_message") if c_data else "غير قيد التشغيل") or "غير قيد التشغيل"
-                is_pwd = bool("كلمة" in c_msg or "password" in c_msg.lower())
-                status_str = c_st if c_st in ("error", "sealed") else "idle"
-                payload = {
-                    "status": status_str,
-                    "conn_state": c_st if c_st in ("error", "sealed") else "idle",
-                    "status_message": c_msg if c_st in ("error", "sealed") else ("متوقف" if c_msg in ("البوت يعمل الآن...", "جاري الاتصال بخادم اللعبة...") else c_msg),
-                    "is_password_error": is_pwd,
-                    "next_run_time": None,
-                }
+                is_deploying_db = (castle_id in _deploying_cids) or (c_st == "deploying") or bool(c_data and c_data.get("state") == "deploying")
+                if is_deploying_db:
+                    payload = {
+                        "status": "deploying",
+                        "conn_state": "deploying",
+                        "status_message": c_msg if c_st == "deploying" else "جاري رفع التغييرات إلى السيرفر... سيتم استئناف البوت تلقائياً",
+                        "is_password_error": False,
+                        "is_sealed": False,
+                        "seal_type": None,
+                        "seal_reason": "",
+                        "next_run_time": None,
+                    }
+                else:
+                    is_pwd = bool("كلمة" in c_msg or "password" in c_msg.lower())
+                    is_sealed_db = (c_st == "sealed")
+                    status_str = c_st if c_st in ("error", "sealed") else "idle"
+                    s_type, s_reason = _extract_seal_details(c_msg) if is_sealed_db else (None, "")
+                    payload = {
+                        "status": status_str,
+                        "conn_state": c_st if c_st in ("error", "sealed") else "idle",
+                        "status_message": c_msg if c_st in ("error", "sealed") else ("متوقف" if c_msg in ("البوت يعمل الآن...", "جاري الاتصال بخادم اللعبة...") else c_msg),
+                        "is_password_error": is_pwd,
+                        "is_sealed": is_sealed_db,
+                        "seal_type": s_type,
+                        "seal_reason": s_reason,
+                        "next_run_time": None,
+                    }
 
             payload_str = json.dumps(payload, ensure_ascii=False)
             # إرسال التحديث فقط عند تغير الحالة أو كنبض تأكيدي كل 30 ثانية
@@ -1375,8 +2203,15 @@ async def ws_status(websocket: WebSocket, user_id: Optional[str] = None):
     try:
         while True:
             statuses: Dict[str, str] = {}
+            for em in list(_deploying_emails):
+                statuses[em] = "deploying"
             for email, bot in bot_manager.bots.items():
-                statuses[email] = "running" if bot.is_running else "idle"
+                if bot.is_running:
+                    statuses[email] = "running"
+                elif email.lower() in _deploying_emails:
+                    statuses[email] = "deploying"
+                else:
+                    statuses[email] = "idle"
 
             payload = json.dumps({"type": "status_update", "bots": statuses}, sort_keys=True)
             if payload != last_payload or heartbeat_counter >= 15:

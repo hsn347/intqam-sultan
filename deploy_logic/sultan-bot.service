@@ -1,0 +1,20 @@
+[Unit]
+Description=Intqam-Sultan Bot FastAPI Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/intqam-sultan
+ExecStart=/var/www/intqam-sultan/venv/bin/python api_server.py --host 127.0.0.1 --port 8080
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+Environment=PORT=8080
+Environment=CORS_ORIGINS=*
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

@@ -54,7 +54,7 @@ function ConfirmDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/65 dark:bg-black/80"
         onClick={onCancel}
       />
       <motion.div
@@ -65,7 +65,7 @@ function ConfirmDialog({
         className="z-10 relative bg-white dark:bg-[#0c1410] shadow-2xl border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-xs sm:max-w-sm overflow-hidden text-gray-900 dark:text-gray-100 admin-modal"
       >
         {/* Red accent top line */}
-        <div className="bg-gradient-to-r from-red-500/0 via-red-500 to-red-500/0 w-full h-1" />
+        <div className="bg-red-500 w-full h-1" />
 
         <div className="space-y-4 p-4 sm:p-6">
           {/* Icon + Title */}
@@ -92,7 +92,7 @@ function ConfirmDialog({
               type="button"
               onClick={onCancel}
               disabled={loading}
-              className="flex-1 hover:bg-gray-100 dark:hover:bg-white/5 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl font-semibold text-gray-700 hover:text-gray-900 dark:hover:text-white dark:text-gray-300 text-sm transition-all cursor-pointer"
+              className="flex-1 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl font-semibold text-gray-700 dark:text-gray-300 text-sm cursor-pointer"
             >
               {t('common.cancel')}
             </button>
@@ -100,7 +100,7 @@ function ConfirmDialog({
               type="button"
               onClick={onConfirm}
               disabled={loading}
-              className="flex flex-1 justify-center items-center gap-1.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 shadow-md py-2.5 rounded-xl font-bold text-white text-sm active:scale-[0.98] transition-all cursor-pointer"
+              className="flex flex-1 justify-center items-center gap-1.5 bg-red-600 disabled:opacity-50 shadow-sm py-2.5 rounded-xl font-bold text-white text-sm active:scale-[0.98] cursor-pointer"
             >
               {loading ? (
                 <><div className="border-2 border-white/30 border-t-white rounded-full w-3.5 h-3.5 animate-spin" />{t('admin.modals.deleting')}</>
@@ -125,15 +125,15 @@ function Stepper({
 }) {
   const accent = color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' : 'text-primary-600 dark:text-primary-400'
   const btnBg = color === 'emerald'
-    ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-500/15 dark:hover:bg-emerald-500/30 dark:text-emerald-300'
-    : 'bg-primary-100 hover:bg-primary-200 text-primary-800 dark:bg-primary-500/15 dark:hover:bg-primary-500/30 dark:text-primary-300'
+    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300'
+    : 'bg-primary-100 text-primary-800 dark:bg-primary-500/15 dark:text-primary-300'
   return (
     <div className="flex justify-center items-center gap-3 sm:gap-4">
       <button
         type="button"
         onClick={() => onChange(Math.max(min, value - 1))}
         disabled={value <= min}
-        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all active:scale-90 disabled:opacity-25 ${btnBg} cursor-pointer shrink-0`}
+        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center active:scale-90 disabled:opacity-25 ${btnBg} cursor-pointer shrink-0`}
       >
         <Minus size={18} />
       </button>
@@ -159,7 +159,7 @@ function Stepper({
         type="button"
         onClick={() => onChange(Math.min(max, value + 1))}
         disabled={value >= max}
-        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all active:scale-90 disabled:opacity-25 ${btnBg} cursor-pointer shrink-0`}
+        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center active:scale-90 disabled:opacity-25 ${btnBg} cursor-pointer shrink-0`}
       >
         <Plus size={18} />
       </button>
@@ -172,9 +172,9 @@ function QuickChips({ options, value, onSelect, color = 'emerald' }: {
   options: { label: string; value: number }[]; value: number; onSelect: (v: number) => void; color?: 'emerald' | 'primary'
 }) {
   const activeClass = color === 'emerald'
-    ? 'bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-black dark:shadow-[0_0_12px_rgba(16,185,129,0.4)]'
-    : 'bg-primary-600 text-white shadow-xs dark:bg-primary-500 dark:text-black dark:shadow-[0_0_12px_rgba(34,197,94,0.4)]'
-  const inactiveClass = 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
+    ? 'bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-black'
+    : 'bg-primary-600 text-white shadow-xs dark:bg-primary-500 dark:text-black'
+  const inactiveClass = 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300'
   return (
     <div className="flex flex-wrap justify-center items-center gap-1.5 pt-1">
       {options.map(opt => (
@@ -182,7 +182,7 @@ function QuickChips({ options, value, onSelect, color = 'emerald' }: {
           key={opt.value}
           type="button"
           onClick={() => onSelect(opt.value)}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer ${
             value === opt.value ? activeClass : inactiveClass
           }`}
         >
@@ -276,7 +276,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
 
   return createPortal(
     <div className="z-[100] fixed inset-0 flex justify-center items-center p-3 sm:p-4 overflow-y-auto" onClick={onClose}>
-      <div className="fixed inset-0 bg-black/60 dark:bg-black/75 backdrop-blur-sm" />
+      <div className="fixed inset-0 bg-black/65 dark:bg-black/75" />
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -285,7 +285,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
         className="z-10 relative bg-white dark:bg-[#0c1410] shadow-2xl my-auto border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-sm sm:max-w-md overflow-hidden text-gray-900 dark:text-gray-100 admin-modal"
         onClick={e => e.stopPropagation()}
       >
-        <div className="bg-gradient-to-r from-emerald-500/0 via-emerald-500 to-emerald-500/0 w-full h-1" />
+        <div className="bg-emerald-500 w-full h-1" />
         <div className="space-y-4 p-4 sm:p-5">
           {/* Header */}
           <div className="flex justify-between items-center gap-3 pb-3 border-gray-200 dark:border-white/8 border-b">
@@ -309,7 +309,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
             </div>
             <button
               onClick={onClose}
-              className="flex justify-center items-center bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 rounded-full w-8 h-8 text-gray-500 hover:text-gray-900 dark:hover:text-white dark:text-gray-400 transition-all cursor-pointer shrink-0"
+              className="flex justify-center items-center bg-gray-100 dark:bg-white/5 rounded-full w-8 h-8 text-gray-500 dark:text-gray-400 cursor-pointer shrink-0"
             >
               <X size={16} />
             </button>
@@ -319,7 +319,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
           {isPendingApproval && (
             <div className="flex justify-between items-center gap-2 bg-amber-500/10 p-3 border border-amber-500/30 rounded-xl">
               <div className="flex items-center gap-2 min-w-0">
-                <Clock className="text-amber-500 animate-pulse shrink-0" size={16} />
+                <Clock className="text-amber-500 shrink-0" size={16} />
                 <span className="font-semibold text-amber-800 dark:text-amber-300 text-xs truncate">
                   {t('admin.modalPendingNotice')}
                 </span>
@@ -328,7 +328,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
                 type="button"
                 onClick={handleDirectApprove}
                 disabled={saving}
-                className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 shadow-xs px-2.5 py-1.5 rounded-lg font-bold text-white text-xs transition cursor-pointer shrink-0"
+                className="flex items-center gap-1 bg-emerald-600 shadow-xs px-2.5 py-1.5 rounded-lg font-bold text-white text-xs cursor-pointer shrink-0"
               >
                 <UserCheck size={13} />
                 <span>{t('admin.modalActivateBtn')}</span>
@@ -366,7 +366,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
             </div>
 
             {/* Live Instant Expiry & Days Display with Editable Date Picker */}
-            <div className={`p-3 sm:p-3.5 rounded-xl border transition-all ${
+            <div className={`p-3 sm:p-3.5 rounded-xl border ${
               isZero
                 ? 'bg-rose-50/80 dark:bg-rose-950/20 border-rose-200 dark:border-rose-500/30'
                 : 'bg-emerald-50/80 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-500/30'
@@ -382,7 +382,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
                       setTargetDate(new Date(y, m - 1, d, 23, 59, 59))
                     }
                   }}
-                  className="bg-white dark:bg-black/40 px-2.5 py-1 border border-slate-300 dark:border-white/15 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono font-bold text-slate-900 dark:text-white text-xs transition-colors cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
+                  className="bg-white dark:bg-black/40 px-2.5 py-1 border border-slate-300 dark:border-white/15 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono font-bold text-slate-900 dark:text-white text-xs cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
                 />
               </div>
               <div className="flex justify-between items-center mt-2 pt-2 border-slate-200/60 dark:border-white/5 border-t text-xs">
@@ -398,7 +398,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
               <button
                 type="button"
                 onClick={() => addDays(30)}
-                className="flex justify-center items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 shadow-xs px-2 py-2.5 rounded-xl font-bold text-white text-xs active:scale-95 transition-all cursor-pointer"
+                className="flex justify-center items-center gap-1.5 bg-emerald-600 shadow-xs px-2 py-2.5 rounded-xl font-bold text-white text-xs active:scale-95 cursor-pointer"
               >
                 <Plus size={14} />
                 <span>{t('admin.modals.addMonth')}</span>
@@ -407,7 +407,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
               <button
                 type="button"
                 onClick={() => addDays(7)}
-                className="flex justify-center items-center gap-1.5 bg-primary-600 hover:bg-primary-500 shadow-xs px-2 py-2.5 rounded-xl font-bold text-white text-xs active:scale-95 transition-all cursor-pointer"
+                className="flex justify-center items-center gap-1.5 bg-primary-600 shadow-xs px-2 py-2.5 rounded-xl font-bold text-white text-xs active:scale-95 cursor-pointer"
               >
                 <Plus size={14} />
                 <span>{t('admin.modals.addWeek')}</span>
@@ -416,7 +416,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
               <button
                 type="button"
                 onClick={handleReset}
-                className="flex justify-center items-center gap-1.5 bg-gray-100 hover:bg-rose-50 dark:bg-white/5 dark:hover:bg-rose-950/30 px-2 py-2.5 border border-gray-200 hover:border-rose-300 dark:border-white/10 rounded-xl font-bold text-gray-700 hover:text-rose-600 dark:hover:text-rose-400 dark:text-gray-300 text-xs active:scale-95 transition-all cursor-pointer"
+                className="flex justify-center items-center gap-1.5 bg-gray-100 dark:bg-white/5 px-2 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl font-bold text-gray-700 dark:text-gray-300 text-xs active:scale-95 cursor-pointer"
               >
                 <RotateCcw size={13} />
                 <span>{t('admin.modals.reset')}</span>
@@ -429,10 +429,10 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
             <button
               type="button"
               onClick={() => setIsBanned(v => !v)}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all border cursor-pointer active:scale-[0.99] ${
+              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold border cursor-pointer active:scale-[0.99] ${
                 isBanned
-                  ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/40 hover:bg-emerald-100'
-                  : 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/30 hover:bg-rose-100 dark:hover:bg-rose-900/40'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/40'
+                  : 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/30'
               }`}
             >
               {isBanned ? (
@@ -454,7 +454,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 hover:bg-gray-100 dark:hover:bg-white/5 py-3 border border-gray-200 dark:border-white/10 rounded-xl font-semibold text-gray-700 hover:text-gray-900 dark:hover:text-white dark:text-gray-300 text-sm transition-all cursor-pointer"
+              className="flex-1 py-3 border border-gray-200 dark:border-white/10 rounded-xl font-semibold text-gray-700 dark:text-gray-300 text-sm cursor-pointer"
             >
               {t('common.cancel')}
             </button>
@@ -462,7 +462,7 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 shadow-md py-3 rounded-xl font-bold text-white text-sm active:scale-[0.98] transition-all cursor-pointer"
+              className="flex-1 bg-emerald-600 disabled:opacity-50 shadow-sm py-3 rounded-xl font-bold text-white text-sm active:scale-[0.98] cursor-pointer"
             >
               {saving ? t('common.loading') : t('common.save')}
             </button>
@@ -487,7 +487,7 @@ function UserCastlesModal({ user, onClose }: { user: User; onClose: () => void }
 
   return createPortal(
     <div className="z-[100] fixed inset-0 flex justify-center items-center p-3 sm:p-4 overflow-y-auto" onClick={onClose}>
-      <div className="fixed inset-0 bg-black/60 dark:bg-black/75 backdrop-blur-sm" />
+      <div className="fixed inset-0 bg-black/65 dark:bg-black/75" />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -496,7 +496,7 @@ function UserCastlesModal({ user, onClose }: { user: User; onClose: () => void }
         className="z-10 relative flex flex-col bg-white dark:bg-[#0c1410] shadow-2xl my-auto border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-lg max-h-[88vh] overflow-hidden text-gray-900 dark:text-gray-100 admin-modal"
         onClick={e => e.stopPropagation()}
       >
-        <div className="bg-gradient-to-r from-primary-500/0 via-primary-500 to-primary-500/0 w-full h-1 shrink-0" />
+        <div className="bg-primary-500 w-full h-1 shrink-0" />
 
         {/* Header */}
         <div className="flex justify-between items-center px-4 sm:px-5 py-3.5 sm:py-4 border-gray-200 dark:border-white/8 border-b shrink-0">
@@ -509,7 +509,7 @@ function UserCastlesModal({ user, onClose }: { user: User; onClose: () => void }
               <p className="font-mono text-[11px] text-gray-500 dark:text-gray-400 truncate select-all">{user.email}</p>
             </div>
           </div>
-          <button onClick={onClose} className="flex justify-center items-center bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 rounded-full w-8 h-8 text-gray-500 hover:text-gray-900 dark:hover:text-white dark:text-gray-400 transition-all cursor-pointer shrink-0">
+          <button onClick={onClose} className="flex justify-center items-center bg-gray-100 dark:bg-white/5 rounded-full w-8 h-8 text-gray-500 dark:text-gray-400 cursor-pointer shrink-0">
             <X size={15} />
           </button>
         </div>
@@ -550,12 +550,12 @@ function UserCastlesModal({ user, onClose }: { user: User; onClose: () => void }
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button disabled={approveCastle.isPending}
                           onClick={() => approveCastle.mutate({userId:user.uid,castleId:c.id},{onSuccess:()=>toast.success(t('admin.modals.approveSuccess')),onError:()=>toast.error(t('common.error'))})}
-                          className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 shadow-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-bold text-white text-xs active:scale-95 transition-all cursor-pointer">
+                          className="flex items-center gap-1 bg-emerald-600 shadow-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-bold text-white text-xs active:scale-95 cursor-pointer">
                           <CheckCircle size={12} />{t('admin.modals.acceptBtn')}
                         </button>
                         <button disabled={rejectCastle.isPending}
                           onClick={() => { if(!confirm(t('admin.modals.confirmReject', { email: c.email }))) return; rejectCastle.mutate({userId:user.uid,castleId:c.id},{onSuccess:()=>toast.success(t('admin.modals.rejectSuccess')),onError:()=>toast.error(t('common.error'))}) }}
-                          className="flex justify-center items-center bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 border border-red-200 dark:border-transparent rounded-lg w-8 h-8 text-red-600 dark:text-red-400 active:scale-95 transition-all cursor-pointer">
+                          className="flex justify-center items-center bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-transparent rounded-lg w-8 h-8 text-red-600 dark:text-red-400 active:scale-95 cursor-pointer">
                           <Trash2 size={13} />
                         </button>
                       </div>
@@ -570,7 +570,7 @@ function UserCastlesModal({ user, onClose }: { user: User; onClose: () => void }
                     <span>{t('admin.modals.activeCastlesCount', { count: active.length })}</span>
                   </div>
                   {active.map(c => (
-                    <div key={c.id} className="flex justify-between items-center gap-2.5 bg-gray-50 dark:bg-white/[0.02] p-3 border border-gray-200 hover:border-gray-300 dark:border-white/8 dark:hover:border-white/12 rounded-xl transition-colors">
+                    <div key={c.id} className="flex justify-between items-center gap-2.5 bg-gray-50 dark:bg-white/[0.02] p-3 border border-gray-200 dark:border-white/8 rounded-xl">
                       <div className="min-w-0">
                         <div className="font-medium text-gray-900 dark:text-white text-sm truncate">{c.castle_info?.castle_name || c.castle_info?.lord_name || t('admin.modals.castleFallback')}</div>
                         <div className="font-mono text-[11px] text-gray-500 dark:text-gray-400 truncate">{c.email}</div>
@@ -579,7 +579,7 @@ function UserCastlesModal({ user, onClose }: { user: User; onClose: () => void }
                         <span className="py-0.5 text-[10px] badge badge-green">{t('admin.modals.activeBadge')}</span>
                         <button
                           onClick={() => { if(!confirm(t('admin.modals.confirmDeleteCastle', { email: c.email }))) return; deleteCastle.mutate({castleId:c.id,wasActive:true},{onSuccess:()=>toast.success(t('admin.modals.deleteCastleSuccess')),onError:()=>toast.error(t('common.error'))}) }}
-                          className="flex justify-center items-center hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg w-7 h-7 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-all cursor-pointer">
+                          className="flex justify-center items-center rounded-lg w-7 h-7 text-gray-400 cursor-pointer">
                           <Trash2 size={13} />
                         </button>
                       </div>
@@ -593,7 +593,7 @@ function UserCastlesModal({ user, onClose }: { user: User; onClose: () => void }
 
         {/* Footer */}
         <div className="px-4 sm:px-5 py-3 border-gray-200 dark:border-white/8 border-t shrink-0">
-          <button onClick={onClose} className="hover:bg-gray-100 dark:hover:bg-white/5 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl w-full font-semibold text-gray-700 hover:text-gray-900 dark:hover:text-white dark:text-gray-300 text-sm transition-all cursor-pointer">{t('common.close')}</button>
+          <button onClick={onClose} className="py-2.5 border border-gray-200 dark:border-white/10 rounded-xl w-full font-semibold text-gray-700 dark:text-gray-300 text-sm cursor-pointer">{t('common.close')}</button>
         </div>
       </motion.div>
     </div>,
@@ -794,13 +794,10 @@ export function AdminPage() {
               border: 'border-slate-200/80 dark:border-white/8',
               iconBg: 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400',
             },
-          ].map((s, i) => (
-            <motion.div
+          ].map((s) => (
+            <div
               key={s.label}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className={`admin-stat-card p-4 sm:p-5 rounded-2xl border ${s.border} ${s.bg} shadow-xs hover:shadow-sm transition-all`}
+              className={`admin-stat-card p-4 sm:p-5 rounded-2xl border ${s.border} ${s.bg} shadow-xs`}
             >
               <div className="flex justify-between items-center gap-2 mb-2">
                 <span className="font-semibold text-slate-500 dark:text-slate-400 text-xs truncate">{s.label}</span>
@@ -811,7 +808,7 @@ export function AdminPage() {
               <div className={`text-2xl sm:text-3xl font-black ${s.color} tracking-tight font-mono`}>
                 {s.value}
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
 
@@ -835,7 +832,7 @@ export function AdminPage() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder={t('admin.searchUsers')}
-                  className="bg-slate-100/80 focus:bg-white dark:bg-white/5 shadow-xs py-2 ps-9 pe-3 border border-slate-200 focus:border-emerald-500 dark:border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 w-full sm:w-64 text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm transition-all"
+                  className="bg-slate-100/80 focus:bg-white dark:bg-white/5 shadow-xs py-2 ps-9 pe-3 border border-slate-200 focus:border-emerald-500 dark:border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 w-full sm:w-64 text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm"
                   style={{ paddingInlineStart: '2.4rem' }}
                 />
               </div>
@@ -847,7 +844,7 @@ export function AdminPage() {
                     onClick={handleApproveAllPending}
                     disabled={approvingAll}
                     title={t('admin.approveAllBtn', { count: pendingUsersCount })}
-                    className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 shadow-xs px-3 py-2 border border-emerald-600/80 rounded-xl font-bold text-white text-xs sm:text-sm transition-all cursor-pointer disabled:cursor-not-allowed shrink-0"
+                    className="flex items-center gap-1.5 bg-emerald-600 disabled:opacity-50 shadow-xs px-3 py-2 border border-emerald-600/80 rounded-xl font-bold text-white text-xs sm:text-sm cursor-pointer disabled:cursor-not-allowed shrink-0"
                   >
                     <CheckCheck size={16} className={approvingAll ? 'animate-spin' : ''} />
                     <span>{approvingAll ? t('admin.approvingAll') : t('admin.approveAllBtn', { count: pendingUsersCount })}</span>
@@ -857,10 +854,10 @@ export function AdminPage() {
                     id="admin-filter-pending"
                     onClick={() => setFilterPending(!filterPending)}
                     title={filterPending ? t('common.all') : t('admin.pendingApproval')}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all shrink-0 cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border shrink-0 cursor-pointer ${
                       filterPending
                         ? 'bg-amber-500 border-amber-600 text-white shadow-xs ring-1 ring-amber-500/40'
-                        : 'bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/25 animate-pulse'
+                        : 'bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-400'
                     }`}
                   >
                     <Clock size={15} />
@@ -873,10 +870,10 @@ export function AdminPage() {
                 id="admin-sort-least-days"
                 onClick={() => setSortByLeastDays(!sortByLeastDays)}
                 title={sortByLeastDays ? t('admin.resetSort') : t('admin.sortLeastDaysTooltip')}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all shrink-0 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border shrink-0 cursor-pointer ${
                   sortByLeastDays
                     ? 'bg-amber-500/15 border-amber-500/40 text-amber-600 dark:text-amber-400 shadow-xs ring-1 ring-amber-500/30'
-                    : 'bg-slate-100/80 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-white/10'
+                    : 'bg-slate-100/80 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300'
                 }`}
               >
                 <Clock size={15} className={sortByLeastDays ? 'text-amber-500' : 'text-slate-400'} />
@@ -903,7 +900,7 @@ export function AdminPage() {
                       <th className="px-3 py-3 text-start">{t('admin.role')}</th>
                       <th className="px-3 py-3 text-center">{t('admin.table.castles')}</th>
                       <th
-                        className="px-3 py-3 hover:text-emerald-500 text-start transition-colors cursor-pointer select-none"
+                        className="px-3 py-3 text-start cursor-pointer select-none"
                         onClick={() => setSortByLeastDays(!sortByLeastDays)}
                         title={t('admin.sortLeastDaysTooltip')}
                       >
@@ -930,7 +927,7 @@ export function AdminPage() {
                         <tr
                           key={u.uid}
                           onClick={() => setEditUser(u)}
-                          className="group admin-table-row hover:bg-slate-50/80 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
+                          className="admin-table-row cursor-pointer"
                         >
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-3">
@@ -966,7 +963,7 @@ export function AdminPage() {
                                 </div>
                               )}
                               {!u.is_banned && pendingCount > 0 && (
-                                <button onClick={e => { e.stopPropagation(); setManageCastlesUser(u) }} className="flex items-center gap-1 hover:bg-yellow-500/30 text-[10px] animate-pulse cursor-pointer badge badge-yellow">
+                                <button onClick={e => { e.stopPropagation(); setManageCastlesUser(u) }} className="flex items-center gap-1 text-[10px] cursor-pointer badge badge-yellow">
                                   <Clock size={10} /><span>{t('admin.table.waitingCount', { count: pendingCount })}</span>
                                 </button>
                               )}
@@ -988,7 +985,7 @@ export function AdminPage() {
                             {u.is_banned ? <span className="badge badge-red">{t('dashboard.bannedBadge', 'محظور')}</span>
                              : isSuspended ? <span className="badge badge-yellow">{t('admin.table.suspended')}</span>
                              : u.subscription?.status === 'pending_approval' ? (
-                               <span className="flex items-center gap-1 font-bold animate-pulse badge badge-yellow">
+                               <span className="flex items-center gap-1 font-bold badge badge-yellow">
                                  <Clock size={11} /> {t('admin.pendingApproval')}
                                </span>
                              )
@@ -1002,19 +999,19 @@ export function AdminPage() {
                               {u.subscription?.status === 'pending_approval' && (
                                 <button
                                   onClick={e => { e.stopPropagation(); handleQuickApprove(u) }}
-                                  className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 shadow-xs hover:shadow px-2.5 py-1.5 rounded-xl font-bold text-white text-xs transition-all cursor-pointer"
+                                  className="flex items-center gap-1 bg-emerald-600 shadow-xs px-2.5 py-1.5 rounded-xl font-bold text-white text-xs cursor-pointer"
                                   title={t('admin.quickApproveBtn')}
                                 >
                                   <UserCheck size={14} />
                                   <span>{t('admin.quickApproveBtn')}</span>
                                 </button>
                               )}
-                              <button onClick={e=>{e.stopPropagation();setManageCastlesUser(u)}} className="hover:bg-primary-50 dark:hover:bg-primary-600/20 p-2 rounded-xl text-primary-600 hover:text-primary-800 dark:hover:text-white dark:text-primary-400 transition-colors cursor-pointer" title={t('admin.table.manageCastlesTooltip')}><Layers size={15}/></button>
-                              <button onClick={e=>{e.stopPropagation();setEditUser(u)}} className="hover:bg-slate-100 dark:hover:bg-white/8 p-2 rounded-xl text-slate-600 hover:text-slate-900 dark:hover:text-white dark:text-gray-300 transition-colors cursor-pointer" title={t('admin.editSubscription')}><Edit size={14}/></button>
-                              <button onClick={e=>{e.stopPropagation();handleBan(u)}} className={`p-2 rounded-xl transition-colors cursor-pointer ${u.is_banned?'text-emerald-700 dark:text-green-400 hover:bg-emerald-50 dark:hover:bg-green-600/10':'text-amber-700 dark:text-yellow-400 hover:bg-amber-50 dark:hover:bg-yellow-600/10'}`} title={u.is_banned?t('admin.unbanUser'):t('admin.banUser')}>
+                              <button onClick={e=>{e.stopPropagation();setManageCastlesUser(u)}} className="p-2 rounded-xl text-primary-600 dark:text-primary-400 cursor-pointer" title={t('admin.table.manageCastlesTooltip')}><Layers size={15}/></button>
+                              <button onClick={e=>{e.stopPropagation();setEditUser(u)}} className="p-2 rounded-xl text-slate-600 dark:text-gray-300 cursor-pointer" title={t('admin.editSubscription')}><Edit size={14}/></button>
+                              <button onClick={e=>{e.stopPropagation();handleBan(u)}} className={`p-2 rounded-xl cursor-pointer ${u.is_banned?'text-emerald-700 dark:text-green-400':'text-amber-700 dark:text-yellow-400'}`} title={u.is_banned?t('admin.unbanUser'):t('admin.banUser')}>
                                 {u.is_banned?<CheckCircle size={14}/>:<Ban size={14}/>}
                               </button>
-                              <button onClick={e=>{e.stopPropagation();handleDelete(u)}} className="hover:bg-rose-50 dark:hover:bg-red-600/10 p-2 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-red-400 transition-colors cursor-pointer" title={t('admin.deleteUser')}><Trash2 size={14}/></button>
+                              <button onClick={e=>{e.stopPropagation();handleDelete(u)}} className="p-2 rounded-xl text-slate-400 cursor-pointer" title={t('admin.deleteUser')}><Trash2 size={14}/></button>
                             </div>
                           </td>
                         </tr>
@@ -1038,7 +1035,7 @@ export function AdminPage() {
                     <div
                       key={u.uid}
                       onClick={() => setEditUser(u)}
-                      className="space-y-3 bg-white hover:bg-slate-50 dark:bg-white/[0.025] dark:hover:bg-white/[0.05] shadow-xs hover:shadow-sm p-4 border border-slate-200/90 dark:border-white/8 rounded-2xl active:scale-[0.99] transition-all cursor-pointer admin-user-card"
+                      className="space-y-3 bg-white dark:bg-white/[0.025] shadow-xs p-4 border border-slate-200/90 dark:border-white/8 rounded-2xl active:scale-[0.99] cursor-pointer admin-user-card"
                     >
                       {/* Top: User info + badges */}
                       <div className="flex justify-between items-start gap-2">
@@ -1136,7 +1133,7 @@ export function AdminPage() {
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); handleQuickApprove(u); }}
-                          className="flex justify-center items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 shadow-xs px-3 py-2.5 rounded-xl w-full font-bold text-white text-xs transition cursor-pointer"
+                          className="flex justify-center items-center gap-1.5 bg-emerald-600 shadow-xs px-3 py-2.5 rounded-xl w-full font-bold text-white text-xs cursor-pointer"
                         >
                           <UserCheck size={14} />
                           <span>{t('admin.quickApproveBtn')}</span>
@@ -1147,7 +1144,7 @@ export function AdminPage() {
                       <div className="flex justify-between items-center gap-1.5 pt-1" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => setEditUser(u)}
-                          className="flex flex-1 justify-center items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 dark:bg-emerald-600/20 dark:hover:bg-emerald-600/30 shadow-xs px-3 py-2 dark:border dark:border-emerald-500/30 rounded-xl font-bold text-white dark:text-emerald-300 text-xs active:scale-95 transition cursor-pointer"
+                          className="flex flex-1 justify-center items-center gap-1.5 bg-emerald-600 dark:bg-emerald-600/20 shadow-xs px-3 py-2 dark:border dark:border-emerald-500/30 rounded-xl font-bold text-white dark:text-emerald-300 text-xs active:scale-95 cursor-pointer"
                         >
                           <Edit size={13} />
                           <span>{t('admin.editSubscription')}</span>
@@ -1155,7 +1152,7 @@ export function AdminPage() {
 
                         <button
                           onClick={() => setManageCastlesUser(u)}
-                          className="flex justify-center items-center gap-1 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 shadow-xs px-3 py-2 border border-slate-200/80 dark:border-white/10 rounded-xl font-bold text-slate-800 dark:text-slate-200 text-xs active:scale-95 transition cursor-pointer"
+                          className="flex justify-center items-center gap-1 bg-slate-100 dark:bg-white/5 shadow-xs px-3 py-2 border border-slate-200/80 dark:border-white/10 rounded-xl font-bold text-slate-800 dark:text-slate-200 text-xs active:scale-95 cursor-pointer"
                           title={t('admin.table.manageCastlesTooltip')}
                         >
                           <Layers size={13} className="text-primary-600 dark:text-primary-400" />
@@ -1167,10 +1164,10 @@ export function AdminPage() {
 
                         <button
                           onClick={() => handleBan(u)}
-                          className={`p-2 rounded-xl border transition active:scale-95 cursor-pointer shadow-xs ${
+                          className={`p-2 rounded-xl border active:scale-95 cursor-pointer shadow-xs ${
                             u.is_banned
-                              ? 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
-                              : 'bg-amber-50 hover:bg-amber-100 dark:bg-yellow-500/10 border-amber-200 dark:border-yellow-500/25 text-amber-700 dark:text-yellow-400'
+                              ? 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
+                              : 'bg-amber-50 dark:bg-yellow-500/10 border-amber-200 dark:border-yellow-500/25 text-amber-700 dark:text-yellow-400'
                           }`}
                           title={u.is_banned ? t('admin.unbanUser') : t('admin.banUser')}
                         >
@@ -1179,7 +1176,7 @@ export function AdminPage() {
 
                         <button
                           onClick={() => handleDelete(u)}
-                          className="bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 shadow-xs p-2 border border-rose-200 dark:border-rose-500/25 rounded-xl text-rose-600 dark:text-rose-400 active:scale-95 transition cursor-pointer"
+                          className="bg-rose-50 dark:bg-rose-500/10 shadow-xs p-2 border border-rose-200 dark:border-rose-500/25 rounded-xl text-rose-600 dark:text-rose-400 active:scale-95 cursor-pointer"
                           title={t('admin.deleteUser')}
                         >
                           <Trash2 size={15} />

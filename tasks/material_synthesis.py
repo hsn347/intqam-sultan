@@ -214,7 +214,6 @@ class MaterialSynthesisTask(BaseTask):
         if isinstance(everyday_ctrl, dict):
             event_info = everyday_ctrl.setdefault("eventInfo", {})
             if isinstance(event_info, dict):
-                event_info[DAILY_QUEST_MATERIAL_ID] = 1
                 event_info[DAILY_QUEST_MATERIAL_TYPE] = 1
 
         # 2. تحديث رصيد المواد في الذاكرة الحية (خصم 4 وإضافة 1)

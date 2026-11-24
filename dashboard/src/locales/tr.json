@@ -199,11 +199,6 @@
     "expiredBanner": "Abonelik süreniz doldu. Tüm kaleler için bot işlemleri durduruldu. Yenilemek için lütfen yöneticiyle iletişime geçin.",
     "lockedBanned": "Yasaklı",
     "lockedExpired": "Süresi Doldu",
-    "fixedPreset": "Sabit Ayarlar",
-    "fixedPresetTooltip": "Bu kale için sabit görev ayarlarını uygula",
-    "confirmFixedPreset": "Bu kale için sabit ayarlar uygulansın mı? Belirtilen 12 görev etkinleştirilecek ve diğer tüm görevler devre dışı bırakılacak.",
-    "fixedPresetSuccess": "Sabit ayarlar başarıyla uygulandı!",
-    "applyingPreset": "Uygulanıyor...",
     "targetAccountsAndTemplate": "Hedef Hesaplar ve Ayar Şablonu",
     "template": "Şablon",
     "selectTargetAccounts": "Düzenlenecek Hedef Hesaplar",
@@ -217,7 +212,10 @@
     "passwordErrorFixPrompt": "Hatalı şifre — düzenlemek için ✏️ tıklayın",
     "mainCastle": "Ana Kale",
     "castleLevelPrefix": "Kale",
-    "castleLevelTitle": "Ana Kale - Seviye: {{level}}"
+    "castleLevelTitle": "Ana Kale - Seviye: {{level}}",
+    "runningLabel": "Aktif",
+    "idleLabel": "Boşta",
+    "royalControlSubtitle": "Kalelerinizi ve otomatik görevleri yönetin"
   },
   "modals": {
     "addCastleTitle": "Yeni Hesap Ekle",
@@ -254,26 +252,6 @@
     "cancel": "İptal",
     "cancelDismiss": "Vazgeç / İptal",
     "close": "Kapat",
-    "presetModalSingleTitle": "Kaleye Sabit Ayarları Uygula",
-    "presetModalBatchTitle": "Grup Sabit Ayarlarını Uygula",
-    "presetModalSingleDesc": "Bu kale için belirlenen 12 görev etkinleştirilecek",
-    "presetModalBatchDesc": "Seçilen ({{count}}) hesaba sabit ayarlar uygulanacak",
-    "presetTasksHeading": "Etkinleştirilecek 12 görev:",
-    "confirmApplyPreset": "Uygulamayı Onayla",
-    "presetTasks": {
-      "gatherIron": "Kaynak Toplama (Demir)",
-      "watermillAll": "Kaynak Desteği (Tümü + Mağaza)",
-      "caravan": "Ganimet Kervanı",
-      "alliance": "İttifak Görevleri ve Bağış",
-      "petPatrol": "Evcil Hayvan Devriyesi (Kangal Köpeği)",
-      "tacticsHall": "Taktik Araştırması (Boş Kale)",
-      "fountain": "Dilek Çeşmesi (Tüm Kaynaklar Ücretsiz)",
-      "materialWorkshop": "Malzeme Atölyesi (Tüm Malzemeler)",
-      "quickGatherSkill": "Hızlı Toplama Becerisi",
-      "harvestSkill": "Hasat Becerisi",
-      "basicDungeon": "Temel Zindan (Tüm Öğeler)",
-      "territoryExpansion": "Bölgesel Genişleme"
-    },
     "email": "E-posta",
     "password": "Şifre"
   },
@@ -608,7 +586,21 @@
     "fullLegionBadge": "Tam Lejyon",
     "treasureEscortFreeRefresh": "Gönderimden önce ücretsiz araba yenileme",
     "treasureEscortFormation": "Kayıtlı dizilim # (sadece otomatik için 0)",
-    "treasureEscortAutoFallback": "Dizilim eksikse otomatik doldurma yedeği"
+    "treasureEscortAutoFallback": "Dizilim eksikse otomatik doldurma yedeği",
+    "summaryFreeOnly": "Ücretsiz",
+    "summaryWithGold": "Altın aktif",
+    "summaryNoGold": "Altınsız",
+    "summaryDailyShort": "Günlük",
+    "summaryAllShort": "Tümü",
+    "summaryCycleShort": "Her döngü",
+    "summaryKingdomShort": "Krallık",
+    "summaryGlobalShort": "Dünya",
+    "summaryMarchesOn": "Sefer aktif",
+    "summaryCoordsRequired": "Koord gerekli",
+    "summarySelectTroops": "Asker seç",
+    "summaryBuildingsCount": "{{count}} bina",
+    "summaryGoldLimit": "Altın ({{amount}})",
+    "summaryResourcesRatio": "{{active}}/{{total}} kaynak"
   },
   "resources": {
     "food": "Tahıl",
@@ -641,8 +633,21 @@
     "expired": "Süresi Doldu",
     "suspended": "Askıya Alındı",
     "banned": "Durduruldu (Yönetici Tarafından Yasaklandı)",
+    "castleSealed": "Oyundan Yasaklandı",
     "stoppedExpired": "Durduruldu (Abonelik Sona Erdi)",
     "passwordError": "Hatalı Şifre"
+  },
+  "sealReasons": {
+    "0": "Oyun yönetimi tarafından yasaklandı",
+    "1": "Kaynak satışı veya transferi nedeniyle yasaklandı",
+    "2": "Çoklu hesap ihlali nedeniyle yasaklandı",
+    "3": "Sohbet veya hakaret ihlali nedeniyle yasaklandı",
+    "4": "Hesap silindi veya iptal edildi",
+    "5": "Hesap donduruldu (anormal etkinlik)",
+    "10": "Yasa dışı yükleme ihlali nedeniyle yasaklandı",
+    "11": "Sohbet daveti spam ihlali nedeniyle yasaklandı",
+    "99": "Cihaz imzası engellendi",
+    "fallback": "Hesap oyun yönetimi tarafından askıya alındı veya yasaklandı"
   },
   "settings": {
     "title": "Ayarlar",
@@ -786,7 +791,68 @@
       "merchantControl": "Bayi Kontrolü",
       "logout": "Çıkış Yap",
       "logoutShort": "Çıkış",
-      "logoutSuccess": "Başarıyla çıkış yapıldı"
+      "logoutSuccess": "Başarıyla çıkış yapıldı",
+      "proxiesShort": "Proxy'ler"
+    },
+    "proxies": {
+      "pageTitle": "Proxy'ler ve Ağ",
+      "headerTitle": "Proxy'ler ve Ağ",
+      "refresh": "Yenile",
+      "loading": "Yükleniyor...",
+      "fetchError": "Sunucudan proxy verileri alınamadı",
+      "modes": {
+        "residential": "Ücretli Konut (Residential)",
+        "free": "Ücretsiz Yedek (Free)",
+        "direct": "Doğrudan Sunucu",
+        "directWithIp": "Doğrudan ({{ip}})",
+        "residentialBtn": "Ücretli Konut",
+        "freeBtn": "Ücretsiz Yedek",
+        "directBtn": "Doğrudan",
+        "residentialShort": "🌟 Ücretli Konut",
+        "freeShort": "🛡️ Ücretsiz Yedek",
+        "directShort": "🌐 Doğrudan IP"
+      },
+      "tooltips": {
+        "residentialBtn": "Doğrulanmış sabit konut proxy'leri",
+        "freeBtn": "Yedek olarak ücretsiz veri merkezi proxy'leri",
+        "directBtn": "Sunucu IP'si üzerinden doğrudan bağlantı"
+      },
+      "stats": {
+        "activeIps": "Aktif IP'ler",
+        "ipsBreakdown": "({{residential}} konut | {{free}} ücretsiz)",
+        "boundCastles": "Bağlı Kaleler",
+        "users": "Kullanıcılar",
+        "currentMode": "Mevcut Mod"
+      },
+      "notices": {
+        "residential": "Botlar şu anda gerçek ISP'lerden alınan Sabit Konut proxy'leri üzerinden bağlanıyor.",
+        "free": "Botlar Ücretsiz Yedek proxy'lerle çalışıyor. Ücretli proxy verileri korunmaktadır.",
+        "direct": "Bot bağlantıları şu anda doğrudan sunucu IP'sinden çıkıyor. Tüm proxy eşleştirmeleri kayıtlıdır."
+      },
+      "modal": {
+        "title": "Ağ Modu Değişikliğini Onayla",
+        "switchingTo": "Geçiş yapılıyor:",
+        "residentialDesc": "Bot bağlantıları Ücretli Konut proxy'lerine ({{count}} IP) geçirilecek. Kaleler bir sonraki döngüde dağıtılacaktır.",
+        "freeDesc": "Bot bağlantıları Ücretsiz Yedek proxy'lere ({{count}} IP) geçirilecek. Değişiklik bir sonraki döngüde uygulanır.",
+        "directDesc": "Botlar doğrudan sunucu IP'si üzerinden bağlanacaktır. Değişiklik her kalenin bir sonraki döngüsünde uygulanır.",
+        "cancel": "İptal",
+        "confirm": "Değişikliği Onayla",
+        "toggleSuccess": "Ağ modu başarıyla güncellendi",
+        "toggleError": "Ağ modu güncellenemedi"
+      },
+      "card": {
+        "residentialBadge": "Konut",
+        "freeBadge": "Ücretsiz",
+        "castlesLabel": "Kaleler:",
+        "castlesCount": "Kaleler ({{count}})",
+        "testing": "Test ediliyor...",
+        "testBtn": "Bağlantıyı Test Et",
+        "testSuccessToast": "✓ IP ({{ip}}) bağlandı ({{ping}}ms)",
+        "testFailToast": "❌ IP bağlantısı başarısız: {{msg}}",
+        "testErrorToast": "Proxy test edilirken hata oluştu",
+        "testFailMsg": "Test başarısız",
+        "testOkMsg": "Bağlı ve güvenli"
+      }
     },
     "live": {
       "title": "Bellekteki Canlı İşlemler",
@@ -830,7 +896,12 @@
       "alertWarning": "Uyarı:",
       "disconnectedReason": "Bağlantı kesildi ({{reason}})",
       "otherLoginMsg": "Hesaba başka bir cihazdan giriş yapıldı, bot yeniden denemek için bekliyor.",
-      "attemptCount": "Deneme {{attempt}} / {{max}}"
+      "attemptCount": "Deneme {{attempt}} / {{max}}",
+      "socksBadgeTooltip": "Canlı soket kontrolü: Aktif SOCKS5 tüneli (Eş: {{target}}) — Sızıntı yok",
+      "directBadgeTooltip": "Canlı soket kontrolü: Sunucu IP'si üzerinden doğrudan bağlantı ({{target}})",
+      "directLabel": "Doğrudan (Sunucu)",
+      "liveSocksSocketTitle": "Canlı proxy oyun soketi",
+      "liveDirectSocketTitle": "Canlı doğrudan oyun soketi"
     },
     "merchants": {
       "title": "Bayi ve Dağıtıcı Yönetimi",

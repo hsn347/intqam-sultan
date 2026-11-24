@@ -72,42 +72,42 @@ export function ConfirmRemoveSavedAccountModal({
               exit={{ scale: 0.95, opacity: 0, y: 10 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
               onClick={e => e.stopPropagation()}
-              className="confirm-logout-modal-box relative w-full max-w-[390px] rounded-2xl overflow-hidden shadow-2xl bg-white dark:bg-[#12161f] border border-gray-200 dark:border-white/10"
+              className="relative bg-white dark:bg-[#12161f] shadow-2xl border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-[390px] overflow-hidden confirm-logout-modal-box"
               style={{
                 pointerEvents: 'all',
               }}
             >
               {/* Top Accent Gradient Line */}
-              <div className="h-1 w-full bg-gradient-to-r from-rose-500 via-red-500 to-rose-500" />
+              <div className="bg-gradient-to-r from-rose-500 via-red-500 to-rose-500 w-full h-1" />
 
-              <div className="p-5 sm:p-6 text-center relative">
+              <div className="relative p-5 sm:p-6 text-center">
                 {/* Close Button */}
                 <button
                   type="button"
                   onClick={onClose}
-                  className="modal-close-btn absolute top-4 start-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-200 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                  className="top-4 absolute p-1.5 rounded-lg text-gray-400 cursor-pointer modal-close-btn start-4"
                   title={t('modals.close', 'إغلاق')}
                 >
                   <X size={17} />
                 </button>
 
                 {/* Trash Icon Badge */}
-                <div className="mx-auto mb-3.5 flex items-center justify-center w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-500 shadow-[0_0_24px_rgba(244,63,94,0.2)]">
+                <div className="flex justify-center items-center bg-rose-500/15 mx-auto mb-3.5 border border-rose-500/30 rounded-2xl w-12 h-12 text-rose-500">
                   <Trash2 size={22} className="text-rose-500" />
                 </div>
 
                 {/* Title */}
-                <h3 className="modal-title text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-2">
+                <h3 className="mb-2 font-bold text-gray-900 dark:text-white text-base sm:text-lg modal-title">
                   {t('modals.removeSavedAccountTitle', 'إزالة الحساب المحفوظ')}
                 </h3>
 
                 {/* Description with highlighted email */}
-                <p className="modal-desc text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2 leading-relaxed">
+                <p className="mb-2 text-gray-600 dark:text-gray-400 text-xs sm:text-sm leading-relaxed modal-desc">
                   {t('modals.removeSavedAccountDesc', 'هل أنت متأكد من رغبتك في إزالة هذا الحساب من قائمة الدخول السريع؟')}
                 </p>
 
                 {email && (
-                  <div className="mb-5 inline-block px-3 py-1 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 dir-ltr max-w-full truncate">
+                  <div className="inline-block bg-gray-100 dark:bg-white/5 mb-5 px-3 py-1 border border-gray-200 dark:border-white/10 rounded-lg max-w-full font-semibold text-gray-800 dark:text-gray-200 text-xs truncate dir-ltr">
                     {email}
                   </div>
                 )}
@@ -117,14 +117,14 @@ export function ConfirmRemoveSavedAccountModal({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="modal-btn-cancel flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 border border-gray-300 dark:border-white/10 transition-colors cursor-pointer"
+                    className="flex-1 bg-gray-100 dark:bg-white/5 px-4 py-2.5 border border-gray-300 dark:border-white/10 rounded-xl font-semibold text-gray-700 dark:text-gray-300 text-xs sm:text-sm cursor-pointer modal-btn-cancel"
                   >
                     {t('modals.cancel', 'إلغاء')}
                   </button>
                   <button
                     type="button"
                     onClick={onConfirm}
-                    className="modal-btn-confirm flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 shadow-[0_0_20px_rgba(244,63,94,0.3)] transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-98"
+                    className="flex flex-1 justify-center items-center gap-1.5 bg-rose-600 px-4 py-2.5 rounded-xl font-bold text-white text-xs sm:text-sm active:scale-98 cursor-pointer modal-btn-confirm"
                   >
                     <Trash2 size={14} />
                     <span>{t('modals.confirmRemoveBtn', 'إزالة الحساب')}</span>
