@@ -210,26 +210,12 @@ class MaterialSynthesisTask(BaseTask):
         # تحديث الذاكرة الحية محلياً فور النجاح (In-Memory State Sync)
         # ═════════════════════════════════════════════════════════════════════
         # 1. تحديث عداد النشاط اليومي لمنع أي طلب لاحق في نفس اليوم
+        # (ملاحظة: رصيد المواد في backpackCtrl يُحدَّث تلقائياً عبر NOTIFY_BACKPACK لمنع الخصم/الإضافة المزدوجة)
         everyday_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
         if isinstance(everyday_ctrl, dict):
             event_info = everyday_ctrl.setdefault("eventInfo", {})
             if isinstance(event_info, dict):
                 event_info[DAILY_QUEST_MATERIAL_TYPE] = 1
-
-        # 2. تحديث رصيد المواد في الذاكرة الحية (خصم 4 وإضافة 1)
-        backpack_ctrl = self.get_ctrl("backpackCtrl") or self.get_ctrl("bagCtrl")
-        if isinstance(backpack_ctrl, dict):
-            # خصم المادة المستهلكة
-            str_spend = str(spend_id)
-            if str_spend in backpack_ctrl and isinstance(backpack_ctrl[str_spend], dict):
-                old_c = int(backpack_ctrl[str_spend].get("count", 0) or 0)
-                backpack_ctrl[str_spend]["count"] = max(0, old_c - 4)
-
-            # إضافة المادة الناتجة
-            str_res = str(result_id)
-            if str_res in backpack_ctrl and isinstance(backpack_ctrl[str_res], dict):
-                old_r = int(backpack_ctrl[str_res].get("count", 0) or 0)
-                backpack_ctrl[str_res]["count"] = old_r + 1
 
         msg = f"✓ تم تجميع مادة العتاد بنجاح (#{spend_id} -> #{result_id}) وإتمام النشاط اليومي"
         self.log(msg)

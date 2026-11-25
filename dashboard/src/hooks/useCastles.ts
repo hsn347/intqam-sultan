@@ -481,7 +481,7 @@ export function useBotControl(userId: string) {
           user_id:      userId,
           email:        castle.email,
           password:     (castle as Castle & { password?: string }).password,
-          loop_interval: 60,
+          loop_interval: castle.loop_interval || 40,
         })
       } else {
         await stopBot(castle.id)

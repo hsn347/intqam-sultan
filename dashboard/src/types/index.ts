@@ -13,6 +13,23 @@ export interface Subscription {
   max_castles_allowed: number
   current_castles_count: number
   pending_castles_count?: number
+  total_castles_count?: number
+  allowed_castles_count?: number
+  running_castles_count?: number
+}
+
+export interface AdminStats {
+  totalUsers: number
+  activeSubscriptions: number
+  pendingUsers: number
+  expiredUsers: number
+  bannedUsers: number
+  totalCastles: number
+  allowedCastles: number
+  allowedCastlesQuota: number
+  runningCastles: number
+  activeBots: number
+  connectedBots: number
 }
 
 export interface User {
@@ -222,6 +239,7 @@ export interface Castle {
   castle_info: CastleInfo
   resources: Resources
   bot_status: BotStatus
+  loop_interval?: number
   config: CastleConfig
 }
 

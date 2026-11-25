@@ -143,17 +143,19 @@ class ExploreRuinsTask(MarchManagerTask):
     ) -> int:
         """حساب سعة الفيلق القصوى حصرياً عبر tasks/march_capacity.py (0-Network)."""
         live_mem = self._get_live_snapshot()
+        now_ts = int(time.time())
         cap = self._safe_int(
             get_march_capacity(
                 live_mem,
                 hero_ids=hero_ids or None,
                 lieutenant_map=lieutenant_map or None,
                 only_normal_state=False,
+                now=now_ts,
             ),
             0,
         )
         if cap <= 0:
-            cap = self._safe_int(get_march_capacity_no_heroes(live_mem), 0)
+            cap = self._safe_int(get_march_capacity_no_heroes(live_mem, now=now_ts), 0)
         return max(0, cap)
 
     # ------------------------------------------------------------------
@@ -672,8 +674,44 @@ class ExploreRuinsTask(MarchManagerTask):
                     },
                 )
 
-            # 4) الإرسال الرسمي عبر CMD 1007/2
+            # 4) تصفية الأسلحة الإلهية والوحوش الإلهية المشغولة في مسيرات أخرى قبل الإرسال عبر CMD 1007/2
             _, _, kingdom_id = self._get_castle_coords_and_kingdom()
+            busy_arms: set = set()
+            busy_beasts: set = set()
+            prev_qids: set = set()
+            for q_live, _q_st in self._iter_my_active_queues():
+                qid_s = str(q_live.get("id") or q_live.get("queueId") or "").strip()
+                if qid_s:
+                    prev_qids.add(qid_s)
+                from_obj = q_live.get("from") if isinstance(q_live.get("from"), dict) else {}
+                for arm_item in (from_obj.get("armsInfo") or q_live.get("armsInfo") or []):
+                    aid_v = self._safe_int(arm_item.get("id") if isinstance(arm_item, dict) else arm_item, 0)
+                    if aid_v > 0:
+                        busy_arms.add(aid_v)
+                db_raw = from_obj.get("divineBeastInfo") or q_live.get("divineBeastInfo")
+                if isinstance(db_raw, list):
+                    for db_item in db_raw:
+                        bid_v = self._safe_int(db_item.get("id") if isinstance(db_item, dict) else db_item, 0)
+                        if bid_v > 0:
+                            busy_beasts.add(bid_v)
+                elif isinstance(db_raw, dict):
+                    bid_v = self._safe_int(db_raw.get("beastId") or db_raw.get("id"), 0)
+                    if bid_v > 0:
+                        busy_beasts.add(bid_v)
+
+            db_ctrl = self.get_ctrl("divineBeastCtrl")
+            db_map = db_ctrl.get("beast") if isinstance(db_ctrl, dict) and isinstance(db_ctrl.get("beast"), dict) else {}
+            filtered_arms = [a for a in (formation.get("arms_ids") or []) if self._safe_int(a, 0) not in busy_arms]
+            filtered_beasts = []
+            for b in (formation.get("divine_beast_ids") or []):
+                bid_i = self._safe_int(b, 0)
+                if bid_i <= 0 or bid_i in busy_beasts:
+                    continue
+                b_entry = db_map.get(str(bid_i)) or db_map.get(bid_i)
+                if isinstance(b_entry, dict) and self._safe_int(b_entry.get("state"), 1) in (0, 3, 4):
+                    continue
+                filtered_beasts.append(b)
+
             payload = {
                 "moveLineType": RELICS_MOVE_LINE_TYPE,
                 "matrixType": RELICS_MATRIX_TYPE,
@@ -685,8 +723,8 @@ class ExploreRuinsTask(MarchManagerTask):
                     },
                     "army": formation["army_payload"],
                     "heroInfo": formation["hero_payload"],
-                    "armsInfo": formation["arms_ids"],
-                    "divineBeastInfo": formation["divine_beast_ids"],
+                    "armsInfo": filtered_arms,
+                    "divineBeastInfo": filtered_beasts,
                     "mapId": int(kingdom_id),
                     "isDuel": False,
                     "isForbidSpeed": False,
@@ -704,6 +742,8 @@ class ExploreRuinsTask(MarchManagerTask):
             resp = await self.safe_query("1007", "2", payload, min_delay=0.5, max_delay=1.1)
             err = self._extract_err_code(resp)
             if err == "0":
+                if hasattr(self, "_wait_for_new_queue_sync"):
+                    await self._wait_for_new_queue_sync(prev_qids, timeout=2.0)
                 timing = self.estimate_march_duration(
                     march_type="ruins",
                     dispatch_response=resp,

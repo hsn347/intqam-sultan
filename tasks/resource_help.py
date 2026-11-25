@@ -236,12 +236,18 @@ class ResourceHelpTask(MarchManagerTask):
         return out
 
     def _get_active_resource_help_queues(self) -> List[Dict[str, Any]]:
-        """إرجاع جميع قوافل مساعدة الموارد النشطة بالخارج (type=7 / moveLineType=5)."""
+        """إرجاع جميع قوافل مساعدة الموارد النشطة بالخارج (ذاهبة type=7 أو عائدة type=10)."""
         active: List[Dict[str, Any]] = []
         for q, _st in self._iter_my_active_queues():
-            q_type = self._safe_int(q.get("type") or q.get("queueType"), 0)
+            q_type = self._safe_int(q.get("queueType") if q.get("queueType") is not None else q.get("type"), 0)
             m_type = self._safe_int(q.get("moveLineType"), 0)
             if q_type == RESOURCE_HELP_SERVER_QUEUE_TYPE or m_type == RESOURCE_HELP_MOVE_LINE_TYPE:
+                active.append(q)
+            elif q_type == 10 and (
+                self._safe_int(q.get("orgQueueType"), 0) == RESOURCE_HELP_SERVER_QUEUE_TYPE
+                or self._safe_int(q.get("matrixType"), 0) == 4
+                or bool(q.get("isTradeReturn"))
+            ):
                 active.append(q)
         return active
 
@@ -253,7 +259,10 @@ class ResourceHelpTask(MarchManagerTask):
         now_ts = time.time()
         earliest: Optional[float] = None
         for q in queues:
-            ft = self._safe_float(q.get("finishTime") or q.get("endTime") or q.get("finish_time"), 0.0)
+            ft = self._safe_float(
+                q.get("statusEndTime") or q.get("finishTime") or q.get("endTime") or q.get("finish_time"),
+                0.0,
+            )
             if ft > 1e11:
                 ft /= 1000.0
             rem = max(1.0, ft - now_ts) if ft > 0 else 15.0
@@ -899,13 +908,13 @@ class ResourceHelpTask(MarchManagerTask):
                     net_delivered = max(1, int(math.floor(gross * net_factor))) if gross > 0 else 0
                     target_quotas_net[rid] = max(0, target_quotas_net[rid] - net_delivered)
 
-            # انتظار ذكي حتى ينعكس خصم الموارد أو ظهور الطابور في الذاكرة الحية (بحد أقصى 2ث)
+            # انتظار ذكي حتى ينعكس خصم الموارد وظهور الطابور معاً في الذاكرة الحية (بحد أقصى 2ث)
             sync_end = time.monotonic() + 2.0
             while time.monotonic() < sync_end:
                 cur_res = self._get_sender_normal_resources(keep_reserve=keep_reserve)
                 res_updated = any(cur_res[rid]["total"] < prev_val for rid, prev_val in prev_totals.items())
                 q_updated = len(self._get_active_resource_help_queues()) > prev_help_cnt
-                if res_updated or q_updated:
+                if res_updated and q_updated:
                     break
                 await asyncio.sleep(0.1)
             await asyncio.sleep(random.uniform(0.2, 0.45))

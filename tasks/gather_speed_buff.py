@@ -31,6 +31,7 @@ if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 from tasks.base_task import BaseTask, TaskResult
+from tasks.march_manager import MarchSafetyMixin
 
 # ---------------------------------------------------------------------------
 # ثوابت مكافأة سرعة الجمع الرسمية (itemdescribe.lua, buff.lua, buffDef.lua)
@@ -78,7 +79,7 @@ def _format_hhmmss(seconds: int) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}"
 
 
-class GatherSpeedBuffTask(BaseTask):
+class GatherSpeedBuffTask(MarchSafetyMixin, BaseTask):
     """
     مهمة تفعيل مكافأة سرعة الجمع (الصغيرة ثم الكبيرة ثم السوبر) بطلب شبكي واحد فقط (1004/2).
     """
@@ -410,7 +411,7 @@ class GatherSpeedBuffTask(BaseTask):
                 data={"err": err, "chosen": chosen, "raw": resp},
             )
 
-        self._decrement_item_in_live_memory(item_id)
+        # تحديث الحقيبة والباف يتم تلقائياً عبر إشعارات السيرفر الرسمية (NOTIFY_BACKPACK و NOTIFY_BUFF)
         msg = (
             f"تم تفعيل {chosen['name']} بنجاح (+{chosen['bonus_pct']}% لمدة "
             f"{chosen['duration_sec'] // 3600} ساعة)."

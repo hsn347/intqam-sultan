@@ -176,38 +176,18 @@ class CureWoundedTask(BaseTask):
 
     def _sync_hospital_queue_busy(self, total_time: int = 600) -> None:
         """
-        تسجيل حالة انشغال طابور المشفى في الذاكرة الحية (In-Memory State Sync) لمنع أي طلب شبكي قادم.
+        تسجيل حالة انشغال طابور المشفى في queueCtrl["1202"] بالذاكرة الحية (دون لمس قائمة مسيرات الخريطة queues).
         """
         queue_ctrl = self.get_ctrl("queueCtrl") or self.get_ctrl("queue")
         now = int(time.time())
         finish = now + total_time
         if isinstance(queue_ctrl, dict):
-            # 1. تحديث قائمة queues (الهيكل المعتمد في core/game_client.py)
-            queues = queue_ctrl.setdefault("queues", [])
-            if isinstance(queues, list):
-                queues[:] = [
-                    q
-                    for q in queues
-                    if not (
-                        isinstance(q, dict)
-                        and _safe_int(q.get("qtype") or q.get("queuetype"), 0)
-                        == HOSPITAL_QUEUE_TYPE
-                    )
-                ]
-                queues.append({
-                    "qtype": HOSPITAL_QUEUE_TYPE,
-                    "queuetype": HOSPITAL_QUEUE_TYPE,
-                    "updated_at": now,
-                    "starttime": now,
-                    "totaltime": total_time,
-                    "lefttime": total_time,
-                    "finishTime": finish,
-                })
-            # 2. تحديث المفتاح المباشر 1202
             queue_ctrl[str(HOSPITAL_QUEUE_TYPE)] = {
-                "qtype": HOSPITAL_QUEUE_TYPE,
-                "startTime": now,
+                "qtype": str(HOSPITAL_QUEUE_TYPE),
+                "queuetype": str(HOSPITAL_QUEUE_TYPE),
+                "starttime": now,
                 "totaltime": total_time,
+                "ottime": total_time,
                 "finishTime": finish,
             }
 
@@ -410,24 +390,10 @@ class CureWoundedTask(BaseTask):
                 return TaskResult.fail(f"Server rejected cure request with err: {err}{err_desc}")
 
         # ══════════════════════════════════════════════════════════════════════
-        # تحديث الذاكرة الحية محلياً (In-Memory State Sync)
+        # تحديث طابور المشفى محلياً (يُحدّث armyCtrl.woundedArmy تلقائياً عبر إشعار NOTIFY_ARMY 15)
         # ══════════════════════════════════════════════════════════════════════
-        # 1. خصم الجنود المعالجين من armyCtrl.woundedArmy
-        army_ctrl = self.get_ctrl("armyCtrl") or self.get_ctrl("army")
-        if isinstance(army_ctrl, dict) and isinstance(army_ctrl.get("woundedArmy"), dict):
-            for a_id, a_take in payload_army.items():
-                cur = _safe_int(army_ctrl["woundedArmy"].get(a_id, 0), 0)
-                rem = max(0, cur - _safe_int(a_take, 0))
-                if rem > 0:
-                    army_ctrl["woundedArmy"][a_id] = str(rem)
-                else:
-                    army_ctrl["woundedArmy"].pop(a_id, None)
-
-        # 2. تحديث طابور المشفى queueCtrl (0-Network Skip أثناء العلاج)
-        #    لا يُحقن everydayTaskCtrl.eventInfo محلياً قبل تأكيد السيرفر (NOTIFY 55)
-        #    أو عندما يكون العدد < 100 لتفادي تضخيم النقاط وخطأ 470002.
         retdata = res.get("data", {}).get("retdata", {}) if isinstance(res.get("data"), dict) else {}
-        total_time = _safe_int(retdata.get("totaltime"), 60)
+        total_time = _safe_int(retdata.get("lefttime") or retdata.get("totaltime"), 60)
         self._sync_hospital_queue_busy(total_time)
 
         steps_hint = collected_count // DAILY_QUEST_STEP_SOLDIERS

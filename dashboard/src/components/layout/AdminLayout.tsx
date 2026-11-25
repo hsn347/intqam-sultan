@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
-import { Users, Activity, LogOut, Sun, Moon, Store, ShieldCheck, Menu, X, Landmark } from 'lucide-react'
+import { Users, Activity, LogOut, Sun, Moon, Store, ShieldCheck, Menu, X, Landmark, Ban } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../hooks/useAuth'
 import { useAppStore } from '../../store/appStore'
@@ -27,6 +27,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   const isMerchantsActive = location.pathname.startsWith('/admin/merchants')
   const isProxiesActive = location.pathname.startsWith('/admin/proxies')
   const isUsersCastlesActive = location.pathname.startsWith('/admin/users-castles')
+  const isBannedCastlesActive = location.pathname.startsWith('/admin/banned-castles')
 
   useEffect(() => {
     if (title) {
@@ -63,7 +64,10 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   return (
     <div className="admin-layout-wrapper min-h-screen bg-slate-50 dark:bg-[#060a08] text-slate-900 dark:text-gray-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
       {/* ── Admin Header ── */}
-      <header className="admin-header sticky top-0 z-30 bg-white dark:bg-[#0c120e] border-b border-slate-200/80 dark:border-emerald-500/20 shadow-xs">
+      <header
+        className="admin-header sticky top-0 z-30 bg-white dark:bg-[#0c120e] border-b border-slate-200/80 dark:border-emerald-500/20 shadow-xs"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           {/* ── Mobile Header (< sm): Clean Single Row with Hamburger Menu ── */}
           <div className="flex items-center justify-between gap-2 py-2.5 sm:hidden">
@@ -235,6 +239,19 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                         <Landmark size={18} className={isUsersCastlesActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'} />
                         <span>قلاع المستخدمين</span>
                       </Link>
+
+                      <Link
+                        to="/admin/banned-castles"
+                        onClick={() => setMobileDrawerOpen(false)}
+                        className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold cursor-pointer ${
+                          isBannedCastlesActive
+                            ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200/80 dark:border-emerald-500/30 shadow-xs'
+                            : 'text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <Ban size={18} className={isBannedCastlesActive ? 'text-rose-500' : 'text-slate-500 dark:text-slate-400'} />
+                        <span>{t('admin.layout.bannedShort')}</span>
+                      </Link>
                     </>
                   )}
                 </nav>
@@ -355,6 +372,19 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                   >
                     <Landmark size={14} className={isUsersCastlesActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'} />
                     <span>قلاع المستخدمين</span>
+                  </Link>
+
+                  <Link
+                    to="/admin/banned-castles"
+                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg cursor-pointer ${
+                      isBannedCastlesActive
+                        ? 'bg-white dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs border border-slate-200/80 dark:border-emerald-500/30'
+                        : 'text-slate-600 dark:text-slate-300 font-medium border border-transparent'
+                    }`}
+                    title={t('admin.layout.bannedShort')}
+                  >
+                    <Ban size={14} className={isBannedCastlesActive ? 'text-rose-500' : 'text-slate-500 dark:text-slate-400'} />
+                    <span>{t('admin.layout.bannedShort')}</span>
                   </Link>
                 </>
               )}

@@ -291,12 +291,6 @@ def mark_training_queue_busy_in_memory(
             },
         }
         queue_ctrl[qtype] = queue_entry
-        if "queues" in queue_ctrl and isinstance(queue_ctrl["queues"], list):
-            queue_ctrl["queues"] = [
-                q for q in queue_ctrl["queues"]
-                if isinstance(q, dict) and str(q.get("data", {}).get("bid", "")) != bid_str and str(q.get("qtype", "")) != qtype
-            ]
-            queue_ctrl["queues"].append(queue_entry)
 
     # 2. تحديث armyCtrl.trainArmy
     army_ctrl = conn.init_data.setdefault("armyCtrl", {})
@@ -323,35 +317,14 @@ def sync_training_queue_in_memory(
     retdata: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
-    مزامنة فورية لحالة طابور التدريب والموارد في الذاكرة الحية (conn.init_data) عند بدء التدريب:
-      1. تحديث طابور التدريب في queueCtrl و armyCtrl.trainArmy عبر mark_training_queue_busy_in_memory.
-      2. خصم الموارد المستهلكة من cityCtrl.reslist.
-      (ملاحظة: لا يُحقن everydayTaskCtrl.eventInfo محلياً عند مجرد بدء الطابور لتفادي تضخيم النقاط وخطأ 470002).
+    مزامنة فورية لحالة طابور التدريب في الذاكرة الحية (conn.init_data) عند بدء التدريب:
+      - تحديث طابور التدريب في queueCtrl و armyCtrl.trainArmy عبر mark_training_queue_busy_in_memory.
+      - الموارد تُحدّث تلقائياً من السيرفر عبر NOTIFY_CITY / costres دون خصم يدوي مزدوج.
     """
     if not conn or not hasattr(conn, "init_data") or not isinstance(conn.init_data, dict):
         return
 
     mark_training_queue_busy_in_memory(conn, bid, armyid, count, retdata)
-
-    ret = retdata if isinstance(retdata, dict) else {}
-
-    # 3. تحديث وخصم الموارد في cityCtrl
-    cost_res = ret.get("costres")
-    city = conn.init_data.setdefault("cityCtrl", {})
-    if isinstance(city, dict):
-        reslist = city.setdefault("reslist", {})
-        if isinstance(reslist, dict):
-            if isinstance(cost_res, list) and cost_res:
-                for cr in cost_res:
-                    if isinstance(cr, dict) and "resid" in cr and "curcount" in cr:
-                        reslist[str(cr["resid"])] = cr["curcount"]
-            else:
-                # خصم تقديري بناءً على جدول التكاليف الرسمي المدمج
-                costs = _ARMY_COSTS.get(str(armyid), {})
-                for resid, per_unit in costs.items():
-                    cur_val = float(reslist.get(str(resid), 0) or 0)
-                    reslist[str(resid)] = max(0.0, cur_val - (per_unit * count))
-            city["resList"] = reslist
 
 
 def clear_harvested_queue_in_memory(conn: Any, bid: str) -> None:
@@ -364,7 +337,7 @@ def clear_harvested_queue_in_memory(conn: Any, bid: str) -> None:
     bid_str = str(bid)
     qtype = BID_TO_QUEUE_TYPE.get(bid_str)
 
-    # 1. إزالة من queueCtrl
+    # 1. إزالة من queueCtrl (دون المساس بقائمة queues الخاصة بمسيرات الخريطة)
     queue_ctrl = conn.init_data.get("queueCtrl", {})
     if isinstance(queue_ctrl, dict):
         if qtype and qtype in queue_ctrl:
@@ -375,12 +348,6 @@ def clear_harvested_queue_in_memory(conn: Any, bid: str) -> None:
         ]
         for k in to_del:
             queue_ctrl.pop(k, None)
-
-        if "queues" in queue_ctrl and isinstance(queue_ctrl["queues"], list):
-            queue_ctrl["queues"] = [
-                q for q in queue_ctrl["queues"]
-                if isinstance(q, dict) and str(q.get("data", {}).get("bid", "")) != bid_str and str(q.get("qtype", "")) != qtype
-            ]
 
     # 2. إزالة من armyCtrl.trainArmy
     army_ctrl = conn.init_data.get("armyCtrl", {})
@@ -625,7 +592,22 @@ class TrainTask(BaseTask):
         # بافات التدريب الفردي النشطة من العتاد و VIP والأوسمة (buffCtrl رمز 322 / 318)
         buff_ctrl = self.get_ctrl("buffCtrl")
         buff_add = 0
-        if isinstance(buff_ctrl, dict):
+        if isinstance(buff_ctrl, list):
+            now_b = time.time()
+            for entry in buff_ctrl:
+                if not isinstance(entry, dict):
+                    continue
+                bt = float(entry.get("beginTime", 0) or 0)
+                dur = float(entry.get("time", 0) or 0)
+                if dur > 0 and bt > 0 and (bt + dur) <= now_b:
+                    continue
+                eff_k = str(entry.get("effectType") or entry.get("effect") or entry.get("id") or "")
+                if eff_k in ("322", "318") and entry.get("value") is not None:
+                    try:
+                        buff_add += int(float(entry["value"]))
+                    except (ValueError, TypeError):
+                        pass
+        elif isinstance(buff_ctrl, dict):
             for k, v in buff_ctrl.items():
                 if k in ("322", "318"):
                     try:
@@ -811,10 +793,11 @@ class TrainTask(BaseTask):
             last_err = err
 
             if err == "0":
-                retdata = resp.get("retdata") if isinstance(resp, dict) else {}
-                if not isinstance(retdata, dict):
-                    retdata = resp.get("data") if isinstance(resp.get("data"), dict) else {}
-                # مزامنة فورية شاملة في الذاكرة الحية
+                r_data = resp.get("data") if isinstance(resp, dict) and isinstance(resp.get("data"), dict) else {}
+                retdata = r_data.get("retdata") if isinstance(r_data.get("retdata"), dict) else (
+                    resp.get("retdata") if isinstance(resp, dict) and isinstance(resp.get("retdata"), dict) else r_data
+                )
+                # مزامنة فورية لطابور التدريب بالمدة الحقيقية الواردة من السيرفر
                 sync_training_queue_in_memory(self.conn, bid, armyid, curr_count, retdata)
                 return True, curr_count, "0"
 

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Sidebar } from './Sidebar'
 import { BottomNav } from './BottomNav'
-import { PwaInstallPrompt } from '../common/PwaInstallPrompt'
 import { ConfirmLogoutModal } from '../common/ConfirmLogoutModal'
 import { AccountSwitcherModal } from '../common/AccountSwitcherModal'
 import { LanguageDropdown } from '../common/LanguageDropdown'
@@ -50,7 +49,10 @@ export function Layout({ children, title }: LayoutProps) {
       {/* Main content */}
       <main className="min-h-screen main-offset">
         {/* Mobile App Header (mobile only) */}
-        <header className="md:hidden top-0 z-30 sticky flex justify-between items-center bg-white dark:bg-gray-950 px-3 py-1.5 border-gray-200 dark:border-white/8 border-b mobile-app-header">
+        <header
+          className="md:hidden top-0 z-30 sticky flex justify-between items-center bg-white dark:bg-gray-950 px-3 py-1.5 border-gray-200 dark:border-white/8 border-b mobile-app-header"
+          style={{ paddingTop: 'max(0.375rem, env(safe-area-inset-top, 0px))' }}
+        >
           {/* Brand Identity */}
           <div className="flex items-center gap-2 min-w-0">
             <div className="flex justify-center items-center bg-gray-100 dark:bg-white/5 border border-amber-500/30 rounded-lg w-7 h-7 overflow-hidden shrink-0">
@@ -120,9 +122,6 @@ export function Layout({ children, title }: LayoutProps) {
 
       {/* Mobile App Bottom Navigation Bar */}
       <BottomNav />
-
-      {/* PWA Install Prompt */}
-      <PwaInstallPrompt />
 
       {/* Account Switcher Modal */}
       <AccountSwitcherModal

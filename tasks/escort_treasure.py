@@ -214,8 +214,17 @@ class EscortTreasureTask(MarchManagerTask):
             return True, "لم تُرصد حالة صريحة لفعالية حراسة الكنز محلياً؛ سيتم التحقق عبر السيرفر."
 
         now_ts = time.time()
-        end_time = self._safe_int(found_entry.get("endTime") or found_entry.get("end_time"), 0)
-        start_time = self._safe_int(found_entry.get("startTime") or found_entry.get("start_time"), 0)
+        # في activityShowCtrl.lua و activityDef.lua: حالة الفعالية المفتوحة هي state == 3، والحقول بأحرف صغيرة begintime/endtime
+        if "state" in found_entry and self._safe_int(found_entry.get("state"), 3) != 3:
+            return False, "فعالية حراسة الكنز مغلقة حالياً."
+        end_time = self._safe_int(
+            found_entry.get("endtime") or found_entry.get("endTime") or found_entry.get("end_time"),
+            0,
+        )
+        start_time = self._safe_int(
+            found_entry.get("begintime") or found_entry.get("startTime") or found_entry.get("start_time"),
+            0,
+        )
         if end_time > 0 and now_ts >= end_time:
             return False, "فعالية حراسة الكنز غير مفتوحة حالياً (انتهى وقت الفعالية)."
         if start_time > 0 and now_ts < start_time:
@@ -311,16 +320,18 @@ class EscortTreasureTask(MarchManagerTask):
         from tasks.march_capacity import get_march_capacity, get_march_capacity_no_heroes
 
         live_mem = self._get_live_snapshot()
+        now_ts = int(time.time())
         max_cap = self._safe_int(
             get_march_capacity(
                 live_mem,
                 hero_ids=selected_hero_ids or None,
                 only_normal_state=False,
+                now=now_ts,
             ),
             0,
         )
         if max_cap <= 0:
-            max_cap = self._safe_int(get_march_capacity_no_heroes(live_mem), 0)
+            max_cap = self._safe_int(get_march_capacity_no_heroes(live_mem, now=now_ts), 0)
 
         # 3) ترتيب الجنود مطابقاً لـ WorldDispatchArmyViewPanel.lua:580-583
         #    (أعلى مستوى level أولاً، ثم أصغر army_id عند التساوي)
@@ -598,6 +609,11 @@ class EscortTreasureTask(MarchManagerTask):
             },
         }
 
+        prev_qids = {
+            str(q_live.get("id") or q_live.get("queueId") or "").strip()
+            for q_live, _ in self._iter_my_active_queues()
+            if str(q_live.get("id") or q_live.get("queueId") or "").strip()
+        }
         await asyncio.sleep(random.uniform(0.35, 0.75))
         self.log(
             f"🚀 [حراسة الكنز] إرسال {formation['total_soldiers']:,} جندي "
@@ -614,6 +630,9 @@ class EscortTreasureTask(MarchManagerTask):
                 message=msg,
                 data={"err": err, "target": closest_build, "cart": cart_info, "raw": resp},
             )
+
+        if hasattr(self, "_wait_for_new_queue_sync"):
+            await self._wait_for_new_queue_sync(prev_qids, timeout=2.0)
 
         msg = (
             f"تم إرسال فيلق حراسة الكنز الخاص بنجاح (عربة مستوى {cart_info['curr_cart_lv']}) "

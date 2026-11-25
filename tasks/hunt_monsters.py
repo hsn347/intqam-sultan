@@ -136,29 +136,36 @@ class HuntMonstersTask(MarchManagerTask):
         base = lord_ctrl.get("base")
         if not isinstance(base, dict) or "health" not in base:
             return None
-        return self._safe_int(base.get("health"), 0) // 100
+        return self._safe_int(base.get("health"), 0)
 
     def _count_active_monster_marches(self) -> int:
         """
         عدّ فيالق الهجوم على الوحوش النشطة حالياً بالخارج (ذاهبة أو عائدة) من الذاكرة الحية.
         في سورس اللعبة (worldMapFunction.lua:497-498): كل من الوحوش العادية (6) والسحابية (56)
-        تعمل تحت queueType == 1 (moveLineTypeKillNpc).
+        تعمل تحت queueType == 1 (moveLineTypeKillNpc) وعند العودة تصبح queueType == 10 مع الأصل في from.
         """
         count = 0
+        npc_map_types = (str(MAP_TYPE_NORMAL_NPC), str(MAP_TYPE_NEBULA_NPC))
         for q, _ in self._iter_my_active_queues():
-            q_type = self._safe_int(
-                q.get("queueType") or q.get("type") or q.get("orgQueueType"),
-                -1,
-            )
-            if q_type == SERVER_QUEUE_TYPE_KILL_NPC:
+            q_type = self._safe_int(q.get("queueType") if q.get("queueType") is not None else q.get("type"), -1)
+            org_q_type = self._safe_int(q.get("orgQueueType"), -1)
+            if q_type == SERVER_QUEUE_TYPE_KILL_NPC or (q_type == 10 and org_q_type == SERVER_QUEUE_TYPE_KILL_NPC):
                 count += 1
                 continue
-            to_info = q.get("to") if isinstance(q.get("to"), dict) else {}
-            to_id = str(to_info.get("id") or q.get("toId") or "")
-            if to_id:
-                parts = to_id.split("-")
-                if len(parts) >= 3 and parts[2] in (str(MAP_TYPE_NORMAL_NPC), str(MAP_TYPE_NEBULA_NPC)):
-                    count += 1
+            matched_npc = False
+            for loc_key in ("to", "from"):
+                loc_info = q.get(loc_key) if isinstance(q.get(loc_key), dict) else {}
+                if str(loc_info.get("mapType") or "") in npc_map_types:
+                    matched_npc = True
+                    break
+                loc_id = str(loc_info.get("id") or (q.get("toId") if loc_key == "to" else "") or "")
+                if loc_id:
+                    parts = loc_id.split("-")
+                    if len(parts) >= 3 and parts[2] in npc_map_types:
+                        matched_npc = True
+                        break
+            if matched_npc:
+                count += 1
         return count
 
     def _has_active_monster_march(self) -> bool:
@@ -401,6 +408,11 @@ class HuntMonstersTask(MarchManagerTask):
             },
         }
 
+        prev_qids = {
+            str(q_live.get("id") or q_live.get("queueId") or "").strip()
+            for q_live, _ in self._iter_my_active_queues()
+            if str(q_live.get("id") or q_live.get("queueId") or "").strip()
+        }
         resp = await self.safe_query("1007", "2", payload, min_delay=0.5, max_delay=1.1)
         err = self._extract_err_code(resp)
         if err != "0":
@@ -413,6 +425,8 @@ class HuntMonstersTask(MarchManagerTask):
             }
 
         await self._safe_confirm_target(target, target_type_key)
+        if hasattr(self, "_wait_for_new_queue_sync"):
+            await self._wait_for_new_queue_sync(prev_qids, timeout=2.0)
 
         return {
             "ok": True,
@@ -565,7 +579,7 @@ class HuntMonstersTask(MarchManagerTask):
             max_unlocked = 0
             if hasattr(self, "get_max_can_kill_monster_level"):
                 try:
-                    max_unlocked = self._safe_int(self.get_max_can_kill_monster_level(monster_type), 0)
+                    max_unlocked = self._safe_int(self.get_max_can_kill_monster_level(), 0)
                 except Exception:
                     max_unlocked = 0
             if monster_type == "nebula":

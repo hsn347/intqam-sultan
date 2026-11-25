@@ -86,6 +86,7 @@ function Stepper({
   step = 1,
   onChange,
   formatLabel,
+  compact = false,
 }: {
   value: number
   min?: number
@@ -93,6 +94,7 @@ function Stepper({
   step?: number
   onChange: (v: number) => void
   formatLabel?: (v: number) => string | React.ReactNode
+  compact?: boolean
 }) {
   const [isFocused, setIsFocused] = useState(false)
   const [textValue, setTextValue] = useState(String(value))
@@ -135,7 +137,8 @@ function Stepper({
   return (
     <div
       className={clsx(
-        'inline-flex items-center rounded-xl h-10 sm:h-9 overflow-hidden select-none task-stepper shrink-0',
+        'inline-flex items-center rounded-xl overflow-hidden select-none task-stepper shrink-0',
+        compact ? 'h-[22px] sm:h-6 rounded-lg sm:rounded-xl' : 'h-8',
         isFocused && (hasError ? 'border-rose-500 ring-1 ring-rose-500/40' : 'is-focused')
       )}
       style={{ direction: 'ltr' }}
@@ -146,24 +149,25 @@ function Stepper({
         aria-label="-"
         disabled={value <= min}
         onClick={() => handleStep(-1)}
-        className="flex justify-center items-center active:bg-primary-500/25 disabled:opacity-30 border-r w-10 sm:w-9 h-full cursor-pointer disabled:cursor-not-allowed task-stepper-btn shrink-0"
+        className={clsx('flex justify-center items-center active:bg-primary-500/25 disabled:opacity-30 border-r h-full cursor-pointer disabled:cursor-not-allowed task-stepper-btn shrink-0', compact ? 'w-[22px] sm:w-6' : 'w-8')}
         title={`- (${min})`}
       >
-        <Minus size={15} strokeWidth={2.5} />
+        <Minus size={compact ? 11 : 15} strokeWidth={2.5} />
       </button>
 
       {/* Center Numeric Pod */}
       <div
         onClick={() => inputRef.current?.focus()}
         className={clsx(
-          'relative flex justify-center items-center px-2 h-full cursor-text task-stepper-pod shrink-0',
-          formatLabel ? 'min-w-[88px] sm:min-w-[78px]' : 'min-w-[64px] sm:min-w-[56px]'
+          'relative flex justify-center items-center h-full cursor-text task-stepper-pod shrink-0',
+          compact ? 'px-0.5 w-7 sm:w-8' : formatLabel ? 'px-2 w-[72px] sm:w-[76px]' : 'px-2 w-12 sm:w-[52px]'
         )}
         title={`(${min} - ${max})`}
       >
         <input
           ref={inputRef}
           type="text"
+          size={2}
           inputMode="numeric"
           pattern="[0-9]*"
           value={isFocused ? textValue : (formatLabel ? '' : String(value))}
@@ -229,17 +233,17 @@ function Stepper({
         aria-label="+"
         disabled={value >= max}
         onClick={() => handleStep(1)}
-        className="flex justify-center items-center active:bg-primary-500/25 disabled:opacity-30 border-l w-10 sm:w-9 h-full cursor-pointer disabled:cursor-not-allowed task-stepper-btn shrink-0"
+        className={clsx('flex justify-center items-center active:bg-primary-500/25 disabled:opacity-30 border-l h-full cursor-pointer disabled:cursor-not-allowed task-stepper-btn shrink-0', compact ? 'w-[22px] sm:w-6' : 'w-8')}
         title={`+ (${max})`}
       >
-        <Plus size={15} strokeWidth={2.5} />
+        <Plus size={compact ? 11 : 15} strokeWidth={2.5} />
       </button>
     </div>
   )
 }
 
 /** بطاقة مورد قابلة للتحديد */
-function ResCard({ img, label, selected, onClick }: { img: string; label: string; selected: boolean; onClick: () => void }) {
+function ResCard({ img, label, selected, onClick, iconSize = 20 }: { img: string; label: string; selected: boolean; onClick: () => void; iconSize?: number }) {
   return (
     <button
       type="button"
@@ -247,22 +251,22 @@ function ResCard({ img, label, selected, onClick }: { img: string; label: string
       className={clsx('task-res-card', selected ? 'selected' : 'unselected')}
       style={{
         width: '100%',
-        minHeight: '58px',
-        padding: '7px 4px',
+        minHeight: '46px',
+        padding: '5px 2px',
         borderRadius: '10px',
         border: selected ? '1.5px solid rgba(var(--theme-primary-rgb),0.6)' : '1px solid rgba(255,255,255,0.10)',
         background: selected ? 'rgba(var(--theme-primary-rgb),0.12)' : 'rgba(255,255,255,0.04)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px',
         cursor: 'pointer',
         color: selected ? 'var(--theme-primary-light)' : '#9ca3af',
-        fontSize: '11.5px', fontWeight: selected ? 600 : 500,
+        fontSize: '11px', fontWeight: selected ? 600 : 500,
         fontFamily: 'inherit',
       }}
     >
-      <img src={img} alt={label} style={{ width: '24px', height: '24px', objectFit: 'contain' }}
+      <img src={img} alt={label} style={{ width: `${iconSize}px`, height: `${iconSize}px`, objectFit: 'contain' }}
         onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
       />
-      <span>{label}</span>
+      <span style={{ whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
     </button>
   )
 }
@@ -315,12 +319,18 @@ function TaskRow({
       <div
         onClick={() => {
           if (comingSoon) return
+          // الصف ذو الخيارات القابلة للطي: النقر يفتحها/يطويها، والتفعيل بالمفتاح.
+          // الصف بلا خيارات أو الخيارات المفتوحة دائماً (alwaysOpen): النقر يبدّل التفعيل
+          if (hasOptions && !alwaysOpen) {
+            toggleTask(taskId)
+            return
+          }
           onToggle(!enabled)
         }}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '8px 11px', gap: '10px',
-          minHeight: '48px',
+          padding: '6px 11px', gap: '10px',
+          minHeight: '42px',
           cursor: comingSoon ? 'default' : 'pointer',
           userSelect: 'none',
         }}
@@ -360,24 +370,17 @@ function TaskRow({
               )}
             </div>
             {hasOptions && !comingSoon && !alwaysOpen && summary && (
-              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    toggleTask(taskId)
-                  }}
-                  className={clsx(
-                    'task-summary-pill',
-                    summaryTone === 'warning' && 'tone-warning',
-                    enabled && 'is-enabled',
-                    isOpen && 'is-open'
-                  )}
-                >
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '210px' }}>
-                    {summary}
-                  </span>
-                </button>
+              <div
+                className={clsx(
+                  'text-[11px] leading-snug truncate',
+                  summaryTone === 'warning'
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : enabled
+                    ? 'text-primary-600 dark:text-primary-300'
+                    : 'text-gray-500 dark:text-gray-400'
+                )}
+              >
+                {summary}
               </div>
             )}
           </div>
@@ -400,8 +403,8 @@ function TaskRow({
                   : 'bg-white/[0.07] text-gray-300 border border-white/10'
               )}
               style={{
-                width: '34px',
-                height: '34px',
+                width: '28px',
+                height: '28px',
               }}
             >
               <svg
@@ -466,20 +469,20 @@ function SectionLabel({ text, noMargin = false }: { text: string; noMargin?: boo
 // ─── Resource definitions ────────────────────────────────────────────────────
 
 const MARCH_RESOURCES = [
-  { v: 2, img: '/images/gather/mtahil.png',  resKey: 'resources.food' },
-  { v: 3, img: '/images/gather/modun.png',   resKey: 'resources.wood' },
-  { v: 4, img: '/images/gather/mdemir.png',  resKey: 'resources.iron' },
-  { v: 5, img: '/images/daily/metal.png',    resKey: 'resources.silver' },
-  { v: 6, img: '/images/gather/mkuvars.png', resKey: 'resources.crystal' },
-  { v: 1, img: '/images/gather/altin.png',   resKey: 'resources.gold' },
+  { v: 2, img: '/images/gather/map_food.png',    resKey: 'resources.food' },
+  { v: 3, img: '/images/gather/map_wood.png',    resKey: 'resources.wood' },
+  { v: 4, img: '/images/gather/map_iron.png',    resKey: 'resources.iron' },
+  { v: 5, img: '/images/gather/map_silver.png',  resKey: 'resources.silver' },
+  { v: 6, img: '/images/gather/map_crystal.png', resKey: 'resources.crystal' },
+  { v: 1, img: '/images/gather/map_gold.png',    resKey: 'resources.gold' },
 ]
 
 const TRANSPORT_RESOURCES = [
-  { id: 1002, key: 'food',    img: '/images/resources/mtahil.png',  resKey: 'resources.food' },
-  { id: 1003, key: 'wood',    img: '/images/resources/modun.png',   resKey: 'resources.wood' },
-  { id: 1004, key: 'iron',    img: '/images/resources/mdemir.png',  resKey: 'resources.iron' },
-  { id: 1005, key: 'silver',  img: '/images/daily/metal.png',       resKey: 'resources.silver' },
-  { id: 1006, key: 'crystal', img: '/images/resources/mkuvars.png', resKey: 'resources.crystal' },
+  { id: 1002, key: 'food',    img: '/images/resources/res_food.png',    resKey: 'resources.food' },
+  { id: 1003, key: 'wood',    img: '/images/resources/res_wood.png',    resKey: 'resources.wood' },
+  { id: 1004, key: 'iron',    img: '/images/resources/res_iron.png',    resKey: 'resources.iron' },
+  { id: 1005, key: 'silver',  img: '/images/resources/res_silver.png',  resKey: 'resources.silver' },
+  { id: 1006, key: 'crystal', img: '/images/resources/res_crystal.png', resKey: 'resources.crystal' },
 ]
 
 const WATERMILL_RESOURCES = [
@@ -628,6 +631,8 @@ function TaskTabContentInner({
 }: Props) {
   const { t, i18n } = useTranslation()
   const [internalTab, setInternalTab] = useState<TaskTab>(externalTab || initialTab)
+  // آخر مستوى تدريب لكل نوع قوات (لاستعادته عند إعادة التشغيل بعد التوقيف المباشر)
+  const lastTrainLevelRef = useRef<Record<string, number>>({})
   const [coordsError, setCoordsError] = useState(false)
   const [isSavingBatch, setIsSavingBatch] = useState(false)
   const [activeSkillCategory, setActiveSkillCategory] = useState<'all' | 'battle' | 'develop' | 'auxiliary'>('all')
@@ -1086,13 +1091,14 @@ function TaskTabContentInner({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '4px' }}>
               <div>
                 <SectionLabel text={t('tasks.resourceType', 'نوع المورد')} />
-                <div className="gap-2 grid grid-cols-3 sm:grid-cols-6">
+                <div className="gap-1 sm:gap-2 grid grid-cols-6">
                   {MARCH_RESOURCES.map(r => (
                     <ResCard
                       key={r.v}
                       img={r.img}
                       label={t(r.resKey)}
                       selected={selectedResV === r.v}
+                      iconSize={30}
                       onClick={() =>
                         updateGatherResources({
                           resource: RES_KEY_BY_V[r.v] || 'wood',
@@ -1119,7 +1125,7 @@ function TaskTabContentInner({
 
           <TaskRow
             id="gather_speed_buff"
-            img="/images/gather/gather_boost.png"
+            img="/images/gather/gather_speed_buff.png"
             label={t('tasks.gatherBoost')}
             enabled={Boolean(gsb.enabled)}
             onToggle={updateGatherBuff}
@@ -1137,21 +1143,21 @@ function TaskTabContentInner({
     const trLevels = (tr as any).levels || { infantry: 0, cavalry: 0, archers: 0, chariots: 0 }
 
     type BarracksKey = 'infantry' | 'cavalry' | 'archers' | 'chariots'
-    const activeList = (Object.keys(trLevels) as BarracksKey[]).filter(k => (Number(trLevels[k]) || 0) > 0)
-    const unusedTypes = BARRACKS_TYPES.filter(b => !activeList.includes(b.key as BarracksKey))
 
+    // مستوى 0 = هذا النوع غير مفعّل للتدريب (نفس نموذج البيانات السابق: train.levels)
     const setLevel = (key: BarracksKey, lv: number) => {
+      if (lv > 0) lastTrainLevelRef.current[key] = lv
       update('train', { levels: { ...trLevels, [key]: lv } } as any)
     }
 
-    const removeBarracks = (key: BarracksKey) => {
-      update('train', { levels: { ...trLevels, [key]: 0 } } as any)
-    }
-
-    const addBarracks = () => {
-      if (unusedTypes.length === 0) return
-      const next = unusedTypes[0]
-      update('train', { levels: { ...trLevels, [next.key]: 1 } } as any)
+    // توقيف مباشر بضغطة واحدة؛ عند إعادة التشغيل يعود المستوى السابق (أو 1)
+    const toggleTroop = (key: BarracksKey, on: boolean) => {
+      if (on) {
+        setLevel(key, lastTrainLevelRef.current[key] || 1)
+      } else {
+        lastTrainLevelRef.current[key] = Number(trLevels[key]) || 1
+        setLevel(key, 0)
+      }
     }
 
     return (
@@ -1165,111 +1171,65 @@ function TaskTabContentInner({
           onToggle={toggle('train')}
           comingSoon={false}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '2px' }}>
-            {/* بطاقات الثكنات النشطة */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {activeList.map((key, idx) => {
-                return (
-                  <div key={key} className="task-barracks-card" style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.10)',
-                    borderRadius: '10px', padding: '9px 11px',
-                  }}>
-                    {/* ترويسة البطاقة */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-                        <span style={{ color: '#9ca3af', fontSize: '12px', fontWeight: 600 }}>{t('tasks.troops')} #{idx + 1}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeBarracks(key)}
-                        style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-
-                    {/* محدد النوع العسكري — 4 أزرار متجاورة مع تعطيل الأنواع المختارة في بطاقات أخرى */}
-                    <SectionLabel text={t('tasks.troopType')} />
-                    <div className="gap-2 grid grid-cols-2 sm:grid-cols-4 mb-3">
-                      {BARRACKS_TYPES.map(b => {
-                        const isSelected = b.key === key
-                        const isUsedElsewhere = !isSelected && activeList.includes(b.key as BarracksKey)
-                        return (
-                          <button
-                            key={b.key}
-                            type="button"
-                            disabled={isUsedElsewhere}
-                            className={clsx('task-troop-btn', isSelected ? 'selected' : 'unselected', isUsedElsewhere && 'used-elsewhere')}
-                            onClick={() => {
-                              if (isUsedElsewhere) return
-                              const newLevels = { ...trLevels, [key]: 0, [b.key]: trLevels[key] || 1 }
-                              update('train', { levels: newLevels } as any)
-                            }}
-                            style={{
-                              width: '100%',
-                              minHeight: '42px',
-                              padding: '7px 6px', borderRadius: '9px',
-                              border: isSelected ? '1.5px solid rgba(var(--theme-primary-rgb),0.6)' : '1px solid rgba(255,255,255,0.10)',
-                              background: isSelected ? 'rgba(var(--theme-primary-rgb),0.12)' : 'rgba(255,255,255,0.04)',
-                              color: isSelected ? 'var(--theme-primary-light)' : isUsedElsewhere ? '#374151' : '#9ca3af',
-                              fontSize: '12px', fontWeight: isSelected ? 600 : 500,
-                              cursor: isUsedElsewhere ? 'not-allowed' : 'pointer',
-                              fontFamily: 'inherit',
-                              opacity: isUsedElsewhere ? 0.38 : 1,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                            }}
-                          >
-                            {(b as any).img ? (
-                              <img
-                                src={(b as any).img}
-                                alt=""
-                                style={{
-                                  width: '20px',
-                                  height: '20px',
-                                  objectFit: 'contain',
-                                  flexShrink: 0,
-                                }}
-                                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                              />
-                            ) : (
-                              <span>{b.emoji}</span>
-                            )}
-                            <span>{t(b.labelKey)}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-
-                    {/* عداد الرتبة المستقل لهذه الثكنة فقط */}
-                    <div className="flex flex-wrap justify-between items-center gap-2.5 pt-1">
-                      <SectionLabel text={t('common.level')} noMargin />
-                      <Stepper value={Number(trLevels[key]) || 1} min={1} max={10} onChange={v => setLevel(key, v)} />
-                    </div>
+          {/* 4 صفوف ثابتة (نوع واحد لكل صف): عدّاد المستوى من 0 (متوقف) إلى 10 */}
+          {/* عند إلغاء التدريب ككل: كل الصفوف مقفلة وباهتة حتى يُعاد تفعيله */}
+          <div
+            inert={!tr.enabled}
+            aria-disabled={!tr.enabled}
+            style={{
+              display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '2px',
+              opacity: tr.enabled ? 1 : 0.45,
+              pointerEvents: tr.enabled ? 'auto' : 'none',
+              filter: tr.enabled ? 'none' : 'grayscale(0.6)',
+            }}
+          >
+            {BARRACKS_TYPES.map(b => {
+              const key = b.key as BarracksKey
+              const level = Number(trLevels[key]) || 0
+              const isOn = level > 0
+              return (
+                <div
+                  key={key}
+                  className={clsx(
+                    'flex items-center justify-between gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 border rounded-xl',
+                    isOn
+                      ? 'bg-primary-500/10 border-primary-500/40'
+                      : 'bg-gray-50 dark:bg-white/[0.04] border-gray-200 dark:border-white/10'
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                    <img
+                      src={b.img}
+                      alt=""
+                      style={{ width: '22px', height: '22px', objectFit: 'contain', flexShrink: 0, opacity: isOn ? 1 : 0.55 }}
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                    <span
+                      className={clsx(
+                        'font-semibold text-xs truncate',
+                        isOn ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'
+                      )}
+                    >
+                      {t(b.labelKey)}
+                    </span>
                   </div>
-                )
-              })}
-            </div>
-
-            {/* زر إضافة نوع قوات متبقٍ */}
-            {unusedTypes.length > 0 && (
-              <button
-                type="button"
-                onClick={addBarracks}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                  width: '100%', padding: '9px 12px', minHeight: '42px',
-                  borderRadius: '10px', border: '1px dashed rgba(var(--theme-primary-rgb),0.3)',
-                  background: 'rgba(var(--theme-primary-rgb),0.05)',
-                  color: 'var(--theme-primary-light)', fontSize: '12px', fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                <Plus size={14} />
-                {t('tasks.addTroopType')}
-              </button>
-            )}
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    {isOn ? (
+                      <Stepper
+                        compact
+                        value={level}
+                        min={1}
+                        max={10}
+                        onChange={v => setLevel(key, v)}
+                      />
+                    ) : (
+                      <span className="text-[11px] text-gray-400 dark:text-gray-500">{t('tasks.troopOff')}</span>
+                    )}
+                    <Toggle value={isOn} onChange={on => toggleTroop(key, on)} size="sm" disabled={!tr.enabled} />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </TaskRow>
       </div>
@@ -1405,7 +1365,7 @@ function TaskTabContentInner({
           }}
         >
           <SectionLabel text={t('tasks.formation', 'تشكيلة')} />
-          <div className="gap-2 grid grid-cols-2 sm:grid-cols-4">
+          <div className="gap-1.5 sm:gap-2 grid grid-cols-4">
             {FORMATION_SLOTS.map(slot => {
               const isSelected = activeFormationId === slot.id
               return (
@@ -1415,8 +1375,8 @@ function TaskTabContentInner({
                   onClick={() => setCombatFormation(slot.id)}
                   className={clsx('task-res-card', isSelected ? 'selected' : 'unselected')}
                   style={{
-                    minHeight: '58px',
-                    padding: '8px 6px',
+                    minHeight: '52px',
+                    padding: '7px 4px',
                     borderRadius: '10px',
                     border: isSelected
                       ? '1.5px solid rgba(var(--theme-primary-rgb),0.65)'
@@ -1444,7 +1404,8 @@ function TaskTabContentInner({
                       color: isSelected ? 'var(--theme-primary-light)' : '#9ca3af',
                     }}
                   >
-                    {t('tasks.formation', 'تشكيلة')} {slot.id}
+                    <span className="sm:hidden">{slot.id}</span>
+                    <span className="hidden sm:inline">{t('tasks.formation', 'تشكيلة')} {slot.id}</span>
                   </span>
                 </button>
               )
@@ -1631,7 +1592,7 @@ function TaskTabContentInner({
             </div>
 
             {/* شبكة بطاقات الموارد الخمسة */}
-            <div className="gap-2 grid grid-cols-3 sm:grid-cols-5">
+            <div className="gap-1.5 sm:gap-2 grid grid-cols-5">
               {WATERMILL_BOOST_RESOURCES.map(r => {
                 const isSelected = selectedRes.includes(r.key)
                 return (
@@ -1644,9 +1605,9 @@ function TaskTabContentInner({
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '6px',
-                      minHeight: '62px',
-                      padding: '9px 6px',
+                      gap: '5px',
+                      minHeight: '58px',
+                      padding: '8px 2px',
                       borderRadius: '10px',
                       border: isSelected
                         ? '1.5px solid rgba(var(--theme-primary-rgb),0.6)'
@@ -1670,7 +1631,7 @@ function TaskTabContentInner({
                       }}
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                     />
-                    <span style={{ fontSize: '11.5px', fontWeight: isSelected ? 600 : 500 }}>
+                    <span style={{ fontSize: '10.5px', fontWeight: isSelected ? 600 : 500, whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {t(r.resKey)}
                     </span>
                   </button>
@@ -1814,7 +1775,7 @@ function TaskTabContentInner({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '4px' }}>
             {/* إدخال الإحداثيات X و Y (أكبر من 0 فقط) */}
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ color: '#9ca3af', fontSize: '12px', fontWeight: 700, minWidth: '14px' }}>X</span>
                   <input
@@ -1827,9 +1788,10 @@ function TaskTabContentInner({
                     className="text-base sm:text-sm"
                     style={{
                       width: '100%',
-                      minHeight: '42px',
-                      padding: '8px 10px',
-                      borderRadius: '10px',
+                      height: '32px',
+                      minHeight: '32px',
+                      padding: '3px 8px',
+                      borderRadius: '8px',
                       background: 'rgba(0,0,0,0.35)',
                       border: !isXValid
                         ? '1px solid rgba(239,68,68,0.65)'
@@ -1853,9 +1815,10 @@ function TaskTabContentInner({
                     className="text-base sm:text-sm"
                     style={{
                       width: '100%',
-                      minHeight: '42px',
-                      padding: '8px 10px',
-                      borderRadius: '10px',
+                      height: '32px',
+                      minHeight: '32px',
+                      padding: '3px 8px',
+                      borderRadius: '8px',
                       background: 'rgba(0,0,0,0.35)',
                       border: !isYValid
                         ? '1px solid rgba(239,68,68,0.65)'
@@ -1879,13 +1842,14 @@ function TaskTabContentInner({
             {/* اختيار الموارد المراد المساعدة بها */}
             <div>
               <SectionLabel text={t('tasks.resourceType', 'نوع المورد')} />
-              <div className="gap-2 grid grid-cols-3 sm:grid-cols-5">
+              <div className="gap-1.5 sm:gap-2 grid grid-cols-5">
                 {TRANSPORT_RESOURCES.map(r => (
                   <ResCard
                     key={r.id}
                     img={r.img}
                     label={t(r.resKey)}
                     selected={selectedIds.includes(r.id)}
+                    iconSize={26}
                     onClick={() => toggleHelpResource(r.id)}
                   />
                 ))}
@@ -1977,7 +1941,7 @@ function TaskTabContentInner({
 
             {/* الحيوان المستهدف للإطعام المجاني */}
             <div>
-              <div className="gap-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 pt-1">
+              <div className="gap-1.5 sm:gap-2 grid grid-cols-4 md:grid-cols-6 pt-1">
                 {PET_TARGETS.map(p => {
                   const isSelected = (cfg.pet?.target_pet === p.id) ||
                                      (!cfg.pet?.target_pet && (p.id as number) === 1256)
@@ -1986,7 +1950,7 @@ function TaskTabContentInner({
                       key={p.id}
                       type="button"
                       className={clsx(
-                        'flex items-center gap-2 px-2.5 py-2 rounded-xl min-h-[44px] text-start select-none task-pet-btn',
+                        'flex flex-col sm:flex-row items-center gap-1 sm:gap-2 px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl min-h-[44px] text-center sm:text-start select-none task-pet-btn',
                         isSelected
                           ? 'border-[1.5px] border-primary-500/80 bg-primary-500/15 text-primary-600 dark:text-primary-300 ring-1 ring-primary-500/40 font-semibold'
                           : 'border border-gray-200 dark:border-white/10 bg-gray-50/70 dark:bg-white/[0.03] text-gray-700 dark:text-gray-300 font-normal'
@@ -2002,7 +1966,7 @@ function TaskTabContentInner({
                           className="drop-shadow-xs w-full h-full object-contain select-none filter"
                         />
                       </div>
-                      <span className="flex-1 text-xs truncate leading-tight">
+                      <span className="sm:flex-1 w-full sm:w-auto text-[10px] sm:text-xs text-center sm:text-start truncate leading-tight">
                         {t(p.labelKey, p.name)}
                       </span>
                     </button>
@@ -2750,12 +2714,12 @@ function TaskTabContentInner({
     }
 
     const supportBuildingOptions = [
-      { key: 'farm',          nameKey: 'tasks.bldFarm',         bid: '201', img: '/images/development/camps/tahilmaden.png' },
-      { key: 'sawmill',       nameKey: 'tasks.bldSawmill',      bid: '202', img: '/images/development/camps/odunmaden.png' },
-      { key: 'iron_mine',     nameKey: 'tasks.bldIronMine',     bid: '203', img: '/images/development/camps/demirmaden.png' },
-      { key: 'quartz_mine',   nameKey: 'tasks.bldQuartzMine',   bid: '204', img: '/images/development/camps/kuvarsmaden.png' },
-      { key: 'hospital',      nameKey: 'tasks.bldHospital',     bid: '206', img: '/images/development/camps/aramayi_tamamla.png' },
-      { key: 'military_tent', nameKey: 'tasks.bldMilitaryTent', bid: '205', img: '/images/development/camps/egitimcadiri.png' },
+      { key: 'farm',          nameKey: 'tasks.bldFarm',         bid: '201', img: '/images/gather/map_food.png' },
+      { key: 'sawmill',       nameKey: 'tasks.bldSawmill',      bid: '202', img: '/images/gather/map_wood.png' },
+      { key: 'iron_mine',     nameKey: 'tasks.bldIronMine',     bid: '203', img: '/images/gather/map_iron.png' },
+      { key: 'quartz_mine',   nameKey: 'tasks.bldQuartzMine',   bid: '204', img: '/images/gather/map_silver.png' },
+      { key: 'hospital',      nameKey: 'tasks.bldHospital',     bid: '206', img: '/images/development/camps/hospital_tent.png' },
+      { key: 'military_tent', nameKey: 'tasks.bldMilitaryTent', bid: '205', img: '/images/development/camps/military_tent.png' },
     ]
 
     const activeBuildingsCount = Object.values(targetBuildings).filter(Boolean).length
@@ -2895,7 +2859,7 @@ function TaskTabContentInner({
                     background: 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     border: '1px solid rgba(255,255,255,0.08)', flexShrink: 0,
                   }}>
-                    <img src="/images/development/camps/egitimcadiri.png" alt="" style={{ width: '20px', height: '16px', objectFit: 'contain' }} />
+                    <img src="/images/development/camps/military_tent.png" alt="" style={{ width: '22px', height: '20px', objectFit: 'contain' }} />
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ color: '#f0fdf4', fontWeight: 600, fontSize: '12px' }}>{t('tasks.upgradeSupportBuildings')}</div>
@@ -2993,15 +2957,15 @@ function TaskTabContentInner({
                     </div>
                   </div>
 
-                  {/* الشبكة التفاعلية للمباني الـ 6 */}
-                  <div className="gap-2 grid grid-cols-2 sm:grid-cols-3">
+                  {/* الشبكة التفاعلية للمباني الـ 6 (سطران × 3 أعمدة) */}
+                  <div className="gap-1.5 sm:gap-2 grid grid-cols-3">
                     {supportBuildingOptions.map(b => {
                       const isSelected = Boolean(targetBuildings[b.key as keyof typeof targetBuildings] ?? true)
                       return (
                         <button
                           key={b.key}
                           type="button"
-                          className={clsx('relative flex flex-col justify-between items-center p-2 rounded-xl cursor-pointer task-support-bld-card', isSelected ? 'selected' : 'unselected')}
+                          className={clsx('relative flex flex-col justify-center items-center p-2 rounded-xl cursor-pointer min-w-0 task-support-bld-card', isSelected ? 'selected' : 'unselected')}
                           onClick={() => toggleTargetBuilding(b.key)}
                           style={{
                             background: isSelected
@@ -3010,35 +2974,21 @@ function TaskTabContentInner({
                             border: isSelected
                               ? '1.5px solid rgba(var(--theme-primary-rgb),0.45)'
                               : '1px solid rgba(255,255,255,0.06)',
-                            borderRadius: '10px',
                             opacity: isSelected ? 1 : 0.45,
                             fontFamily: 'inherit',
-                            minHeight: '68px',
                           }}
                         >
-
-                          <div style={{
-                            width: '44px',
-                            height: '30px',
-                            background: isSelected ? 'rgba(var(--theme-primary-rgb),0.15)' : 'rgba(255,255,255,0.04)',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            border: isSelected ? '1px solid rgba(var(--theme-primary-rgb),0.3)' : '1px solid rgba(255,255,255,0.06)',
-                          }}>
-                            <img src={b.img} alt={t(b.nameKey)} style={{ width: '34px', height: '24px', objectFit: 'contain' }} />
-                          </div>
+                          <img
+                            src={b.img}
+                            alt={t(b.nameKey)}
+                            className="w-11 h-10 sm:w-12 sm:h-11 object-contain shrink-0 select-none"
+                          />
 
                           <span
-                            className="task-support-bld-name"
+                            className="mt-1 w-full text-center leading-tight text-[11px] sm:text-xs truncate task-support-bld-name"
                             style={{
                               color: isSelected ? '#f0fdf4' : '#9ca3af',
-                              fontSize: '11px',
                               fontWeight: isSelected ? 600 : 500,
-                              textAlign: 'center',
-                              lineHeight: 1.2,
-                              marginTop: '4px',
                             }}
                           >
                             {t(b.nameKey)}
@@ -3056,7 +3006,7 @@ function TaskTabContentInner({
         {/* أبحاث المعهد (البحث الموصى به) */}
         <TaskRow
           id="research"
-          img="/images/development/arastir.png"
+          img="/images/development/icon_building_research.png"
           label={t('tasks.conductResearch')}
           enabled={Boolean(cfg.research?.enabled)}
           onToggle={toggle('research')}
@@ -3514,7 +3464,7 @@ function TaskTabContentInner({
         {/* الدرع التلقائي (Peace Shield) */}
         <TaskRow
           id="shield"
-          img="/images/daily/kalkan.png"
+          img="/images/development/peace_shield.png"
           label={t('tasks.peaceShield')}
           summary={`${sh.duration === '24h' ? t('tasks.hours24') : sh.duration === '3d' ? t('tasks.days3') : t('tasks.hours8')} • ${sh.allow_gold ? t('tasks.summaryWithGold', 'شراء بالذهب') : t('tasks.summaryNoGold', 'بدون ذهب')}`}
           enabled={Boolean(sh.enabled)}

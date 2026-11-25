@@ -8,7 +8,7 @@ api_server.py — خادم FastAPI لإدارة ومراقبة بوتات انت
 
 التشغيل:
   python api_server.py
-  python api_server.py --port 8080
+  python api_server.py --port 8765
 ═════════════════════════════════════════════════════════════════════════════════════
 """
 
@@ -64,6 +64,7 @@ import core.database as db
 from core.tenants import (
     get_all_merchants,
     get_tenant_by_domain,
+    get_tenant_by_id,
     get_tenant_by_admin_email,
     is_merchant_admin,
     is_super_admin,
@@ -217,6 +218,8 @@ def _collect_eligible_castles() -> List[Dict[str, Any]]:
     """جمع جميع الحسابات المؤهلة للتشغيل التدريجي (موافق عليها + اشتراك صالح + نشطة + غير محظورة)."""
     eligible: List[Dict[str, Any]] = []
     sub_cache: Dict[str, Tuple[bool, str]] = {}
+    user_cache: Dict[str, Optional[Dict[str, Any]]] = {}
+    per_user_eligible_count: Dict[str, int] = defaultdict(int)
     for c in db.get_all_castles():
         cid = str(c.get("castle_id", "")).strip()
         uid = str(c.get("user_id", "")).strip()
@@ -234,6 +237,14 @@ def _collect_eligible_castles() -> List[Dict[str, Any]]:
                 sub_cache[uid] = db.check_user_subscription_db(uid)
             if not sub_cache[uid][0]:
                 continue
+            if uid not in user_cache:
+                user_cache[uid] = db.get_user(uid)
+            owner = user_cache[uid]
+            if owner and not is_super_admin(owner):
+                max_allowed = max(0, int(owner.get("max_castles") or 0))
+                if per_user_eligible_count[uid] >= max_allowed:
+                    continue
+                per_user_eligible_count[uid] += 1
         raw_cfg = c.get("config") or {}
         if isinstance(raw_cfg, str):
             try:
@@ -246,6 +257,7 @@ def _collect_eligible_castles() -> List[Dict[str, Any]]:
             "email": em,
             "password": c.get("password", ""),
             "config": raw_cfg,
+            "loop_interval": db.normalize_loop_interval(c.get("loop_interval")),
         })
     return eligible
 
@@ -271,6 +283,7 @@ async def _launch_castle_via_manager(castle: Dict[str, Any]) -> bool:
         password=castle.get("password", ""),
         castle_id=cid,
         user_id=uid,
+        loop_interval=castle.get("loop_interval"),
         log_callback=lambda m, cid_ref=cid, em_ref=em: (
             _push_log(cid_ref, m),
             _push_log(em_ref, m) if cid_ref != em_ref else None,
@@ -393,6 +406,7 @@ async def _handle_auto_resume() -> None:
                 "email": c.get("email", item.get("email", "")),
                 "password": c.get("password", ""),
                 "config": raw_cfg,
+                "loop_interval": db.normalize_loop_interval(c.get("loop_interval")),
             })
 
         if not eligible_to_resume:
@@ -451,7 +465,7 @@ app = FastAPI(
 
 _cors_origins_env = os.environ.get(
     "CORS_ORIGINS",
-    "http://localhost,http://localhost:80,http://localhost:81,http://localhost:5173,http://localhost:3000,http://localhost:8000,http://localhost:8001,http://localhost:8080,http://127.0.0.1,http://127.0.0.1:80,http://127.0.0.1:81,http://127.0.0.1:5173,http://127.0.0.1:3000,http://127.0.0.1:8000,http://127.0.0.1:8001,http://127.0.0.1:8080"
+    "https://sultan.ibraabot.online,http://sultan.ibraabot.online,https://www.sultan.ibraabot.online,http://localhost,http://localhost:80,http://localhost:81,http://localhost:5173,http://localhost:3000,http://localhost:8000,http://localhost:8001,http://localhost:8765,http://127.0.0.1,http://127.0.0.1:80,http://127.0.0.1:81,http://127.0.0.1:5173,http://127.0.0.1:3000,http://127.0.0.1:8000,http://127.0.0.1:8001,http://127.0.0.1:8765"
 )
 _allowed_origins = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
 
@@ -813,6 +827,10 @@ class CastleConfigModel(BaseModel):
 class CastleUpdateRequest(BaseModel):
     castle_name: Optional[str] = None
     config: Optional[CastleConfigModel] = None
+    loop_interval: Optional[int] = None
+
+class CastlesLoopIntervalsRequest(BaseModel):
+    intervals: Dict[str, int]
 
 class CastleCredentialsRequest(BaseModel):
     email: str
@@ -827,7 +845,7 @@ class BotStartPayload(BaseModel):
     email: str
     password: Optional[str] = ""
     config: Optional[Dict[str, Any]] = None
-    loop_interval: Optional[int] = 60
+    loop_interval: Optional[int] = None
 
 class AdminApproveUserPayload(BaseModel):
     days: Optional[int] = 3
@@ -840,6 +858,10 @@ class AdminUpdateSubscriptionPayload(BaseModel):
     expires_at: Optional[str] = None
     max_castles_allowed: Optional[int] = None
     days: Optional[int] = None
+
+class AdminBanUserPayload(BaseModel):
+    is_banned: Optional[bool] = None
+    reason: Optional[str] = ""
 
 class SendCmdPayload(BaseModel):
     email: str
@@ -873,31 +895,47 @@ def root():
 
 @app.get("/api/manifest.json")
 @app.get("/manifest.json")
-def get_manifest():
-    """توفير ملف manifest.json لتطبيق الـ PWA"""
-    manifest_path = os.path.join(_ROOT, "dashboard", "public", "manifest.json")
-    if os.path.exists(manifest_path):
-        try:
-            with open(manifest_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {
-        "name": "Empire Bot",
-        "short_name": "Empire Bot",
+def get_manifest(request: Request, tenant: Optional[str] = Query(None)):
+    """توفير ملف manifest.json ديناميكياً لتطبيق الـ PWA بحسب النطاق أو التاجر"""
+    if tenant:
+        t_cfg = get_tenant_by_id(tenant)
+    else:
+        host = (
+            request.headers.get("x-tenant-domain")
+            or request.headers.get("x-forwarded-host")
+            or request.headers.get("host")
+            or ""
+        )
+        t_cfg = get_tenant_by_domain(host)
+
+    icons_cfg = t_cfg.get("pwa_icons") or {}
+    brand = t_cfg.get("brand_name") or "IBRA BOT"
+    manifest_payload = {
+        "id": "/",
+        "name": brand,
+        "short_name": brand,
+        "description": t_cfg.get("tagline") or brand,
         "start_url": "/",
         "scope": "/",
         "display": "standalone",
         "orientation": "portrait-primary",
         "background_color": "#0a0f0a",
-        "theme_color": "#10b981",
+        "theme_color": t_cfg.get("primary_color") or "#10b981",
+        "lang": t_cfg.get("default_language") or "ar",
+        "dir": "ltr",
+        "categories": ["utilities", "productivity"],
         "icons": [
-            {"src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
-            {"src": "/pwa-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
-            {"src": "/pwa-maskable-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
-            {"src": "/pwa-maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
-        ]
+            {"src": icons_cfg.get("any_192", "/pwa-192x192.png"), "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": icons_cfg.get("any_512", "/pwa-512x512.png"), "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": icons_cfg.get("maskable_192", "/pwa-maskable-192x192.png"), "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+            {"src": icons_cfg.get("maskable_512", "/pwa-maskable-512x512.png"), "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
     }
+    return JSONResponse(
+        content=manifest_payload,
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "no-cache, must-revalidate"},
+    )
 # ══════════════════════════════════════════════════════════════════
 # 2. إدارة المستخدمين والملف الشخصي (Users APIs)
 # ══════════════════════════════════════════════════════════════════
@@ -906,7 +944,10 @@ def get_manifest():
 @app.get("/api/user/profile")
 def get_user_profile(current_user: Dict[str, Any] = Depends(get_current_user)):
     """جلب بيانات الملف الشخصي للمستخدم الحالي"""
-    return {"status": "ok", "user": current_user}
+    user_out = dict(current_user)
+    if user_out.get("uid"):
+        user_out.update(db.get_user_castle_counts(user_out["uid"]))
+    return {"status": "ok", "user": user_out}
 
 @app.post("/api/users/register")
 @app.post("/api/user/register")
@@ -1015,12 +1056,13 @@ def _hydrate_castle_runtime_state(castle_obj: Dict[str, Any], bot: Optional[Any]
         castle_obj["conn_message"] = castle_obj["status_message"]
         castle_obj["next_run_time"] = live.get("next_run_time", castle_obj.get("next_run_time"))
     else:
-        if castle_obj.get("conn_state") == "error" or castle_obj.get("state") == "error":
+        raw_state = str(castle_obj.get("state") or "").strip().lower()
+        if castle_obj.get("conn_state") == "error" or raw_state == "error":
             castle_obj["state"] = "error"
             castle_obj["conn_state"] = "error"
             if "كلمة" in str(castle_obj.get("status_message", "")) or "password" in str(castle_obj.get("status_message", "")).lower():
                 castle_obj["is_password_error"] = True
-        elif castle_obj.get("conn_state") == "sealed" or castle_obj.get("state") == "sealed":
+        elif castle_obj.get("conn_state") == "sealed" or raw_state == "sealed":
             castle_obj["state"] = "sealed"
             castle_obj["conn_state"] = "sealed"
             castle_obj["is_sealed"] = True
@@ -1028,6 +1070,12 @@ def _hydrate_castle_runtime_state(castle_obj: Dict[str, Any], bot: Optional[Any]
             castle_obj["seal_type"] = s_type
             castle_obj["seal_reason"] = s_reason
             castle_obj["conn_message"] = castle_obj.get("status_message")
+        elif raw_state == "rejected":
+            castle_obj["state"] = "rejected"
+            castle_obj["conn_state"] = "idle"
+        elif raw_state == "pending" or not bool(castle_obj.get("is_active", True)):
+            castle_obj["state"] = "pending"
+            castle_obj["conn_state"] = "idle"
         else:
             castle_obj["state"] = "idle"
             castle_obj["conn_state"] = "idle"
@@ -1084,12 +1132,23 @@ def get_castle_detail(castle_id: str, current_user: Dict[str, Any] = Depends(get
 def create_castle(req: CastleCreateRequest, current_user: Dict[str, Any] = Depends(get_current_user)):
     """إضافة حساب قلعة جديد إلى النظام"""
     uid = current_user.get("uid", "admin_default")
+    is_admin = is_super_admin(current_user)
+    if not is_admin and current_user.get("is_banned"):
+        raise HTTPException(status_code=403, detail="حسابك محظور من قبل الإدارة، لا يمكنك إضافة قلاع جديدة")
+
     clean_email = (req.email or "").strip()
     if db.castle_exists_by_email(clean_email):
         raise HTTPException(status_code=400, detail="هذا البريد الإلكتروني مسجل مسبقاً في النظام")
 
-    # إذا توفرت كلمة المرور، نحاول توثيق الحساب فوراً واستخراج الجلسة عبر البروكسي المعتمد
-    if clean_email and req.password:
+    is_pending = False
+    if not is_admin:
+        is_sub_valid, _ = db.check_user_subscription_db(uid)
+        max_castles = max(0, int(current_user.get("max_castles") or 0))
+        active_count = db.count_user_active_castles(uid)
+        is_pending = (not is_sub_valid) or (active_count >= max_castles)
+
+    # إذا توفرت كلمة المرور ولم تكن القلعة معلقة، نحاول توثيق الحساب فوراً واستخراج الجلسة عبر البروكسي المعتمد
+    if not is_pending and clean_email and req.password:
         try:
             from core.game_client import sdk_login
             from proxy import get_proxy_for_account, is_proxy_enabled
@@ -1114,6 +1173,10 @@ def create_castle(req: CastleCreateRequest, current_user: Dict[str, Any] = Depen
         castle_name=req.castle_name or "",
         config={},
         castle_id=req.castle_id,
+        is_active=not is_pending,
+        state="pending" if is_pending else "idle",
+        conn_state="idle",
+        status_message="بانتظار موافقة الإدارة لتفعيل القلعة" if is_pending else "جاهز للتشغيل",
     )
     try:
         from proxy import sync_castle_proxy_index
@@ -1121,6 +1184,40 @@ def create_castle(req: CastleCreateRequest, current_user: Dict[str, Any] = Depen
     except Exception:
         pass
     return {"status": "ok", "castle": created}
+
+@app.put("/api/castles/loop-intervals")
+def update_castles_loop_intervals_endpoint(
+    req: CastlesLoopIntervalsRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """تحديث مدة دورة البوت (loop_interval) لمجموعة قلاع دفعة واحدة وتطبيقها فوراً على البوتات النشطة."""
+    uid = current_user.get("uid", "")
+    is_admin = is_super_admin(current_user)
+
+    if not req.intervals:
+        return {"status": "ok", "message": "لا توجد تعديلات"}
+
+    target_uid = None if is_admin else uid
+    ok = db.update_castles_loop_interval(req.intervals, user_id=target_uid)
+    if not ok:
+        raise HTTPException(status_code=500, detail="فشل تحديث أوقات دورات القلاع")
+
+    # تحديث فوري للبوتات الشغالة حالياً لتطبيق المدة الجديدة بدءاً من الدورة القادمة دون إعادة تشغيل
+    live_updated = 0
+    for cid in req.intervals.keys():
+        c_rec = db.get_castle_by_id(str(cid), target_uid)
+        if c_rec and c_rec.get("email"):
+            bot = bot_manager.get_bot(c_rec["email"])
+            if bot:
+                bot.reload_config_from_db()
+                live_updated += 1
+
+    return {
+        "status": "ok",
+        "message": "تم تحديث أوقات دورات القلاع بنجاح",
+        "live_updated": live_updated,
+    }
+
 
 @app.put("/api/castles/{castle_id}")
 def update_castle(castle_id: str, req: CastleUpdateRequest, current_user: Dict[str, Any] = Depends(get_current_user)):
@@ -1133,6 +1230,9 @@ def update_castle(castle_id: str, req: CastleUpdateRequest, current_user: Dict[s
     updates = {}
     if req.castle_name is not None:
         updates["castle_name"] = req.castle_name
+
+    if req.loop_interval is not None:
+        updates["loop_interval"] = db.normalize_loop_interval(req.loop_interval)
 
     if req.config is not None:
         # دالة _row_to_castle في database.py تعيد config كـ dict جاهز دائماً
@@ -1208,6 +1308,18 @@ def toggle_castle_active(castle_id: str, req: CastleToggleRequest, current_user:
     castle = db.get_castle_by_id(castle_id, None if is_admin else current_user["uid"])
     if not castle:
         raise HTTPException(status_code=404, detail="القلعة غير موجودة")
+
+    if not is_admin and req.is_active:
+        if str(castle.get("state") or "").strip().lower() in ("pending", "rejected"):
+            raise HTTPException(status_code=403, detail="هذه القلعة بانتظار موافقة الإدارة ولا يمكن تفعيلها يدوياً")
+        if not castle.get("is_active"):
+            active_count = db.count_user_active_castles(current_user["uid"])
+            max_castles = max(0, int(current_user.get("max_castles") or 0))
+            if active_count >= max_castles:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"وصلت للحد الأقصى من القلاع المسموح بها في باقتك ({max_castles})",
+                )
 
     db.toggle_castle_active(castle_id, req.is_active, None if is_admin else current_user["uid"])
     return {"status": "ok", "is_active": req.is_active}
@@ -1301,11 +1413,46 @@ async def start_bot_api(payload: BotStartPayload, current_user: Dict[str, Any] =
     # التحقق من أن القلعة موجودة ومفعلة
     c = db.get_castle_by_id(cid) or db.get_castle_by_id(email)
     if not c:
-        # إذا لم تكن موجودة، ننشئها تلقائياً بالبريد المحدد
+        if not is_super_admin(current_user):
+            raise HTTPException(status_code=404, detail="القلعة غير موجودة")
+        # للمشرف فقط: إذا لم تكن موجودة، ننشئها تلقائياً بالبريد المحدد
         c = db.create_castle_db(user_id=current_user["uid"], email=email, castle_id=cid)
 
-    if not c.get("is_active"):
+    if not c.get("is_active") or str(c.get("state") or "").strip().lower() in ("pending", "rejected"):
         raise HTTPException(status_code=403, detail="هذه القلعة مجمدة أو غير مفعلة حالياً")
+
+    # فرض حد الحصة (max_castles) على عدد البوتات النشطة لنفس المالك
+    owner_uid = str(c.get("user_id") or current_user.get("uid") or "").strip()
+    owner = db.get_user(owner_uid) if owner_uid else None
+    if owner and not is_super_admin(owner):
+        max_allowed = max(0, int(owner.get("max_castles") or 0))
+        owner_castles = db.get_user_castles_summary(owner_uid)
+        owner_emails = {str(oc.get("email") or "").strip().lower() for oc in owner_castles if oc.get("email")}
+        owner_cids = {str(oc.get("castle_id") or "").strip() for oc in owner_castles if oc.get("castle_id")}
+        current_em = str(c.get("email") or email or "").strip().lower()
+        current_cid = str(c.get("castle_id") or cid or "").strip()
+        running_other_count = 0
+        for b_em, bot in list(bot_manager.bots.items()):
+            norm_em = str(b_em or "").strip().lower()
+            b_cid = str(getattr(bot, "castle_id", "") or "").strip()
+            if norm_em == current_em or (b_cid and b_cid == current_cid):
+                continue
+            b_uid = str(getattr(bot, "user_id", "") or "").strip()
+            belongs_to_owner = (
+                (b_uid and b_uid == owner_uid)
+                or norm_em in owner_emails
+                or (b_cid and b_cid in owner_cids)
+            )
+            if not belongs_to_owner:
+                continue
+            task = bot_manager.tasks.get(b_em)
+            if getattr(bot, "is_running", False) or (task and not task.done()):
+                running_other_count += 1
+        if running_other_count >= max_allowed:
+            raise HTTPException(
+                status_code=403,
+                detail=f"وصلت للحد الأقصى من القلاع المسموح بها في باقتك ({max_allowed})",
+            )
 
     # تكوين الإعدادات المدمجة
     effective_config = copy.deepcopy(c.get("config") or {})
@@ -1325,12 +1472,16 @@ async def start_bot_api(payload: BotStartPayload, current_user: Dict[str, Any] =
 
     # إطلاق البوت عبر bot_manager مع تمرير كلمة المرور ومعرّف القلعة والمستخدم وكولباك السجلات
     pwd = payload.password or (c.get("password") if c else "")
+    target_interval = db.normalize_loop_interval(
+        c.get("loop_interval") if c and c.get("loop_interval") is not None else payload.loop_interval
+    )
     started = await bot_manager.start_bot(
         email,
         config=effective_config,
         password=pwd,
         castle_id=target_cid,
         user_id=c.get("user_id") or current_user.get("uid"),
+        loop_interval=target_interval,
         log_callback=lambda m, cid_ref=target_cid, em_ref=email: (
             _push_log(cid_ref, m),
             _push_log(em_ref, m) if cid_ref != em_ref else None
@@ -1363,6 +1514,7 @@ async def stop_bot_api(castle_id: str, current_user: Dict[str, Any] = Depends(ge
         state="idle",
         status_message="متوقف بناءً على طلب المستخدم",
     )
+    _invalidate_ws_status_cache([castle_id])
     return {"status": "stopped", "castle_id": castle_id, "email": email}
 
 @app.post("/api/bots/stop-user/{user_id}")
@@ -1403,6 +1555,9 @@ async def start_all_bots_api(current_user: Dict[str, Any] = Depends(require_admi
                 em,
                 config=c.get("config"),
                 password=c.get("password", ""),
+                castle_id=cid,
+                user_id=c.get("user_id"),
+                loop_interval=db.normalize_loop_interval(c.get("loop_interval")),
                 log_callback=lambda m, cid_ref=cid, em_ref=em: (
                     _push_log(cid_ref, m),
                     _push_log(em_ref, m) if cid_ref != em_ref else None
@@ -1415,6 +1570,7 @@ async def start_all_bots_api(current_user: Dict[str, Any] = Depends(require_admi
 async def stop_all_bots_api(current_user: Dict[str, Any] = Depends(require_admin)):
     """إيقاف جميع البوتات العاملة دفعة واحدة (للأدمن)"""
     await bot_manager.stop_all()
+    _invalidate_ws_status_cache()
     return {"status": "stopped_all"}
 
 @app.get("/api/bots/status/{castle_id}")
@@ -1707,6 +1863,7 @@ async def internal_restart_all_endpoint():
                     "email": str(c_rec.get("email", em)),
                     "password": c_rec.get("password", ""),
                     "config": raw_cfg,
+                    "loop_interval": db.normalize_loop_interval(c_rec.get("loop_interval")),
                 })
 
     if not running_castles:
@@ -1819,22 +1976,31 @@ async def send_game_command_api(payload: SendCmdPayload, current_user: Dict[str,
 
 @app.get("/api/admin/stats")
 def admin_stats(admin: Dict[str, Any] = Depends(require_admin)):
-    """إحصائيات المنظومة الكاملة"""
-    db_stats = db.get_admin_stats()
-    mgr_stats = bot_manager.get_status_summary()
+    """إحصائيات المنظومة الفعلية للعملاء (باستبعاد المشرفين) وربطها بحالة البوتات الحية."""
+    admin_email = (admin.get("email") or "").strip().lower()
+    live_bots = bot_manager.list_all_bots()
+    stats = db.get_admin_stats(
+        exclude_admin=True,
+        exclude_email=admin_email,
+        live_bots=live_bots,
+    )
     return {
         "status": "ok",
-        "total_users": db_stats["total_users"],
-        "total_castles": db_stats["total_castles"],
-        "active_bots": mgr_stats["running_bots"],
-        "connected_bots": mgr_stats["connected_bots"],
-        "system_health": "online",
+        **stats,
+        "active_bots": stats["running_castles"],
     }
 
 @app.get("/api/admin/users")
 def admin_users(admin: Dict[str, Any] = Depends(require_admin)):
-    """قائمة المستخدمين"""
-    return {"status": "ok", "users": db.get_all_users()}
+    """قائمة المستخدمين مع أعداد القلاع الفعلية والقلاع الشغالة الآن لكل مستخدم."""
+    admin_email = (admin.get("email") or "").strip().lower()
+    live_bots = bot_manager.list_all_bots()
+    users = db.get_all_users(
+        exclude_admin=True,
+        exclude_email=admin_email,
+        live_bots=live_bots,
+    )
+    return {"status": "ok", "users": users}
 
 @app.get("/api/admin/merchants/overview")
 def admin_merchants(admin: Dict[str, Any] = Depends(require_admin)):
@@ -1878,10 +2044,40 @@ def admin_update_subscription(
 
 @app.post("/api/admin/users/{uid}/ban")
 @app.post("/api/admin/user/{uid}/ban")
-def admin_ban_user(uid: str, is_banned: bool = Query(True), admin: Dict[str, Any] = Depends(require_admin)):
-    """حظر أو فك حظر مستخدم"""
-    db.ban_user(uid, is_banned)
-    return {"status": "ok", "is_banned": is_banned}
+async def admin_ban_user(
+    uid: str,
+    payload: Optional[AdminBanUserPayload] = None,
+    is_banned: Optional[bool] = Query(None),
+    admin: Dict[str, Any] = Depends(require_admin),
+):
+    """حظر أو فك حظر مستخدم مع إيقاف بوتاته النشطة عند الحظر."""
+    target = db.get_user(uid)
+    if not target:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    if is_super_admin(target):
+        raise HTTPException(status_code=400, detail="لا يمكن حظر حساب المشرف")
+
+    effective_ban = (
+        payload.is_banned
+        if (payload and payload.is_banned is not None)
+        else (is_banned if is_banned is not None else True)
+    )
+    db.ban_user(uid, effective_ban)
+
+    if effective_ban:
+        try:
+            for c in db.get_user_castles_summary(uid):
+                em = c.get("email")
+                if em:
+                    try:
+                        await bot_manager.stop_bot(em)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    updated = db.get_user(uid)
+    return {"status": "ok", "is_banned": effective_ban, "user": updated}
 
 @app.delete("/api/admin/users/{uid}")
 @app.delete("/api/admin/user/{uid}")
@@ -1948,9 +2144,33 @@ def admin_reject_castle(castle_id: str, reason: str = "", admin: Dict[str, Any] 
 @app.get("/api/admin/live-bots")
 @app.get("/api/admin/live-processes")
 def admin_live_bots(admin: Dict[str, Any] = Depends(require_admin)):
-    """جلب قائمة البوتات النشطة في الذاكرة حالياً مع إحصائياتها ومعلومات البروكسي."""
+    """جلب قائمة البوتات النشطة في الذاكرة حالياً مع ربط بيانات القلعة والمالك الفعلية ومعلومات البروكسي."""
     bots = bot_manager.list_all_bots()
+    try:
+        by_cid, by_email, users_by_uid = db.get_live_castles_metadata()
+    except Exception:
+        by_cid, by_email, users_by_uid = {}, {}, {}
+
     for p in bots:
+        cid = str(p.get("castle_id") or "").strip()
+        em = str(p.get("email") or "").strip().lower()
+        c_row = by_cid.get(cid) or by_email.get(em) or {}
+        c_info = c_row.get("castle_info") if isinstance(c_row.get("castle_info"), dict) else {}
+        owner_uid = str(c_row.get("user_id") or p.get("user_id") or "").strip()
+        owner_row = users_by_uid.get(owner_uid) or {}
+
+        if c_row.get("castle_id") and (not cid or cid == em):
+            p["castle_id"] = c_row["castle_id"]
+        if owner_uid and not p.get("user_id"):
+            p["user_id"] = owner_uid
+        p["user_email"] = owner_row.get("email") or p.get("user_email") or ""
+        p["owner_name"] = owner_row.get("username") or ""
+        p["castle_name"] = c_info.get("castle_name") or c_row.get("castle_name") or ""
+        p["lord_name"] = c_info.get("lord_name") or ""
+        p["server_id"] = c_info.get("server_id") or (p.get("gate_info") or {}).get("kingdom_id") or None
+        if not p.get("max_reconnect_attempts"):
+            p["max_reconnect_attempts"] = 2
+
         if not p.get("real_ip"):
             try:
                 from proxy import get_proxy_ip_for_email, is_proxy_enabled
@@ -1995,6 +2215,51 @@ def admin_users_castles(admin: Dict[str, Any] = Depends(require_admin)):
     data = db.get_all_users_with_castles()
     return {"status": "ok", "users": data}
 
+@app.get("/api/admin/banned-castles")
+def admin_banned_castles(admin: Dict[str, Any] = Depends(require_admin)):
+    """القلاع المحظورة من إدارة اللعبة مع السبب وبيانات المالك (للمشرف الأعلى فقط). قراءة من SQLite والذاكرة الحية بلا أي اتصال بالسيرفر."""
+    items: List[Dict[str, Any]] = []
+    for c in db.get_banned_castles():
+        game_email = c.get("email") or ""
+        bot = bot_manager.get_bot(game_email) if game_email else None
+        is_live_sealed = bool(bot and getattr(bot, "is_sealed", False))
+        s_type, s_reason = _extract_seal_details(
+            c.get("status_message"),
+            getattr(bot, "seal_type", None) if is_live_sealed else None,
+            getattr(bot, "seal_reason", None) if is_live_sealed else None,
+        )
+        info = c.get("castle_info") or {}
+        items.append({
+            "castle_id": c.get("castle_id"),
+            "game_email": game_email,
+            "castle_name": c.get("castle_name") or info.get("castle_name") or "",
+            "lord_name": info.get("lord_name") or "",
+            "castle_level": info.get("castle_level"),
+            "lord_level": info.get("lord_level"),
+            "power": info.get("power") or info.get("lord_power"),
+            "server_id": info.get("server_id") or "",
+            "alliance_name": info.get("alliance_name") or "",
+            "is_active": c.get("is_active", True),
+            "state": c.get("state") or "",
+            "conn_state": c.get("conn_state") or "",
+            "seal_type": s_type,
+            "seal_reason": s_reason,
+            "status_message": c.get("status_message") or "",
+            "banned_at": c.get("updated_at") or "",
+            "created_at": c.get("created_at") or "",
+            "proxy_index": c.get("proxy_index"),
+            "owner": {
+                "uid": c.get("user_id") or "",
+                "email": c.get("owner_email") or "",
+                "username": c.get("owner_username") or "",
+                "phone": c.get("owner_phone") or "",
+                "tenant_domain": c.get("owner_tenant") or "",
+                "is_banned": bool(c.get("owner_banned")),
+                "subscription_end": c.get("owner_subscription_end") or "",
+            },
+        })
+    return {"status": "ok", "castles": items}
+
 @app.get("/api/admin/proxies")
 def admin_proxies(admin: Dict[str, Any] = Depends(require_admin)):
     """استعلام قائمة البروكسيات مع عدد القلاع والمستخدمين المربوطين بكل IP."""
@@ -2007,6 +2272,92 @@ async def admin_test_proxy(payload: Dict[str, Any], admin: Dict[str, Any] = Depe
     proxy_url = str(payload.get("proxy_url", "") or "").strip()
     from proxy import test_single_proxy
     return await test_single_proxy(proxy_url)
+
+
+def _count_running_bots(emails: List[str]) -> int:
+    """عدد القلاع الشغالة حالياً من قائمة إيميلات (قراءة من الذاكرة الحية فقط)."""
+    running = 0
+    for em in emails:
+        bot = bot_manager.get_bot(em)
+        if bot and getattr(bot, "is_running", False):
+            running += 1
+    return running
+
+
+def _proxy_op_response(result: Dict[str, Any]) -> Dict[str, Any]:
+    """توحيد رد عمليات البروكسي اليدوية: خطأ 400 عند الفشل، وإلا إضافة عدد القلاع الشغالة المتأثرة (للتحذير)."""
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("msg") or "فشلت العملية")
+    result["running_count"] = _count_running_bots(result.get("emails") or [])
+    result.pop("emails", None)
+    return {"status": "ok", **result}
+
+
+@app.get("/api/admin/proxies/lookup")
+def admin_proxy_lookup(q: str = Query(""), admin: Dict[str, Any] = Depends(require_admin)):
+    """بحث بالإيميل أو اسم المستخدم/القلعة لمعرفة البروكسي المخصص لكل قلعة."""
+    from proxy import get_proxy_ips
+    ips = get_proxy_ips()
+    items: List[Dict[str, Any]] = []
+    for c in db.search_castles_with_owner(q, limit=20):
+        idx = c.get("proxy_index")
+        has_idx = idx is not None and int(idx) >= 0 and len(ips) > 0
+        info = c.get("castle_info") or {}
+        bot = bot_manager.get_bot(c.get("email") or "")
+        items.append({
+            "castle_id": c.get("castle_id"),
+            "email": c.get("email") or "",
+            "castle_name": c.get("castle_name") or "",
+            "lord_name": info.get("lord_name") or "",
+            "state": c.get("state") or "",
+            "is_running": bool(bot and getattr(bot, "is_running", False)),
+            "proxy_index": (int(idx) % len(ips)) if has_idx else None,
+            "proxy_ip": ips[int(idx) % len(ips)] if has_idx else "",
+            "owner": {
+                "uid": c.get("user_id") or "",
+                "email": c.get("owner_email") or "",
+                "username": c.get("owner_username") or "",
+            },
+        })
+    return {"status": "ok", "items": items}
+
+
+@app.post("/api/admin/proxies/assign-castle")
+def admin_proxy_assign_castle(payload: Dict[str, Any], admin: Dict[str, Any] = Depends(require_admin)):
+    """نقل قلعة واحدة إلى بروكسي يختاره الأدمن يدوياً (يسري عند أول اتصال جديد للقلعة)."""
+    from proxy import assign_castle_to_proxy
+    return _proxy_op_response(assign_castle_to_proxy(
+        str(payload.get("castle_email", "") or ""), payload.get("proxy_index")
+    ))
+
+
+@app.post("/api/admin/proxies/assign-user")
+def admin_proxy_assign_user(payload: Dict[str, Any], admin: Dict[str, Any] = Depends(require_admin)):
+    """نقل كل قلاع مستخدم إلى بروكسي يختاره الأدمن يدوياً."""
+    from proxy import assign_user_to_proxy
+    return _proxy_op_response(assign_user_to_proxy(
+        str(payload.get("user_id", "") or ""), payload.get("proxy_index")
+    ))
+
+
+@app.post("/api/admin/proxies/drain")
+def admin_proxy_drain(payload: Dict[str, Any], admin: Dict[str, Any] = Depends(require_admin)):
+    """إخلاء بروكسي: نقل كل قلاعه لبقية البروكسيات بتوزيع متوازن."""
+    from proxy import drain_proxy
+    return _proxy_op_response(drain_proxy(payload.get("proxy_index")))
+
+
+@app.post("/api/admin/proxies/unbind")
+def admin_proxy_unbind(payload: Dict[str, Any], admin: Dict[str, Any] = Depends(require_admin)):
+    """إزالة ارتباط قلعة أو مستخدم ليُعاد تخصيصه تلقائياً عند أول اتصال."""
+    from proxy import unbind_castle, unbind_user
+    castle_email = str(payload.get("castle_email", "") or "").strip()
+    user_id = str(payload.get("user_id", "") or "").strip()
+    if castle_email:
+        return _proxy_op_response(unbind_castle(castle_email))
+    if user_id:
+        return _proxy_op_response(unbind_user(user_id))
+    raise HTTPException(status_code=400, detail="يجب تحديد قلعة أو مستخدم")
 
 @app.get("/api/admin/network-mode")
 def admin_network_mode(admin: Dict[str, Any] = Depends(require_admin)):
@@ -2234,7 +2585,7 @@ async def ws_status(websocket: WebSocket, user_id: Optional[str] = None):
 def main():
     parser = argparse.ArgumentParser(description="Revenge of Sultans Bot API Server")
     parser.add_argument("--host", default="0.0.0.0", help="Host IP to bind (default: 0.0.0.0)")
-    default_port = int(os.environ.get("PORT", "8080"))
+    default_port = int(os.environ.get("PORT", "8765"))
     parser.add_argument("--port", type=int, default=default_port, help=f"Port to listen on (default: {default_port})")
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload for development")
     args = parser.parse_args()

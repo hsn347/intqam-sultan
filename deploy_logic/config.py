@@ -45,6 +45,7 @@ EXCLUDE_DIRS: Set[str] = {
     "game_listener",
     "tcp_learning",
     "dashboard",
+    "database",
     "docs",
     "logs",
     "reports",
@@ -113,8 +114,8 @@ class DeployConfig:
     remote_dir: str = "/var/www/intqam-sultan"
     service_name: str = "sultan-bot.service"
     nginx_conf_name: str = "nginx-sultan.conf"
-    domain_name: str = "_"
-    api_port: int = 8080
+    domain_name: str = "sultan.ibraabot.online"
+    api_port: int = 8765
     internal_api_secret: str = ""
 
 
@@ -149,8 +150,8 @@ def load_deploy_config(config_path: str = DEFAULT_CONFIG_PATH, validate_target: 
         remote_dir=str(_pick("SULTAN_DEPLOY_DIR", "remote_dir", "/var/www/intqam-sultan")).strip().rstrip("/") or "/var/www/intqam-sultan",
         service_name=str(_pick("SULTAN_SERVICE_NAME", "service_name", "sultan-bot.service")).strip(),
         nginx_conf_name=str(_pick("SULTAN_NGINX_CONF", "nginx_conf_name", "nginx-sultan.conf")).strip(),
-        domain_name=str(_pick("SULTAN_DOMAIN", "domain_name", "_")).strip() or "_",
-        api_port=int(_pick("SULTAN_API_PORT", "api_port", 8080) or 8080),
+        domain_name=str(_pick("SULTAN_DOMAIN", "domain_name", "sultan.ibraabot.online")).strip() or "sultan.ibraabot.online",
+        api_port=int(_pick("SULTAN_API_PORT", "api_port", 8765) or 8765),
         internal_api_secret=str(_pick("SULTAN_INTERNAL_TOKEN", "internal_api_secret", "") or os.environ.get("INTERNAL_API_SECRET", "")).strip(),
     )
 

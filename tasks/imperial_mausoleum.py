@@ -119,6 +119,10 @@ class ImperialMausoleumTask(BaseTask):
             t_data = resp.get("data", {})
             cur_award = t_data.get("award", {})
             score = t_data.get("score", 0)
+            if isinstance(p_data, dict):
+                p_data["free"] = 0
+                if isinstance(cur_award, dict):
+                    p_data["award"] = cur_award
             self.log(f"🎲 نتيجة الرمية الأولى: {cur_award} (النقاط: {score})")
 
         # 2. معالجة النرد الإضافي (Bonus Dice) حتى حسم الجائزة الفعلية
@@ -131,6 +135,8 @@ class ImperialMausoleumTask(BaseTask):
             resp_dice = await self.safe_query(self.CMD_PYRAMID, self.SUBCMD_THROW, {})
             if resp_dice and str(resp_dice.get("err", "-1")) == "0":
                 cur_award = resp_dice.get("data", {}).get("award", {})
+                if isinstance(p_data, dict) and isinstance(cur_award, dict):
+                    p_data["award"] = cur_award
                 self.log(f"🎲 نتيجة الرمية الإضافية #{reroll_cnt}: {cur_award}")
             else:
                 err = resp_dice.get("err") if resp_dice else "لا يوجد رد"
@@ -151,9 +157,10 @@ class ImperialMausoleumTask(BaseTask):
             else:
                 err = resp_claim.get("err") if resp_claim else "لا يوجد رد"
                 self.log(f"⚠️ تنبيه عند استلام مكافأة الهرم: {err}")
+                return TaskResult.fail(f"تعذر استلام مكافأة الهرم المعلقة: {err}")
 
-        # 4. تحديث عدادات النشاط والذاكرة محلياً فقط إذا نُفِّذ الرمي أو الاستلام بنجاح
-        if did_explore or total_received:
+        # 4. تحديث عداد النشاط اليومي عند تنفيذ استكشاف جديد بنجاح
+        if did_explore:
             self._mark_completed_in_memory()
 
         if total_received:
@@ -167,24 +174,20 @@ class ImperialMausoleumTask(BaseTask):
             p_ctrl = self.init_data.setdefault("pyramidCtrl", {})
             if "pyramidData" in claim_data and "data" in claim_data["pyramidData"]:
                 p_ctrl["data"] = claim_data["pyramidData"]["data"]
+            elif isinstance(claim_data.get("pyramidData"), dict):
+                p_ctrl["data"] = claim_data["pyramidData"]
             else:
                 p_data = p_ctrl.setdefault("data", {})
-                p_data["free"] = 0
                 p_data["award"] = {}
                 p_data["state"] = 0
         except Exception:
             pass
 
     def _mark_completed_in_memory(self):
-        """تحديث عداد النشاط اليومي Type 26 في الذاكرة الحية محلياً لمنع التكرار."""
+        """تحديث عداد النشاط اليومي Type 26 في الذاكرة الحية محلياً بعد الاستكشاف."""
         try:
             ev_ctrl = self.init_data.setdefault("everydayTaskCtrl", {})
             ev_info = ev_ctrl.setdefault("eventInfo", {})
             ev_info["26"] = 1
-
-            p_ctrl = self.init_data.setdefault("pyramidCtrl", {})
-            p_data = p_ctrl.setdefault("data", {})
-            p_data["free"] = 0
-            p_data["award"] = {}
         except Exception:
             pass

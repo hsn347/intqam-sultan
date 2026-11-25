@@ -12,10 +12,12 @@ import { AdminLiveProcessesPage } from './pages/AdminLiveProcesses'
 import { AdminMerchantsPage } from './pages/AdminMerchants'
 import { AdminProxiesPage } from './pages/AdminProxies'
 import { AdminUsersCastlesPage } from './pages/AdminUsersCastles'
+import { AdminBannedCastlesPage } from './pages/AdminBannedCastles'
 import { SettingsPage }    from './pages/Settings'
 import { AuthContext, useAuthProvider } from './hooks/useAuth'
 import { TenantProvider }  from './context/TenantContext'
 import { DevTenantSwitcher } from './components/common/DevTenantSwitcher'
+import { PwaInstallPrompt } from './components/common/PwaInstallPrompt'
 import { queryClient }     from './lib/queryClient'
 import { useAppStore }     from './store/appStore'
 import i18n from './lib/i18n'
@@ -197,9 +199,13 @@ export default function App() {
               <Route path="/admin/users-castles" element={
                 <SuperAdminRoute><AdminUsersCastlesPage /></SuperAdminRoute>
               } />
+              <Route path="/admin/banned-castles" element={
+                <SuperAdminRoute><AdminBannedCastlesPage /></SuperAdminRoute>
+              } />
 
               <Route path="*" element={<HomeRoute />} />
             </Routes>
+            <PwaInstallPrompt />
           </BrowserRouter>
 
           <ThemedToaster />

@@ -20,9 +20,9 @@ const TenantContext = createContext<TenantContextType>({
   brandName: DEFAULT_TENANT.brandName,
   tagline: DEFAULT_TENANT.tagline.ar,
   logoUrl: DEFAULT_TENANT.logoUrl,
-  faviconUrl: DEFAULT_TENANT.faviconUrl || '/favicon.ico',
+  faviconUrl: DEFAULT_TENANT.faviconUrl || '/favicon.png',
   primaryColor: DEFAULT_TENANT.primaryColor,
-  domain: 'ibrabot.com',
+  domain: 'sultan.ibraabot.online',
 })
 
 export function useTenant(): TenantContextType {
@@ -168,85 +168,37 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       document.title = tenant.brandName
     }
 
-    // تحديث Favicon إذا كان مخصصاً
-    if (tenant.faviconUrl) {
-      let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']")
-      if (!link) {
-        link = document.createElement('link')
-        link.rel = 'shortcut icon'
-        document.head.appendChild(link)
-      }
-      link.href = tenant.faviconUrl
+    // تحديث Favicon الرسمي (PNG حقيقي بدون 404 على favicon.ico)
+    const favHref = tenant.faviconUrl || '/favicon.png'
+    let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']")
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = 'icon'
+      document.head.appendChild(link)
     }
+    link.href = favHref
 
-    // تحديث اسم وأيقونة الجوال عند إضافة التطبيق للشاشة الرئيسية (PWA / Add to Home Screen)
+    // تحديث اسم وأيقونة الجوال ولون شريط الحالة لوضع PWA المستقل
+    const themeMeta = document.querySelector('meta[name="theme-color"]')
+    if (themeMeta) themeMeta.setAttribute('content', primary)
     const appTitleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]')
     if (appTitleMeta) appTitleMeta.setAttribute('content', tenant.brandName)
     const appNameMeta = document.querySelector('meta[name="application-name"]')
     if (appNameMeta) appNameMeta.setAttribute('content', tenant.brandName)
 
-    if (tenant.logoUrl) {
-      const appleIcons = document.querySelectorAll('link[rel*="apple-touch-icon"]')
-      appleIcons.forEach(el => el.setAttribute('href', tenant.logoUrl))
-    }
+    const appleIconHref = tenant.appleTouchIconUrl || '/apple-touch-icon.png'
+    const appleIcons = document.querySelectorAll('link[rel*="apple-touch-icon"]')
+    appleIcons.forEach(el => el.setAttribute('href', appleIconHref))
 
-    // 📱 تحديث Web App Manifest ديناميكياً لتثبيت التطبيق بالاسم والأيقونة والألوان الخاصة بهذا التاجر
-    try {
-      const mime = tenant.logoUrl.endsWith('.png') ? 'image/png' : 'image/jpeg'
-      const dynamicManifest = {
-        name: tenant.brandName,
-        short_name: tenant.brandName,
-        description: tenant.tagline?.ar || `${tenant.brandName}`,
-        start_url: '/',
-        scope: '/',
-        display: 'standalone',
-        orientation: 'portrait-primary',
-        background_color: '#0a0f0a',
-        theme_color: tenant.primaryColor || '#10b981',
-        lang: 'ar',
-        dir: 'rtl',
-        categories: ['utilities', 'games', 'productivity'],
-        icons: [
-          {
-            src: tenant.logoUrl,
-            sizes: '192x192',
-            type: mime,
-            purpose: 'any',
-          },
-          {
-            src: tenant.logoUrl,
-            sizes: '512x512',
-            type: mime,
-            purpose: 'any',
-          },
-          {
-            src: tenant.logoUrl,
-            sizes: '192x192',
-            type: mime,
-            purpose: 'maskable',
-          },
-          {
-            src: tenant.logoUrl,
-            sizes: '512x512',
-            type: mime,
-            purpose: 'maskable',
-          },
-        ],
-      }
-
-      const manifestBlob = new Blob([JSON.stringify(dynamicManifest)], { type: 'application/manifest+json' })
-      const manifestBlobUrl = URL.createObjectURL(manifestBlob)
-      let manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
-      if (!manifestLink) {
-        manifestLink = document.createElement('link')
-        manifestLink.rel = 'manifest'
-        document.head.appendChild(manifestLink)
-      }
-      manifestLink.href = manifestBlobUrl
-    } catch {
-      // ignore
+    // ربط Manifest حقيقي من السيرفر (/manifest.json في الإنتاج عبر Nginx، أو ?tenant= في البيئة المحلية)
+    const manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
+    if (manifestLink) {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      manifestLink.href = (isLocal && isCustomTenant)
+        ? `/api/manifest.json?tenant=${encodeURIComponent(tenant.id)}`
+        : '/manifest.json'
     }
-  }, [tenant])
+  }, [tenant, isCustomTenant])
 
   const contextValue: TenantContextType = {
     tenant,
@@ -254,7 +206,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     brandName: tenant.brandName,
     tagline: localizedTagline,
     logoUrl: tenant.logoUrl,
-    faviconUrl: tenant.faviconUrl || '/favicon.ico',
+    faviconUrl: tenant.faviconUrl || '/favicon.png',
     primaryColor: tenant.primaryColor,
     domain: hostname,
   }

@@ -311,11 +311,10 @@ class PetTask(BaseTask):
                 self.log(f"⚠️ انقطاع أو عدم استجابة أثناء إطعام الحيوان #{target_pet}")
                 break
 
-            # فحص رمز الرد الحقيقي للسيرفر
+            # فحص رمز الرد الحقيقي للسيرفر (عدم تسميم curFreeFeed=MAX_FREE_FEED عند الأخطاء المؤقتة أو أخطاء الحيوان)
             err_code = str(res.get("err", "-1"))
             if err_code != "0":
                 self.log(f"⚠️ توقف الإطعام للحيوان #{target_pet}: رفض السيرفر (كود الخطأ: {err_code})")
-                feed_info["curFreeFeed"] = MAX_FREE_FEED
                 break
 
             cur_free += 1

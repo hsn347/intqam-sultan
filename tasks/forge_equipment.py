@@ -152,14 +152,6 @@ class ForgeEquipmentTask(BaseTask):
                 if count_id >= 1 or count_type >= 1:
                     return True
 
-        # 2. فحص questCtrl.point_finish_list
-        quest_ctrl = self.get_ctrl("questCtrl")
-        if isinstance(quest_ctrl, dict):
-            finish_list = quest_ctrl.get("point_finish_list")
-            if isinstance(finish_list, list):
-                if 4100009 in finish_list or "4100009" in finish_list:
-                    return True
-
         return False
 
     def _get_blacksmith_info(self) -> Tuple[int, bool, bool]:
@@ -266,9 +258,6 @@ class ForgeEquipmentTask(BaseTask):
         if not isinstance(backpack, dict):
             return False
 
-        city = self.get_ctrl("cityCtrl")
-        reslist = city.get("reslist") or city.get("resList") if isinstance(city, dict) else None
-
         for box_id, box_val in STEEL_BOX_CATALOG:
             if deficit <= 0:
                 break
@@ -286,20 +275,15 @@ class ForgeEquipmentTask(BaseTask):
             payload = {"itemID": box_id, "count": use_count}
             resp = await self.safe_query("1004", "2", payload)
 
-            if resp is not None:
+            if self._is_resp_ok(resp):
+                # ملاحظة: خصم الصندوق وإضافة الصلب يتمان عبر NOTIFY_BACKPACK و NOTIFY_CITY دون مضاعفة يدوية
                 gained = use_count * box_val
-                current_steel += gained
-                deficit = max(0, deficit - gained)
-
-                # تحديث الحقيبة محلياً
-                str_box = str(box_id)
-                if str_box in backpack and isinstance(backpack[str_box], dict):
-                    old_c = int(backpack[str_box].get("count", 0) or 0)
-                    backpack[str_box]["count"] = max(0, old_c - use_count)
-
-                # تحديث رصيد الصلب محلياً
-                if isinstance(reslist, dict):
-                    reslist[RES_STEEL_ID] = current_steel
+                current_steel = max(current_steel + gained, self._get_current_steel())
+                deficit = max(0, needed_steel - current_steel)
+            else:
+                err_c = resp.get("err") if isinstance(resp, dict) else "timeout"
+                self.log(f"⚠️ تعذر فتح صندوق الصلب #{box_id} (كود: {err_c})")
+                break
 
         return current_steel >= needed_steel
 
@@ -438,11 +422,13 @@ class ForgeEquipmentTask(BaseTask):
                 is_busy = True
                 rem_sec = max(1, (st + tt) - now_ts)
 
-        if not is_busy and isinstance(fe_obj, dict) and fe_obj:
-            fe_end = int(fe_obj.get("endTime", 0) or 0)
-            if fe_end > now_ts:
-                is_busy = True
-                rem_sec = max(1, fe_end - now_ts)
+        if not is_busy and not forge_q and isinstance(fe_obj, dict) and fe_obj:
+            # في اللعبة الرسمية: isCle == 1 تعني اكتمل التصنيع وجاهز للاستلام (ليست مشغولة)
+            if int(fe_obj.get("isCle", 0) or 0) == 0:
+                fe_end = int(fe_obj.get("endTime", 0) or 0)
+                if fe_end > now_ts:
+                    is_busy = True
+                    rem_sec = max(1, fe_end - now_ts)
 
         if is_busy:
             return False, f"Blacksmith is busy forging (0-Network) (remaining: {rem_sec}s)"
@@ -492,11 +478,12 @@ class ForgeEquipmentTask(BaseTask):
                     is_forging_active = True
                     remaining_seconds = max(1, finish_t - now_ts)
 
-        if not is_forging_active and isinstance(fe_obj, dict) and fe_obj:
-            fe_end = int(fe_obj.get("endTime", 0) or 0)
-            if fe_end > now_ts:
-                is_forging_active = True
-                remaining_seconds = max(1, fe_end - now_ts)
+        if not is_forging_active and not forge_q and isinstance(fe_obj, dict) and fe_obj:
+            if int(fe_obj.get("isCle", 0) or 0) == 0:
+                fe_end = int(fe_obj.get("endTime", 0) or 0)
+                if fe_end > now_ts:
+                    is_forging_active = True
+                    remaining_seconds = max(1, fe_end - now_ts)
 
         if is_forging_active:
             q_data = forge_q.get("data", {}) if isinstance(forge_q, dict) and isinstance(forge_q.get("data"), dict) else {}
@@ -560,12 +547,6 @@ class ForgeEquipmentTask(BaseTask):
                 ev_info = everyday.setdefault("eventInfo", {})
                 if isinstance(ev_info, dict):
                     ev_info[DAILY_QUEST_FORGE_TYPE] = 1
-
-            quest_ctrl = self.get_ctrl("questCtrl")
-            if isinstance(quest_ctrl, dict):
-                pfl = quest_ctrl.setdefault("point_finish_list", [])
-                if isinstance(pfl, list) and 4100009 not in pfl:
-                    pfl.append(4100009)
 
             msg = f"✓ تم استلام قطعة العتاد المصنعة بنجاح (EPID: {fe_epid}, EID: {fe_eid}) وإتمام النشاط اليومي بـ 0 استهلاك موارد"
             self.log(msg)
@@ -698,28 +679,7 @@ class ForgeEquipmentTask(BaseTask):
         # 6. تحديث كائنات الذاكرة الحية محلياً فور النجاح (In-Memory State Sync)
         # ═════════════════════════════════════════════════════════════════════
         now_ts = int(time.time())
-
-        # أ) خصم المواد المستهلكة من backpackCtrl و itemCtrl
-        backpack = self.get_ctrl("backpackCtrl") or self.get_ctrl("itemCtrl") or self.get_ctrl("bagCtrl")
-        if isinstance(backpack, dict):
-            for m_id in chosen_mats:
-                str_m = str(m_id)
-                if str_m in backpack and isinstance(backpack[str_m], dict):
-                    curr_c = int(backpack[str_m].get("count", backpack[str_m].get("num", 0)) or 0)
-                    if "count" in backpack[str_m]:
-                        backpack[str_m]["count"] = max(0, curr_c - 1)
-                    if "num" in backpack[str_m]:
-                        backpack[str_m]["num"] = max(0, curr_c - 1)
-                elif str_m in backpack and isinstance(backpack[str_m], (int, float)):
-                    backpack[str_m] = max(0, int(backpack[str_m]) - 1)
-
-        # ب) خصم الصلب من cityCtrl.reslist
-        city = self.get_ctrl("cityCtrl")
-        if isinstance(city, dict):
-            reslist = city.get("reslist") or city.get("resList")
-            if isinstance(reslist, dict) and RES_STEEL_ID in reslist:
-                old_steel = int(float(reslist[RES_STEEL_ID]))
-                reslist[RES_STEEL_ID] = max(0, old_steel - need_steel)
+        # ملاحظة: خصم المواد من backpackCtrl وخصم الصلب المخفض من cityCtrl يتمان عبر NOTIFY_BACKPACK و NOTIFY_CITY.
 
         # ج) حذف القطعة الأساسية المستهلكة من equipment_array إن وُجدت
         if isinstance(eq_ctrl, dict):
@@ -731,7 +691,7 @@ class ForgeEquipmentTask(BaseTask):
                     ]
                     arr = eq_ctrl["equipment_array"]
 
-                # د) تسجيل طابور التصنيع وكائن fe في الذاكرة الحية تماماً كما تفعل اللعبة الرسمية
+                # د) تسجيل طابور التصنيع وكائن fe في الذاكرة الحية تماماً كما تفعل اللعبة الرسمية (isCle=0 قيد التصنيع)
                 server_data = res.get("data", {}) if isinstance(res, dict) else {}
                 equip_prop = server_data.get("equipment", {}) if isinstance(server_data, dict) else {}
                 actual_cost_time = int(server_data.get("costTime", cost_time)) if isinstance(server_data, dict) else cost_time
@@ -743,7 +703,7 @@ class ForgeEquipmentTask(BaseTask):
                     "materialArray": chosen_mats,
                     "costTime": actual_cost_time,
                     "qly": int(equip_prop.get("qly", 1)) if isinstance(equip_prop, dict) else 1,
-                    "isCle": 1,
+                    "isCle": 0,
                 }
 
                 # تسجيل طابور الحدادة 1229

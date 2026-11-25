@@ -462,6 +462,7 @@ class CommandHallTask(BaseTask):
         # ======================================================================
         completed_battle_count = 0
         failed_battle_count = 0
+        skipped_battle_count = 0
 
         eligible_battle_tasks: List[Dict[str, Any]] = []
         if not circuit_broken and self.allow_marches and not self._is_daily_goal_met():
@@ -537,7 +538,8 @@ class CommandHallTask(BaseTask):
                     break
 
                 if exec_res.get("skipped_unbeatable"):
-                    # تخطي آمن لأن التشكيلة الحالية غير كافية لقتل هذا الهدف (قد تنجح مهمة أضعف تالية)
+                    # تخطي آمن لأن التشكيلة الحالية (قوة الأبطال أو الجنود) غير كافية حالياً دون إهدار طاقة
+                    skipped_battle_count += 1
                     continue
 
                 if exec_res.get("success"):
@@ -548,15 +550,15 @@ class CommandHallTask(BaseTask):
                         all_rewards_collected.extend(task_rewards)
 
                     self.log(f"✅ [قاعة القيادة] اكتملت المهمة القتالية #{task_index} بنجاح!")
-
-                    # فاصل بشري عشوائي بين المعارك بعد عودة الفيلق فعلياً
-                    if task_idx < len(eligible_battle_tasks) and not self._is_daily_goal_met():
-                        jitter = random.uniform(1.0, 2.0)
-                        await asyncio.sleep(jitter)
                 else:
                     failed_battle_count += 1
+                    total_stamina_spent += int(exec_res.get("stamina_spent", 0))
                     fail_reason = exec_res.get("reason", "خطأ غير محدد")
                     self.log(f"⚠️ [قاعة القيادة] تعذر إنجاز المهمة القتالية #{task_index} ({fail_reason}).")
+
+                # فاصل بشري عشوائي بين المعارك بعد عودة الفيلق فعلياً للقلعة
+                if task_idx < len(eligible_battle_tasks) and not self._is_daily_goal_met():
+                    await asyncio.sleep(random.uniform(1.0, 2.0))
 
 
         # ======================================================================
@@ -712,6 +714,18 @@ class CommandHallTask(BaseTask):
             return TaskResult.ok(
                 "تم فحص مهام قاعة القيادة — لا توجد مهام (قناص، إنقاذ، معلومات، معارك، أو فيلق) جاهزة للتنفيذ حالياً.",
                 data={"summary": summary, "completed_tasks": 0, "completed_hall_upgrades": 0},
+                exec_time=exec_duration,
+            )
+
+        if skipped_battle_count > 0:
+            return TaskResult.ok(
+                f"تم فحص قاعة القيادة — تم تخطي {skipped_battle_count} مهام قتالية بأمان لحين عودة الأبطال/الجنود الأقوياء للقلعة (0 طاقة مستهلكة).",
+                data={
+                    "summary": summary,
+                    "completed_tasks": 0,
+                    "completed_hall_upgrades": 0,
+                    "skipped_battle": skipped_battle_count,
+                },
                 exec_time=exec_duration,
             )
 

@@ -124,6 +124,8 @@ class StaminaTask(BaseTask):
         total_stamina_gained = 0
         gold_spent = 0
         bought_packs = 0
+        free_pack_failed = False
+        gold_buy_failed = False
 
         # ── الخطوة 1: فحص واستهلاك حزم الطاقة المجانية بالحقيبة (Free Packs) ──
         packs_data = self.get_available_stamina_packs()
@@ -160,16 +162,16 @@ class StaminaTask(BaseTask):
                     batch_count = min(remaining_to_use, batch_limit)
                     payload = {"itemID": item_id, "count": batch_count}
                     r = await self.safe_query("1004", "2", payload, min_delay=0.3, max_delay=0.6)
-                    err_code = str(r.get("err", "0")) if isinstance(r, dict) else "0"
+                    err_code = str(r.get("err", "-1")) if isinstance(r, dict) else "timeout"
 
-                    if err_code in ("0", "Err_None", "None") or not r:
-                        self._deduct_backpack_item(item_id, batch_count)
+                    if isinstance(r, dict) and err_code in ("0", "Err_None"):
+                        # ملاحظة: خصم الحزمة وزيادة الطاقة في الذاكرة الحية يتمان عبر NOTIFY_BACKPACK (1) و NOTIFY_LORD (8)
                         pts = batch_count * val
-                        self._add_stamina(pts)
                         total_stamina_gained += pts
                         used_in_tier += batch_count
                         remaining_to_use -= batch_count
                     else:
+                        free_pack_failed = True
                         self.log(f"⚠️ فشل استخدام دفعة من حزم {name_ar} ({batch_count} حزمة) - كود: {err_code}")
                         break
 
@@ -204,12 +206,11 @@ class StaminaTask(BaseTask):
                     "use": True,
                 }
                 r_buy = await self.safe_query("1034", "2", payload, min_delay=0.4, max_delay=0.8)
-                err_code = str(r_buy.get("err", "0")) if isinstance(r_buy, dict) else "0"
+                err_code = str(r_buy.get("err", "-1")) if isinstance(r_buy, dict) else "timeout"
 
-                if err_code in ("0", "Err_None", "None") or not r_buy:
+                if isinstance(r_buy, dict) and err_code in ("0", "Err_None"):
+                    # ملاحظة: خصم الذهب وزيادة الطاقة في الذاكرة الحية يتمان عبر NOTIFY_LORD (8)
                     stamina_bought = required_purchases * 50
-                    self._deduct_gold(total_gold_needed)
-                    self._add_stamina(stamina_bought)
                     gold_spent += total_gold_needed
                     bought_packs += required_purchases
                     total_stamina_gained += stamina_bought
@@ -218,6 +219,7 @@ class StaminaTask(BaseTask):
                         f"(-{total_gold_needed} ذهب، +{stamina_bought} طاقة)"
                     )
                 else:
+                    gold_buy_failed = True
                     self.log(f"⚠️ فشل شراء حزم الطاقة بالذهب من المتجر (كود: {err_code})")
 
         # ── الخطوة 3: تقييم النتيجة وتحديد التخطي (Result Evaluation) ──
@@ -239,6 +241,11 @@ class StaminaTask(BaseTask):
                 "gold_spent": gold_spent,
                 "bought_packs": bought_packs,
             })
+
+        if free_pack_failed or gold_buy_failed:
+            fail_msg = "تعذر تعويض طاقة اللورد بسبب انقطاع الاستجابة أو رفض السيرفر"
+            self.log(f"❌ {fail_msg}")
+            return TaskResult.fail(fail_msg)
 
         # شرط التخطي الصريح: عند عدم وجود حزم مجانية وعدم الشراء بالذهب
         if not gold_buy_enabled:

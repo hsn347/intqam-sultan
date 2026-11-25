@@ -1547,6 +1547,7 @@ class GameConnection:
         self.seal_type: Optional[int] = None
         self.seal_reason: str = ""
         self.controllers_ready: asyncio.Event = asyncio.Event()
+        self.session_init_complete: asyncio.Event = asyncio.Event()
         self.notify_log_callback: Optional[Callable[[str], None]] = None
         self.brief_log_callback: Optional[Callable[[str], None]] = None
         self._seen_unhandled_notifies: Set[str] = set()
@@ -1587,6 +1588,13 @@ class GameConnection:
 
     @property
     def heroes(self) -> list:
+        h_sys = self.init_data.get("heroSysCtrl")
+        if isinstance(h_sys, dict):
+            hero_list = h_sys.get("heroList")
+            if isinstance(hero_list, dict):
+                return list(hero_list.values())
+            if isinstance(hero_list, list):
+                return hero_list
         h = self.init_data.get("heroCtrl")
         if isinstance(h, list):
             return h
@@ -1811,7 +1819,7 @@ class GameConnection:
                     except Exception:
                         pass
 
-                    # مزامنة طوابير المسيرات النشطة مرة واحدة عند الدخول (CMD 1007 / 1000)
+                # مزامنة طوابير المسيرات النشطة مرة واحدة عند الدخول (CMD 1007 / 1000)
                 if self._alive and self.is_connected:
                     try:
                         await asyncio.sleep(random.uniform(0.2, 0.5))
@@ -1819,12 +1827,14 @@ class GameConnection:
                         log.info(f"[{self.account.email}] ✓ تمت مزامنة طوابير المسيرات النشطة (CMD=1007/1000).")
                     except Exception as e:
                         log.warning(f"[{self.account.email}] تعذرت مزامنة طوابير المسيرات (1007/1000): {e}")
-                
+
             except asyncio.TimeoutError:
                 self.emit_brief_log(f"🌐 [{self.account_short_name}] تهيئة اللعبة والذاكرة الحية (1000/1) ❌")
-                log.warning(f"[{self.account.email}] لم يتم استلام حزمة session 0 خلال 12 ثانية.")
+                log.warning(f"[{self.account.email}] لم يتم استلام حزمة session 0 خلال 22 ثانية.")
         except Exception as e:
             log.error(f"[{self.account.email}] خطأ في تدفق التهيئة: {e}")
+        finally:
+            self.session_init_complete.set()
 
     def _handle_server_status_notification(self, parsed: Dict[str, Any], report: Dict[str, Any]) -> None:
         """معالجة إشعارات حالة السيرفر (طرد جهاز آخر / حظر الحساب / الصيانة)."""
@@ -1890,8 +1900,12 @@ class GameConnection:
                             self._log_notification(report)
                             self._handle_server_status_notification(parsed, report)
 
-                        # إشعار اكتمال تحميل المتحكمات الأساسية
-                        if sess_id == 0 or cmd_s in ('1000', 'onemt_1000'):
+                        # إشعار اكتمال تحميل المتحكمات الأساسية (فقط عند 1000/1 أو جهوزية المتحكمات الحرجة فعلياً)
+                        if cmd_s in ('1000', 'onemt_1000') or (
+                            sess_id == 0
+                            and not report.get("is_notification")
+                            and self.memory_engine.is_memory_ready()[0]
+                        ):
                             self.controllers_ready.set()
                             log.info(f"[{self.account.email}] ✓ تم تفريغ وتحديث {len(self.init_data)} متحكم في الذاكرة الحية بنجاح.")
                         elif not self.controllers_ready.is_set() and self.memory_engine.is_memory_ready()[0]:
@@ -2081,6 +2095,8 @@ class GameConnection:
 
         self._reader = None
         self._buffer = b""
+        self.controllers_ready.clear()
+        self.session_init_complete.clear()
         self.memory_engine.clear()
 
 GateClient = GameConnection

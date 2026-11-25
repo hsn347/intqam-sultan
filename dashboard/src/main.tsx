@@ -2,14 +2,17 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import { initPwaListeners, usePwaStore } from './lib/pwa'
 
-// Register PWA Service Worker with cache busting & self-update
+// Attach global install & connectivity listeners before initial route renders (prevents missing events on /login)
+initPwaListeners()
+
+const CURRENT_CACHE_NAME = 'ibrabot-pwa-v6'
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-
-    if (isLocalhost) {
-      // In local development, purge SW and caches completely to prevent stale bundle traps
+    if (import.meta.env.DEV) {
+      // In Vite dev mode, purge SW and caches to prevent stale HMR modules
       navigator.serviceWorker.getRegistrations().then((regs) => {
         regs.forEach((reg) => reg.unregister())
       })
@@ -19,21 +22,43 @@ if ('serviceWorker' in navigator) {
       return
     }
 
-    // Production: Clear obsolete PWA caches
+    // Production: Clear obsolete caches
     if ('caches' in window) {
       caches.keys().then((names) => {
         names.forEach((name) => {
-          if (name !== 'ibrabot-pwa-v4') {
+          if (name !== CURRENT_CACHE_NAME) {
             caches.delete(name)
           }
         })
       })
     }
 
+    let refreshing = false
+    const hadController = Boolean(navigator.serviceWorker.controller)
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || refreshing) return
+      refreshing = true
+      window.location.reload()
+    })
+
     navigator.serviceWorker
       .register('/sw.js')
       .then((reg) => {
-        reg.update()
+        if (reg.waiting && navigator.serviceWorker.controller) {
+          usePwaStore.getState().setWaitingWorker(reg.waiting)
+        }
+
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing
+          if (!newWorker) return
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              usePwaStore.getState().setWaitingWorker(newWorker)
+            }
+          })
+        })
+
+        reg.update().catch(() => {})
       })
       .catch((err) => {
         console.warn('PWA service worker registration failed:', err)

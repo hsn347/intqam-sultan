@@ -28,7 +28,7 @@ from tasks.base_task import BaseTask, TaskResult
 # ════════════════════════════════════════════════════════════════════
 
 DAILY_QUEST_HELP_TYPE = "18"     # معرف نوع مهمة مساعدة التحالف في everydayTaskCtrl.eventInfo
-DAILY_QUEST_HELP_TARGET = 20    # الحد المطلوب لإنجاز مهمة مساعدة التحالف اليومية (20 مرة)
+DAILY_QUEST_HELP_TARGET = 40    # الحد المطلوب لإنجاز مهمة مساعدة التحالف اليومية (40 مرة وفق daily_reward_point_config.lua)
 
 DONATE_TYPE_FREE = 1             # نوع التبرع بالموارد العادية (حديد/قمح/خشب) في السيرفر الرسمي
 DEFAULT_SCI_ID = 33015           # المعرف الاحتياطي عند تعذر إيجاد تقنية
@@ -160,14 +160,15 @@ class AllianceTask(BaseTask):
         5. تحديث الذاكرة الحية فوراً (In-Memory State Sync).
         """
         # 1. فحص النشاط اليومي (0-Network Pre-flight)
+        helps_today_before = 0
         everyday_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
         if isinstance(everyday_ctrl, dict):
             event_info = everyday_ctrl.get("eventInfo", {})
             if isinstance(event_info, dict):
-                helps_today = int(event_info.get(DAILY_QUEST_HELP_TYPE, 0) or 0)
-                if helps_today >= DAILY_QUEST_HELP_TARGET:
-                    self.log(f"ℹ️ مساعدة التحالف: مكتملة بالنشاط اليومي مسبقاً ({helps_today}/{DAILY_QUEST_HELP_TARGET}) — تم التجاوز بأمان (0-Network).")
-                    return False, f"مكتملة بالنشاط اليومي مسبقاً ({helps_today}/{DAILY_QUEST_HELP_TARGET})"
+                helps_today_before = int(event_info.get(DAILY_QUEST_HELP_TYPE, 0) or 0)
+                if helps_today_before >= DAILY_QUEST_HELP_TARGET:
+                    self.log(f"ℹ️ مساعدة التحالف: مكتملة بالنشاط اليومي مسبقاً ({helps_today_before}/{DAILY_QUEST_HELP_TARGET}) — تم التجاوز بأمان (0-Network).")
+                    return False, f"مكتملة بالنشاط اليومي مسبقاً ({helps_today_before}/{DAILY_QUEST_HELP_TARGET})"
 
         # 2. الاستعلام الرسمي عن قائمة طلبات المساعدة الحية (1010 / 44)
         r_query = await self.safe_query("1010", "44", {}, min_delay=0.3, max_delay=0.5)
@@ -221,12 +222,16 @@ class AllianceTask(BaseTask):
         r_help = await self.safe_query("1010", "47", {}, min_delay=0.3, max_delay=0.6)
 
         if r_help and str(r_help.get("err", "0")) == "0":
-            # 5. تحديث الذاكرة الحية فوراً (In-Memory State Sync)
-            if isinstance(everyday_ctrl, dict):
-                ev_info = everyday_ctrl.setdefault("eventInfo", {})
+            # 5. تحديث الذاكرة الحية فوراً دون مضاعفة بعد NOTIFY_EVERYDAY_TASK (55)
+            cur_ev_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
+            if isinstance(cur_ev_ctrl, dict):
+                ev_info = cur_ev_ctrl.setdefault("eventInfo", {})
                 if isinstance(ev_info, dict):
-                    cur_c = int(ev_info.get(DAILY_QUEST_HELP_TYPE, 0) or 0)
-                    ev_info[DAILY_QUEST_HELP_TYPE] = min(DAILY_QUEST_HELP_TARGET, cur_c + pending_helps)
+                    expected_after = min(DAILY_QUEST_HELP_TARGET, helps_today_before + pending_helps)
+                    ev_info[DAILY_QUEST_HELP_TYPE] = max(
+                        int(ev_info.get(DAILY_QUEST_HELP_TYPE, 0) or 0),
+                        expected_after,
+                    )
 
             # وسم الطلبات كمكتملة في helplist محلياً
             for item in items_to_check:
@@ -242,6 +247,20 @@ class AllianceTask(BaseTask):
             err_code = str(r_help.get("err", "unknown")) if r_help else "timeout"
             self.log(f"⚠️ تعذر تنفيذ مساعدة التحالف (كود السيرفر: {err_code}).")
             return False, f"فشل السيرفر ({err_code})"
+
+    @staticmethod
+    def _extract_treasure_rsp(resp: Any) -> Dict[str, Any]:
+        """استخراج حمولة استجابة كنز التحالف بأمان سواء كانت داخل data.rspdata أو rspdata أو data."""
+        if not isinstance(resp, dict):
+            return {}
+        data_obj = resp.get("data")
+        if isinstance(data_obj, dict) and isinstance(data_obj.get("rspdata"), dict):
+            return data_obj["rspdata"]
+        if isinstance(resp.get("rspdata"), dict):
+            return resp["rspdata"]
+        if isinstance(data_obj, dict):
+            return data_obj
+        return {}
 
     async def _treasure_alliance(self) -> Tuple[bool, str]:
         """
@@ -261,7 +280,7 @@ class AllianceTask(BaseTask):
             if not r_init or str(r_init.get("err", "")) not in ("0", 0):
                 self.log("⚠️ تعذر تهيئة بيانات كنز التحالف من السيرفر.")
                 return False, "فشل تهيئة بيانات كنز التحالف"
-            rspdata = r_init.get("rspdata") or r_init.get("data") or {}
+            rspdata = self._extract_treasure_rsp(r_init)
             self.init_data["allianceTreasureCtrl"] = rspdata
             treasure_ctrl = rspdata
 
@@ -276,10 +295,20 @@ class AllianceTask(BaseTask):
                 self.log(f"🎁 استلام مكافأة كنز خاص مكتمل (صندوق #{idx})...")
                 r_rcv = await self.safe_query("2015", "6", {"receiveType": 1, "ownUid": my_uid, "index": idx})
                 if r_rcv and str(r_rcv.get("err", "")) in ("0", 0):
-                    dig["canReceive"] = False
+                    rsp = self._extract_treasure_rsp(r_rcv)
+                    if isinstance(rsp.get("digListInfo"), list):
+                        treasure_ctrl["digListInfo"] = rsp["digListInfo"]
+                    else:
+                        treasure_ctrl["digListInfo"] = [
+                            d for d in (treasure_ctrl.get("digListInfo") or [])
+                            if not (isinstance(d, dict) and d.get("index") == idx)
+                        ]
+                    if isinstance(rsp.get("otherInfo"), dict):
+                        treasure_ctrl["otherInfo"] = rsp["otherInfo"]
                     actions_done.append(f"استلام كنز #{idx}")
 
         # 3. طلب مساعدة التحالف للكنوز الخاصة غير المكتملة
+        dig_list = treasure_ctrl.get("digListInfo", []) or []
         for dig in dig_list:
             if isinstance(dig, dict) and dig.get("canCallHelp") and not dig.get("isHelped"):
                 idx = dig.get("index")
@@ -289,7 +318,7 @@ class AllianceTask(BaseTask):
                     dig["canCallHelp"] = False
                     actions_done.append(f"طلب مساعدة لكنز #{idx}")
 
-        # 4. استلام مكافآت مساعدة الأعضاء المكتملة
+        # 4. استلام مكافآت مساعدة الأعضاء المكتملة (وحذفها من helpInfo لفتح خانة المساعدة التالية)
         help_info = treasure_ctrl.get("helpInfo", []) or []
         for item in list(help_info):
             if isinstance(item, dict) and item.get("canReceive"):
@@ -298,10 +327,27 @@ class AllianceTask(BaseTask):
                 self.log(f"🎁 استلام جائزة مساعدة عضو التحالف (صندوق #{idx})...")
                 r_h_rcv = await self.safe_query("2015", "6", {"receiveType": 2, "ownUid": own_uid, "index": idx})
                 if r_h_rcv and str(r_h_rcv.get("err", "")) in ("0", 0):
-                    item["canReceive"] = False
+                    rsp = self._extract_treasure_rsp(r_h_rcv)
+                    if isinstance(rsp.get("helpInfo"), list):
+                        treasure_ctrl["helpInfo"] = rsp["helpInfo"]
+                    else:
+                        treasure_ctrl["helpInfo"] = [
+                            h for h in (treasure_ctrl.get("helpInfo") or [])
+                            if not (isinstance(h, dict) and str(h.get("ownUid")) == str(own_uid) and h.get("index") == idx)
+                        ]
+                    if isinstance(rsp.get("canHelpList"), dict):
+                        treasure_ctrl["canHelpList"] = rsp["canHelpList"]
+                    elif isinstance(treasure_ctrl.get("canHelpList"), dict) and str(own_uid) in treasure_ctrl["canHelpList"]:
+                        u_boxes = treasure_ctrl["canHelpList"].get(str(own_uid))
+                        if isinstance(u_boxes, list):
+                            treasure_ctrl["canHelpList"][str(own_uid)] = [
+                                b for b in u_boxes if not (isinstance(b, dict) and b.get("index") == idx)
+                            ]
+                    if isinstance(rsp.get("otherInfo"), dict):
+                        treasure_ctrl["otherInfo"] = rsp["otherInfo"]
                     actions_done.append(f"استلام جائزة مساعدة #{idx}")
 
-        # 5. الاستخراج المجاني (Free Dig)
+        # 5. الاستخراج المجاني (Free Dig) مع مزامنة صارمة لـ nextFreeDigTime لحماية الذهب 100%
         other_info = treasure_ctrl.get("otherInfo", {}) or {}
         now = int(time.time())
         next_free = int(other_info.get("nextFreeDigTime", 0) or 0)
@@ -322,7 +368,31 @@ class AllianceTask(BaseTask):
                 self.log(f"⛏️ استخراج كنز تحالف مجاني (جودة {box_qual} - صندوق #{box_idx})...")
                 r_dig = await self.safe_query("2015", "3", {"index": box_idx}, min_delay=0.5, max_delay=1.0)
                 if r_dig and str(r_dig.get("err", "")) in ("0", 0):
-                    other_info["digCount"] = dig_count + 1
+                    rsp = self._extract_treasure_rsp(r_dig)
+                    if isinstance(rsp.get("otherInfo"), dict):
+                        treasure_ctrl["otherInfo"] = rsp["otherInfo"]
+                        other_info = treasure_ctrl["otherInfo"]
+                    else:
+                        other_info["digCount"] = dig_count + 1
+                        # صمام أمان ذهبي احتياطي عند غياب otherInfo من الرد لمنع إرسال 2015/3 مدفوع بالذهب في الدورة التالية
+                        other_info["nextFreeDigTime"] = int(time.time()) + 3600
+
+                    if isinstance(rsp.get("treasureInfo"), list):
+                        treasure_ctrl["treasureInfo"] = rsp["treasureInfo"]
+                    else:
+                        rem_idx = rsp.get("removeIndex", box_idx)
+                        treasure_ctrl["treasureInfo"] = [
+                            b for b in (treasure_ctrl.get("treasureInfo") or [])
+                            if not (isinstance(b, dict) and b.get("index") == rem_idx)
+                        ]
+
+                    if isinstance(rsp.get("digListInfo"), list):
+                        treasure_ctrl["digListInfo"] = rsp["digListInfo"]
+                    elif isinstance(rsp.get("newDigInfo"), dict):
+                        d_list = treasure_ctrl.setdefault("digListInfo", [])
+                        if isinstance(d_list, list):
+                            d_list.append(rsp["newDigInfo"])
+
                     self.log(f"✅ تم استخراج كنز التحالف المجاني بنجاح (جودة {box_qual}).")
                     actions_done.append(f"استخراج كنز مجاني جودة {box_qual}")
                 else:
@@ -337,6 +407,7 @@ class AllianceTask(BaseTask):
 
         # 6. مساعدة عضو في التحالف مجاناً (Help Alliance Member)
         # قاعدة اللعبة الرسمية: يمكن مساعدة كنز واحد فقط في نفس الوقت
+        other_info = treasure_ctrl.get("otherInfo", {}) or {}
         is_already_helping = any(
             isinstance(h, dict) and h.get("isHelped") and not h.get("canReceive")
             for h in (treasure_ctrl.get("helpInfo", []) or [])
@@ -347,6 +418,7 @@ class AllianceTask(BaseTask):
         if not is_already_helping and help_count < max_help:
             can_help_map = treasure_ctrl.get("canHelpList", {}) or {}
             target_help = None
+            target_box_ref = None
             if isinstance(can_help_map, dict):
                 for u_id, box_list in can_help_map.items():
                     if str(u_id) == my_uid:
@@ -355,6 +427,7 @@ class AllianceTask(BaseTask):
                     for b in boxes:
                         if isinstance(b, dict) and not b.get("isHelped"):
                             target_help = (int(u_id), b.get("index"))
+                            target_box_ref = b
                             break
                     if target_help:
                         break
@@ -364,7 +437,33 @@ class AllianceTask(BaseTask):
                 self.log(f"🤝 تقديم مساعدة مجانية لكنز عضو التحالف (UID: {helped_uid} - صندوق #{helped_idx})...")
                 r_help = await self.safe_query("2015", "5", {"helpedUid": helped_uid, "helpedIndex": helped_idx})
                 if r_help and str(r_help.get("err", "")) in ("0", 0):
-                    other_info["helpCount"] = help_count + 1
+                    rsp = self._extract_treasure_rsp(r_help)
+                    if isinstance(rsp.get("otherInfo"), dict):
+                        treasure_ctrl["otherInfo"] = rsp["otherInfo"]
+                    else:
+                        other_info["helpCount"] = help_count + 1
+
+                    if isinstance(rsp.get("canHelpList"), dict):
+                        treasure_ctrl["canHelpList"] = rsp["canHelpList"]
+                    elif isinstance(target_box_ref, dict):
+                        target_box_ref["isHelped"] = True
+
+                    if isinstance(rsp.get("helpInfo"), list):
+                        treasure_ctrl["helpInfo"] = rsp["helpInfo"]
+                    elif isinstance(rsp.get("newHelpInfo"), dict):
+                        h_list = treasure_ctrl.setdefault("helpInfo", [])
+                        if isinstance(h_list, list):
+                            h_list.append(rsp["newHelpInfo"])
+                    else:
+                        h_list = treasure_ctrl.setdefault("helpInfo", [])
+                        if isinstance(h_list, list):
+                            h_list.append({
+                                "ownUid": helped_uid,
+                                "index": helped_idx,
+                                "isHelped": True,
+                                "canReceive": False,
+                            })
+
                     self.log(f"✅ تمت مساعدة كنز عضو التحالف بنجاح.")
                     actions_done.append(f"مساعدة عضو UID={helped_uid}")
 

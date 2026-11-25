@@ -13,7 +13,10 @@ export function useAllUsers() {
     queryFn: async () => {
       return await getAdminUsers()
     },
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchInterval: 20_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -24,7 +27,10 @@ export function useAdminStats() {
     queryFn: async () => {
       return await getAdminStats()
     },
-    staleTime: 60_000,
+    staleTime: 15_000,
+    refetchInterval: 20_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -60,6 +66,7 @@ export function useUpdateSubscription() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin_users'] })
       qc.invalidateQueries({ queryKey: ['admin_stats'] })
+      qc.invalidateQueries({ queryKey: ['admin_users_castles'] })
       qc.invalidateQueries({ queryKey: ['castles'] })
     },
   })
@@ -75,6 +82,7 @@ export function useBanUser() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin_users'] })
       qc.invalidateQueries({ queryKey: ['admin_stats'] })
+      qc.invalidateQueries({ queryKey: ['admin_users_castles'] })
       qc.invalidateQueries({ queryKey: ['castles'] })
     },
   })
@@ -90,6 +98,7 @@ export function useDeleteUser() {
     onSuccess: (_, uid) => {
       qc.invalidateQueries({ queryKey: ['admin_users'] })
       qc.invalidateQueries({ queryKey: ['admin_stats'] })
+      qc.invalidateQueries({ queryKey: ['admin_users_castles'] })
       qc.invalidateQueries({ queryKey: ['castles'] })
       qc.invalidateQueries({ queryKey: ['castles', uid] })
     },
@@ -106,6 +115,7 @@ export function useApproveCastle() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['admin_users'] })
       qc.invalidateQueries({ queryKey: ['admin_stats'] })
+      qc.invalidateQueries({ queryKey: ['admin_users_castles'] })
       qc.invalidateQueries({ queryKey: ['castles', vars.userId] })
       qc.invalidateQueries({ queryKey: ['castles'] })
     },
@@ -122,6 +132,7 @@ export function useRejectCastle() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['admin_users'] })
       qc.invalidateQueries({ queryKey: ['admin_stats'] })
+      qc.invalidateQueries({ queryKey: ['admin_users_castles'] })
       qc.invalidateQueries({ queryKey: ['castles', vars.userId] })
       qc.invalidateQueries({ queryKey: ['castles'] })
     },

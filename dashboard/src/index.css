@@ -2220,6 +2220,184 @@ html.light .settings-hint-text {
   color: #64748b !important;
 }
 
+/* Bot Cycle Intervals & Castle Selector Modal (Light & Dark Modes) */
+.interval-modal-panel {
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 45px -5px rgba(var(--theme-primary-rgb), 0.25);
+}
+
+html.light .settings-intervals-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+}
+html.light .settings-interval-group {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+html.light .settings-interval-index {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+html.light .settings-interval-stepper {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+html.light .settings-interval-stepper-btn {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+}
+html.light .settings-interval-stepper-btn:hover:not(:disabled) {
+  background-color: #e2e8f0 !important;
+}
+html.light .settings-interval-input {
+  color: #0f172a !important;
+}
+html.light .settings-interval-unit {
+  color: #64748b !important;
+}
+html.light .settings-interval-jitter {
+  background-color: #ecfdf5 !important;
+  border-color: #6ee7b7 !important;
+  color: #065f46 !important;
+}
+html.light .settings-interval-jitter svg {
+  color: #059669 !important;
+}
+html.light .settings-interval-select-btn {
+  background-color: var(--theme-primary-100) !important;
+  border-color: var(--theme-primary-300) !important;
+  color: var(--theme-primary-dark) !important;
+}
+html.light .settings-interval-select-btn:hover {
+  background-color: var(--theme-primary-200) !important;
+}
+html.light .settings-interval-count-pill {
+  background-color: var(--theme-primary) !important;
+  color: #ffffff !important;
+}
+html.light .settings-interval-remove-group {
+  color: #e11d48 !important;
+}
+html.light .settings-interval-remove-group:hover {
+  background-color: #ffe4e6 !important;
+}
+html.light .settings-interval-empty-drop {
+  background-color: #ffffff !important;
+  border: 1px dashed #cbd5e1 !important;
+  color: #475569 !important;
+}
+html.light .settings-interval-empty-drop:hover {
+  border-color: var(--theme-primary) !important;
+  background-color: var(--theme-primary-50) !important;
+}
+html.light .settings-interval-chip {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+html.light .settings-interval-chip-remove {
+  color: #64748b !important;
+}
+html.light .settings-interval-chip-remove:hover {
+  color: #dc2626 !important;
+}
+html.light .settings-interval-add-btn {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+}
+html.light .settings-interval-add-btn:hover {
+  background-color: #f1f5f9 !important;
+}
+
+html.light .interval-modal-panel {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18) !important;
+}
+html.light .interval-modal-handle {
+  background-color: #cbd5e1 !important;
+}
+html.light .interval-modal-header,
+html.light .interval-modal-toolbar {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+html.light .interval-modal-icon {
+  background-color: var(--theme-primary-100) !important;
+  border-color: var(--theme-primary-300) !important;
+  color: var(--theme-primary-dark) !important;
+}
+html.light .interval-modal-close {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
+html.light .interval-modal-close:hover {
+  background-color: #e2e8f0 !important;
+}
+html.light .interval-modal-search {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+html.light .interval-modal-search::placeholder {
+  color: #94a3b8 !important;
+}
+html.light .interval-modal-select-all {
+  background-color: var(--theme-primary-100) !important;
+  border-color: var(--theme-primary-300) !important;
+  color: var(--theme-primary-dark) !important;
+}
+html.light .interval-modal-deselect-all {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+html.light .interval-modal-deselect-all:hover {
+  background-color: #f1f5f9 !important;
+}
+html.light .interval-modal-item {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+html.light .interval-modal-item:hover {
+  background-color: #f1f5f9 !important;
+}
+html.light .interval-modal-item.is-checked {
+  background-color: var(--theme-primary-50) !important;
+  border: 2px solid var(--theme-primary) !important;
+}
+html.light .interval-modal-checkbox {
+  background-color: #ffffff !important;
+  border: 2px solid #94a3b8 !important;
+}
+html.light .interval-modal-checkbox.is-checked,
+html.light .interval-modal-checkbox.is-checked * {
+  background-color: var(--theme-primary) !important;
+  border-color: var(--theme-primary) !important;
+  color: #ffffff !important;
+}
+html.light .interval-modal-avatar {
+  background-color: var(--theme-primary) !important;
+  color: #ffffff !important;
+}
+html.light .interval-modal-server-badge {
+  background-color: var(--theme-primary-100) !important;
+  color: var(--theme-primary-dark) !important;
+}
+html.light .interval-modal-other-badge {
+  background-color: #fef3c7 !important;
+  border-color: #fcd34d !important;
+  color: #92400e !important;
+}
+html.light .interval-modal-footer {
+  background-color: #ffffff !important;
+  border-top-color: #e2e8f0 !important;
+}
+
 /* ─── Mobile Native App Styles ─────────────────────────────── */
 .mobile-app-header {
   background: rgba(10, 15, 10, 0.96);
@@ -2546,6 +2724,12 @@ body.light .admin-stat-card {
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04) !important;
 }
 
+html.light .admin-stat-card.is-active,
+body.light .admin-stat-card.is-active {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25) !important;
+}
+
 html.light .admin-user-card,
 body.light .admin-user-card {
   background-color: #ffffff !important;
@@ -2570,6 +2754,37 @@ html.light .admin-table-row,
 body.light .admin-table-row {
   background-color: #ffffff !important;
   color: #0f172a !important;
+}
+
+.admin-search-input {
+  background-color: #111a15;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
+}
+.admin-search-input::placeholder {
+  color: #94a3b8;
+}
+.admin-search-input:focus {
+  background-color: #16221b;
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.22);
+}
+
+html.light .admin-search-input,
+body.light .admin-search-input {
+  background-color: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+html.light .admin-search-input::placeholder,
+body.light .admin-search-input::placeholder {
+  color: #64748b !important;
+}
+html.light .admin-search-input:focus,
+body.light .admin-search-input:focus {
+  background-color: #ffffff !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.18) !important;
 }
 
 
@@ -2618,5 +2833,93 @@ html.dark .edit-modal-input:-webkit-autofill {
   }
 }
 
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior-y: contain;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
 
 
+
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   بوابة القصر — صفحة تسجيل الدخول الملكية (حركة واحدة خفيفة: ظهور الخلفية)
+   المتغيران --royal-accent / --royal-accent-rgb يُضبطان من Login.tsx (ذهبي للافتراضي، ولون التاجر لغيره)
+   ═══════════════════════════════════════════════════════════════════ */
+.royal-login-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  background-image:
+    linear-gradient(to bottom, rgba(10, 15, 10, 0.62) 0%, rgba(10, 15, 10, 0.44) 50%, rgba(10, 15, 10, 0.88) 100%),
+    url('/images/castles/login_scene.webp');
+  pointer-events: none;
+}
+.royal-login-bg.is-ready { opacity: 1; }
+html.light .royal-login-bg {
+  background-image:
+    linear-gradient(to bottom, rgba(241, 245, 242, 0.25) 0%, rgba(241, 245, 242, 0.05) 50%, rgba(241, 245, 242, 0.45) 100%),
+    url('/images/castles/login_scene.webp');
+}
+
+.royal-glow {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 55%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(var(--royal-accent-rgb), 0.26), transparent 62%);
+  pointer-events: none;
+}
+
+.royal-card {
+  border: 1px solid rgba(var(--royal-accent-rgb), 0.5) !important;
+  box-shadow:
+    0 24px 64px rgba(var(--royal-accent-rgb), 0.16),
+    inset 0 0 0 1px rgba(var(--royal-accent-rgb), 0.12) !important;
+}
+.royal-card::before,
+.royal-card::after {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(var(--royal-accent-rgb), 0.85);
+  pointer-events: none;
+}
+.royal-card::before {
+  top: 10px;
+  inset-inline-start: 10px;
+  border-inline-end: 0;
+  border-bottom: 0;
+  border-start-start-radius: 8px;
+}
+.royal-card::after {
+  bottom: 10px;
+  inset-inline-end: 10px;
+  border-inline-start: 0;
+  border-top: 0;
+  border-end-end-radius: 8px;
+}
+
+.royal-text { color: var(--royal-accent); }
+html.light .royal-text { color: color-mix(in srgb, var(--royal-accent) 68%, #3b2a05); }
+
+.royal-divider {
+  height: 1px;
+  width: 120px;
+  background: linear-gradient(90deg, transparent, var(--royal-accent), transparent);
+}
+
+.royal-btn {
+  background: linear-gradient(135deg, var(--royal-accent), color-mix(in srgb, var(--royal-accent) 68%, #000));
+  color: var(--royal-btn-text, #1a1205);
+  box-shadow: 0 6px 18px rgba(var(--royal-accent-rgb), 0.28);
+}
+.royal-btn:disabled { opacity: 0.7; }

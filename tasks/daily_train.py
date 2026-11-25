@@ -153,18 +153,6 @@ class DailyTrainTask(BaseTask):
                     if int(ev_info.get(key, 0) or 0) >= 5:
                         return True
 
-        quest_ctrl = self.get_ctrl("questCtrl")
-        if not isinstance(quest_ctrl, dict) and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
-            quest_ctrl = self.conn.init_data.get("questCtrl")
-
-        if isinstance(quest_ctrl, dict):
-            pfl = quest_ctrl.get("point_finish_list", [])
-            if isinstance(pfl, list):
-                if quest_id in pfl or str(quest_id) in pfl:
-                    return True
-                if event_type in pfl or (str(event_type).isdigit() and int(event_type) in pfl):
-                    return True
-
         return False
 
     def _is_type_handled_by_main_train(self, troop_key: str) -> bool:

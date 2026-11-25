@@ -4,12 +4,12 @@ import type { Resources } from '../../types'
 
 // Resource icons — صور الموارد الحقيقية من ملفات اللعبة مع fallback emoji
 export const RESOURCE_META = [
-  { key: 'food',    icon: '/images/resources/tahil.png',   emoji: '🌾', color: 'text-green-400',  label: 'resources.food'    },
-  { key: 'wood',    icon: '/images/resources/odun.png',    emoji: '🪵', color: 'text-amber-400',  label: 'resources.wood'    },
-  { key: 'iron',    icon: '/images/resources/demir.png',   emoji: '⚙️', color: 'text-gray-300',   label: 'resources.iron'    },
-  { key: 'silver',  icon: '/images/daily/metal.png',       emoji: '🥈', color: 'text-slate-300',  label: 'resources.silver'  },
-  { key: 'diamond', icon: '/images/resources/kuvars.png',  emoji: '💎', color: 'text-blue-400',   label: 'resources.diamond' },
-  { key: 'gold',    icon: '/images/resources/altin.png',   emoji: '🪙', color: 'text-yellow-500', label: 'resources.gold'    },
+  { key: 'food',    icon: '/images/resources/res_food.png',    emoji: '🌾', color: 'text-green-400',  label: 'resources.food'    },
+  { key: 'wood',    icon: '/images/resources/res_wood.png',    emoji: '🪵', color: 'text-amber-400',  label: 'resources.wood'    },
+  { key: 'iron',    icon: '/images/resources/res_iron.png',    emoji: '⚙️', color: 'text-gray-300',   label: 'resources.iron'    },
+  { key: 'silver',  icon: '/images/resources/res_silver.png',  emoji: '🥈', color: 'text-slate-300',  label: 'resources.silver'  },
+  { key: 'diamond', icon: '/images/resources/res_crystal.png', emoji: '💎', color: 'text-blue-400',   label: 'resources.diamond' },
+  { key: 'gold',    icon: '/images/resources/res_gold.png',    emoji: '🪙', color: 'text-yellow-500', label: 'resources.gold'    },
 ] as const
 
 export function formatNum(n: number): string {
@@ -69,7 +69,7 @@ export function ResourceBar({ resources, compact }: ResourceBarProps) {
                 <img
                   src={icon}
                   alt={key}
-                  className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} object-contain filter drop-shadow-xs select-none`}
+                  className={`${compact ? 'w-4 h-4' : 'w-4 h-4 sm:w-5 sm:h-5'} object-contain filter drop-shadow-xs select-none`}
                   onError={() => setImgErrors(prev => ({ ...prev, [key]: true }))}
                 />
               ) : (

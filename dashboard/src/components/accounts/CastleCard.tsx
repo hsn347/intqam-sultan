@@ -219,16 +219,20 @@ function CastleCardInner({
     return localizeCastleSealReason(sealType, rawReason, t)
   }, [isSealed, realSealType, realSealReason, realStatusMsg, bot?.seal_type, bot?.seal_reason, bot?.conn_message, bot?.last_error, castle, t])
 
-  const [nowTick, setNowTick] = useState(Date.now())
+  const [nowTick, setNowTick] = useState(() => Date.now())
+  const nextRunValue = realNextRun || bot?.next_run_time || castle?.bot_status?.next_run_time || (castle as any)?.next_run_time || null
+  const msgBaselineRef = useRef<{ msg: string; seenAt: number }>({ msg: '', seenAt: 0 })
+
   useEffect(() => {
     if (!isWaitingCycle) return
-    const timer = setInterval(() => setNowTick(Date.now()), 10000)
+    setNowTick(Date.now())
+    const timer = setInterval(() => setNowTick(Date.now()), 5000)
     return () => clearInterval(timer)
-  }, [isWaitingCycle])
+  }, [isWaitingCycle, nextRunValue])
 
   const waitingMinutes = useMemo(() => {
     if (!isWaitingCycle) return null
-    const nextRun = realNextRun || bot?.next_run_time || castle?.bot_status?.next_run_time || (castle as any)?.next_run_time
+    const nextRun = nextRunValue
     if (nextRun) {
       let nextMs = new Date(nextRun).getTime()
       if (isNaN(nextMs) && typeof nextRun === 'string') {
@@ -248,20 +252,22 @@ function CastleCardInner({
       if (!isNaN(nextMs)) {
         const diffMs = nextMs - nowTick
         if (diffMs > 0) {
-          return Math.max(1, Math.round(diffMs / 60000))
+          return Math.max(1, Math.ceil(diffMs / 60000))
+        }
+        // إذا اقترب الموعد أو تجاوزه بثوانٍ بسبب فرق ساعة الخادم والمتصفح، لا نرجع للنص الثابت
+        if (diffMs > -120000) {
+          return 1
         }
       }
     }
 
     const msg = realStatusMsg || bot?.conn_message || castle?.bot_status?.conn_message || (castle as any)?.status_message || ''
-    const explicitMins = msg.match(/(?:متبقي|انتظار)\s*(\d+(?:\.\d+)?)\s*دقيقة/i)
-    if (explicitMins) {
-      const parsed = Math.round(parseFloat(explicitMins[1]))
-      if (parsed > 0) return parsed
+    if (msg && msgBaselineRef.current.msg !== msg) {
+      msgBaselineRef.current = { msg, seenAt: nowTick }
     }
 
     const timeMatch = msg.match(/(?:الساعة\s*)?(\d{1,2}):(\d{2})(?::\d{2})?/)
-    if (timeMatch) {
+    if (timeMatch && !nextRun) {
       const targetHour = parseInt(timeMatch[1], 10)
       const targetMin = parseInt(timeMatch[2], 10)
       const target = new Date(nowTick)
@@ -269,12 +275,21 @@ function CastleCardInner({
       if (target.getTime() < nowTick - 60000) {
         target.setDate(target.getDate() + 1)
       }
-      const diffMins = Math.round((target.getTime() - nowTick) / 60000)
-      if (diffMins > 0) return diffMins
-      return 1
+      const diffMins = Math.ceil((target.getTime() - nowTick) / 60000)
+      if (diffMins > 0 && diffMins <= 240) return diffMins
     }
+
+    const explicitMins = msg.match(/(?:متبقي|انتظار)\s*(\d+(?:\.\d+)?)\s*دقيقة/i)
+    if (explicitMins) {
+      const initialMins = Math.ceil(parseFloat(explicitMins[1]))
+      if (initialMins > 0) {
+        const elapsedMins = Math.floor(Math.max(0, nowTick - msgBaselineRef.current.seenAt) / 60000)
+        return Math.max(1, initialMins - elapsedMins)
+      }
+    }
+
     return null
-  }, [isWaitingCycle, realNextRun, realStatusMsg, bot?.next_run_time, bot?.conn_message, castle, nowTick])
+  }, [isWaitingCycle, nextRunValue, realStatusMsg, bot?.conn_message, castle, nowTick])
 
   const handleToggleClick = (e: React.MouseEvent) => {
     e.stopPropagation()

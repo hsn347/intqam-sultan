@@ -487,18 +487,29 @@ class BuildingTask(BaseTask):
                     bid = str(inner.get("bid", "") or q_info.get("bid", ""))
                     lv = int(inner.get("lv", 0) or q_info.get("lv", 0) or 0)
                     idx = str(inner.get("index", "") or q_info.get("index", ""))
+                    iid = str(inner.get("iid", "") or q_info.get("iid", ""))
                     if rem > 0 and bid:
                         active[qtype] = {
                             "qtype": qtype,
                             "bid": bid,
                             "lv": lv,
                             "index": idx,
+                            "iid": iid,
                             "remain_time": rem,
                             "raw": q_info,
                         }
                     else:
-                        # تنظيف الطابور المنتهي من الذاكرة الحية
-                        q_ctrl.pop(str(qtype), None)
+                        # مزامنة اكتمال المبنى قبل إزالة الطابور المنتهي حتى لا يبقى المبنى عالقاً على state="2"
+                        if bid:
+                            self.sync_in_memory_completed_queue(
+                                qtype,
+                                bid,
+                                lv if lv > 0 else None,
+                                index=idx or None,
+                                iid=iid or None,
+                            )
+                        else:
+                            q_ctrl.pop(str(qtype), None)
 
             # 0-Network: نرجع النتيجة فوراً حتى لو كانت active فارغة {}
             self.active_queues = active
@@ -517,6 +528,7 @@ class BuildingTask(BaseTask):
                         bid = str(inner.get("bid", "") or q_info.get("bid", ""))
                         lv = int(inner.get("lv", 0) or q_info.get("lv", 0) or 0)
                         idx = str(inner.get("index", "") or q_info.get("index", ""))
+                        iid = str(inner.get("iid", "") or q_info.get("iid", ""))
                         st = float(q_info.get("starttime", 0) or 0)
                         tt = float(q_info.get("totaltime", 0) or 0)
                         rem = max(0.0, (st + tt) - now_ts) if st > 0 else float(q_info.get("ottime", 0) or tt)
@@ -526,13 +538,22 @@ class BuildingTask(BaseTask):
                                 "bid": bid,
                                 "lv": lv,
                                 "index": idx,
+                                "iid": iid,
                                 "remain_time": rem,
                                 "raw": q_info,
                             }
                             if isinstance(q_ctrl, dict):
                                 q_ctrl[str(qtype)] = q_info
                         else:
-                            if isinstance(q_ctrl, dict):
+                            if bid:
+                                self.sync_in_memory_completed_queue(
+                                    qtype,
+                                    bid,
+                                    lv if lv > 0 else None,
+                                    index=idx or None,
+                                    iid=iid or None,
+                                )
+                            elif isinstance(q_ctrl, dict):
                                 q_ctrl.pop(str(qtype), None)
         self.active_queues = active
         return active
@@ -610,11 +631,13 @@ class BuildingTask(BaseTask):
         index: str,
         cost_time: int = 3600,
         cost_res: Optional[Dict[str, Any]] = None,
+        iid: Optional[Union[str, int]] = None,
     ):
         """مزامنة فورية للذاكرة الحية محلياً عند بدء الترقية أو التشييد (0-Network Sync)"""
         now_ts = time.time()
         bid_str = str(bid)
         qtype_str = str(qtype)
+        resolved_iid = str(iid) if iid is not None and str(iid) != "" else None
 
         # 1. تحديث حالة المبنى في cityCtrl.blist
         city = self._get_city_ctrl()
@@ -627,6 +650,8 @@ class BuildingTask(BaseTask):
                 bi = b.get("binfo", {})
                 if isinstance(bi, dict) and str(bi.get("bid", "")) == bid_str and str(bi.get("index", "")) == str(index):
                     bi["state"] = "2"
+                    if resolved_iid is None and bi.get("iid") is not None:
+                        resolved_iid = str(bi.get("iid"))
                     found = True
                     break
             if not found:
@@ -637,9 +662,11 @@ class BuildingTask(BaseTask):
                         "index": str(index),
                         "state": "2",
                         "curres": "0.0",
-                        "iid": "0",
+                        "iid": resolved_iid or "0",
                     }
                 })
+
+        iid_final = resolved_iid or "0"
 
         # 2. إضافة الطابور النشط في queueCtrl
         qctrl = self.get_ctrl("queueCtrl")
@@ -648,36 +675,25 @@ class BuildingTask(BaseTask):
                 "qtype": qtype_str,
                 "starttime": now_ts,
                 "totaltime": cost_time,
+                "ottime": cost_time,
                 "data": {
                     "bid": bid_str,
                     "lv": str(target_lv),
                     "index": str(index),
-                    "iid": "0",
+                    "iid": iid_final,
                 }
             }
 
-        # 3. تحديث active_queues محلياً
+        # 3. تحديث active_queues محلياً (خصم الموارد يتم تلقائياً عبر إشعار NOTIFY_CITY الرسمي)
         self.active_queues[qtype_str] = {
             "qtype": qtype_str,
             "bid": bid_str,
             "lv": target_lv,
             "index": str(index),
+            "iid": iid_final,
             "remain_time": float(cost_time),
             "raw": qctrl.get(qtype_str, {}) if isinstance(qctrl, dict) else {},
         }
-
-        # 4. خصم الموارد محلياً من cityCtrl.reslist و cityCtrl.resList معاً (مع منع الخصم المزدوج إن كانا نفس الكائن)
-        if cost_res and isinstance(cost_res, dict):
-            seen_dict_ids: Set[int] = set()
-            for res_key in ("reslist", "resList"):
-                res_dict = city.get(res_key)
-                if isinstance(res_dict, dict) and id(res_dict) not in seen_dict_ids:
-                    seen_dict_ids.add(id(res_dict))
-                    for res_id, req_amt in cost_res.items():
-                        k = str(res_id)
-                        if k in res_dict:
-                            curr_v = float(res_dict[k] or 0)
-                            res_dict[k] = str(max(0.0, curr_v - float(req_amt or 0)))
 
     def sync_in_memory_completed_queue(
         self,
@@ -685,28 +701,36 @@ class BuildingTask(BaseTask):
         bid: str,
         target_lv: Optional[int] = None,
         index: Optional[Union[str, int]] = None,
+        iid: Optional[Union[str, int]] = None,
     ):
         """مزامنة فورية للذاكرة الحية محلياً عند اكتمال الطابور بالتسريع أو الوقت (0-Network Sync)"""
         bid_str = str(bid)
         qtype_str = str(qtype)
 
         qctrl = self.get_ctrl("queueCtrl")
-        target_index = str(index) if index is not None else None
-        if not target_index:
-            if isinstance(qctrl, dict) and qtype_str in qctrl:
+        target_index = str(index) if index is not None and str(index) != "" else None
+        target_iid = str(iid) if iid is not None and str(iid) != "" else None
+        if not target_index or not target_iid:
+            if isinstance(qctrl, dict) and qtype_str in qctrl and isinstance(qctrl[qtype_str], dict):
                 q_data = qctrl[qtype_str].get("data", {})
-                if isinstance(q_data, dict) and q_data.get("index"):
-                    target_index = str(q_data.get("index"))
-            if not target_index and qtype_str in self.active_queues:
-                q_idx = self.active_queues[qtype_str].get("index")
-                if q_idx:
-                    target_index = str(q_idx)
-                else:
-                    q_raw = self.active_queues[qtype_str].get("raw", {})
-                    if isinstance(q_raw, dict):
-                        q_data = q_raw.get("data", {})
-                        if isinstance(q_data, dict) and q_data.get("index"):
+                if isinstance(q_data, dict):
+                    if not target_index and q_data.get("index"):
+                        target_index = str(q_data.get("index"))
+                    if not target_iid and q_data.get("iid") is not None and str(q_data.get("iid")) != "":
+                        target_iid = str(q_data.get("iid"))
+            if qtype_str in self.active_queues:
+                if not target_index and self.active_queues[qtype_str].get("index"):
+                    target_index = str(self.active_queues[qtype_str].get("index"))
+                if not target_iid and self.active_queues[qtype_str].get("iid"):
+                    target_iid = str(self.active_queues[qtype_str].get("iid"))
+                q_raw = self.active_queues[qtype_str].get("raw", {})
+                if isinstance(q_raw, dict):
+                    q_data = q_raw.get("data", {})
+                    if isinstance(q_data, dict):
+                        if not target_index and q_data.get("index"):
                             target_index = str(q_data.get("index"))
+                        if not target_iid and q_data.get("iid") is not None and str(q_data.get("iid")) != "":
+                            target_iid = str(q_data.get("iid"))
 
         # 1. إزالة الطابور من queueCtrl و active_queues
         if isinstance(qctrl, dict):
@@ -726,6 +750,9 @@ class BuildingTask(BaseTask):
                 if str(bi.get("bid", "")) == bid_str:
                     if target_index:
                         if str(bi.get("index", "")) != target_index:
+                            continue
+                    elif target_iid is not None:
+                        if str(bi.get("iid", "")) != target_iid:
                             continue
                     else:
                         if str(bi.get("state", "0")) != "2":
@@ -1388,8 +1415,7 @@ class BuildingTask(BaseTask):
 
         err_code = str(resp_tool.get("err", "-1")) if isinstance(resp_tool, dict) else "-1"
         if err_code in ("0", "1010"):
-            # خصم الأدوات من الذاكرة الحية محلياً
-            self.sync_in_memory_consumed_items(items_to_use)
+            # خصم أدوات التسريع من الحقيبة يتم تلقائياً عبر إشعار NOTIFY_BACKPACK (1) عند err=="0"
 
             # الخطوة 4: التقاط الذيل بالتسريع المجاني بعد التقليص إذا بلغ حد التسريع المجاني
             free_ok = False
@@ -1407,10 +1433,15 @@ class BuildingTask(BaseTask):
                 self.sync_in_memory_completed_queue(qtype, bid, target_lv, index=q_index)
                 return True, total_reduction, "تم إنهاء الترقية بالتسريع بنجاح"
             else:
-                # تقليص جزئي: استهلاك المتاح وترك البناء يكتمل بالوقت المتبقي
+                # تقليص جزئي: استهلاك المتاح وتحديث queueCtrl بالوقت المتبقي الفعلي
                 self.log(f"⏳ [Building] استهلاك المتاح من أدوات التسريع لـ {b_name} (المتبقي الجديد: {format_duration(rem)}) والتوقف لعدم كفاية الرصيد.")
                 if str(qtype) in self.active_queues:
                     self.active_queues[str(qtype)]["remain_time"] = rem
+                qctrl = self.get_ctrl("queueCtrl")
+                if isinstance(qctrl, dict) and str(qtype) in qctrl and isinstance(qctrl[str(qtype)], dict):
+                    qctrl[str(qtype)]["starttime"] = time.time()
+                    qctrl[str(qtype)]["totaltime"] = max(1, int(rem))
+                    qctrl[str(qtype)]["ottime"] = max(1, int(rem))
                 return False, total_reduction, "استهلاك المتاح من أدوات التسريع والتوقف لعدم كفاية الرصيد"
 
         self.log(f"⚠️ [Building] رفض السيرفر طلب التسريع لـ {b_name} (كود خطأ: {err_code})")
@@ -1472,8 +1503,14 @@ class BuildingTask(BaseTask):
                 lv = int(bi.get("lv", 0) or 0)
                 next_lv = lv + 1
                 idx_k = str(bi.get("index", ""))
+                iid_k = str(bi.get("iid", ""))
                 is_upgrading = (st == "2") or any(
-                    str(q.get("bid")) == bid_k and (not q.get("index") or str(q.get("index")) == idx_k)
+                    str(q.get("bid")) == bid_k
+                    and (
+                        (q.get("index") and str(q.get("index")) == idx_k)
+                        or (not q.get("index") and q.get("iid") and str(q.get("iid")) == iid_k)
+                        or (not q.get("index") and not q.get("iid"))
+                    )
                     for q in self.active_queues.values()
                 )
                 if is_upgrading:

@@ -157,23 +157,35 @@ class ResearchTask(BaseTask):
             else:
                 remain_time = float(q.get("remainTime", q.get("lefttime", 0)) or 0)
 
+            extra_data = q.get("data") or q.get("extraData") or {}
+            tech_id = ""
+            target_level = 1
+            if isinstance(extra_data, dict):
+                keys = [k for k in extra_data.keys() if str(k).isdigit()]
+                if keys:
+                    tech_id = str(keys[0])
+                    info = extra_data.get(tech_id)
+                    if isinstance(info, list) and len(info) > 1:
+                        target_level = int(info[1])
+
             if remain_time > 0:
-                extra_data = q.get("data") or q.get("extraData") or {}
-                tech_id = ""
-                target_level = 1
-                if isinstance(extra_data, dict):
-                    keys = [k for k in extra_data.keys() if str(k).isdigit()]
-                    if keys:
-                        tech_id = str(keys[0])
-                        info = extra_data.get(tech_id)
-                        if isinstance(info, list) and len(info) > 1:
-                            target_level = int(info[1])
                 return {
                     "is_busy": True,
                     "remain_time": remain_time,
                     "tech_id": tech_id,
                     "target_level": target_level,
                 }
+
+            # اكتمل الطابور زمنياً: ترقية مستوى البحث في technologyCtrl وحذف الطابور المنتهي
+            if tech_id:
+                tech_ctrl = self.get_ctrl("technologyCtrl")
+                if isinstance(tech_ctrl, dict):
+                    cur_entry = tech_ctrl.get(tech_id)
+                    cur_lv = int(cur_entry[1]) if isinstance(cur_entry, list) and len(cur_entry) > 1 else 0
+                    if target_level > cur_lv:
+                        tech_ctrl[tech_id] = [tech_id, target_level]
+            queue_ctrl.pop(RESEARCH_QUEUE_ID, None)
+            queue_ctrl.pop(int(RESEARCH_QUEUE_ID), None)
 
         return {"is_busy": False, "remain_time": 0}
 
@@ -414,27 +426,21 @@ class ResearchTask(BaseTask):
         err = str(resp.get("err", "-1")) if isinstance(resp, dict) else "-1"
 
         if err == "0":
-            # تحديث الذاكرة الحية فوراً (الطابور، مستوى البحث، خصم الموارد محلياً)
+            # تحديث طابور البحث 1212 بالمدة الفعلية المخفضة من السيرفر (تحديث الموارد يتم عبر NOTIFY_CITY، ومستوى التقنية عند اكتمال البحث/NOTIFY 494)
+            r_data = resp.get("data") if isinstance(resp.get("data"), dict) else {}
+            ret_q = r_data.get("retdata") if isinstance(r_data.get("retdata"), dict) else r_data
+            actual_time = int(ret_q.get("totaltime") or ret_q.get("lefttime") or res_time)
+            start_ts = int(ret_q.get("starttime") or time.time())
+
             queue_ctrl = self.get_ctrl("queueCtrl")
             if isinstance(queue_ctrl, dict):
                 queue_ctrl[RESEARCH_QUEUE_ID] = {
-                    "starttime": time.time(),
-                    "totaltime": res_time,
+                    "qtype": RESEARCH_QUEUE_ID,
+                    "starttime": start_ts,
+                    "totaltime": actual_time,
+                    "ottime": actual_time,
                     "data": {str(tech_id): [str(tech_id), target_lv]},
                 }
-
-            tech_ctrl = self.get_ctrl("technologyCtrl")
-            if isinstance(tech_ctrl, dict):
-                tech_ctrl[str(tech_id)] = [str(tech_id), target_lv]
-
-            city_ctrl = self.get_ctrl("cityCtrl")
-            if isinstance(city_ctrl, dict):
-                res_raw = city_ctrl.get("resList", {}) or city_ctrl.get("reslist", {})
-                if isinstance(res_raw, dict):
-                    res_raw["1002"] = max(0, current_res["food"] - int(req_res.get("food", 0)))
-                    res_raw["1003"] = max(0, current_res["wood"] - int(req_res.get("wood", 0)))
-                    res_raw["1004"] = max(0, current_res["iron"] - int(req_res.get("iron", 0)))
-                    res_raw["1005"] = max(0, current_res["silver"] - int(req_res.get("silver", 0)))
 
             msg = f"✅ تم بدء بحث {tech_title} (مستوى {target_lv}){guide_tag} بنجاح! | الشجرة: {tree_title} 🎉"
             self.log(msg)

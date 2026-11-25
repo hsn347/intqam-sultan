@@ -538,7 +538,7 @@ def _calc_war_gem_flat(live_memory: Dict[str, Any]) -> int:
     return total
 
 
-def _calc_equipment_flat(live_memory: Dict[str, Any]) -> Tuple[int, int]:
+def _calc_equipment_flat(live_memory: Dict[str, Any], now: Optional[int] = None) -> Tuple[int, int]:
     """
     يرجع (equip_buff_flat, equip_attr_flat) للعتاد المرتدى حالياً (wear == 1):
       - equip_buff_flat: خاصية 78 (أساسية + تقوية slv + إضافية extra)
@@ -551,6 +551,10 @@ def _calc_equipment_flat(live_memory: Dict[str, Any]) -> Tuple[int, int]:
     for eq in eq_arr:
         if not isinstance(eq, dict) or _to_int(eq.get("wear")) != 1:
             continue
+        if now is not None:
+            exp_t = _to_int(eq.get("endTime") or eq.get("overdueTime") or eq.get("stopTime"))
+            if exp_t > 0 and exp_t <= now:
+                continue
         eid = _to_int(eq.get("eid"))
         qly = _to_int(eq.get("qly"))
         slv = _to_int(eq.get("slv"))
@@ -576,13 +580,20 @@ def _calc_equipment_flat(live_memory: Dict[str, Any]) -> Tuple[int, int]:
     return buff_flat, attr_flat
 
 
-def _calc_castle_dress_attr(live_memory: Dict[str, Any]) -> int:
+def _calc_castle_dress_attr(live_memory: Dict[str, Any], now: Optional[int] = None) -> int:
     """dressMgr -> attributeSystem.query(DISPATCH_TROOP_COUNT_NUM) من المظاهر المملوكة والمستخدمة."""
     dress_ctrl = live_memory.get("dressCtrl") or {}
+    dress_list = dress_ctrl.get("list") or {}
     total = 0
-    # مظاهر مملوكة (ownAttribute)
-    for did_str in dress_ctrl.get("list") or {}:
+    expired_ids: set = set()
+    # مظاهر مملوكة (ownAttribute) مع فحص انتهاء الصلاحية عند تمرير now
+    for did_str, d_info in (dress_list.items() if isinstance(dress_list, dict) else []):
         did = _to_int(did_str)
+        if now is not None and isinstance(d_info, dict):
+            stop_t = _to_int(d_info.get("stopTime") or d_info.get("endTime"))
+            if stop_t > 0 and stop_t <= now:
+                expired_ids.add(did)
+                continue
         if did in DRESS_OWN_MARCH_FLAT:
             total += DRESS_OWN_MARCH_FLAT[did]
     # مظاهر مفعّلة حالياً (useAttribute)
@@ -590,7 +601,7 @@ def _calc_castle_dress_attr(live_memory: Dict[str, Any]) -> int:
     if isinstance(setting, dict):
         for did_val in setting.values():
             did = _to_int(did_val)
-            if did in DRESS_USE_MARCH_FLAT:
+            if did not in expired_ids and did in DRESS_USE_MARCH_FLAT:
                 total += DRESS_USE_MARCH_FLAT[did]
     return total
 
@@ -836,7 +847,7 @@ def calculate_march_capacity(
     nebula_tower_flat = 0 if is_arena else _calc_nebula_tower_flat(live_memory)
     hero_bio_flat = _calc_hero_biography_flat(live_memory)
     war_gem_flat = _calc_war_gem_flat(live_memory)
-    equip_buff_flat, equip_attr_flat = _calc_equipment_flat(live_memory)
+    equip_buff_flat, equip_attr_flat = _calc_equipment_flat(live_memory, now=now)
 
     buff_value_add = (
         server_flat
@@ -848,7 +859,7 @@ def calculate_march_capacity(
         + equip_buff_flat
     )
 
-    dress_attr = _calc_castle_dress_attr(live_memory)
+    dress_attr = _calc_castle_dress_attr(live_memory, now=now)
     attr_add = equip_attr_flat + dress_attr
     hero_dress_add = _calc_hero_dress_flat(live_memory)
 

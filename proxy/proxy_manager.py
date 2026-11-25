@@ -568,6 +568,150 @@ def remove_user_proxy_bindings(user_id: str, castle_emails: Optional[List[str]] 
             log.info(f"[ProxyMgr] 🗑️ تم حذف ارتباطات البروكسي للمستخدم {clean_uid}")
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# التعيين اليدوي من لوحة الأدمن (Manual Assignment)
+# المصدر الأساسي للحقيقة هو proxy_index في SQLite؛ يُحدَّث معه ملف الارتباطات لتبقى البطاقات متسقة.
+# التغيير يسري على القلعة عند أول connect() جديد (القلاع الشغالة تبقى على IP الحالي حتى ذلك الحين).
+# ══════════════════════════════════════════════════════════════════════════════
+
+def get_proxy_ips() -> List[str]:
+    """عناوين IP للبروكسيات النشطة بترتيب الفهارس (لعرض IP كل proxy_index في الواجهة)."""
+    with _manager_lock:
+        return [str(p.get("proxy_address", "")) for p in get_active_proxies()]
+
+
+def _bind_emails_locked(emails: List[str], url: str, user_id: Optional[str] = None) -> None:
+    """تحديث ملف الارتباطات لقلاع معيّنة (يُستدعى والقفل ممسوك)."""
+    _load_bindings()
+    pool_key = "free" if get_network_mode() == "free" else "residential"
+    c_b = _castle_bindings.setdefault(pool_key, {})
+    for em in emails:
+        c_b[em] = url
+    if user_id:
+        _user_bindings.setdefault(pool_key, {})[user_id] = url
+    _save_bindings()
+
+
+def _validated_target_locked(proxy_index: Any) -> tuple:
+    """يتحقق من فهرس البروكسي الهدف. يرجع (idx, url, host, total) أو (None, None, msg, total)."""
+    active = get_active_proxies()
+    total = len(active)
+    try:
+        idx = int(proxy_index)
+    except (TypeError, ValueError):
+        return None, None, "فهرس البروكسي غير صالح", total
+    if total == 0:
+        return None, None, "لا توجد بروكسيات في الباقة النشطة", total
+    if not (0 <= idx < total):
+        return None, None, "فهرس البروكسي خارج النطاق", total
+    url = _format_proxy_url(active[idx])
+    if not url:
+        return None, None, "بيانات البروكسي المختار غير مكتملة", total
+    return idx, url, str(active[idx].get("proxy_address", "")), total
+
+
+def assign_castle_to_proxy(email: str, proxy_index: Any) -> Dict[str, Any]:
+    """نقل قلعة واحدة إلى بروكسي محدد يدوياً."""
+    clean_email = (email or "").strip().lower()
+    if not clean_email:
+        return {"ok": False, "msg": "إيميل القلعة مطلوب"}
+    with _manager_lock:
+        idx, url, host_or_msg, _total = _validated_target_locked(proxy_index)
+        if idx is None:
+            return {"ok": False, "msg": host_or_msg}
+        from core.database import set_castles_proxy_index_bulk
+        if set_castles_proxy_index_bulk([clean_email], idx) == 0:
+            return {"ok": False, "msg": "القلعة غير موجودة"}
+        _bind_emails_locked([clean_email], url)
+    log.info(f"[ProxyMgr] 🔀 [يدوي] نقل القلعة {clean_email} إلى البروكسي [{idx}] ({host_or_msg}).")
+    return {"ok": True, "moved": 1, "emails": [clean_email], "proxy_index": idx, "ip": host_or_msg}
+
+
+def assign_user_to_proxy(user_id: str, proxy_index: Any) -> Dict[str, Any]:
+    """نقل كل قلاع مستخدم إلى بروكسي محدد يدوياً (يبقون معاً على نفس الـ IP)."""
+    clean_uid = (user_id or "").strip()
+    if not clean_uid:
+        return {"ok": False, "msg": "معرّف المستخدم مطلوب"}
+    with _manager_lock:
+        idx, url, host_or_msg, _total = _validated_target_locked(proxy_index)
+        if idx is None:
+            return {"ok": False, "msg": host_or_msg}
+        from core.database import get_user_castle_emails, set_castles_proxy_index_bulk
+        emails = get_user_castle_emails(clean_uid)
+        if not emails:
+            return {"ok": False, "msg": "لا توجد قلاع لهذا المستخدم"}
+        set_castles_proxy_index_bulk(emails, idx)
+        _bind_emails_locked(emails, url, user_id=clean_uid)
+    log.info(f"[ProxyMgr] 🔀 [يدوي] نقل {len(emails)} قلعة للمستخدم {clean_uid} إلى البروكسي [{idx}] ({host_or_msg}).")
+    return {"ok": True, "moved": len(emails), "emails": emails, "proxy_index": idx, "ip": host_or_msg}
+
+
+def drain_proxy(proxy_index: Any) -> Dict[str, Any]:
+    """إخلاء بروكسي: نقل كل قلاعه لبقية البروكسيات بتوزيع متوازن (قلاع المستخدم الواحد تبقى معاً)."""
+    with _manager_lock:
+        src, _url, src_host_or_msg, total = _validated_target_locked(proxy_index)
+        if src is None:
+            return {"ok": False, "msg": src_host_or_msg}
+        if total < 2:
+            return {"ok": False, "msg": "لا يوجد بروكسي بديل للنقل إليه"}
+
+        from core.database import (
+            get_castles_by_proxy_index, get_all_castle_proxy_counts, set_castles_proxy_index_bulk,
+        )
+        castles = get_castles_by_proxy_index(src, total)
+        if not castles:
+            return {"ok": True, "moved": 0, "emails": [], "targets": {}}
+
+        # تجميع بحسب المستخدم (قلعة بلا مستخدم = مجموعة مستقلة)
+        groups: Dict[str, List[str]] = {}
+        for c in castles:
+            key = c["user_id"] or f"__castle__{c['email']}"
+            groups.setdefault(key, []).append(c["email"])
+
+        active = get_active_proxies()
+        counts = get_all_castle_proxy_counts(total)
+        candidates = [i for i in range(total) if i != src and _format_proxy_url(active[i])]
+        if not candidates:
+            return {"ok": False, "msg": "لا يوجد بروكسي بديل صالح"}
+
+        targets: Dict[str, int] = {}
+        moved_emails: List[str] = []
+        for key, emails in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+            dst = min(candidates, key=lambda i: counts.get(i, 0))
+            set_castles_proxy_index_bulk(emails, dst)
+            counts[dst] = counts.get(dst, 0) + len(emails)
+            uid = None if key.startswith("__castle__") else key
+            _bind_emails_locked(emails, _format_proxy_url(active[dst]) or "", user_id=uid)
+            host = str(active[dst].get("proxy_address", dst))
+            targets[host] = targets.get(host, 0) + len(emails)
+            moved_emails.extend(emails)
+    log.info(f"[ProxyMgr] 🚧 [يدوي] إخلاء البروكسي [{src}] ({src_host_or_msg}): نقل {len(moved_emails)} قلعة → {targets}")
+    return {"ok": True, "moved": len(moved_emails), "emails": moved_emails, "targets": targets}
+
+
+def unbind_castle(email: str) -> Dict[str, Any]:
+    """إزالة ارتباط قلعة ليُعاد تخصيصها تلقائياً عند أول اتصال (أقل بروكسي حمولة أو بروكسي قلاع مستخدمها)."""
+    clean_email = (email or "").strip().lower()
+    if not clean_email:
+        return {"ok": False, "msg": "إيميل القلعة مطلوب"}
+    remove_castle_proxy(clean_email)
+    return {"ok": True, "moved": 1, "emails": [clean_email]}
+
+
+def unbind_user(user_id: str) -> Dict[str, Any]:
+    """إزالة ارتباط كل قلاع مستخدم ليُعاد تخصيصها تلقائياً."""
+    clean_uid = (user_id or "").strip()
+    if not clean_uid:
+        return {"ok": False, "msg": "معرّف المستخدم مطلوب"}
+    from core.database import get_user_castle_emails, set_castles_proxy_index_bulk
+    emails = get_user_castle_emails(clean_uid)
+    if not emails:
+        return {"ok": False, "msg": "لا توجد قلاع لهذا المستخدم"}
+    set_castles_proxy_index_bulk(emails, -1)
+    remove_user_proxy_bindings(clean_uid, emails)
+    return {"ok": True, "moved": len(emails), "emails": emails}
+
+
 async def test_single_proxy(proxy_url: str) -> Dict[str, Any]:
     """فحص نفق SOCKS5 لعنوان معين باتجاه سيرفر انتقام السلاطين وحساب الـ Ping."""
     if not proxy_url:
@@ -645,6 +789,7 @@ def proxy_status() -> Dict[str, Any]:
                     all_bound_users.add(db_uid)
 
                 proxies_list.append({
+                    "index": idx,
                     "ip": host,
                     "port": port,
                     "country": p.get("country_code", "??"),

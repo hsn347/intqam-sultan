@@ -45,17 +45,26 @@ class WarMedalTask(BaseTask):
             self.log(f"ℹ️ غير متاحة (تتطلب قلعة مستوى {REQ_CASTLE_LEVEL} على الأقل، الحالي: Lv.{c_lv}) — تم التجاوز بأمان.")
             return TaskResult.skip(f"تتطلب قلعة مستوى {REQ_CASTLE_LEVEL} (الحالي: {c_lv})")
 
-        # 3. اختيار المورد الأنسب حسب تسلسل الأولويات الصارم
+        # 3. اختيار المورد الأنسب حسب تسلسل الأولويات الصارم مع احتساب تصاعد التكلفة اليومي (curExchangeNumMap)
+        badge_ctrl = self.get_ctrl("badgeExchangeCtrl")
+        cur_num = 0
+        if isinstance(badge_ctrl, dict):
+            ex_map = badge_ctrl.get("curExchangeNumMap")
+            if isinstance(ex_map, dict):
+                cur_num = max(0, int(ex_map.get(str(BADGE_TYPE_COMMON), 0) or 0))
+        cost_mult = cur_num + 1
+
         res_dict = self.resources
         chosen_type = None
         chosen_cost = 0
         chosen_name = ""
 
-        for res_id, cost, name in EXCHANGE_PRIORITIES:
+        for res_id, base_cost, name in EXCHANGE_PRIORITIES:
+            req_cost = base_cost * cost_mult
             avail = int(float(res_dict.get(str(res_id), 0) or 0))
-            if avail >= cost:
+            if avail >= req_cost:
                 chosen_type = res_id
-                chosen_cost = cost
+                chosen_cost = req_cost
                 chosen_name = name
                 break
 
@@ -77,16 +86,24 @@ class WarMedalTask(BaseTask):
             return TaskResult.fail(f"فشل السيرفر ({err_code})")
 
         # 5. مزامنة الذاكرة الحية فورياً (In-Memory State Sync)
-        if isinstance(everyday_ctrl, dict):
-            ev_info = everyday_ctrl.setdefault("eventInfo", {})
+        cur_ev_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
+        if isinstance(cur_ev_ctrl, dict):
+            ev_info = cur_ev_ctrl.setdefault("eventInfo", {})
             if isinstance(ev_info, dict):
-                ev_info[DAILY_QUEST_TYPE_MEDAL] = 1
+                ev_info[DAILY_QUEST_TYPE_MEDAL] = max(int(ev_info.get(DAILY_QUEST_TYPE_MEDAL, 0) or 0), 1)
 
         badge_ctrl = self.get_ctrl("badgeExchangeCtrl")
         if isinstance(badge_ctrl, dict):
-            ex_map = badge_ctrl.setdefault("curExchangeNumMap", {})
-            if isinstance(ex_map, dict):
-                ex_map[str(BADGE_TYPE_COMMON)] = int(ex_map.get(str(BADGE_TYPE_COMMON), 0) or 0) + 1
+            srv_data = r.get("data") if isinstance(r.get("data"), dict) else {}
+            srv_map = srv_data.get("curExchangeNumMap")
+            if isinstance(srv_map, dict):
+                badge_ctrl["curExchangeNumMap"] = dict(srv_map)
+            else:
+                ex_map = badge_ctrl.setdefault("curExchangeNumMap", {})
+                if not isinstance(ex_map, dict):
+                    ex_map = {}
+                    badge_ctrl["curExchangeNumMap"] = ex_map
+                ex_map[str(BADGE_TYPE_COMMON)] = cur_num + 1
 
         self.log(f"✅ تم إنجاز تبادل وسام الحرب بنجاح مقابل {chosen_name} (إنجاز النشاط اليومي 1/1).")
         return TaskResult.ok(f"تم تبادل وسام الحرب بنجاح ({chosen_name})")

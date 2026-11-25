@@ -284,6 +284,7 @@ class ArenaTask(BaseTask):
                 return weakest
             return None
 
+        initial_challenges = cur_challenges
         max_battles_this_cycle = 1 if arena_mode == "per_cycle" else max(0, TARGET_DAILY_CHALLENGES - cur_challenges)
         battles_attempted_this_cycle = 0
 
@@ -386,7 +387,13 @@ class ArenaTask(BaseTask):
 
             battles_attempted_this_cycle += 1
             cur_challenges += 1
-            self.record_daily_quest_event(30, 1)
+            # مزامنة آمنة غير قابلة للمضاعفة مع NOTIFY_EVERYDAY_TASK (55)
+            cur_ev_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
+            if isinstance(cur_ev_ctrl, dict):
+                ev_map = cur_ev_ctrl.setdefault("eventInfo", {})
+                if isinstance(ev_map, dict):
+                    expected_c = min(TARGET_DAILY_CHALLENGES, initial_challenges + battles_attempted_this_cycle)
+                    ev_map["30"] = max(int(ev_map.get("30", 0) or 0), expected_c)
 
             if not b_win:
                 defeated_stop = True

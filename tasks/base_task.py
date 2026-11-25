@@ -1258,6 +1258,47 @@ HERO_RARE_LEVEL_MARCH_ADD: Dict[int, Dict[int, int]] = {
     },
 }
 
+# جداول القوة القتالية الرسمية للأبطال من سورس اللعبة (hero_upgrade_conf.lua, hero_level_config.lua, hero_awake_config.lua)
+HERO_UPGRADE_RARITY_BY_ID: Dict[int, int] = {
+    162: 2, 163: 2, 164: 2, 165: 2,
+    1700: 1, 1701: 1, 1702: 1, 1703: 1,
+    1704: 2, 1705: 2, 1706: 2, 1707: 2, 1708: 2, 1709: 2, 1717: 2, 1718: 2, 1733: 2,
+    1710: 3, 1711: 3, 1712: 3, 1714: 3, 1724: 3, 1725: 3, 1726: 3, 1728: 3,
+    1713: 4, 1716: 4, 1719: 4, 1720: 4, 1721: 4, 1722: 4, 1723: 4, 1727: 4,
+    1729: 4, 1730: 4, 1731: 4, 1732: 4, 1734: 4, 1735: 4, 1736: 4, 1737: 4,
+    1738: 4, 1739: 4, 1740: 4, 1741: 4, 1742: 4, 1743: 4, 1744: 4, 1745: 4,
+    1746: 4, 1751: 4,
+    1747: 5, 1748: 5, 1749: 5, 1750: 5, 1752: 5, 1753: 5, 1754: 5, 1755: 5, 1756: 5, 1757: 5,
+}
+HERO_QUALITY_POWER_COMMON: Dict[int, int] = {1: 1000, 2: 3000, 3: 8000, 4: 18000, 5: 33000}
+HERO_QUALITY_POWER_RARITY5: Dict[int, int] = {1: 1500, 2: 4200, 3: 11100, 4: 24800, 5: 45400, 6: 66000}
+HERO_LEVEL_POWER_STEP_GT60: Dict[int, Tuple[int, int]] = {
+    1: (60000, 2000),
+    2: (72000, 3000),
+    3: (84000, 4500),
+    4: (84000, 5000),
+    5: (90000, 5200),
+}
+HERO_RARITY5_LEVEL_POWER_LE60: Dict[int, int] = {
+    1: 9000, 2: 9900, 3: 10800, 4: 11700, 5: 12600, 6: 13500, 7: 14400, 8: 15300, 9: 16200, 10: 17100,
+    11: 18000, 12: 19080, 13: 20160, 14: 21240, 15: 22320, 16: 23400, 17: 24480, 18: 25560, 19: 26640, 20: 27720,
+    21: 28800, 22: 29970, 23: 31140, 24: 32310, 25: 33480, 26: 34650, 27: 35820, 28: 36990, 29: 38160, 30: 39330,
+    31: 40500, 32: 41850, 33: 43200, 34: 44550, 35: 45900, 36: 47250, 37: 48600, 38: 49950, 39: 51300, 40: 52650,
+    41: 54000, 42: 55800, 43: 57600, 44: 59400, 45: 61200, 46: 63000, 47: 64800, 48: 66600, 49: 68400, 50: 70200,
+    51: 72000, 52: 73980, 53: 75960, 54: 77940, 55: 79920, 56: 81900, 57: 83880, 58: 85860, 59: 87840, 60: 90000,
+}
+HERO_AWAKE_POWER_BY_ID: Dict[int, int] = {
+    1700: 24000, 1701: 24000, 1702: 24000, 1703: 24000,
+    1704: 36000, 1705: 36000, 1706: 36000, 1707: 36000, 1708: 36000, 1709: 36000, 1717: 36000, 1718: 36000, 1733: 36000,
+    1710: 54000, 1711: 54000, 1712: 54000, 1714: 54000, 1724: 54000, 1725: 54000, 1728: 54000,
+    1713: 60000, 1716: 60000, 1719: 60000, 1720: 60000, 1721: 60000, 1722: 60000, 1723: 60000,
+    1726: 60000, 1727: 60000, 1729: 60000, 1730: 60000, 1731: 60000, 1732: 60000, 1735: 60000,
+    1734: 108000, 1736: 108000, 1737: 108000, 1738: 108000, 1739: 108000, 1740: 108000, 1741: 108000,
+    1742: 108000, 1743: 108000, 1744: 108000, 1745: 108000, 1746: 108000, 1751: 108000,
+    1747: 168000, 1748: 168000, 1749: 168000, 1750: 168000, 1752: 168000, 1753: 168000,
+    1754: 168000, 1755: 168000, 1756: 168000, 1757: 168000,
+}
+
 # خصائص رونات العتاد الإلهي التي تمنح زيادة سعة المسيرة (rune_property_config.lua: Attribute[1]=96)
 RUNE_MARCH_PROPERTY_BASE: Dict[int, int] = {11103: 60, 11203: 100, 11303: 150, 11403: 200, 11503: 300, 12203: 130, 12303: 195, 12403: 260, 12503: 390, 21103: 60, 21203: 100, 21303: 150, 21403: 200, 21503: 300, 31103: 60, 31203: 100, 31303: 150, 31403: 200, 31503: 300, 41102: 60, 41202: 100, 41302: 150, 41402: 200, 41502: 300}
 
@@ -1713,12 +1754,23 @@ class BaseTask(ABC):
         if self.conn and hasattr(self.conn, "creds") and self.conn.creds:
             if getattr(self.conn.creds, "kingdom_id", None):
                 try:
-                    return int(self.conn.creds.kingdom_id)
+                    kid = int(self.conn.creds.kingdom_id)
+                    if kid > 0:
+                        return kid
                 except (ValueError, TypeError):
                     pass
+        km = self.get_ctrl("kingdomMapCtrl")
+        if isinstance(km, dict):
+            kid = self._safe_int(km.get("kingdomId"), 0)
+            if kid > 0:
+                return kid
         lord = self.get_ctrl("lordInfoCtrl")
         base = lord.get("base", {}) if isinstance(lord, dict) else {}
-        return int(base.get("lastKid", 0))
+        for key in ("partition", "sourceKid", "lastKid"):
+            kid = self._safe_int(base.get(key), 0)
+            if kid > 0:
+                return kid
+        return 0
 
     @property
     def stamina(self) -> int:
@@ -1776,14 +1828,64 @@ class BaseTask(ABC):
 
     @property
     def is_shielded(self) -> bool:
-        """مؤشر درع السلام الرسمي من خريطة المملكة."""
+        """
+        مؤشر درع السلام الفعلي من الذاكرة الحية (0-Network):
+        1. يفحص باف الدرع النشط (5003) في buffCtrl للتحقق من عدم انتهاء مدته فعلياً.
+        2. يفحص ختم انتهاء الدرع المحلي (conn.shield_expire_ts) إن وُجد.
+        3. يسقط إلى kingdomMapCtrl.isSafe (يدعم درع المبتدئين/النظام وإشعارات NOTIFY_WORLD_UPDATE).
+        """
+        now_ts = time.time()
+        buff_ctrl = self.get_ctrl("buffCtrl")
+        buff_list: Optional[List[Any]] = None
+        if isinstance(buff_ctrl, list):
+            buff_list = buff_ctrl
+        elif isinstance(buff_ctrl, dict) and isinstance(buff_ctrl.get("buffList"), list):
+            buff_list = buff_ctrl["buffList"]
+
+        if buff_list is not None:
+            for b in buff_list:
+                if not isinstance(b, dict):
+                    continue
+                bid = str(b.get("id") or b.get("buffId") or b.get("effectType") or "")
+                if bid == "5003":
+                    begin_t = self._safe_float(b.get("beginTime"))
+                    dur = self._safe_float(b.get("time"))
+                    end_t = self._safe_float(b.get("endTime"))
+                    if dur > 0 and begin_t > 0:
+                        return (begin_t + dur) > now_ts
+                    if end_t > 0:
+                        return end_t > now_ts
+
+        exp_ts = getattr(self.conn, "shield_expire_ts", None) if self.conn else None
+        if isinstance(exp_ts, (int, float)) and exp_ts > 0 and now_ts >= exp_ts:
+            return False
+
         km = self.get_ctrl("kingdomMapCtrl")
         return bool(km.get("isSafe", False)) if isinstance(km, dict) else False
 
     @property
     def shield_remaining_seconds(self) -> int:
-        """مؤشر ثواني الدرع المتبقية أو حالة الأمان (توافق خلفي وبساطة مطلقة)."""
-        return 1 if self.is_shielded else 0
+        """الثواني المتبقية لدرع السلام (من buff 5003 أو shield_expire_ts، أو 1 لدرع النظام)."""
+        if not self.is_shielded:
+            return 0
+        now_ts = time.time()
+        buff_ctrl = self.get_ctrl("buffCtrl")
+        buff_list = buff_ctrl if isinstance(buff_ctrl, list) else (
+            buff_ctrl.get("buffList") if isinstance(buff_ctrl, dict) and isinstance(buff_ctrl.get("buffList"), list) else []
+        )
+        for b in buff_list:
+            if isinstance(b, dict) and str(b.get("id") or b.get("buffId") or b.get("effectType") or "") == "5003":
+                begin_t = self._safe_float(b.get("beginTime"))
+                dur = self._safe_float(b.get("time"))
+                end_t = self._safe_float(b.get("endTime"))
+                if dur > 0 and begin_t > 0:
+                    return max(0, int((begin_t + dur) - now_ts))
+                if end_t > 0:
+                    return max(0, int(end_t - now_ts))
+        exp_ts = getattr(self.conn, "shield_expire_ts", None) if self.conn else None
+        if isinstance(exp_ts, (int, float)) and exp_ts > now_ts:
+            return max(0, int(exp_ts - now_ts))
+        return 1
 
     @property
     def vip_level(self) -> int:
@@ -1860,15 +1962,25 @@ class BaseTask(ABC):
         for q in raw_queues:
             qtype = str(q.get("qtype") or q.get("queueType") or q.get("type") or "")
             if qtype == "1219":
-                ot = self._safe_float(q.get("ottime") or q.get("finishTime") or q.get("endTime"))
-                tot = self._safe_float(q.get("totaltime") or q.get("time"))
                 st = self._safe_float(q.get("starttime") or q.get("beginTime"))
-                if ot == 0 and tot > 0 and st > 0:
-                    ot = st + tot
-                if ot > 1e11:
-                    ot /= 1000.0
-                if ot > 0:
-                    end_times.append(ot)
+                tot = self._safe_float(q.get("totaltime") or q.get("time"))
+                q_data = q.get("data") if isinstance(q.get("data"), dict) else {}
+                explicit_end = self._safe_float(q.get("finishTime") or q.get("endTime") or q_data.get("endtime"))
+                raw_ot = self._safe_float(q.get("ottime"))
+                if explicit_end > 1e11:
+                    explicit_end /= 1000.0
+                if st > 1e11:
+                    st /= 1000.0
+                if explicit_end > 1e9:
+                    end_ts = explicit_end
+                elif st > 0 and tot > 0:
+                    end_ts = st + tot
+                elif raw_ot > 1e9:
+                    end_ts = raw_ot / 1000.0 if raw_ot > 1e11 else raw_ot
+                else:
+                    end_ts = 0.0
+                if end_ts > 0:
+                    end_times.append(end_ts)
 
         # 3. vipCtrl كبديل احتياطي
         vip_ctrl = self.get_ctrl("vipCtrl")
@@ -2000,6 +2112,23 @@ class BaseTask(ABC):
                         if isinstance(p, dict) and str(p.get("id") or p.get("type")) == "10":
                             priv_10_val = self._safe_int(p.get("value", p.get("level", 0)))
                             break
+                if priv_10_val == 0:
+                    u_data = exalted_ctrl.get("userData")
+                    if not isinstance(u_data, dict) and isinstance(exalted_ctrl.get("clientData"), dict):
+                        u_data = exalted_ctrl["clientData"].get("userData")
+                    if isinstance(u_data, dict):
+                        total_score = (
+                            self._safe_int(u_data.get("privilegeItemScore"), 0)
+                            + self._safe_int(u_data.get("privilegeLoginScore"), 0)
+                            + self._safe_int(u_data.get("privilegeRechargeScore"), 0)
+                        )
+                        # عتبات نقاط امتياز السمو الرسمية لفتح أطقم المواهب الإضافية (4، 5، 6)
+                        if total_score >= 50000:
+                            priv_10_val = 3
+                        elif total_score >= 20000:
+                            priv_10_val = 2
+                        elif total_score >= 5000:
+                            priv_10_val = 1
                 if priv_10_val >= req_rank:
                     return True, f"طقم المواهب {target_set} متاح عبر امتيازات VIP الحصرية (مستوى {priv_10_val})."
             return False, f"يتطلب طقم المواهب {target_set} امتيازات كبار الشخصيات الحصرية (Exalted Privilege {req_rank})."
@@ -2457,16 +2586,24 @@ class BaseTask(ABC):
                 if qtype == str_qtype:
                     st = self._safe_int(q.get("starttime") or q.get("beginTime"))
                     tot = self._safe_int(q.get("totaltime") or q.get("time"))
-                    ot = self._safe_int(q.get("ottime") or q.get("finishTime") or q.get("endTime"))
+                    q_data = q.get("data") if isinstance(q.get("data"), dict) else {}
+                    explicit_end = self._safe_int(q.get("finishTime") or q.get("endTime") or q_data.get("endtime"))
+                    raw_ot = self._safe_int(q.get("ottime"))
 
-                    if ot == 0 and tot > 0 and st > 0:
-                        ot = st + tot
+                    if explicit_end > 1_000_000_000:
+                        end_ts = explicit_end
+                    elif st > 0 and tot > 0:
+                        end_ts = st + tot
+                    elif raw_ot > 1_000_000_000:
+                        end_ts = raw_ot
+                    else:
+                        end_ts = 0
 
-                    if ot > now_ts:
+                    if end_ts > now_ts:
                         is_buff_active = True
-                        buff_remaining = max(buff_remaining, ot - now_ts)
+                        buff_remaining = max(buff_remaining, end_ts - now_ts)
                         break
-                    elif ot == 0:
+                    elif end_ts == 0 and tot == 0 and raw_ot == 0:
                         # طابور دائم أو سارٍ حتى حدوث واقعة (مثل طابور 1214 لمهارة الإنقاذ)
                         is_buff_active = True
                         is_untimed_buff = True
@@ -2552,11 +2689,15 @@ class BaseTask(ABC):
     def _is_resp_ok(resp: Optional[Dict[str, Any]]) -> bool:
         """
         فحص نجاح استجابة السيرفر بشكل مرن ودقيق:
-        يعتبر الطلب ناجحاً إذا كان err أو code هو 0 أو '0' أو 'Err_None' أو غير موجود.
+        يعتبر الطلب ناجحاً إذا لم يكن _ok == False وكان err/code هو 0 أو '0' أو 'Err_None' أو غير موجود.
         """
         if not isinstance(resp, dict):
             return False
+        if resp.get("_ok") is False:
+            return False
         err = resp.get("err")
+        if err is None and isinstance(resp.get("data"), dict):
+            err = resp["data"].get("err")
         if err is None:
             err = resp.get("code")
         if err is None:
@@ -2628,9 +2769,13 @@ class BaseTask(ABC):
         meta = LORD_ACTIVE_SKILLS_CATALOG.get(skill_id, {})
         buff_id = target_buff_id or meta.get("buff_id")
         queue_type = target_queue_type or meta.get("queue_type")
+        # المهارات الفورية لا تنشئ طابوراً زمنياً في السيرفر (11011, 12008, 13020, 13021)
+        if skill_id in (11011, 12008, 13020, 13021):
+            queue_type = None
+        fallback_dur = {4504: 10800, 5129: 14400}.get(buff_id, int(meta.get("duration_seconds") or 3600))
 
         if hasattr(self, "conn") and isinstance(self.conn.init_data, dict):
-            # 1. حقن/تحديث باف القلعة في buffCtrl
+            # 1. حقن باف احتياطي في buffCtrl فقط إذا لم يكن موجوداً مسبقاً من NOTIFY_BUFF
             if buff_id is not None:
                 buff_ctrl = self.conn.init_data.setdefault("buffCtrl", [])
                 is_untimed = buff_id in (4501, 5130, 5425)
@@ -2638,50 +2783,47 @@ class BaseTask(ABC):
                     "id": buff_id,
                     "buffId": buff_id,
                     "beginTime": now_ts,
-                    "time": 0 if is_untimed else 3600,
-                    "endTime": 0 if is_untimed else (now_ts + 3600),
+                    "time": 0 if is_untimed else fallback_dur,
+                    "endTime": 0 if is_untimed else (now_ts + fallback_dur),
                 }
                 if isinstance(buff_ctrl, list):
-                    found = False
-                    for b in buff_ctrl:
-                        if isinstance(b, dict) and str(b.get("id") or b.get("buffId")) == str(buff_id):
-                            b.update(buff_obj)
-                            found = True
-                            break
+                    found = any(
+                        isinstance(b, dict) and str(b.get("id") or b.get("buffId")) == str(buff_id)
+                        for b in buff_ctrl
+                    )
                     if not found:
                         buff_ctrl.append(buff_obj)
                 elif isinstance(buff_ctrl, dict):
                     if "buffList" in buff_ctrl and isinstance(buff_ctrl["buffList"], list):
-                        found = False
-                        for b in buff_ctrl["buffList"]:
-                            if isinstance(b, dict) and str(b.get("id") or b.get("buffId")) == str(buff_id):
-                                b.update(buff_obj)
-                                found = True
-                                break
+                        found = any(
+                            isinstance(b, dict) and str(b.get("id") or b.get("buffId")) == str(buff_id)
+                            for b in buff_ctrl["buffList"]
+                        )
                         if not found:
                             buff_ctrl["buffList"].append(buff_obj)
-                    else:
+                    elif len(buff_ctrl) == 0:
+                        self.conn.init_data["buffCtrl"] = [buff_obj]
+                    elif str(buff_id) not in buff_ctrl:
                         buff_ctrl[str(buff_id)] = buff_obj
 
-            # 2. حقن/تحديث طابور المهارة في queueCtrl
+            # 2. حقن طابور احتياطي في queueCtrl فقط إذا لم يكن موجوداً (وتخزين المدة بالثواني في ottime)
             if queue_type is not None:
                 queue_ctrl = self.conn.init_data.setdefault("queueCtrl", {})
                 is_untimed_q = (queue_type == 1214)
                 q_obj = {
                     "qtype": str(queue_type),
                     "starttime": now_ts,
-                    "totaltime": 0 if is_untimed_q else 3600,
-                    "ottime": 0 if is_untimed_q else (now_ts + 3600),
+                    "totaltime": 0 if is_untimed_q else fallback_dur,
+                    "ottime": 0 if is_untimed_q else fallback_dur,
                 }
                 if isinstance(queue_ctrl, dict):
-                    queue_ctrl[str(queue_type)] = q_obj
+                    if str(queue_type) not in queue_ctrl:
+                        queue_ctrl[str(queue_type)] = q_obj
                 elif isinstance(queue_ctrl, list):
-                    found = False
-                    for q in queue_ctrl:
-                        if isinstance(q, dict) and str(q.get("qtype") or q.get("queueType")) == str(queue_type):
-                            q.update(q_obj)
-                            found = True
-                            break
+                    found = any(
+                        isinstance(q, dict) and str(q.get("qtype") or q.get("queueType")) == str(queue_type)
+                        for q in queue_ctrl
+                    )
                     if not found:
                         queue_ctrl.append(q_obj)
 
@@ -2693,8 +2835,8 @@ class BaseTask(ABC):
         cd_val = self._safe_int(rsp_data.get("CD", base_cd), default=base_cd)
         begin_t = self._safe_int(rsp_data.get("beginTime", now_ts), default=now_ts)
 
-        # المهارات التي لا تبدأ فترة تبريدها إلا بعد استهلاك/إغلاق الباف (مثل مهارة الإنقاذ 11028 والاستحواذ 13040)
-        if skill_id in (11028, 13040) and "CD" not in rsp_data:
+        # المهارات التي لا تبدأ فترة تبريدها إلا بعد استهلاك/إغلاق الباف (11028 الإنقاذ، 13032 التسلل، 13040 الاستحواذ)
+        if skill_id in (11028, 13032, 13040) and "CD" not in rsp_data:
             return
 
         if hasattr(self, "conn") and isinstance(self.conn.init_data, dict):
@@ -2788,7 +2930,6 @@ class BaseTask(ABC):
                 return False, f"فشل تفعيل المهارة '{skill_name}' من السيرفر (كود الخطأ: {err_code})."
 
             self._sync_skill_cd_in_memory(resolved_id, resp, status)
-            self._mark_skill_buff_active_in_memory(resolved_id, target_buff_id, target_queue_type)
             self.log(f"✅ [مهارات اللورد] تم تفعيل المهارة '{skill_name}' بنجاح.")
             return True, f"تم تفعيل المهارة '{skill_name}' بنجاح."
 
@@ -2839,7 +2980,6 @@ class BaseTask(ABC):
             else:
                 success = True
                 self._sync_skill_cd_in_memory(resolved_id, resp, status)
-                self._mark_skill_buff_active_in_memory(resolved_id, target_buff_id, target_queue_type)
                 result_msg = f"تم تفعيل المهارة '{skill_name}' بنجاح."
                 self.log(f"✅ [مهارات اللورد] تم تفعيل المهارة '{skill_name}' بنجاح في الطقم {target_set_id}.")
 
@@ -3003,9 +3143,10 @@ class BaseTask(ABC):
         for q in local_queues:
             if not isinstance(q, dict):
                 continue
-            q_status = q.get("status")
-            q_type = q.get("queueType") or q.get("type")
-            if q_status in (0, 7) or str(q_type) in ("0", "7"):
+            q_status = self._safe_int(q.get("status"), -1)
+            ml_type = self._safe_int(q.get("moveLineType") or q.get("move_line_type"), -1)
+            q_type = self._safe_int(q.get("queueType") if q.get("queueType") is not None else q.get("type"), -1)
+            if q_status == 0 or ml_type == 7 or q_type in (9, 14, 21):
                 has_active_rally_queue = True
                 break
 
@@ -3053,7 +3194,7 @@ class BaseTask(ABC):
     def _sync_hero_rally_skill_in_memory(self, group_id: int, resp: Dict[str, Any], status: Dict[str, Any]) -> None:
         """مزامنة فورية لحالة مهارة الحشد في كائن الذاكرة الحية (0-Network In-Memory State Sync)."""
         now_ts = int(time.time())
-        effect_sec = status.get("buff_remaining_seconds", 3600) or 3600
+        effect_sec = int(HERO_RALLY_SKILLS_CATALOG.get(group_id, {}).get("effect_seconds", 3600) or 3600)
 
         rsp_data = resp.get("rspdata", {}) if isinstance(resp, dict) else {}
         skill_data_resp = rsp_data.get("skillData", {}) if isinstance(rsp_data, dict) else {}
@@ -3318,7 +3459,8 @@ class BaseTask(ABC):
             return 0
 
         my_uid = str(getattr(self, "uid", "") or "").strip()
-        active_statuses = (0, 1, 2, 3, 4, 7)
+        # الحالة 3 هي moveLineStatusTypeFinished (منتهي) وتُستبعد
+        active_statuses = (0, 1, 2, 4, 7)
         seen_ids: Set[str] = set()
         count = 0
 
@@ -3406,16 +3548,19 @@ class BaseTask(ABC):
                         tech_bonus += 1
         capacity += min(3, tech_bonus)
 
-        # 2. ميزة VIP (VIP 4..9 -> +1, VIP 10+ -> +2) تشترط سريان باف VIP حالياً
+        # 2. ميزة VIP وفق vipbuff.lua (7207): VIP 8..9 -> +1, VIP 10..25 -> +2, VIP 26 -> +3, VIP 27+ -> +4
         if self.is_vip_active:
             vip_lv = self.vip_level
-            if vip_lv >= 10:
+            if vip_lv >= 27:
+                capacity += 4
+            elif vip_lv >= 26:
+                capacity += 3
+            elif vip_lv >= 10:
                 capacity += 2
-            elif vip_lv >= 4:
+            elif vip_lv >= 8:
                 capacity += 1
 
-        # 3. السقف الأقصى العام للعبة 6 مسيرات
-        capacity = min(6, max(1, capacity))
+        capacity = max(1, capacity)
 
         # 4. مراعاة التقييد اليدوي config.get('max_marches') أو config.get('max_queues')
         if hasattr(self, "config") and isinstance(self.config, dict):
@@ -3486,7 +3631,7 @@ class BaseTask(ABC):
                 status = int(raw_status)
             except (TypeError, ValueError):
                 continue
-            if status not in (0, 1, 2, 3, 4, 7):
+            if status not in (0, 1, 2, 4, 7):
                 continue
 
             res_sub = None
@@ -3541,7 +3686,7 @@ class BaseTask(ABC):
             return False
 
         my_uid = str(getattr(self, "uid", "") or "").strip()
-        active_statuses = (0, 1, 2, 3, 4, 7)
+        active_statuses = (0, 1, 2, 4, 7)
 
         for q in queues:
             if not isinstance(q, dict):
@@ -3562,8 +3707,12 @@ class BaseTask(ABC):
             if status not in active_statuses:
                 continue
 
-            # 1. moveLineType = 4 مخصص للأطلال
-            if q.get("moveLineType") == 4 or q.get("type") == 4:
+            # 1. moveLineType = 4 (عميل) أو queueType = 5 (سيرفر RelicsExplore؛ علماً أن queueType=4 هي CollResource)
+            if (
+                q.get("moveLineType") in (4, "4")
+                or q.get("queueType") in (5, "5")
+                or ("queueType" not in q and q.get("type") in (4, "4"))
+            ):
                 return True
 
             # 2. فحص الهدف (to) أو نقطة الانطلاق (from) للأطلال (mapType = 7)
@@ -3612,12 +3761,14 @@ class BaseTask(ABC):
             return False
 
         my_uid = str(getattr(self, "uid", "") or "").strip()
-        active_statuses = (0, 1, 2, 3, 4, 7)
+        active_statuses = (0, 1, 2, 4, 7)
 
         # أنواع مسيرات مساعدة حليف (يتم استبعادها لحصر الفحص بقافلة القلعة الخاصة فقط)
-        assist_types = {23, 13, "23", "13"}
-        # أنواع مسيرات حراسة القافلة الخاصة الرسمية (سيرفر: 22، عميل: 11)
-        escort_types = {22, 11, "22", "11"}
+        assist_ml_types = {23, 13, "23", "13"}
+        assist_q_types = {23, "23"}
+        # أنواع مسيرات حراسة القافلة الخاصة الرسمية (سيرفر queueType=22 فقط لأن 11 هي AttackCamp؛ عميل moveLineType=11 أو 22)
+        escort_ml_types = {22, 11, "22", "11"}
+        escort_q_types = {22, "22"}
 
         for q in queues:
             if not isinstance(q, dict):
@@ -3639,14 +3790,14 @@ class BaseTask(ABC):
                 continue
 
             ml_type = q.get("moveLineType") or q.get("move_line_type")
-            q_type = q.get("queueType") or q.get("type")
+            q_type = q.get("queueType") if q.get("queueType") is not None else q.get("type")
 
             # استبعاد مسيرات مساعدة قوافل الحلفاء
-            if ml_type in assist_types or q_type in assist_types:
+            if ml_type in assist_ml_types or q_type in assist_q_types:
                 continue
 
-            # 1. فحص نوع المسار الصريح لحراسة قافلة الغنيمة (22 أو 11)
-            if ml_type in escort_types or q_type in escort_types:
+            # 1. فحص نوع المسار الصريح لحراسة قافلة الغنيمة
+            if ml_type in escort_ml_types or q_type in escort_q_types:
                 return True
 
             # 2. فحص الهدف (to) أو نقطة الانطلاق (from) لكيان القافلة (mapType = 16)
@@ -4267,9 +4418,9 @@ class BaseTask(ABC):
                 f"Falling back to network query (CMD 1005, subcmd 1)..."
             )
             resp = await self.safe_query(cmd="1005", subcmd="1", data={})
-            if resp and isinstance(resp, dict):
-                data = resp.get("data") or resp
-                if isinstance(data, dict):
+            if self._is_resp_ok(resp) and isinstance(resp, dict):
+                data = resp.get("data")
+                if isinstance(data, dict) and data:
                     if hasattr(self, "conn") and self.conn and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
                         target_ctrl = self.conn.init_data.setdefault("armyCtrl", {})
                         if isinstance(target_ctrl, dict):
@@ -4327,11 +4478,12 @@ class BaseTask(ABC):
             return False
         try:
             resp = await self.conn.query("1055", "2", {}, timeout=timeout)
-            if resp and isinstance(resp, dict):
+            if self._is_resp_ok(resp) and isinstance(resp, dict):
                 res_data = resp.get("result") or resp.get("data")
-                if res_data and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
+                if isinstance(res_data, dict) and res_data and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
                     self.conn.init_data["achievementctrl"] = res_data
-            return True
+                return True
+            return False
         except Exception as e:
             self.log(f"⚠️ استعلام مزامنة الإنجازات 1055/2 لم يكتمل: {e}")
             return False
@@ -4375,7 +4527,10 @@ class BaseTask(ABC):
             await asyncio.sleep(jitter)
 
         try:
-            res = await self.conn.query(cmd, subcmd, data or {}, action=action)
+            try:
+                res = await self.conn.query(cmd, subcmd, data or {}, action=action)
+            except TypeError:
+                res = await self.conn.query(cmd, subcmd, data or {})
             if not getattr(self.conn, "is_connected", False):
                 self.log(f"⚡ [قاطع الاتصال] انقطع الاتصال بالسيرفر أثناء الاستعلام ({cmd}/{subcmd}) — تفعيل قاطع الاتصال فوراً.")
                 raise ConnectionCircuitBreakerError(f"انقطع الاتصال بالخادم أثناء الاستعلام ({cmd}/{subcmd})")
@@ -4602,25 +4757,11 @@ class BaseTask(ABC):
                     payload = {"itemID": box_id, "count": use_count}
                     resp = await self.safe_query("1004", "2", payload)
 
-                    # التحقق من نجاح الطلب
-                    if resp is not None:
-                        # تحديث كمية الصناديق في الحقيبة محلياً
-                        rem_boxes = available_count - use_count
-                        if rem_boxes > 0:
-                            box_entry["count"] = rem_boxes
-                        else:
-                            backpack.pop(str(box_id), None)
-                            backpack.pop(int(box_id), None)
-
-                        # تحديث رصيد المورد في المدينة محلياً
+                    # التحقق الصارم من نجاح الطلب (يعتمد تحديث الحقيبة والموارد على إشعارات NOTIFY_BACKPACK و NOTIFY_CITY الرسمية)
+                    if self._is_resp_ok(resp):
                         gained = use_count * box_val
                         total_opened += gained
                         opened_here += gained
-                        new_res_val = int(float(res_list.get(res_id, 0))) + gained
-                        res_list[res_id] = str(new_res_val)
-                        if isinstance(city, dict):
-                            city["reslist"] = res_list
-
                         deficit = max(0, deficit - gained)
                         self.log(
                             f"✅ [ensure_resources] تم استهلاك {use_count}x صندوق {res_name} ({box_kind}) "
@@ -4637,9 +4778,11 @@ class BaseTask(ABC):
                 self.log(f"🛡️ [ensure_resources] الاستعانة بالصناديق الآمنة لتغطية العجز المتبقي ({deficit:,}) من {res_name}...")
                 await _consume_boxes(meta["safe_boxes"], is_safe=True)
 
-            # 4. تحديث التقرير النهائي للمورد
+            # 4. تحديث التقرير النهائي للمورد من الذاكرة الحية المحدثة عبر الإشعارات
+            live_city = self.get_ctrl("cityCtrl")
+            live_res = (live_city.get("reslist") or live_city.get("resList") or {}) if isinstance(live_city, dict) else res_list
             res_report["provided"] = total_opened
-            res_report["final_balance"] = int(float(res_list.get(res_id, 0)))
+            res_report["final_balance"] = int(float(live_res.get(res_id, current_balance + total_opened) or 0))
             res_report["deficit_remaining"] = deficit
             res_report["satisfied"] = (deficit == 0)
 
@@ -4828,6 +4971,11 @@ class BaseTask(ABC):
                     if k in event_info and self._safe_int(event_info.get(k), 0) >= 1:
                         return True, COMMAND_HALL_DAILY_QUEST_TARGET, COMMAND_HALL_DAILY_QUEST_TARGET
 
+        today_utc = int(time.time()) // 86400
+        if self.conn is not None and getattr(self.conn, "_command_hall_daily_day", None) not in (None, today_utc):
+            setattr(self.conn, "_command_hall_daily_subtasks", 0)
+            setattr(self.conn, "_command_hall_daily_day", today_utc)
+
         local_subtasks = self._safe_int(getattr(self.conn, "_command_hall_daily_subtasks", 0), 0)
         if local_subtasks >= COMMAND_HALL_DAILY_QUEST_TARGET:
             return True, min(local_subtasks, COMMAND_HALL_DAILY_QUEST_TARGET), COMMAND_HALL_DAILY_QUEST_TARGET
@@ -4841,6 +4989,10 @@ class BaseTask(ABC):
         """
         if self.conn is None:
             return 0
+        today_utc = int(time.time()) // 86400
+        if getattr(self.conn, "_command_hall_daily_day", None) != today_utc:
+            setattr(self.conn, "_command_hall_daily_subtasks", 0)
+            setattr(self.conn, "_command_hall_daily_day", today_utc)
         cur = self._safe_int(getattr(self.conn, "_command_hall_daily_subtasks", 0), 0) + max(0, int(count))
         setattr(self.conn, "_command_hall_daily_subtasks", cur)
 
@@ -4889,7 +5041,7 @@ class BaseTask(ABC):
         # 2. استعلام السيرفر عند الحاجة أو عند طلب force_sync
         if not has_cached or force_sync:
             resp = await self.safe_query(CMD_COMMAND_HALL_MODULE, REQ_COMMAND_HALL_INIT, {})
-            if isinstance(resp, dict):
+            if self._is_resp_ok(resp) and isinstance(resp, dict):
                 init_data = None
                 rspdata = resp.get("rspdata")
                 if isinstance(rspdata, dict) and isinstance(rspdata.get("initData"), dict):
@@ -5157,6 +5309,20 @@ class BaseTask(ABC):
         5091: (240, 0, 5), 5092: (240, 0, 5), 5093: (240, 0, 5), 5094: (240, 0, 5),
     }
 
+    def _sync_stamina_spent_if_pending(self, stamina_before: int, cost: int) -> None:
+        """تحديث طاقة اللورد محلياً فقط إذا لم يكن إشعار NOTIFY_LORD (8) قد وصل وحدّثها بعد (منع الخصم المزدوج وحماية حد الأمان)."""
+        if cost <= 0:
+            return
+        lord = self.get_ctrl("lordInfoCtrl")
+        if not isinstance(lord, dict):
+            return
+        base = lord.get("base")
+        if not isinstance(base, dict):
+            return
+        cur_health = self._safe_int(base.get("health"), 0)
+        if cur_health >= stamina_before:
+            base["health"] = max(0, stamina_before - int(cost))
+
     def get_command_hall_task_spec(self, task_id: int) -> Dict[str, int]:
         """استخراج القوة الموصى بها وتكلفة الطاقة من الجدول الرسمي الكامل (0-Network)."""
         tid = self._safe_int(task_id, 0)
@@ -5178,18 +5344,24 @@ class BaseTask(ABC):
         self,
         task_id: int = 0,
         min_win_ratio: float = 1.20,
-        max_win_ratio: float = 3.5,
+        min_total_ratio: float = 1.15,
+        max_win_ratio: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         تشكيل فيلق معارك قاعة القيادة عبر محرك MarchManagerTask الموحّد وحاسبة tasks/march_capacity.py (0-Network):
-        - يستخدم أي جنود متاحين (أقوياء أو ضعفاء) مرتّبين تنازلياً بالقوة حتى تحقيق القتل المؤكد ضمن سعة الفيلق الحقيقية.
-        - يشمل أبطال السور (exclude_defend_heroes=False) ويستبعد الأبطال المشغولين في local_queues تلقائياً.
-        - يعيد ok=False و can_kill=False عند استحالة قتل الهدف لمنع إرسال مسيرات خاسرة.
+        - يملأ سعة الفيلق المتاحة بأقوى الجنود القتاليين المتاحين افتراضياً (max_win_ratio=None) لضمان الانتصار وتقليل الجرحى.
+        - يقارن القوة الإجمالية للتشكيلة المشكّلة (قوة الجنود + قوة الأبطال) بإجمالي قوة الهدف
+          (recommendArmy + recommendHero) × min_total_ratio، مع ضمان الحد الأدنى للجنود (recommendArmy × min_win_ratio)
+          لأن الأبطال لا يقاتلون بدون جيش، بينما يستطيع الجيش القوي حسم المعركة حتى لو انشغل الأبطال بالخارج.
+        - يشمل أبطال السور (exclude_defend_heroes=False) مرتبين بالقوة القتالية الحقيقية (get_hero_power).
         """
         from tasks.march_manager import MarchManagerTask
 
         spec = self.get_command_hall_task_spec(task_id)
         recommend_army = max(1, int(spec["recommendArmy"]))
+        recommend_hero = max(0, self._safe_int(spec.get("recommendHero"), 0))
+        target_total_power = float(recommend_army + recommend_hero)
+        required_total_power = target_total_power * max(1.0, float(min_total_ratio))
         mgr = MarchManagerTask(self.conn, self.log)
 
         form = mgr.build_combat_army_formation(
@@ -5206,8 +5378,41 @@ class BaseTask(ABC):
                 "ok": False,
                 "can_kill": False,
                 "error_code": form.get("error_code", "CANNOT_KILL"),
-                "reason": form.get("reason", "تشكيلة القلعة غير كافية لقتل هدف قاعة القيادة."),
+                "reason": form.get("reason", "تشكيلة الجنود الحالية غير كافية لقتل هدف قاعة القيادة."),
                 "spec": spec,
+                "army_power": float(form.get("achieved_power") or 0.0),
+                "hero_power": int(form.get("hero_power", 0)),
+                "total_power": float(form.get("achieved_power") or 0.0) + float(form.get("hero_power", 0)),
+                "target_total_power": target_total_power,
+                "recommend_hero": recommend_hero,
+                "formation": form,
+                "army_payload": [],
+                "hero_payload": [],
+                "total_soldiers": 0,
+            }
+
+        hero_ids = [int(hid) for hid in (form.get("hero_ids") or []) if int(hid) > 0]
+        hero_power = int(form.get("hero_power") or sum(self.get_hero_power(hid) for hid in hero_ids))
+        army_power = float(form.get("effective_power") or form.get("raw_army_power") or 0.0)
+        total_power = army_power + float(hero_power)
+        total_win_ratio = (total_power / target_total_power) if target_total_power > 0 else float(form.get("win_ratio", 0.0))
+
+        if total_power < required_total_power:
+            return {
+                "ok": False,
+                "can_kill": False,
+                "error_code": "INSUFFICIENT_TOTAL_POWER",
+                "reason": (
+                    f"القوة الإجمالية للتشكيلة ({total_power:,.0f} = جنود {army_power:,.0f} + أبطال {hero_power:,}) "
+                    f"أضعف من القوة المطلوبة لتجاوز الهدف بأمان ({required_total_power:,.0f} | قوة الهدف: {target_total_power:,.0f}) — تخطي آمن."
+                ),
+                "spec": spec,
+                "army_power": round(army_power, 1),
+                "hero_power": hero_power,
+                "total_power": round(total_power, 1),
+                "target_total_power": target_total_power,
+                "total_win_ratio": round(total_win_ratio, 3),
+                "recommend_hero": recommend_hero,
                 "formation": form,
                 "army_payload": [],
                 "hero_payload": [],
@@ -5216,8 +5421,7 @@ class BaseTask(ABC):
 
         army_dict = form.get("army") or {}
         army_payload = [{"id": int(aid), "num": int(cnt)} for aid, cnt in army_dict.items() if int(cnt) > 0]
-        hero_ids = form.get("hero_ids") or []
-        hero_payload = [{"heroID": int(hid)} for hid in hero_ids if int(hid) > 0]
+        hero_payload = [{"heroID": hid} for hid in hero_ids]
 
         return {
             "ok": True,
@@ -5225,6 +5429,12 @@ class BaseTask(ABC):
             "error_code": "OK",
             "reason": "",
             "spec": spec,
+            "army_power": round(army_power, 1),
+            "hero_power": hero_power,
+            "total_power": round(total_power, 1),
+            "target_total_power": target_total_power,
+            "total_win_ratio": round(total_win_ratio, 3),
+            "recommend_hero": recommend_hero,
             "formation": form,
             "army_payload": army_payload,
             "hero_payload": hero_payload,
@@ -5311,18 +5521,47 @@ class BaseTask(ABC):
             stamina_cost = spec["consume"]
         task_title = "طليعة الغزاة" if task_type == 2 else "فريق الغزاة"
 
-        # دالة مساعدة: فحص وجود مسير قاعة قيادة نشط في local_queues (0-Network)
-        def _find_ch_queue(valid_coords: Optional[Set[Tuple[int, int]]] = None) -> Optional[Tuple[Dict[str, Any], int]]:
+        # دالة مساعدة: رصد طابور مسير قاعة القيادة النشط (ذهاب queueType=51/15 أو إياب queueType=10/orgQueueType=51)
+        def _find_ch_queue(
+            valid_coords: Optional[Set[Tuple[int, int]]] = None,
+            tracked_qids: Optional[Set[str]] = None,
+        ) -> Optional[Tuple[Dict[str, Any], int, str]]:
             for q, st in mgr._iter_my_active_queues():
+                qid = str(q.get("id") or q.get("queueId") or "").strip()
+                org_qid = str(q.get("orgQueueId") or q.get("orgId") or "").strip()
                 ml_type = self._safe_int(q.get("moveLineType"), 0)
-                q_type = self._safe_int(q.get("type") or q.get("queueType"), 0)
+                q_type = self._safe_int(
+                    q.get("queueType") if q.get("queueType") is not None else q.get("type"),
+                    0,
+                )
+                org_q_type = self._safe_int(q.get("orgQueueType"), 0)
+
                 to_obj = q.get("to") if isinstance(q.get("to"), dict) else {}
-                qx = self._safe_int(to_obj.get("x") or q.get("target_x"), -1)
-                qy = self._safe_int(to_obj.get("y") or q.get("target_y"), -1)
-                if valid_coords and (qx, qy) in valid_coords:
-                    return q, st
-                if ml_type == 15 or q_type == 15:
-                    return q, st
+                to_x = self._safe_int(to_obj.get("x") if "x" in to_obj else q.get("target_x"), -1)
+                to_y = self._safe_int(to_obj.get("y") if "y" in to_obj else q.get("target_y"), -1)
+
+                from_obj = q.get("from") if isinstance(q.get("from"), dict) else {}
+                from_x = self._safe_int(from_obj.get("x"), -1)
+                from_y = self._safe_int(from_obj.get("y"), -1)
+
+                is_return_queue = (q_type == 10 or ml_type == 8 or st == 2)
+                if is_return_queue:
+                    if (
+                        org_q_type in (15, 51)
+                        or (tracked_qids and (qid in tracked_qids or org_qid in tracked_qids))
+                        or (valid_coords and (from_x, from_y) in valid_coords)
+                    ):
+                        return q, st, "returning"
+                else:
+                    if (
+                        q_type in (15, 51)
+                        or ml_type == 15
+                        or (tracked_qids and qid in tracked_qids)
+                        or (valid_coords and (to_x, to_y) in valid_coords)
+                    ):
+                        if qid and tracked_qids is not None:
+                            tracked_qids.add(qid)
+                        return q, st, "outbound"
             return None
 
         # دالة مساعدة: قراءة حالة المهمة الحية من الذاكرة (محدّثة بـ NOTIFY_COMMAND_HALL 608)
@@ -5342,13 +5581,27 @@ class BaseTask(ABC):
                             return self._safe_int(itm.get("statue"), 0)
             return -1
 
-        # 1. تطبيق قاعدة "فيلق واحد فقط": إذا كان هناك مسير قاعة قيادة نشط ننتظر عودته أولاً
+        def _did_live_battle_lose(since_mono: float) -> bool:
+            init_mem = getattr(self.conn, "init_data", None)
+            if not isinstance(init_mem, dict):
+                return False
+            last_res = init_mem.get("_last_ch_battle_result")
+            if not isinstance(last_res, dict):
+                return False
+            if float(last_res.get("_mono", 0.0)) < since_mono:
+                return False
+            res_tid = self._safe_int(last_res.get("taskID"), 0)
+            if res_tid > 0 and task_id > 0 and res_tid != task_id:
+                return False
+            return last_res.get("win") is False
+
+        # 1. تطبيق قاعدة "فيلق واحد فقط": إذا كان هناك مسير قاعة قيادة نشط (ذهاباً أو إياباً) ننتظر عودته أولاً
         if _find_ch_queue() is not None:
             self.log(f"⏳ [قاعة القيادة] يوجد فيلق قاعة قيادة نشط حالياً — انتظار عودته قبل إرسال {task_title} #{task_index}...")
             pre_deadline = time.monotonic() + 60.0
             while time.monotonic() < pre_deadline:
                 if _find_ch_queue() is None:
-                    await mgr.sleep_interruptible(0.6)
+                    await mgr.sleep_interruptible(0.8)
                     break
                 if not await mgr.sleep_interruptible(0.5, deadline=pre_deadline):
                     return {"success": False, "disconnected": not self.is_connected, "reason": "انقطع الاتصال أو انتهت مهلة انتظار عودة الفيلق السابق."}
@@ -5366,11 +5619,11 @@ class BaseTask(ABC):
                 "reason": f"طاقة اللورد غير كافية ({self.stamina} متوفر | المطلوب: {stamina_cost}).",
             }
 
-        # 2. تشكيل الفيلق القتالي عبر MarchManagerTask + march_capacity.py (أي جنود متاحين يكفون للقتل)
+        # 2. تشكيل الفيلق القتالي بكامل السعة المتاحة (max_win_ratio=None) مع اشتراط البطل عند الحاجة
         form_res = self.prepare_command_hall_combat_formation(
             task_id=task_id,
             min_win_ratio=1.20,
-            max_win_ratio=3.5,
+            max_win_ratio=None,
         )
         if not form_res.get("ok") or not form_res.get("can_kill"):
             reason_msg = form_res.get("reason") or "تشكيلة القلعة الحالية غير كافية لقتل الهدف بشكل مؤكد."
@@ -5384,10 +5637,12 @@ class BaseTask(ABC):
 
         selected_troops = form_res["army_payload"]
         selected_heroes = form_res["hero_payload"]
+        total_power_val = float(form_res.get("total_power", 0.0))
+        target_total_val = float(form_res.get("target_total_power", 0.0))
+        total_ratio_val = float(form_res.get("total_win_ratio", form_res.get("win_ratio", 0.0)))
         hero_ids_str = ", ".join(str(h["heroID"]) for h in selected_heroes)
         hero_log_str = f" مع الأبطال ({hero_ids_str})" if selected_heroes else " (بدون أبطال)"
         total_troops_num = form_res["total_soldiers"]
-        win_ratio = form_res["win_ratio"]
         max_cap = form_res["max_capacity"]
 
         # 3. مزامنة موقع الـ NPC على الخريطة (CMD 2274/9)
@@ -5414,8 +5669,16 @@ class BaseTask(ABC):
         self.log(
             f"⚔️ [قاعة القيادة] إرسال فيلق معركة لمهمة {task_title} #{task_index} (ID: {task_id}) "
             f"نحو ({tile_x}, {tile_y}) [المملكة: {kid}] — جنود: {total_troops_num:,}/{max_cap:,} "
-            f"(قوة: {win_ratio:.2f}×){hero_log_str}..."
+            f"(إجمالي القوة: {total_power_val:,.0f}/{target_total_val:,.0f} = {total_ratio_val:.2f}×){hero_log_str}..."
         )
+
+        # حفظ معرفات الطوابير الحالية لرصد طابور هذه المعركة بدقة تامة (ذهاباً وعودةً عبر orgQueueId)
+        prev_qids: Set[str] = {
+            str(q.get("id") or q.get("queueId") or "").strip()
+            for q, _st in mgr._iter_my_active_queues()
+        } - {""}
+        tracked_qids: Set[str] = set()
+        dispatch_mono = time.monotonic()
 
         # 4. بناء حزمة إرسال المسير الرسمية (CMD 1007/2) برقم المملكة الفعلي
         march_payload = {
@@ -5440,32 +5703,66 @@ class BaseTask(ABC):
             },
         }
 
+        stamina_before_march = self.stamina
         march_resp = await self.safe_query("1007", "2", march_payload, min_delay=0.6, max_delay=1.2)
         if not isinstance(march_resp, dict) or str(march_resp.get("err", march_resp.get("code", "0"))).strip() not in ("0", "Err_None"):
             err_msg = march_resp.get("err") if isinstance(march_resp, dict) else "لم يرد استجابة من السيرفر"
             self.log(f"⚠️ [قاعة القيادة] تعذر إرسال فيلق المعركة للمهمة #{task_index} (الخطأ: {err_msg}).")
             return {
                 "success": False,
+                "stamina_spent": 0,
                 "reason": f"فشل طلب إرسال الفيلق: {err_msg}",
                 "march_response": march_resp,
             }
 
-        # خصم طاقة اللورد محلياً في الذاكرة الحية (0-Network)
-        lord = self.get_ctrl("lordInfoCtrl")
-        if isinstance(lord, dict):
-            base = lord.get("base")
-            if isinstance(base, dict) and "health" in base:
-                base["health"] = max(0, self._safe_int(base["health"]) - stamina_cost)
+        self._sync_stamina_spent_if_pending(stamina_before_march, stamina_cost)
 
-        # انتظار قصير لظهور الطابور في local_queues ثم تقدير زمن الذهاب الحقيقي
-        await mgr.sleep_interruptible(0.8)
-        timing = mgr.estimate_march_duration(
-            march_type="attack",
-            dispatch_response=march_resp,
-            target_x=tile_x,
-            target_y=tile_y,
-        )
-        go_sec = max(float(wait_seconds), float(timing.get("go_seconds", 0.0)))
+        # التقاط معرف الطابور الجديد إن ورد في رد الإرسال أو في local_queues
+        for container in (march_resp, march_resp.get("rspdata"), march_resp.get("data"), march_resp.get("result")):
+            if isinstance(container, dict):
+                q_sub = container.get("queue") if isinstance(container.get("queue"), dict) else container
+                cand_qid = str(q_sub.get("id") or q_sub.get("queueId") or "").strip()
+                if cand_qid:
+                    tracked_qids.add(cand_qid)
+
+        # طاقة اللورد تُحدّث تلقائياً عبر إشعار NOTIFY_LORD (8) الرسمي من السيرفر
+        # انتظار قصير لوصول NOTIFY_LOCAL_QUEUE_SYNC (202) ما لم تكن المهمة قد حُسمت فورياً بالفعل
+        if _get_live_task_statue() != 3 and not _did_live_battle_lose(dispatch_mono):
+            await mgr.sleep_interruptible(0.8)
+
+        for q, _st in mgr._iter_my_active_queues():
+            qid = str(q.get("id") or q.get("queueId") or "").strip()
+            if qid and qid not in prev_qids:
+                q_type = self._safe_int(q.get("queueType") if q.get("queueType") is not None else q.get("type"), 0)
+                org_q_type = self._safe_int(q.get("orgQueueType"), 0)
+                if q_type in (15, 51) or org_q_type in (15, 51) or self._safe_int(q.get("moveLineType"), 0) == 15:
+                    tracked_qids.add(qid)
+
+        # حساب زمن الذهاب الحقيقي من طابور السيرفر الحي (إن توفر) أو من مقدّر المسافة كاحتياطي
+        live_go_sec = 0.0
+        init_match = _find_ch_queue(valid_coords, tracked_qids)
+        if init_match is not None:
+            q_live, _q_st, q_phase = init_match
+            if q_phase == "outbound":
+                end_ts = self._safe_float(
+                    q_live.get("statusEndTime") or q_live.get("finishTime") or q_live.get("endTime") or 0.0
+                )
+                if end_ts > 1e11:
+                    end_ts /= 1000.0
+                if end_ts > time.time():
+                    live_go_sec = max(2.0, end_ts - time.time())
+
+        if live_go_sec > 0.0:
+            go_sec = live_go_sec
+        else:
+            timing = mgr.estimate_march_duration(
+                march_type="attack",
+                dispatch_response=march_resp,
+                target_x=tile_x,
+                target_y=tile_y,
+            )
+            go_sec = max(float(wait_seconds), float(timing.get("go_seconds", 0.0)))
+
         settle_timeout = max(20.0, go_sec + 15.0)
         settle_deadline = time.monotonic() + settle_timeout
 
@@ -5474,26 +5771,35 @@ class BaseTask(ABC):
             f"متابعة الحسم حياً (زمن الذهاب المقدر: {go_sec:.0f}ث | مهلة قصوى: {settle_timeout:.0f}ث)..."
         )
 
-        # 5. الانتظار الديناميكي لحسم المعركة عبر الذاكرة الحية (NOTIFY_COMMAND_HALL + local_queues)
-        saw_queue = _find_ch_queue(valid_coords) is not None
-        min_hit_time = time.monotonic() + min(4.0, go_sec * 0.5)
+        # 5. الانتظار الديناميكي لحسم المعركة عبر الذاكرة الحية (NOTIFY_COMMAND_HALL 608 + local_queues)
+        saw_queue = init_match is not None
+        min_hit_time = time.monotonic() + min(3.0, go_sec * 0.4)
 
         while time.monotonic() < settle_deadline:
-            live_statue = _get_live_task_statue()
-            if live_statue == 3:
+            if _get_live_task_statue() == 3 or _did_live_battle_lose(dispatch_mono):
                 break
 
-            q_match = _find_ch_queue(valid_coords)
+            q_match = _find_ch_queue(valid_coords, tracked_qids)
             if q_match is not None:
                 saw_queue = True
-                _q, q_st = q_match
-                # الحالة 2 تعني أن الفيلق بدأ طريق العودة بعد الاشتباك
-                if q_st == 2 and time.monotonic() >= min_hit_time:
-                    await mgr.sleep_interruptible(1.0)
+                _q, _q_st, q_phase = q_match
+                if q_phase == "returning":
+                    # الفيلق اشتبك مع الهدف وبدأ طريق العودة؛ نمنح مهلة قصيرة لوصول إشعار 608 إن كان في الطريق
+                    grace_deadline = min(settle_deadline, time.monotonic() + 3.5)
+                    while time.monotonic() < grace_deadline:
+                        if _get_live_task_statue() == 3 or _did_live_battle_lose(dispatch_mono):
+                            break
+                        if not await mgr.sleep_interruptible(0.3, deadline=grace_deadline):
+                            break
                     break
             elif saw_queue and time.monotonic() >= min_hit_time:
-                # اختفى الطابور (عاد للقلعة فعلياً)
-                await mgr.sleep_interruptible(0.8)
+                # اختفى الطابور بعد رصده (عاد للقلعة بالكامل)؛ نمنح مهلة قصيرة لوصول إشعار 608
+                grace_deadline = min(settle_deadline, time.monotonic() + 2.5)
+                while time.monotonic() < grace_deadline:
+                    if _get_live_task_statue() == 3 or _did_live_battle_lose(dispatch_mono):
+                        break
+                    if not await mgr.sleep_interruptible(0.3, deadline=grace_deadline):
+                        break
                 break
 
             if not await mgr.sleep_interruptible(0.5, deadline=settle_deadline):
@@ -5505,72 +5811,66 @@ class BaseTask(ABC):
                     }
                 break
 
-        # 6. استلام الجائزة عبر CMD 2274/8 (بدون تسجيل نجاح وهمي عند 716005)
+        # 6. استلام الجائزة عبر CMD 2274/8 حصراً عند تحقق statue == 3 (مطابق 100% لعميل اللعبة الرسمي)
         rewards: List[Any] = []
         claim_resp = None
         claim_success = False
         live_statue = _get_live_task_statue()
 
-        # نطلب التسليم إذا أصبحت المهمة 3 أو لم تصل إشارة حالة بعد
-        claim_payload = {"commitType": task_type, "index": task_index}
-        self.log(f"🎁 [قاعة القيادة] استلام جوائز معركة {task_title} #{task_index}...")
-        claim_resp = await self.safe_query(
-            CMD_COMMAND_HALL_MODULE,
-            REQ_COMMAND_HALL_COMMIT_TASK,
-            claim_payload,
-            min_delay=0.5,
-            max_delay=1.0,
-        )
-        if isinstance(claim_resp, dict) and str(claim_resp.get("err", claim_resp.get("code", "0"))).strip() in ("0", "Err_None"):
-            claim_success = True
-        else:
-            # إعادة محاولة واحدة فقط بعد مهلة قصيرة في حال تأخر الحسم بثوانٍ
-            err_first = str(claim_resp.get("err", "") if isinstance(claim_resp, dict) else "").strip()
-            if err_first == "716005" and _find_ch_queue(valid_coords) is not None:
-                await mgr.sleep_interruptible(3.0)
-                claim_resp = await self.safe_query(
-                    CMD_COMMAND_HALL_MODULE,
-                    REQ_COMMAND_HALL_COMMIT_TASK,
-                    claim_payload,
-                    min_delay=0.4,
-                    max_delay=0.8,
-                )
-                if isinstance(claim_resp, dict) and str(claim_resp.get("err", claim_resp.get("code", "0"))).strip() in ("0", "Err_None"):
-                    claim_success = True
+        if live_statue == 3:
+            claim_payload = {"commitType": task_type, "index": task_index}
+            self.log(f"🎁 [قاعة القيادة] استلام جوائز معركة {task_title} #{task_index} (statue=3)...")
+            claim_resp = await self.safe_query(
+                CMD_COMMAND_HALL_MODULE,
+                REQ_COMMAND_HALL_COMMIT_TASK,
+                claim_payload,
+                min_delay=0.5,
+                max_delay=1.0,
+            )
+            if isinstance(claim_resp, dict) and str(claim_resp.get("err", claim_resp.get("code", "0"))).strip() in ("0", "Err_None"):
+                claim_success = True
+                rspdata = claim_resp.get("rspdata") if isinstance(claim_resp, dict) else None
+                if isinstance(rspdata, dict) and "reward" in rspdata:
+                    rewards = rspdata.get("reward") or []
+                elif isinstance(claim_resp, dict) and "reward" in claim_resp:
+                    rewards = claim_resp.get("reward") or []
 
-        if claim_success:
-            rspdata = claim_resp.get("rspdata") if isinstance(claim_resp, dict) else None
-            if isinstance(rspdata, dict) and "reward" in rspdata:
-                rewards = rspdata.get("reward") or []
-            elif isinstance(claim_resp, dict) and "reward" in claim_resp:
-                rewards = claim_resp.get("reward") or []
+                # تحديث الذاكرة الحية (كلا المفتاحين commandHall و commandHallCtrl)
+                init_data = rspdata.get("initData") if isinstance(rspdata, dict) else None
+                if isinstance(init_data, dict):
+                    self._sync_command_hall_init_data(init_data)
+                else:
+                    self._mark_command_hall_task_claimed(task_index, task_type)
 
-            # تحديث الذاكرة الحية (كلا المفتاحين commandHall و commandHallCtrl)
-            init_data = rspdata.get("initData") if isinstance(rspdata, dict) else None
-            if isinstance(init_data, dict):
-                self._sync_command_hall_init_data(init_data)
+                self._record_command_hall_subtask_completion(1)
+                self.log(f"✅ [قاعة القيادة] تم حسم المعركة واستلام جوائز {task_title} #{task_index} بنجاح!")
+                fail_reason = ""
             else:
-                self._mark_command_hall_task_claimed(task_index, task_type)
-
-            self._record_command_hall_subtask_completion(1)
-            self.log(f"✅ [قاعة القيادة] تم حسم المعركة واستلام جوائز {task_title} #{task_index} بنجاح!")
+                claim_err = claim_resp.get("err") if isinstance(claim_resp, dict) else "no_response"
+                fail_reason = f"فشل تسليم جائزة المهمة المكتملة (كود السيرفر: {claim_err})."
+                self.log(
+                    f"❌ [قاعة القيادة] تعذر تسليم جائزة معركة {task_title} #{task_index} "
+                    f"(كود التسليم: {claim_err} | الحالة الحية: {live_statue})."
+                )
         else:
-            claim_err = claim_resp.get("err") if isinstance(claim_resp, dict) else "no_response"
+            battle_lost = _did_live_battle_lose(dispatch_mono)
+            loss_note = "خسارة المعركة" if battle_lost else f"بقاء الحالة statue={live_statue}"
+            fail_reason = f"لم تكتمل المعركة بالانتصار ({loss_note}) — تم حجب طلب الاستلام (2274/8) لحماية الحساب."
             self.log(
-                f"❌ [قاعة القيادة] لم تكتمل المعركة لمهمة {task_title} #{task_index} "
-                f"(كود التسليم: {claim_err} | الحالة الحية: {live_statue})."
+                f"⚠️ [قاعة القيادة] لم تحسم معركة {task_title} #{task_index} بالانتصار "
+                f"({loss_note}) — تم عدم إرسال (2274/8) مطابقةً للعميل الرسمي ومنعاً لخطأ 716005."
             )
 
-        # 7. قاعدة "فيلق واحد فقط": انتظار عودة الفيلق فعلياً إلى القلعة قبل السماح بالهجوم التالي
-        if wait_for_return and _find_ch_queue(valid_coords) is not None:
+        # 7. قاعدة "فيلق واحد فقط": انتظار عودة الفيلق فعلياً إلى القلعة (سواء انتصر أو خسر) قبل السماح بالهجوم التالي
+        if wait_for_return and _find_ch_queue(valid_coords, tracked_qids) is not None:
             return_timeout = max(25.0, go_sec * 1.5 + 15.0)
             return_deadline = time.monotonic() + return_timeout
-            self.log(f"🔄 [قاعة القيادة] انتظار عودة الفيلق إلى القلعة قبل الهجوم التالي (مهلة قصوى: {return_timeout:.0f}ث)...")
+            self.log(f"🔄 [قاعة القيادة] انتظار عودة الفيلق إلى القلعة قبل المهمة التالية (مهلة قصوى: {return_timeout:.0f}ث)...")
             while time.monotonic() < return_deadline:
-                if _find_ch_queue(valid_coords) is None:
+                if _find_ch_queue(valid_coords, tracked_qids) is None:
                     # مهلة قصيرة لوصول إشعار عودة الجنود والأبطال (NOTIFY_ARMY / NOTIFY_HERO_SYS)
                     await mgr.sleep_interruptible(0.8)
-                    self.log(f"🏰 [قاعة القيادة] عاد الفيلق إلى القلعة وأصبح جاهزاً للهجوم التالي.")
+                    self.log(f"🏰 [قاعة القيادة] عاد الفيلق إلى القلعة وأصبح الأبطال والجنود جاهزين للهجوم التالي.")
                     break
                 if not await mgr.sleep_interruptible(0.5, deadline=return_deadline):
                     break
@@ -5587,8 +5887,8 @@ class BaseTask(ABC):
             "claim_response": claim_resp,
             "claim_success": claim_success,
             "rewards": rewards,
-            "reason": "" if claim_success else f"فشل تسليم أو حسم المعركة (كود السيرفر: {claim_resp.get('err') if isinstance(claim_resp, dict) else 'no_response'}).",
-            "message": f"تم إنجاز معركة {task_title} #{task_index} واستلام الجوائز بنجاح." if claim_success else f"فشلت معركة {task_title} #{task_index} ولم تُستلم الجائزة.",
+            "reason": "" if claim_success else fail_reason,
+            "message": f"تم إنجاز معركة {task_title} #{task_index} واستلام الجوائز بنجاح." if claim_success else f"لم تكتمل معركة {task_title} #{task_index} بالانتصار ولم يُرسل طلب استلام.",
         }
 
     async def _execute_command_hall_instant_task(
@@ -5675,6 +5975,7 @@ class BaseTask(ABC):
                 sim_wait = max(1.0, float(wait_seconds))
             await asyncio.sleep(sim_wait)
 
+            stamina_before_finish = self.stamina
             finish_resp = await self.safe_query(
                 CMD_COMMAND_HALL_MODULE,
                 REQ_COMMAND_HALL_FINISH_TASK,
@@ -5694,6 +5995,8 @@ class BaseTask(ABC):
                     "index": task_index,
                     "stamina_spent": 0,
                 }
+
+            self._sync_stamina_spent_if_pending(stamina_before_finish, stamina_cost)
 
             rspdata = finish_resp.get("rspdata") if isinstance(finish_resp, dict) else {}
             if isinstance(rspdata, dict):
@@ -5736,12 +6039,7 @@ class BaseTask(ABC):
             if c_rewards:
                 all_rewards.extend(c_rewards)
 
-        actual_stamina_spent = stamina_cost if statue != 3 else 0
-        if actual_stamina_spent > 0:
-            lord = self.get_ctrl("lordInfoCtrl")
-            if isinstance(lord, dict) and isinstance(lord.get("base"), dict) and "health" in lord["base"]:
-                lord["base"]["health"] = max(0, self._safe_int(lord["base"]["health"]) - actual_stamina_spent)
-
+        # طاقة اللورد تُحدّث تلقائياً عبر إشعار NOTIFY_LORD (8) الرسمي عند تنفيذ 2274/5
         init_data = final_rspdata.get("initData") if isinstance(final_rspdata, dict) else None
         if isinstance(init_data, dict):
             self._sync_command_hall_init_data(init_data)
@@ -5749,6 +6047,7 @@ class BaseTask(ABC):
             self._mark_command_hall_task_claimed(task_index, expected_type)
 
         self._record_command_hall_subtask_completion(1)
+        actual_stamina_spent = stamina_cost if statue != 3 else 0
         self.log(
             f"✅ [قاعة القيادة] تم إنجاز مهمة {title_ar} #{task_index} واستلام {len(all_rewards)} جوائز بنجاح!"
         )
@@ -6206,11 +6505,12 @@ class BaseTask(ABC):
         for q in queues_to_search:
             if not isinstance(q, dict):
                 continue
-            q_type = str(q.get("queueType") or q.get("type") or "")
+            q_type = str(q.get("qtype") or q.get("queuetype") or q.get("queueType") or q.get("type") or "")
             if q_type == str(QUEUE_TYPE_STUFF_WORKSHOP):
+                q_data = q.get("data") if isinstance(q.get("data"), dict) else {}
                 total_time = self._safe_int(q.get("totaltime") or q.get("ottime") or 0)
-                finish_time = self._safe_int(q.get("finishTime") or q.get("endTime") or 0)
-                begin_time = self._safe_int(q.get("begintime") or q.get("startTime") or 0)
+                finish_time = self._safe_int(q.get("finishTime") or q.get("endTime") or q_data.get("endtime") or 0)
+                begin_time = self._safe_int(q.get("starttime") or q.get("begintime") or q.get("startTime") or 0)
                 if finish_time == 0 and begin_time > 0 and total_time > 0:
                     finish_time = begin_time + total_time
                 remaining = max(0, finish_time - now_ts) if finish_time > 0 else 0
@@ -6220,7 +6520,7 @@ class BaseTask(ABC):
                     "finish_time": finish_time,
                     "total_time": total_time,
                     "remaining_seconds": remaining,
-                    "is_active": remaining > 0 or finish_time > 0,
+                    "is_active": remaining > 0,
                     "queue_raw": q,
                 }
                 break
@@ -6943,6 +7243,67 @@ class BaseTask(ABC):
         slot_thresholds = (1, 5, 10, 15, 18)
         return sum(1 for req in slot_thresholds if castle_lv >= req)
 
+    def get_hero_power(self, hero_id: int, hero_info: Optional[Dict[str, Any]] = None) -> int:
+        """
+        حساب القوة القتالية الرسمية للبطل من الذاكرة الحية فقط (0-Network Direct Read).
+        مطابق 100% لدالتي سورس اللعبة:
+          - heroCtrl:getHeroPower(heroID) (heroCtrl.lua:1734-1758)
+          - heroltCtrl:getHeroPower(heroID, level, quality) (heroltCtrl.lua:607-623)
+        ويُستخدم في commandHallUtil.checkRecommend(taskID, armyData) وترتيب أبطال المعارك.
+        """
+        hid = self._safe_int(hero_id, 0)
+        if hid <= 0:
+            return 0
+
+        h_data = hero_info
+        if not isinstance(h_data, dict):
+            hero_sys = self.get_ctrl("heroSysCtrl")
+            h_list = hero_sys.get("heroList") if isinstance(hero_sys, dict) else None
+            if isinstance(h_list, dict):
+                h_data = h_list.get(str(hid)) or h_list.get(hid)
+            elif isinstance(h_list, list):
+                for item in h_list:
+                    if isinstance(item, dict) and self._safe_int(item.get("heroID") or item.get("id"), 0) == hid:
+                        h_data = item
+                        break
+
+        if not isinstance(h_data, dict):
+            return 0
+
+        level = max(1, min(120, self._safe_int(h_data.get("level"), 1)))
+        quality = max(1, self._safe_int(h_data.get("quality"), 1))
+        meta = OFFICIAL_HERO_CATALOG.get(hid, {})
+        rarity = self._safe_int(
+            HERO_UPGRADE_RARITY_BY_ID.get(hid) or meta.get("rarity") or h_data.get("rarity"),
+            1,
+        )
+        rarity = max(1, min(5, rarity))
+
+        # 1) قوة الجودة (hero_upgrade_conf.lua)
+        if rarity == 5:
+            quality_power = HERO_QUALITY_POWER_RARITY5.get(quality, HERO_QUALITY_POWER_RARITY5[5])
+        else:
+            quality_power = HERO_QUALITY_POWER_COMMON.get(quality, HERO_QUALITY_POWER_COMMON[5])
+
+        # 2) قوة المستوى (hero_level_config.lua)
+        if level <= 60:
+            if rarity == 5:
+                level_power = HERO_RARITY5_LEVEL_POWER_LE60.get(level, 9000)
+            else:
+                march_add = HERO_RARE_LEVEL_MARCH_ADD.get(rarity, HERO_RARE_LEVEL_MARCH_ADD[1]).get(level, 500)
+                level_power = march_add * 12
+        else:
+            base60, step = HERO_LEVEL_POWER_STEP_GT60.get(rarity, (60000, 2000))
+            level_power = base60 + (level - 60) * step
+
+        total_power = int(quality_power + level_power)
+
+        # 3) قوة الإيقاظ (hero_awake_config.lua) عند تفعيل isAwake
+        if bool(h_data.get("isAwake", False)):
+            total_power += int(HERO_AWAKE_POWER_BY_ID.get(hid, 0))
+
+        return total_power
+
     def get_best_march_heroes(
         self,
         num_heroes: Optional[int] = None,
@@ -6992,9 +7353,9 @@ class BaseTask(ABC):
             meta = OFFICIAL_HERO_CATALOG.get(hid, {})
             quality = int(h_data.get("quality") or 0)
 
-            # الرتبة الفعالة للبطل بسعة المسيرة: جودة البطل/نجومه (quality 1..5) أو ندرته المتأصلة
-            rarity = int(cfg.get("rarity") or meta.get("rarity") or h_data.get("rarity") or 1)
-            effective_tier = quality if quality > 0 else rarity
+            # وفق heroltCtrl:getHerosMarchCapacity: تُفهرس rare_levels بندرة البطل المتأصلة (rarity)
+            rarity = int(cfg.get("rarity") or meta.get("rarity") or h_data.get("rarity") or 0)
+            effective_tier = rarity if rarity > 0 else (quality if quality > 0 else 1)
             name = meta.get("name_ar") or meta.get("name") or cfg.get("name", f"Hero_{hid}")
 
             # فحص امتلاك مساعد أو زي (heroCtrl:isOwnLieutenantByHeroID)
@@ -7796,7 +8157,8 @@ class BaseTask(ABC):
         tech_group_multiplier = tech_data.get("tech_group_multiplier", 0.0)
 
         # 4. بافات المسيرة المؤقتة (Active March Buffs - Items)
-        is_mass = move_line_type in (3, 4) if move_line_type is not None else False
+        # وفق buildLogic.lua:1884 و mapDef.lua:330,334 أنواع الحشد هي (9, 14) وليست (3, 4)
+        is_mass = move_line_type in (9, 14) if move_line_type is not None else False
         buff_data = self.get_active_march_buffs(is_mass=is_mass, move_line_type=move_line_type)
         buff_flat = buff_data.get("buff_flat_val", 0)
         item_percent_multiplier = buff_data.get("buff_percent_add", 0.0)
@@ -7933,6 +8295,33 @@ class BaseTask(ABC):
         if include_defend:
             allowed_states.add(G_HERO_STATE_DEFEND)
 
+        defend_ids: Set[int] = set()
+        raw_defend = hero_sys.get("defendList", {}) if isinstance(hero_sys, dict) else {}
+        if isinstance(raw_defend, dict):
+            for vv in raw_defend.values():
+                dhid = self._safe_int(vv.get("heroID", vv.get("id")) if isinstance(vv, dict) else vv, 0)
+                if dhid > 0:
+                    defend_ids.add(dhid)
+        elif isinstance(raw_defend, list):
+            for vv in raw_defend:
+                dhid = self._safe_int(vv.get("heroID", vv.get("id")) if isinstance(vv, dict) else vv, 0)
+                if dhid > 0:
+                    defend_ids.add(dhid)
+
+        active_queue_heroes: Set[int] = set()
+        conn = getattr(self, "conn", None)
+        if conn is not None:
+            for q_item in self._read_live_local_queues(conn):
+                if not isinstance(q_item, dict) or self._safe_int(q_item.get("status"), 1) == 3:
+                    continue
+                for q_src in (q_item, q_item.get("from") if isinstance(q_item.get("from"), dict) else {}):
+                    q_heroes = q_src.get("heroInfo")
+                    if isinstance(q_heroes, list):
+                        for qh in q_heroes:
+                            qhid = self._safe_int(qh.get("heroID", qh.get("id")) if isinstance(qh, dict) else qh, 0)
+                            if qhid > 0:
+                                active_queue_heroes.add(qhid)
+
         # تجهيز فلتر نوع البطل عند الانتقاء التلقائي
         allowed_types: Optional[Set[int]] = None
         if hero_ids is None and hero_type != "all":
@@ -7984,6 +8373,11 @@ class BaseTask(ABC):
             cur_dress = self._safe_int(dress.get("seting") if isinstance(dress, dict) else 0)
             own_l = bool(cur_dress > 0 and cur_dress % 100 > 1)
 
+            is_hero_avail = (
+                state in allowed_states
+                and hid not in active_queue_heroes
+                and (include_defend or hid not in defend_ids)
+            )
             return {
                 "hero_id": hid,
                 "name": name,
@@ -7991,7 +8385,7 @@ class BaseTask(ABC):
                 "rarity": rarity,
                 "quality": quality,
                 "state": state,
-                "is_available": state in allowed_states,
+                "is_available": is_hero_avail,
                 "own_l": own_l,
                 "level_march_add": level_march_add,
                 "skill_march_add": skill_march_add,
@@ -8153,9 +8547,10 @@ class BaseTask(ABC):
                 if need_in_city and isinstance(beasts, dict):
                     b_info = beasts.get(bid_str) or beasts.get(self._safe_int(bid_str, 0))
                     if isinstance(b_info, dict):
-                        # استبعاد الوحش الموجود في هجوم خارج القلعة (ATTACK/ATTACK_DEFEND) أو في العلاج
-                        b_state = self._safe_int(b_info.get("state"), 0)
-                        if b_state in (2, 3, 4):
+                        # استبعاد الوحش الموجود في العلاج (0=TREAT) أو في مسيرة هجوم (3=ATTACK, 4=ATTACK_DEFEND)
+                        # بينما (1=NORMAL, 2=DEFEND) متاحان داخل القلعة وفق divineBeastCtrl.lua:10-14, 100
+                        b_state = self._safe_int(b_info.get("state"), 1)
+                        if b_state in (0, 3, 4):
                             continue
                 if isinstance(b_buffs, dict):
                     val = self._safe_int(b_buffs.get(96) or b_buffs.get("96"), 0)
@@ -8171,8 +8566,8 @@ class BaseTask(ABC):
                     continue
                 if not isinstance(b_info, dict):
                     continue
-                b_state = self._safe_int(b_info.get("state"), 0)
-                if need_in_city and b_state in (2, 3, 4):
+                b_state = self._safe_int(b_info.get("state"), 1)
+                if need_in_city and b_state in (0, 3, 4):
                     continue
                 if bid_str == "1900":
                     star_lv = self._safe_int(b_info.get("starLv") or b_info.get("star"), 0)
@@ -8182,7 +8577,7 @@ class BaseTask(ABC):
                         b_val = 14000
                     elif star_lv >= 2:
                         b_val = 8000
-                    elif star_lv >= 0 and (b_info.get("skills") or b_info.get("skillList")):
+                    elif star_lv >= 0:
                         b_val = 4000
                     else:
                         b_val = 0
@@ -8218,17 +8613,12 @@ class BaseTask(ABC):
         armyCtrl.woundedArmy: القوات المصابة في المستشفى.
         """
         army_ctrl = self.get_ctrl("armyCtrl") or {}
-        total_army = army_ctrl.get("totalArmy", {}) if isinstance(army_ctrl, dict) else {}
         wounded_army = army_ctrl.get("woundedArmy", {}) if isinstance(army_ctrl, dict) else {}
 
-        free_count = 0
-        free_details: Dict[str, int] = {}
-        if isinstance(total_army, dict):
-            for aid, adata in total_army.items():
-                cnt = self._safe_int(adata if not isinstance(adata, dict) else adata.get("free", adata.get("count", 0)))
-                if cnt > 0:
-                    free_count += cnt
-                    free_details[str(aid)] = cnt
+        # استخدام get_army_list(deduct_fighting=True) لاستبعاد مصائد السور (801..899) وخصم الجيوش المنخرطة بالمعارك
+        live_free_map = self.get_army_list(deduct_fighting=True)
+        free_details: Dict[str, int] = {str(aid): int(cnt) for aid, cnt in live_free_map.items() if int(cnt) > 0}
+        free_count = sum(free_details.values())
 
         wounded_count = 0
         wounded_details: Dict[str, int] = {}
@@ -8548,19 +8938,20 @@ class BaseTask(ABC):
                     if dhid > 0:
                         defend_ids.add(dhid)
 
-        # 2. فحص المسيرات والطوابير النشطة الحية لاستبعاد أي بطل منخرط بها
+        # 2. فحص المسيرات والطوابير النشطة الحية لاستبعاد أي بطل منخرط بها (داخل from.heroInfo)
         active_queue_heroes: Set[int] = set()
-        if hasattr(self, "conn") and hasattr(self.conn, "init_data") and isinstance(self.conn.init_data, dict):
-            for q_item in self.conn.init_data.get("local_queues", []):
-                if isinstance(q_item, dict):
+        conn = getattr(self, "conn", None)
+        if conn is not None:
+            for q_item in self._read_live_local_queues(conn):
+                if isinstance(q_item, dict) and self._safe_int(q_item.get("status"), 1) != 3:
                     qid = self._safe_int(q_item.get("heroID", 0))
                     if qid > 0:
                         active_queue_heroes.add(qid)
-                    q_heroes = q_item.get("heroInfo")
-                    if isinstance(q_heroes, list):
-                        for qh in q_heroes:
-                            if isinstance(qh, dict):
-                                qhid = self._safe_int(qh.get("heroID", 0))
+                    for q_src in (q_item, q_item.get("from") if isinstance(q_item.get("from"), dict) else {}):
+                        q_heroes = q_src.get("heroInfo")
+                        if isinstance(q_heroes, list):
+                            for qh in q_heroes:
+                                qhid = self._safe_int(qh.get("heroID", qh.get("id")) if isinstance(qh, dict) else qh, 0)
                                 if qhid > 0:
                                     active_queue_heroes.add(qhid)
 
@@ -8661,9 +9052,8 @@ class BaseTask(ABC):
             cur_dress = self._safe_int(dress.get("seting") if isinstance(dress, dict) else 0)
             own_lieutenant = bool(cur_dress > 0 and cur_dress % 100 > 1)
 
-            # حساب سعة المسيرة المضافة من البطل (طريقة heroCtrl:getHeroTotalMarchAddNum & heroltCtrl:getHerosMarchCapacity)
-            # الرتبة الفعالة للبطل في السعة: جودة البطل (نجومه) إذا كانت متوفرة، أو ندرته المتأصلة
-            effective_tier = quality if quality > 0 else rarity
+            # حساب سعة المسيرة المضافة من البطل (وفق heroltCtrl:getHerosMarchCapacity تُفهرس rare_levels بـ rarity)
+            effective_tier = rarity if rarity > 0 else (quality if quality > 0 else 1)
             r_lvs = rare_levels.get(str(effective_tier), rare_levels.get(effective_tier, {}))
             base_hero_march = int(r_lvs.get(str(level), r_lvs.get(level, 0)))
 

@@ -1,12 +1,17 @@
 {
-  "name": "Empire Bot",
-  "short_name": "Empire Bot",
+  "id": "/",
+  "name": "IBRA BOT",
+  "short_name": "IBRA BOT",
+  "description": "أول بوت عربي لإدارة قلاع انتقام السلاطين",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0a0f0a",
   "theme_color": "#10b981",
+  "lang": "ar",
+  "dir": "ltr",
+  "categories": ["utilities", "productivity"],
   "icons": [
     {
       "src": "/pwa-192x192.png",

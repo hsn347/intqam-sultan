@@ -224,17 +224,14 @@ class HeroTrialTask(BaseTask):
                 )
             elif err == ERR_HT_HAVE_NOT_SOLDIERS or err == ERR_HT_SOLDIER_NOT_ENOUGH:
                 self.log(f"Not enough soldiers for trial battle (err={err}).")
-                self._sync_task_completion_in_memory(point_data, ht_point)
-                return TaskResult.ok("Opened trial (insufficient troops for attack)", exec_time=time.time() - start_time)
+                return TaskResult.fail(f"Insufficient troops for trial attack (err={err})", exec_time=time.time() - start_time)
             else:
                 self.log(f"Attack stage returned err={err}.")
-                self._sync_task_completion_in_memory(point_data, ht_point)
-                return TaskResult.ok(f"Trial processed (attack returned {err})", exec_time=time.time() - start_time)
+                return TaskResult.fail(f"Trial attack failed (err={err})", exec_time=time.time() - start_time)
 
         except Exception as e:
             self.log(f"Exception during stage attack: {e}")
-            self._sync_task_completion_in_memory(point_data, ht_point)
-            return TaskResult.ok("Trial opened, attack encountered exception", exec_time=time.time() - start_time)
+            return TaskResult.fail(f"Trial attack exception: {e}", exec_time=time.time() - start_time)
 
     def _get_minimal_soldiers(self, battle_data: Dict[str, Any], init_data: Dict[str, Any]) -> List[Dict[str, int]]:
         """
@@ -252,14 +249,20 @@ class HeroTrialTask(BaseTask):
                 if isinstance(s, dict) and int(s.get("num", 0)) > 0:
                     return [{"id": int(s.get("id", 401)), "num": 1}]
 
-        # ثانياً: فحص جنود القلعة العاديين
+        # ثانياً: فحص جنود القلعة الفعليين (totalArmy / freeArmy / armys) مع استبعاد مصائد السور (801..899)
         army_ctrl = init_data.get("armyCtrl", {})
         if isinstance(army_ctrl, dict):
-            armys = army_ctrl.get("armys", {})
+            armys = army_ctrl.get("totalArmy") or army_ctrl.get("freeArmy") or army_ctrl.get("armys") or {}
             if isinstance(armys, dict):
                 for s_id, count in armys.items():
-                    if int(count) > 0:
-                        return [{"id": int(s_id), "num": 1}]
+                    try:
+                        sid_int = int(s_id)
+                        if 801 <= sid_int <= 899:
+                            continue
+                        if int(float(count or 0)) > 0:
+                            return [{"id": sid_int, "num": 1}]
+                    except (ValueError, TypeError):
+                        continue
 
         # افتراضي آمن: جندي مشاة رتبة 1 (ID: 401)
         return [{"id": 401, "num": 1}]

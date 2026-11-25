@@ -6,13 +6,13 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/var/www/intqam-sultan
-ExecStart=/var/www/intqam-sultan/venv/bin/python api_server.py --host 127.0.0.1 --port 8080
+ExecStart=/var/www/intqam-sultan/venv/bin/python api_server.py --host 127.0.0.1 --port 8765
 Restart=always
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
 Environment=PYTHONUNBUFFERED=1
-Environment=PORT=8080
+Environment=PORT=8765
 Environment=CORS_ORIGINS=*
 LimitNOFILE=65535
 

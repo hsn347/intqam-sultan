@@ -29,13 +29,19 @@ class PortTask(BaseTask):
 
         # 2. فحص هل تم استلام جميع سفن اليوم بالكامل (0 طلب شبكي)
         tr_data = time_reward.get("data", {}) if isinstance(time_reward.get("data"), dict) else time_reward
-        if int(tr_data.get("isAllReceive", 0)) == 1:
+        if int(tr_data.get("isAllReceive", 0) or 0) == 1:
             return False, "تم استلام كافة سفن الميناء اليومية"
 
-        # 3. فحص العداد التنازلي لوصول السفينة (0 طلب شبكي)
-        rem_sec = int(time_reward.get("time", 0))
+        # 3. فحص حالة الجاهزية الفعلية (isReceive == 2 تعني وصلت وجاهزة للاستلام فوراً)
+        is_receive = int(tr_data.get("isReceive", 0) or 0)
+        if is_receive == 2:
+            return True, ""
+
+        rem_sec = int(time_reward.get("time", 0) or 0)
         if rem_sec > 0:
             return False, f"سفينة الميناء لم تصل بعد (المتبقي: {rem_sec} ثانية)"
+        if "isReceive" in tr_data and is_receive != 2:
+            return False, "سفينة الميناء قيد الإبحار ولم تصل بعد"
 
         return True, ""
 
@@ -51,7 +57,12 @@ class PortTask(BaseTask):
         # تحديث بيانات الميناء في الذاكرة الحية فوراً بالعداد والبيانات الجديدة
         new_data = r.get("data")
         if isinstance(new_data, dict):
-            self.init_data["timeRewardCtrl"] = new_data
+            if "data" in new_data or "time" in new_data:
+                self.init_data["timeRewardCtrl"] = new_data
+            else:
+                tr_ctrl = self.init_data.setdefault("timeRewardCtrl", {})
+                if isinstance(tr_ctrl, dict):
+                    tr_ctrl["data"] = new_data
 
         msg = "تم استلام جائزة سفينة الميناء بنجاح"
         self.log(f"🎉 {msg}")

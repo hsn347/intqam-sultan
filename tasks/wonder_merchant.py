@@ -94,8 +94,8 @@ class WonderMerchantTask(BaseTask):
     async def run(self) -> TaskResult:
         stores = self.get_ctrl("storesCtrl") or {}
         daily_ctrl = self.get_ctrl("everydayTaskCtrl") or {}
-        event_info = daily_ctrl.setdefault("eventInfo", {}) if isinstance(daily_ctrl, dict) else {}
-        purchases_today = int(event_info.get("24", 0) or 0)
+        ev_init = daily_ctrl.get("eventInfo", {}) if isinstance(daily_ctrl, dict) else {}
+        purchases_today = int(ev_init.get("24", 0) or 0) if isinstance(ev_init, dict) else 0
 
         total_bought_this_cycle = 0
 
@@ -109,63 +109,68 @@ class WonderMerchantTask(BaseTask):
             bought_in_pass = False
 
             # فحص الخانات الأربع وحلقة استبدال الأصناف الفورية
-            for idx in range(len(slots)):
-                # استمرار الفحص على نفس الخانة طالما يأتي صنف بديل غير ذهبي
-                while purchases_today < 10 and idx < len(slots):
-                    item = slots[idx]
-                    if not isinstance(item, dict):
-                        break
+            idx = 0
+            while idx < len(slots) and purchases_today < 10:
+                item = slots[idx]
+                if not isinstance(item, dict):
+                    idx += 1
+                    continue
 
-                    price_type = int(item.get("pricetype", 1001) or 1001)
-                    price = float(item.get("price", 0) or 0)
-                    shop_item_id = item.get("shopItemID")
+                price_type = int(item.get("pricetype", 1001) or 1001)
+                price = float(item.get("price", 0) or 0)
+                shop_item_id = item.get("shopItemID")
 
-                    # شرط الأمان الذهبي: استبعاد أي صنف ثمنه بالذهب
-                    if price_type == 1001:
-                        break
+                # شرط الأمان الذهبي: استبعاد أي صنف ثمنه بالذهب
+                if price_type == 1001 or not shop_item_id:
+                    idx += 1
+                    continue
 
-                    # فحص رصيد المورد أو البلور
-                    current_bal = self._get_resource_balance(price_type)
-                    if current_bal < price:
-                        self.log(f"⏭️ الخانة #{idx+1}: تخطي صنف لعدم كفاية الرصيد ({int(price)} من نوع {price_type}، المتوفر: {int(current_bal)})")
-                        break
+                # فحص رصيد المورد أو البلور
+                current_bal = self._get_resource_balance(price_type)
+                if current_bal < price:
+                    self.log(f"⏭️ الخانة #{idx+1}: تخطي صنف لعدم كفاية الرصيد ({int(price)} من نوع {price_type}، المتوفر: {int(current_bal)})")
+                    idx += 1
+                    continue
 
-                    # إرسال طلب الشراء الرسمي (CMD 1024 / SUBCMD 3)
-                    self.log(f"🛒 جاري شراء صنف من الخانة #{idx+1} (المعرف: {shop_item_id}، السعر: {int(price)} من النوع {price_type})...")
-                    res = await self.safe_query("1024", "3", {"shopItemID": shop_item_id}, min_delay=0.8, max_delay=1.3)
+                # إرسال طلب الشراء الرسمي (CMD 1024 / SUBCMD 3)
+                self.log(f"🛒 جاري شراء صنف من الخانة #{idx+1} (المعرف: {shop_item_id}، السعر: {int(price)} من النوع {price_type})...")
+                res = await self.safe_query("1024", "3", {"shopItemID": shop_item_id}, min_delay=0.8, max_delay=1.3)
 
-                    if not res or str(res.get("err", "-1")) != "0":
-                        err_msg = (res.get("msg") or res.get("err") or "فشل غير معروف") if res else "لا يوجد رد من السيرفر"
-                        self.log(f"⚠️ فشل شراء الصنف {shop_item_id}: {err_msg}")
-                        break
+                if not res or str(res.get("err", "-1")) != "0":
+                    err_msg = (res.get("msg") or res.get("err") or "فشل غير معروف") if res else "لا يوجد رد من السيرفر"
+                    self.log(f"⚠️ فشل شراء الصنف {shop_item_id}: {err_msg}")
+                    idx += 1
+                    continue
 
-                    # نجاح الشراء: تحديث العدادات والذاكرة الحية
-                    purchases_today += 1
-                    total_bought_this_cycle += 1
-                    event_info["24"] = purchases_today
-                    self._deduct_resource(price_type, price)
-                    bought_in_pass = True
+                # نجاح الشراء: تحديث العدادات وإحلال الصنف البديل قبل أي خروج (بما في ذلك الشراء العاشر)
+                purchases_today += 1
+                total_bought_this_cycle += 1
+                bought_in_pass = True
 
-                    self.log(f"✅ تم شراء الصنف بنجاح! (التقدم اليومي: {purchases_today}/10)")
+                cur_daily = self.get_ctrl("everydayTaskCtrl")
+                if isinstance(cur_daily, dict):
+                    cur_ev = cur_daily.setdefault("eventInfo", {})
+                    if isinstance(cur_ev, dict):
+                        cur_ev["24"] = max(int(cur_ev.get("24", 0) or 0), purchases_today)
 
+                rspdata = (res.get("data") or {}).get("rspdata") if isinstance(res.get("data"), dict) else None
+                if not isinstance(rspdata, dict):
+                    rspdata = res.get("rspdata") or res.get("data") or {}
+                new_shop_item = rspdata.get("newShopItem") if isinstance(rspdata, dict) else None
+
+                self.log(f"✅ تم شراء الصنف بنجاح! (التقدم اليومي: {purchases_today}/10)")
+
+                if isinstance(new_shop_item, dict) and new_shop_item.get("shopItemID"):
+                    slots[idx] = new_shop_item
                     if purchases_today >= 10:
                         break
-
-                    # استلام الصنف البديل (newShopItem) وإحلاله في الخانة
-                    rspdata = res.get("rspdata") or res.get("data") or {}
-                    new_shop_item = rspdata.get("newShopItem")
-
-                    if isinstance(new_shop_item, dict) and new_shop_item.get("shopItemID"):
-                        slots[idx] = new_shop_item
-                        # فاصل زمني بشري قبل فحص الصنف البديل في نفس الخانة
-                        await asyncio.sleep(round(random.uniform(1.0, 1.4), 2))
-                    else:
-                        # لا توجد بدائل إضافية لهذه الخانة
-                        slots[idx] = {"pricetype": 1001}
+                    # فاصل زمني بشري قبل فحص الصنف البديل في نفس الخانة
+                    await asyncio.sleep(round(random.uniform(1.0, 1.4), 2))
+                else:
+                    # نفدت بدائل هذه الخانة في السيرفر: إزالتها بنظافة دون حقن كائن ناقص
+                    slots.pop(idx)
+                    if purchases_today >= 10:
                         break
-
-                if purchases_today >= 10:
-                    break
 
             # إذا قمنا بشراء صنف وحدثت تبديلات، نعيد الفحص من جديد للتأكد من كل الخانات
             if bought_in_pass and purchases_today < 10:
@@ -179,8 +184,10 @@ class WonderMerchantTask(BaseTask):
                 ref_res = await self.safe_query("1024", "2", {}, min_delay=1.1, max_delay=1.6)
 
                 if ref_res and str(ref_res.get("err", "-1")) == "0":
-                    rsp = ref_res.get("rspdata") or ref_res.get("data") or {}
-                    new_array = rsp.get("shopItemArray", [])
+                    rsp = (ref_res.get("data") or {}).get("rspdata") if isinstance(ref_res.get("data"), dict) else None
+                    if not isinstance(rsp, dict):
+                        rsp = ref_res.get("rspdata") or ref_res.get("data") or {}
+                    new_array = rsp.get("shopItemArray", []) if isinstance(rsp, dict) else []
                     if isinstance(new_array, list) and new_array:
                         stores["shopItemArray"] = new_array
                         stores["refreshGold"] = int(rsp.get("refreshGold", 0) or 0)

@@ -19,6 +19,12 @@ from .proxy_manager import (
     get_castle_proxy,
     set_castle_proxy,
     reload_proxies,
+    get_proxy_ips,
+    assign_castle_to_proxy,
+    assign_user_to_proxy,
+    drain_proxy,
+    unbind_castle,
+    unbind_user,
 )
 
 __all__ = [
@@ -38,4 +44,10 @@ __all__ = [
     "get_castle_proxy",
     "set_castle_proxy",
     "reload_proxies",
+    "get_proxy_ips",
+    "assign_castle_to_proxy",
+    "assign_user_to_proxy",
+    "drain_proxy",
+    "unbind_castle",
+    "unbind_user",
 ]

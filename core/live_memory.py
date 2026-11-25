@@ -122,6 +122,13 @@ ALLOWED_CONTROLLERS: FrozenSet[str] = frozenset({
     "stuffWorkshop",
     "dressCtrl",
     "godArmsCtrl",
+    "godArmsRuneCtrl",
+    "miraculousWeaponCtrl",
+    "divineBeastCtrl",
+    "divineBeastMarkCtrl",
+    "htData",
+    "exaltedPrivilegeCtrl",
+    "heroComboSkillCtrl",
     "militaryRankCtrl",
     "warGemCtrl",
     "playerKingdomLevelCtrl",
@@ -141,20 +148,23 @@ ALLOWED_CONTROLLERS: FrozenSet[str] = frozenset({
     "everydayTask",
 })
 
+# Backward-compatible alias used by external tools/tests
+ALLOWED_INIT_CONTROLLERS: FrozenSet[str] = ALLOWED_CONTROLLERS
+
 # The exact controllers required before allowing bot tasks to execute
 CRITICAL_STARTUP_CONTROLLERS: FrozenSet[str] = frozenset({
     "cityCtrl",
     "lordInfoCtrl",
     "queueCtrl",
     "armyCtrl",
-    "heroCtrl",
+    "heroSysCtrl",
     "backpackCtrl",
 })
 
 # Fallback queries mapping critical controller -> (cmd, subcmd, payload)
 FALLBACK_QUERIES: Dict[str, Tuple[int, int, Dict[str, Any]]] = {
     "cityCtrl": (1001, 1, {}),
-    "lordInfoCtrl": (1002, 7, {"uid": 0}),
+    "lordInfoCtrl": (1002, 1, {}),
     "queueCtrl": (1003, 1, {}),
     "armyCtrl": (1005, 1, {}),
     "backpackCtrl": (1004, 1, {}),
@@ -166,15 +176,11 @@ FALLBACK_QUERIES: Dict[str, Tuple[int, int, Dict[str, Any]]] = {
 def get_fallback_query(controller: str, uid: Any = 0) -> Optional[Tuple[int, int, Dict[str, Any]]]:
     """
     Returns the (cmd, subcmd, payload) tuple for querying missing controller data.
-    Populates uid dynamically if provided.
     """
     if controller not in FALLBACK_QUERIES:
         return None
     cmd, subcmd, payload = FALLBACK_QUERIES[controller]
-    payload_copy = copy.deepcopy(payload)
-    if controller == "lordInfoCtrl" and uid:
-        payload_copy["uid"] = uid
-    return cmd, subcmd, payload_copy
+    return cmd, subcmd, copy.deepcopy(payload)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -300,14 +306,14 @@ DEFAULT_KEY_MAPS: Dict[str, KeySpec] = {
     # Alliance help list
     "allianceCtrl.helplist": ("id", "helpId"),
 
-    # Equipment items: match by eid (equipment ID)
-    "equipmentCtrl.equipment_array": ("eid", "id"),
-    "equipment_array": ("eid", "id"),
-    "equipmentCtrl": ("eid", "id"),
+    # Equipment items: match by unique instance epid (NEVER recipe eid, which repeats across pieces)
+    "equipmentCtrl.equipment_array": ("epid", "id"),
+    "equipment_array": ("epid", "id"),
+    "equipmentCtrl": ("epid", "id"),
 }
 
 GENERIC_CANDIDATE_KEYS = (
-    "index", "id", "eid", "bid", "qtype", "queuetype", "queueId",
+    "index", "epid", "id", "eid", "bid", "qtype", "queuetype", "queueId",
     "heroId", "buffId", "taskId", "helpId", "itemId", "uid", "key"
 )
 
@@ -567,14 +573,15 @@ def resolve_queue_owner_uid(queue_item: Any) -> Optional[str]:
 def is_own_march_queue(queue_item: Any, my_uid: Any) -> bool:
     """
     Returns True if queue_item belongs to `my_uid` (or has no owner metadata, e.g. in unit-test mocks).
-    Excludes other alliance/world players' marches when owner UID differs from `my_uid`.
+    Excludes other alliance/world players' marches when owner UID differs from `my_uid` or when
+    `my_uid` is not yet resolved while `queue_item` carries an explicit foreign owner UID.
     """
     if not isinstance(queue_item, dict):
         return False
+    owner_uid = resolve_queue_owner_uid(queue_item)
     my_uid_s = str(my_uid).strip() if my_uid not in (None, "", 0, "0") else ""
     if not my_uid_s:
-        return True
-    owner_uid = resolve_queue_owner_uid(queue_item)
+        return owner_uid is None
     if not owner_uid:
         return True
     return owner_uid == my_uid_s
@@ -681,11 +688,17 @@ class LiveMemoryEngine:
         if isinstance(data, dict):
             if "retdata" in data and isinstance(data["retdata"], dict):
                 candidates.append(data["retdata"])
+            if "initData" in data and isinstance(data["initData"], dict):
+                candidates.append(data["initData"])
             candidates.append(data)
 
         retdata = packet.get("retdata")
         if isinstance(retdata, dict):
             candidates.append(retdata)
+
+        init_data_root = packet.get("initData")
+        if isinstance(init_data_root, dict):
+            candidates.append(init_data_root)
 
         candidates.append(packet)
 
@@ -713,7 +726,7 @@ class LiveMemoryEngine:
         self.init_data["local_queues"] = own_q
         self.init_data["other_local_queues"] = other_q
         if isinstance(self.init_data.get("queueCtrl"), dict):
-            self.init_data["queueCtrl"]["queues"] = own_q
+            self.init_data["queueCtrl"]["queues"] = list(own_q)
 
     @staticmethod
     def _extract_notification_envelope(packet: Dict[str, Any]) -> Tuple[Any, Any, bool]:
@@ -781,75 +794,103 @@ class LiveMemoryEngine:
         "NOTIFY_SERVER_STATUS": ("_handle_notify_server_status", ("serverStatus",), False),
 
         # --- Feature & Base Tasks Controllers (0-Network Direct Sync) ---
+        "2": ("_handle_notify_world_update", ("kingdomMapCtrl",), True),
+        "WORLD_UPDATE": ("_handle_notify_world_update", ("kingdomMapCtrl",), True),
+        "NOTIFY_WORLD_UPDATE": ("_handle_notify_world_update", ("kingdomMapCtrl",), True),
+        "18": ("_handle_notify_login_reward", ("loginRewardCtrl",), False),
+        "DAILYLOGIN_REWARD": ("_handle_notify_login_reward", ("loginRewardCtrl",), False),
+        "NOTIFY_DAILYLOGIN_REWARD": ("_handle_notify_login_reward", ("loginRewardCtrl",), False),
+        "37": ("_handle_notify_hero_trial", ("htData",), True),
+        "HERO_TRIAL": ("_handle_notify_hero_trial", ("htData",), True),
+        "NOTIFY_HERO_TRIAL": ("_handle_notify_hero_trial", ("htData",), True),
         "55": ("_handle_notify_everyday_task", ("everydayTaskCtrl",), True),
         "EVERYDAY_TASK": ("_handle_notify_everyday_task", ("everydayTaskCtrl",), True),
         "NOTIFY_EVERYDAY_TASK": ("_handle_notify_everyday_task", ("everydayTaskCtrl",), True),
-        "49": ("_handle_notify_generic_controller", ("escortCtrl",), True),
-        "ESCORT": ("_handle_notify_generic_controller", ("escortCtrl",), True),
-        "NOTIFY_ESCORT": ("_handle_notify_generic_controller", ("escortCtrl",), True),
-        "50": ("_handle_notify_generic_controller", ("escortCartCtrl",), True),
-        "ESCORT_CART": ("_handle_notify_generic_controller", ("escortCartCtrl",), True),
-        "NOTIFY_ESCORT_CART": ("_handle_notify_generic_controller", ("escortCartCtrl",), True),
-        "3": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
-        "ALLIANCE": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
-        "NOTIFY_ALLIANCE": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
-        "NOTIFY_ALLIANCE_UPDATE": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
-        "64": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
-        "ALLIANCE_RELATION": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
-        "NOTIFY_ALLIANCE_RELATION": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
-        "1009": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
-        "ALLIANCE_RECOMMEND": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
-        "NOTIFY_ALLIANCE_RECOMMEND": ("_handle_notify_generic_controller", ("allianceCtrl",), True),
-        "608": ("_handle_notify_generic_controller", ("commandHallCtrl", "commandHall"), True),
-        "COMMAND_HALL": ("_handle_notify_generic_controller", ("commandHallCtrl", "commandHall"), True),
-        "NOTIFY_COMMAND_HALL": ("_handle_notify_generic_controller", ("commandHallCtrl", "commandHall"), True),
-        "12": ("_handle_notify_generic_controller", ("questCtrl",), True),
-        "QUEST": ("_handle_notify_generic_controller", ("questCtrl",), True),
-        "NOTIFY_QUEST": ("_handle_notify_generic_controller", ("questCtrl",), True),
-        "NOTIFY_QUEST_UPDATE": ("_handle_notify_generic_controller", ("questCtrl",), True),
-        "11": ("_handle_notify_generic_controller", ("wallsCtrl",), True),
-        "WALLS": ("_handle_notify_generic_controller", ("wallsCtrl",), True),
-        "NOTIFY_WALLS": ("_handle_notify_generic_controller", ("wallsCtrl",), True),
-        "NOTIFY_WALLS_UPDATE": ("_handle_notify_generic_controller", ("wallsCtrl",), True),
+        "49": ("_handle_notify_escort", ("escortCtrl",), True),
+        "ESCORT": ("_handle_notify_escort", ("escortCtrl",), True),
+        "NOTIFY_ESCORT": ("_handle_notify_escort", ("escortCtrl",), True),
+        "50": ("_handle_notify_escort_cart", ("escortCartCtrl",), True),
+        "ESCORT_CART": ("_handle_notify_escort_cart", ("escortCartCtrl",), True),
+        "NOTIFY_ESCORT_CART": ("_handle_notify_escort_cart", ("escortCartCtrl",), True),
+        "3": ("_handle_notify_alliance", ("allianceCtrl",), True),
+        "ALLIANCE": ("_handle_notify_alliance", ("allianceCtrl",), True),
+        "NOTIFY_ALLIANCE": ("_handle_notify_alliance", ("allianceCtrl",), True),
+        "NOTIFY_ALLIANCE_UPDATE": ("_handle_notify_alliance", ("allianceCtrl",), True),
+        "64": ("_handle_notify_alliance_relation", ("allianceCtrl",), True),
+        "ALLIANCE_RELATION": ("_handle_notify_alliance_relation", ("allianceCtrl",), True),
+        "NOTIFY_ALLIANCE_RELATION": ("_handle_notify_alliance_relation", ("allianceCtrl",), True),
+        "1009": ("_handle_notify_alliance_recommend", ("allianceCtrl",), True),
+        "ALLIANCE_RECOMMEND": ("_handle_notify_alliance_recommend", ("allianceCtrl",), True),
+        "NOTIFY_ALLIANCE_RECOMMEND": ("_handle_notify_alliance_recommend", ("allianceCtrl",), True),
+        "608": ("_handle_notify_command_hall", ("commandHallCtrl", "commandHall"), True),
+        "COMMAND_HALL": ("_handle_notify_command_hall", ("commandHallCtrl", "commandHall"), True),
+        "NOTIFY_COMMAND_HALL": ("_handle_notify_command_hall", ("commandHallCtrl", "commandHall"), True),
+        "12": ("_handle_notify_quest", ("questCtrl",), True),
+        "QUEST": ("_handle_notify_quest", ("questCtrl",), True),
+        "NOTIFY_QUEST": ("_handle_notify_quest", ("questCtrl",), True),
+        "NOTIFY_QUEST_UPDATE": ("_handle_notify_quest", ("questCtrl",), True),
+        "11": ("_handle_notify_walls", ("wallsCtrl",), True),
+        "WALLS": ("_handle_notify_walls", ("wallsCtrl",), True),
+        "NOTIFY_WALLS": ("_handle_notify_walls", ("wallsCtrl",), True),
+        "NOTIFY_WALLS_UPDATE": ("_handle_notify_walls", ("wallsCtrl",), True),
         "13": ("_handle_notify_generic_controller", ("treviFountainCtrl",), True),
         "TREVIFOUNTAIN": ("_handle_notify_generic_controller", ("treviFountainCtrl",), True),
         "NOTIFY_TREVIFOUNTAIN": ("_handle_notify_generic_controller", ("treviFountainCtrl",), True),
         "NOTIFY_TREVIFOUNTAIN_UPDATE": ("_handle_notify_generic_controller", ("treviFountainCtrl",), True),
-        "27": ("_handle_notify_generic_controller", ("pyramidCtrl",), True),
-        "PYRAMID": ("_handle_notify_generic_controller", ("pyramidCtrl",), True),
-        "NOTIFY_PYRAMID": ("_handle_notify_generic_controller", ("pyramidCtrl",), True),
-        "95": ("_handle_notify_generic_controller", ("allianceTreasureCtrl",), True),
-        "ALLIANCE_TREASURE": ("_handle_notify_generic_controller", ("allianceTreasureCtrl",), True),
-        "NOTIFY_ALLIANCE_TREASURE": ("_handle_notify_generic_controller", ("allianceTreasureCtrl",), True),
-        "41": ("_handle_notify_generic_controller", ("badgeExchangeCtrl",), True),
-        "BADGE_EXCHANGE": ("_handle_notify_generic_controller", ("badgeExchangeCtrl",), True),
-        "NOTIFY_BADGE_EXCHANGE": ("_handle_notify_generic_controller", ("badgeExchangeCtrl",), True),
-        "29": ("_handle_notify_generic_controller", ("equipmentCtrl",), True),
-        "EQUIPMENT": ("_handle_notify_generic_controller", ("equipmentCtrl",), True),
-        "NOTIFY_EQUIPMENT": ("_handle_notify_generic_controller", ("equipmentCtrl",), True),
-        "23": ("_handle_notify_generic_controller", ("shopCtrl", "storesCtrl"), True),
-        "SHOP": ("_handle_notify_generic_controller", ("shopCtrl", "storesCtrl"), True),
-        "NOTIFY_SHOP": ("_handle_notify_generic_controller", ("shopCtrl", "storesCtrl"), True),
-        "59": ("_handle_notify_generic_controller", ("salesRoomAgCtrl",), True),
-        "SALESROOM": ("_handle_notify_generic_controller", ("salesRoomAgCtrl",), True),
-        "NOTIFY_SALESROOM": ("_handle_notify_generic_controller", ("salesRoomAgCtrl",), True),
-        "NEW_SALESROOM": ("_handle_notify_generic_controller", ("salesRoomAgCtrl",), True),
-        "NOTIFY_NEW_SALESROOM": ("_handle_notify_generic_controller", ("salesRoomAgCtrl",), True),
-        "200": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
-        "MAP_DATA": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
-        "NOTIFY_MAP_DATA": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
-        "201": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
-        "MAP_SYNC": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
-        "NOTIFY_MAP_SYNC": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
-        "450": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
-        "SWITCH_MAP": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
-        "NOTIFY_SWITCH_MAP": ("_handle_notify_generic_controller", ("kingdomMapCtrl",), True),
-        "65": ("_handle_notify_generic_controller", ("godBeastCtrl",), True),
-        "PET": ("_handle_notify_generic_controller", ("godBeastCtrl",), True),
-        "NOTIFY_PET": ("_handle_notify_generic_controller", ("godBeastCtrl",), True),
-        "1002": ("_handle_notify_generic_controller", ("stuffWorkshopCtrl",), True),
-        "STUFFWORKSHOP_REFINERY": ("_handle_notify_generic_controller", ("stuffWorkshopCtrl",), True),
-        "NOTIFY_STUFFWORKSHOP_REFINERY": ("_handle_notify_generic_controller", ("stuffWorkshopCtrl",), True),
+        "27": ("_handle_notify_pyramid", ("pyramidCtrl",), True),
+        "PYRAMID": ("_handle_notify_pyramid", ("pyramidCtrl",), True),
+        "NOTIFY_PYRAMID": ("_handle_notify_pyramid", ("pyramidCtrl",), True),
+        "95": ("_handle_notify_alliance_treasure", ("allianceTreasureCtrl",), True),
+        "ALLIANCE_TREASURE": ("_handle_notify_alliance_treasure", ("allianceTreasureCtrl",), True),
+        "NOTIFY_ALLIANCE_TREASURE": ("_handle_notify_alliance_treasure", ("allianceTreasureCtrl",), True),
+        "41": ("_handle_notify_badge_exchange", ("badgeExchangeCtrl",), True),
+        "BADGE_EXCHANGE": ("_handle_notify_badge_exchange", ("badgeExchangeCtrl",), True),
+        "NOTIFY_BADGE_EXCHANGE": ("_handle_notify_badge_exchange", ("badgeExchangeCtrl",), True),
+        "29": ("_handle_notify_equipment", ("equipmentCtrl",), True),
+        "EQUIPMENT": ("_handle_notify_equipment", ("equipmentCtrl",), True),
+        "NOTIFY_EQUIPMENT": ("_handle_notify_equipment", ("equipmentCtrl",), True),
+        "23": ("_handle_notify_shop", ("storesCtrl",), True),
+        "SHOP": ("_handle_notify_shop", ("storesCtrl",), True),
+        "NOTIFY_SHOP": ("_handle_notify_shop", ("storesCtrl",), True),
+        "59": ("_handle_notify_salesroom", ("salesRoomAgCtrl",), True),
+        "464": ("_handle_notify_salesroom", ("salesRoomAgCtrl",), True),
+        "SALESROOM": ("_handle_notify_salesroom", ("salesRoomAgCtrl",), True),
+        "NOTIFY_SALESROOM": ("_handle_notify_salesroom", ("salesRoomAgCtrl",), True),
+        "NEW_SALESROOM": ("_handle_notify_salesroom", ("salesRoomAgCtrl",), True),
+        "NOTIFY_NEW_SALESROOM": ("_handle_notify_salesroom", ("salesRoomAgCtrl",), True),
+        "200": ("_handle_notify_map_data", ("kingdomMapCtrl",), True),
+        "MAP_DATA": ("_handle_notify_map_data", ("kingdomMapCtrl",), True),
+        "NOTIFY_MAP_DATA": ("_handle_notify_map_data", ("kingdomMapCtrl",), True),
+        "201": ("_handle_notify_map_sync", ("kingdomMapCtrl",), True),
+        "MAP_SYNC": ("_handle_notify_map_sync", ("kingdomMapCtrl",), True),
+        "NOTIFY_MAP_SYNC": ("_handle_notify_map_sync", ("kingdomMapCtrl",), True),
+        "450": ("_handle_notify_switch_map", ("kingdomMapCtrl",), True),
+        "SWITCH_MAP": ("_handle_notify_switch_map", ("kingdomMapCtrl",), True),
+        "NOTIFY_SWITCH_MAP": ("_handle_notify_switch_map", ("kingdomMapCtrl",), True),
+        "65": ("_handle_notify_generic_controller", ("petCtrl",), True),
+        "PET": ("_handle_notify_generic_controller", ("petCtrl",), True),
+        "NOTIFY_PET": ("_handle_notify_generic_controller", ("petCtrl",), True),
+        "492": ("_handle_notify_exalted_privilege", ("exaltedPrivilegeCtrl",), True),
+        "EXALTED_PRIVILEGE": ("_handle_notify_exalted_privilege", ("exaltedPrivilegeCtrl",), True),
+        "NOTIFY_EXALTED_PRIVILEGE": ("_handle_notify_exalted_privilege", ("exaltedPrivilegeCtrl",), True),
+        "494": ("_handle_notify_technology", ("technologyCtrl",), True),
+        "TECHNOLOGY": ("_handle_notify_technology", ("technologyCtrl",), True),
+        "NOTIFY_TECHNOLOGY": ("_handle_notify_technology", ("technologyCtrl",), True),
+        "500": ("_handle_notify_duel_cooldown", ("lordSkillCtrl",), True),
+        "DUEL_IN_COOL_DOWN": ("_handle_notify_duel_cooldown", ("lordSkillCtrl",), True),
+        "NOTIFY_DUEL_IN_COOL_DOWN": ("_handle_notify_duel_cooldown", ("lordSkillCtrl",), True),
+        "571": ("_handle_notify_generic_controller", ("heroComboSkillCtrl",), True),
+        "HERO_COMBO_SKILL": ("_handle_notify_generic_controller", ("heroComboSkillCtrl",), True),
+        "NOTIFY_HERO_COMBO_SKILL": ("_handle_notify_generic_controller", ("heroComboSkillCtrl",), True),
+        "642": ("_handle_notify_divine_beast", ("divineBeastCtrl",), True),
+        "DIVINE_BEAST": ("_handle_notify_divine_beast", ("divineBeastCtrl",), True),
+        "NOTIFY_DIVINE_BEAST": ("_handle_notify_divine_beast", ("divineBeastCtrl",), True),
+        "1002": ("_handle_notify_stuff_workshop", ("stuffWorkshopCtrl",), True),
+        "STUFFWORKSHOP_REFINERY": ("_handle_notify_stuff_workshop", ("stuffWorkshopCtrl",), True),
+        "NOTIFY_STUFFWORKSHOP_REFINERY": ("_handle_notify_stuff_workshop", ("stuffWorkshopCtrl",), True),
+        "1007": ("_handle_notify_arena", ("playerArenaCtrl",), True),
+        "ARENA": ("_handle_notify_arena", ("playerArenaCtrl",), True),
+        "NOTIFY_ARENA": ("_handle_notify_arena", ("playerArenaCtrl",), True),
     }
 
     def ingest_packet_with_report(self, packet: Any) -> Tuple[Dict[str, Any], Dict[str, Any]]:
@@ -917,27 +958,54 @@ class LiveMemoryEngine:
                 notify_status = "missing_notify_id"
                 notify_detail = "وصلت حزمة cmd=1009 بدون حقل notifyID"
 
-            # 2. Handle domain-specific commands (such as army training updates in cmd 1005)
+            # 2. Handle domain-specific commands (guarded strictly against server error packets)
             controller_status: Optional[str] = None
             merged_controllers: List[str] = []
 
-            if cmd in ("1005", "onemt_1005"):
+            raw_err = packet.get("err")
+            if raw_err is None and isinstance(packet.get("data"), dict):
+                raw_err = packet["data"].get("err")
+            is_err_packet = (
+                not is_notification
+                and (
+                    packet.get("_ok") is False
+                    or (raw_err is not None and str(raw_err).strip() not in ("", "0", "Err_None"))
+                )
+            )
+
+            if not is_err_packet and cmd in ("1005", "onemt_1005"):
                 try:
                     self._handle_cmd_1005(subcmd, packet)
                 except Exception as exc:
                     errors.append(f"cmd_1005_handling: {exc}")
 
-            if cmd in ("2021", "onemt_2021"):
+            if not is_err_packet and cmd in ("2021", "onemt_2021"):
                 try:
                     self._handle_cmd_2021(subcmd, packet)
-                    merged_controllers.append("stuffWorkshopCtrl")
-                    controller_status = "merged"
+                    if "stuffWorkshopCtrl" in self.init_data:
+                        merged_controllers.append("stuffWorkshopCtrl")
+                        controller_status = "merged"
                 except Exception as exc:
                     errors.append(f"cmd_2021_handling: {exc}")
 
+            if not is_err_packet and cmd in ("1006", "onemt_1006") and subcmd == "1000":
+                try:
+                    self._handle_map_sync_rsp(packet)
+                except Exception as exc:
+                    errors.append(f"cmd_1006_1000_handling: {exc}")
+
+            if not is_err_packet and cmd in ("1007", "onemt_1007") and subcmd == "1000":
+                self.local_queues_synced = True
+                if "local_queues" not in self.init_data:
+                    own_q_init, other_q_init = self.get_local_queues_breakdown()
+                    self.init_data["local_queues"] = own_q_init
+                    self.init_data["other_local_queues"] = other_q_init
+                    if isinstance(self.init_data.get("queueCtrl"), dict):
+                        self.init_data["queueCtrl"]["queues"] = list(own_q_init)
+
             # 3. Extract and merge whitelisted controller state
             try:
-                controllers = self.extract_controllers(packet)
+                controllers = {} if is_err_packet else self.extract_controllers(packet)
                 if controllers:
                     merged_controllers.extend([k for k in controllers.keys() if k not in merged_controllers])
                     et_payload = controllers.pop("everydayTaskCtrl", None)
@@ -964,6 +1032,8 @@ class LiveMemoryEngine:
                         own_q, other_q = self.get_local_queues_breakdown()
                         self.init_data["local_queues"] = own_q
                         self.init_data["other_local_queues"] = other_q
+                        if isinstance(self.init_data.get("queueCtrl"), dict):
+                            self.init_data["queueCtrl"]["queues"] = list(own_q)
                     controller_status = "merged"
             except Exception as exc:
                 controller_status = "failed"
@@ -1145,7 +1215,11 @@ class LiveMemoryEngine:
     # ──────────────────────────────────────────────────────────────────────────
 
     def _handle_cmd_1005(self, sub_s: str, packet: Dict[str, Any]) -> None:
-        """Handles specific army training responses (subcmd 2, 4, 5) from cmd 1005."""
+        """Handles army training/healing/claim responses (subcmd 1, 2, 4, 5) from cmd 1005."""
+        raw_err = packet.get("err")
+        if raw_err is not None and str(raw_err).strip() not in ("", "0", "Err_None"):
+            return
+
         c_data = packet.get("data") if isinstance(packet.get("data"), dict) else packet
         army_ctrl = self.init_data.setdefault("armyCtrl", {})
 
@@ -1153,41 +1227,48 @@ class LiveMemoryEngine:
         if sub_s == "1" and not c_data.get("armyInfo"):
             smart_deep_merge(army_ctrl, c_data, in_place=True)
 
-        # Subcmd 2+ or armyInfo payload: merge armyInfo
+        # Subcmd 2+ or armyInfo payload: replace armyInfo maps cleanly
         elif isinstance(c_data.get("armyInfo"), dict):
             local_train = army_ctrl.get("trainArmy") if isinstance(army_ctrl.get("trainArmy"), dict) else {}
-            army_ctrl.update(c_data["armyInfo"])
-            srv_train = army_ctrl.get("trainArmy")
-            if not srv_train and local_train and sub_s not in ("4", "5"):
+            army_ctrl.update(copy.deepcopy(c_data["armyInfo"]))
+            if "trainArmy" not in c_data["armyInfo"] and local_train and sub_s != "5":
                 army_ctrl["trainArmy"] = local_train
 
-        # Subcmd 4 (cancel training) or 5 (claim trained soldiers)
-        if sub_s in ("4", "5"):
+        # Subcmd 5 ONLY (REQ_COLLECT_TRAIN_ARMY): clear collected soldiers from trainArmy
+        # Note: Subcmd 4 is REQ_CURE_WOUNDED_ARMY (hospital healing), NOT cancel training!
+        if sub_s == "5":
             bid_key = str(c_data.get("bid", ""))
             train_map = army_ctrl.get("trainArmy")
             if isinstance(train_map, dict):
                 if bid_key in train_map:
                     train_map.pop(bid_key, None)
-                if not train_map or (isinstance(c_data.get("armyInfo"), dict) and c_data["armyInfo"].get("trainArmy") == {}):
+                if not train_map or (
+                    isinstance(c_data.get("armyInfo"), dict) and c_data["armyInfo"].get("trainArmy") == {}
+                ):
                     army_ctrl["trainArmy"] = {}
 
-        # Subcmd 2: Record new training queue into armyCtrl.trainArmy
         ret_q = c_data.get("retdata")
-        if isinstance(ret_q, dict) and "lefttime" in ret_q:
-            train_map = army_ctrl.setdefault("trainArmy", {})
-            if isinstance(train_map, dict):
-                bid_key = str(c_data.get("bid", "unknown"))
-                train_map[bid_key] = {
-                    "bid": bid_key,
-                    "armyid": str(c_data.get("armyid", "")),
-                    "armycount": str(c_data.get("armycount", "")),
-                    "lefttime": ret_q.get("lefttime"),
-                    "totaltime": ret_q.get("totaltime"),
-                    "queuetype": ret_q.get("queuetype"),
-                    "_uniqueid": ret_q.get("_uniqueid"),
-                    "updated_at": int(time.time()),
-                }
-            # Deduct resource cost in cityCtrl
+        now_ts = int(time.time())
+
+        # Subcmd 2 (REQ_TRAIN_ARMY): record active queue in queueCtrl[queuetype] (NOT in trainArmy!)
+        if sub_s == "2" and isinstance(ret_q, dict) and "lefttime" in ret_q:
+            qtype_s = str(ret_q.get("queuetype") or "")
+            left_t = int(float(ret_q.get("lefttime") or 0))
+            tot_t = int(float(ret_q.get("totaltime") or left_t))
+            if qtype_s and left_t > 0:
+                q_ctrl = self.init_data.setdefault("queueCtrl", {})
+                if isinstance(q_ctrl, dict):
+                    q_ctrl[qtype_s] = {
+                        "qtype": qtype_s,
+                        "queuetype": qtype_s,
+                        "starttime": max(0, now_ts - max(0, tot_t - left_t)),
+                        "totaltime": tot_t,
+                        "ottime": left_t,
+                        "_uniqueid": ret_q.get("_uniqueid"),
+                        "bid": c_data.get("bid"),
+                        "armyid": c_data.get("armyid"),
+                        "armycount": c_data.get("armycount"),
+                    }
             cost_list = ret_q.get("costres")
             if isinstance(cost_list, list):
                 city = self.init_data.setdefault("cityCtrl", {})
@@ -1198,8 +1279,28 @@ class LiveMemoryEngine:
                             reslist[str(cr["resid"])] = cr["curcount"]
                     city["resList"] = reslist
 
+        # Subcmd 4 (REQ_CURE_WOUNDED_ARMY): record hospital queue in queueCtrl["1202"]
+        elif sub_s == "4" and isinstance(ret_q, dict) and ("lefttime" in ret_q or "totaltime" in ret_q):
+            qtype_s = str(ret_q.get("queuetype") or "1202")
+            left_t = int(float(ret_q.get("lefttime") or ret_q.get("totaltime") or 0))
+            tot_t = int(float(ret_q.get("totaltime") or left_t))
+            if left_t > 0:
+                q_ctrl = self.init_data.setdefault("queueCtrl", {})
+                if isinstance(q_ctrl, dict):
+                    q_ctrl[qtype_s] = {
+                        "qtype": qtype_s,
+                        "queuetype": qtype_s,
+                        "starttime": max(0, now_ts - max(0, tot_t - left_t)),
+                        "totaltime": tot_t,
+                        "ottime": left_t,
+                        "_uniqueid": ret_q.get("_uniqueid"),
+                    }
+
     def _handle_cmd_2021(self, sub_s: str, packet: Dict[str, Any]) -> None:
         """Handles Material Workshop responses (cmd 2021) and updates stuffWorkshopCtrl."""
+        raw_err = packet.get("err")
+        if raw_err is not None and str(raw_err).strip() not in ("", "0", "Err_None"):
+            return
         res = packet.get("result")
         if isinstance(res, dict):
             existing = self.init_data.setdefault("stuffWorkshopCtrl", {})
@@ -1227,10 +1328,19 @@ class LiveMemoryEngine:
                 if not isinstance(item, dict):
                     continue
                 ev = item.get("dispatchQueueEvent") if isinstance(item.get("dispatchQueueEvent"), dict) else item
-                qt = str(ev.get("queuetype") or ev.get("qtype") or item.get("queuetype") or item.get("qtype") or "")
+                qt = str(
+                    ev.get("name") or ev.get("queuetype") or ev.get("qtype")
+                    or item.get("queuetype") or item.get("qtype") or ""
+                )
                 if qt in ("1200", "1201") or ev.get("bid") is not None or ev.get("index") is not None or item.get("bid") is not None:
                     targets.append("cityCtrl")
                     break
+        elif str_id in ("1002", "STUFFWORKSHOP_REFINERY", "NOTIFY_STUFFWORKSHOP_REFINERY"):
+            if "queueCtrl" in self.init_data and any(isinstance(x, dict) and "hasRefinery" in x for x in items):
+                targets.append("queueCtrl")
+        elif str_id in ("29", "EQUIPMENT", "NOTIFY_EQUIPMENT"):
+            if "queueCtrl" in self.init_data and any(isinstance(x, dict) and x.get("notifyType") == "cle" for x in items):
+                targets.append("queueCtrl")
         return targets
 
     _RES_SHORT_NAMES: Dict[str, str] = {
@@ -1315,7 +1425,7 @@ class LiveMemoryEngine:
                     ev = it.get("dispatchQueueEvent") if isinstance(it.get("dispatchQueueEvent"), dict) else it
                     data_ctx = ev.get("data") if isinstance(ev.get("data"), dict) else (it.get("data") if isinstance(it.get("data"), dict) else {})
                     raw_qt = (
-                        ev.get("queuetype") or ev.get("qtype") or ev.get("queueType") or
+                        ev.get("name") or ev.get("queuetype") or ev.get("qtype") or ev.get("queueType") or
                         data_ctx.get("queuetype") or data_ctx.get("qtype") or data_ctx.get("queueType") or
                         it.get("queuetype") or it.get("qtype") or it.get("queueType") or
                         ev.get("id") or it.get("id") or ""
@@ -1324,7 +1434,8 @@ class LiveMemoryEngine:
                     lbl = _Q_NAMES.get(qt_str, f"طابور {qt_str}" if qt_str and qt_str != "?" else "طوابير القلعة")
                     nt = str(ev.get("notifyType") or it.get("notifyType") or "")
                     bid = ev.get("bid") or it.get("bid") or data_ctx.get("bid")
-                    if nt.lower() in ("finish", "del", "remove", "cancel") or str(ev.get("optype", "")) == "11":
+                    has_name = "name" in ev and ev.get("name") is not None
+                    if (has_name and nt.lower() != "merge") or nt.lower() in ("finish", "del", "remove", "cancel") or str(ev.get("optype", "")) == "11":
                         tag = "ملغى" if nt.lower() == "cancel" or str(ev.get("optype", "")) == "11" else "مكتمل"
                         parts.append(f"{lbl} ({tag}{f' مبنى#{bid}' if bid else ''})")
                     else:
@@ -1415,7 +1526,8 @@ class LiveMemoryEngine:
 
             elif handler_name == "_handle_notify_time_reward":
                 tr = self.init_data.get("timeRewardCtrl", {}) or {}
-                recv = tr.get("isReceive")
+                tr_data = tr.get("data") if isinstance(tr.get("data"), dict) else tr
+                recv = tr_data.get("isReceive")
                 status_txt = "جاهزة للاستلام" if recv == 2 else ("قيد الانتظار" if recv == 1 else f"isReceive={recv}")
                 parts.append(f"مكافأة الوقت ({status_txt})")
 
@@ -1440,7 +1552,36 @@ class LiveMemoryEngine:
                                         else:
                                             parts.append(f"{cat}.{tid}")
 
-            elif handler_name in ("_handle_notify_generic_controller", "_handle_notify_everyday_task"):
+            elif handler_name in (
+                "_handle_notify_generic_controller",
+                "_handle_notify_everyday_task",
+                "_handle_notify_world_update",
+                "_handle_notify_login_reward",
+                "_handle_notify_hero_trial",
+                "_handle_notify_arena",
+                "_handle_notify_stuff_workshop",
+                "_handle_notify_shop",
+                "_handle_notify_command_hall",
+                "_handle_notify_quest",
+                "_handle_notify_walls",
+                "_handle_notify_pyramid",
+                "_handle_notify_badge_exchange",
+                "_handle_notify_equipment",
+                "_handle_notify_alliance_treasure",
+                "_handle_notify_escort",
+                "_handle_notify_escort_cart",
+                "_handle_notify_salesroom",
+                "_handle_notify_alliance",
+                "_handle_notify_alliance_relation",
+                "_handle_notify_alliance_recommend",
+                "_handle_notify_map_sync",
+                "_handle_notify_map_data",
+                "_handle_notify_switch_map",
+                "_handle_notify_exalted_privilege",
+                "_handle_notify_technology",
+                "_handle_notify_duel_cooldown",
+                "_handle_notify_divine_beast",
+            ):
                 keys = detail.get("keys", []) if isinstance(detail, dict) else []
                 keys_str = f" ({', '.join(str(k) for k in keys[:3])})" if keys else ""
                 ctrl_labels = {
@@ -1454,12 +1595,20 @@ class LiveMemoryEngine:
                     "pyramidCtrl": "الهرم",
                     "equipmentCtrl": "المعدات",
                     "shopCtrl": "المتجر",
-                    "storesCtrl": "المتجر",
+                    "storesCtrl": "التاجر العجيب",
                     "badgeExchangeCtrl": "تبادل الأوسمة",
                     "salesRoomAgCtrl": "غرفة المبيعات",
                     "kingdomMapCtrl": "خريطة المملكة",
                     "allianceTreasureCtrl": "كنز التحالف",
-                    "godBeastCtrl": "الوحش الإلهي",
+                    "petCtrl": "الحيوانات الأليفة",
+                    "stuffWorkshopCtrl": "معمل المواد",
+                    "loginRewardCtrl": "السفينة التجارية",
+                    "htData": "محاكمة البطل",
+                    "playerArenaCtrl": "الحلبة",
+                    "technologyCtrl": "الأبحاث",
+                    "exaltedPrivilegeCtrl": "امتياز السمو",
+                    "divineBeastCtrl": "الوحش الإلهي",
+                    "heroComboSkillCtrl": "مهارات الحشد",
                 }
                 lbl = ctrl_labels.get(target_ctrl, target_ctrl or "متحكم")
                 parts.append(f"{lbl}{keys_str}")
@@ -1596,7 +1745,7 @@ class LiveMemoryEngine:
                                 target_dict["curres"] = str(new_cur) if isinstance(target_dict.get("curres"), str) else new_cur
                                 break
 
-            # 6. Second (charge) build queue
+            # 6. Second (charge) build queue (cityCtrl.lua:1449 injects starttime = now when absent)
             if "openChargeQueue" in delta and isinstance(delta["openChargeQueue"], dict):
                 raw_charge = delta["openChargeQueue"]
                 charge_info = copy.deepcopy(raw_charge)
@@ -1604,9 +1753,9 @@ class LiveMemoryEngine:
                     try:
                         charge_info["starttime"] = int(float(raw_charge["starttime"]))
                     except (ValueError, TypeError):
-                        pass
-                elif "starttime" in charge_info:
-                    del charge_info["starttime"]
+                        charge_info["starttime"] = int(time.time())
+                else:
+                    charge_info["starttime"] = int(time.time())
 
                 city_ctrl.setdefault("queue", {})["1201"] = charge_info
                 charge_info_q = copy.deepcopy(charge_info)
@@ -1615,14 +1764,70 @@ class LiveMemoryEngine:
                 if isinstance(queue_ctrl, dict):
                     queue_ctrl["1201"] = charge_info_q
 
+            # 7. Building info updates (cityCtrl.lua:1523-1529)
+            if "updateBuildInfo" in delta and isinstance(delta["updateBuildInfo"], (list, dict)):
+                upd_list = delta["updateBuildInfo"] if isinstance(delta["updateBuildInfo"], list) else list(delta["updateBuildInfo"].values())
+                blist = city_ctrl.get("blist", [])
+                if isinstance(blist, list):
+                    for upd_b in upd_list:
+                        if not isinstance(upd_b, dict):
+                            continue
+                        u_idx = _extract_field_value(upd_b, "index")
+                        u_bid = _extract_field_value(upd_b, "bid")
+                        u_iid = _extract_field_value(upd_b, "iid")
+                        matched = False
+                        for b_item in blist:
+                            if not isinstance(b_item, dict):
+                                continue
+                            if (u_idx is not None and str(_extract_field_value(b_item, "index")) == str(u_idx)) or (
+                                u_bid is not None and u_iid is not None
+                                and str(_extract_field_value(b_item, "bid")) == str(u_bid)
+                                and str(_extract_field_value(b_item, "iid")) == str(u_iid)
+                            ):
+                                smart_deep_merge(b_item, upd_b, in_place=True)
+                                matched = True
+                                break
+                        if not matched and (u_idx is not None or u_bid is not None):
+                            blist.append(copy.deepcopy(upd_b))
+
+            # 8. Demolished building removal (cityCtrl.lua:1430 — supports index or bid+iid)
+            if "demolishInfo" in delta and isinstance(delta["demolishInfo"], (list, dict)):
+                dem_list = delta["demolishInfo"] if isinstance(delta["demolishInfo"], list) else [delta["demolishInfo"]]
+                blist = city_ctrl.get("blist", [])
+                if isinstance(blist, list):
+                    for dem in dem_list:
+                        if isinstance(dem, dict):
+                            d_idx = _extract_field_value(dem, "index")
+                            d_bid = _extract_field_value(dem, "bid")
+                            d_iid = _extract_field_value(dem, "iid")
+                            if d_idx is not None:
+                                city_ctrl["blist"] = [
+                                    b for b in city_ctrl["blist"]
+                                    if not (isinstance(b, dict) and str(_extract_field_value(b, "index")) == str(d_idx))
+                                ]
+                            elif d_bid is not None and d_iid is not None:
+                                city_ctrl["blist"] = [
+                                    b for b in city_ctrl["blist"]
+                                    if not (
+                                        isinstance(b, dict)
+                                        and str(_extract_field_value(b, "bid")) == str(d_bid)
+                                        and str(_extract_field_value(b, "iid")) == str(d_iid)
+                                    )
+                                ]
+                        elif dem is not None:
+                            city_ctrl["blist"] = [
+                                b for b in city_ctrl["blist"]
+                                if not (isinstance(b, dict) and str(_extract_field_value(b, "index")) == str(dem))
+                            ]
+
     def _handle_notify_queue(self, notify_data: Any) -> None:
         """
         Synchronizes NOTIFY_QUEUE (14) and NOTIFY_PLAYER_QUEUE_CHANGE (1051):
-          - Updates active queue tracking in queueCtrl.
-          - On completion or cancellation, matches cityCtrl.blist and updates building state:
-            * Regular upgrade: increments lv, sets state = "0" (BUILD_STATE.NORMAL).
-            * Honor upgrade: increments honorLv and hlv, sets state = "0".
-            * Cancel: sets state = "0" without level change.
+          - Supports authentic Lua `dispatchQueueEvent.name` (`queueCtrl.lua:241-303`):
+            * `notifyType == "merge"`: removes `deleteList` queues and adds/updates merged queue.
+            * Any other `notifyType` when `"name"` is present: queue completion/removal (verifies `_uniqueid`).
+          - Preserves backward compatibility for synthetic `queuetype`/`qtype` payloads.
+          - On building queue completion/cancellation, updates `cityCtrl.blist` state & level.
         """
         items = notify_data if isinstance(notify_data, list) else [notify_data]
         city_ctrl = self.init_data.setdefault("cityCtrl", {})
@@ -1635,27 +1840,60 @@ class LiveMemoryEngine:
             event = item.get("dispatchQueueEvent") if isinstance(item.get("dispatchQueueEvent"), dict) else item
             data_ctx = event.get("data") if isinstance(event.get("data"), dict) else {}
 
-            qtype = str(event.get("queuetype") or event.get("qtype") or item.get("queuetype") or item.get("qtype") or "")
+            has_lua_name = "name" in event and event.get("name") is not None
+            qtype = str(
+                event.get("name")
+                or event.get("queuetype")
+                or event.get("qtype")
+                or item.get("queuetype")
+                or item.get("qtype")
+                or ""
+            ).strip()
             notify_type = str(event.get("notifyType") or item.get("notifyType") or "").lower()
             optype = event.get("optype") or data_ctx.get("optype") or item.get("optype")
             optype_str = str(optype) if optype is not None else ""
 
-            is_finish = notify_type in ("finish", "del", "remove", "cancel") or optype_str == "11"
-            is_cancel = notify_type == "cancel" or optype_str == "11"
-
-            # 1. Remove or update in queueCtrl
-            if qtype:
-                if is_finish:
-                    if isinstance(queue_ctrl, dict):
-                        queue_ctrl.pop(qtype, None)
-                    elif isinstance(queue_ctrl, list):
-                        self.init_data["queueCtrl"] = [
-                            q for q in queue_ctrl
-                            if isinstance(q, dict) and str(q.get("qtype") or q.get("queuetype") or "") != qtype
-                        ]
+            if notify_type == "merge":
+                is_finish = False
+                is_cancel = False
+                del_list = event.get("deleteList") or data_ctx.get("deleteList") or []
+                if isinstance(del_list, list) and isinstance(queue_ctrl, dict):
+                    for dq in del_list:
+                        if isinstance(dq, dict):
+                            dq_key = str(dq.get("name") or dq.get("queuetype") or dq.get("qtype") or "")
+                            if dq_key:
+                                queue_ctrl.pop(dq_key, None)
+                        elif dq is not None:
+                            queue_ctrl.pop(str(dq), None)
+                if qtype and isinstance(queue_ctrl, dict):
+                    merged_q = copy.deepcopy(data_ctx if data_ctx else event)
+                    merged_q.setdefault("qtype", qtype)
+                    merged_q.setdefault("queuetype", qtype)
+                    queue_ctrl[qtype] = merged_q
+            else:
+                if has_lua_name:
+                    is_finish = True
+                    is_cancel = notify_type == "cancel" or optype_str == "11"
                 else:
-                    if isinstance(queue_ctrl, dict):
-                        queue_ctrl[qtype] = copy.deepcopy(event)
+                    is_finish = notify_type in ("finish", "del", "remove", "cancel") or optype_str == "11"
+                    is_cancel = notify_type == "cancel" or optype_str == "11"
+
+                if qtype:
+                    if is_finish:
+                        if isinstance(queue_ctrl, dict):
+                            existing_q = queue_ctrl.get(qtype)
+                            ev_uid = data_ctx.get("_uniqueid") or event.get("_uniqueid")
+                            ex_uid = existing_q.get("_uniqueid") if isinstance(existing_q, dict) else None
+                            if not (ev_uid is not None and ex_uid is not None and str(ev_uid) != str(ex_uid)):
+                                queue_ctrl.pop(qtype, None)
+                        elif isinstance(queue_ctrl, list):
+                            self.init_data["queueCtrl"] = [
+                                q for q in queue_ctrl
+                                if isinstance(q, dict) and str(q.get("qtype") or q.get("queuetype") or "") != qtype
+                            ]
+                    else:
+                        if isinstance(queue_ctrl, dict):
+                            queue_ctrl[qtype] = copy.deepcopy(event)
 
             # 2. Reflect on building in cityCtrl if related to building queues (1200 / 1201) or contains building keys
             bid = event.get("bid") or data_ctx.get("bid") or item.get("bid")
@@ -1736,23 +1974,28 @@ class LiveMemoryEngine:
                 if isinstance(backpack, dict):
                     if k in backpack:
                         if isinstance(backpack[k], dict):
-                            old = int(backpack[k].get("count", 0))
-                            backpack[k]["count"] = str(old + delta)
+                            old_raw = backpack[k].get("count", 0)
+                            new_val = int(old_raw or 0) + delta
+                            backpack[k]["count"] = str(new_val) if isinstance(old_raw, str) else new_val
                         else:
-                            backpack[k] = max(0, int(backpack[k]) + delta)
+                            old_raw = backpack[k]
+                            new_val = max(0, int(old_raw or 0) + delta)
+                            backpack[k] = str(new_val) if isinstance(old_raw, str) else new_val
                     else:
-                        backpack[k] = {"id": k, "count": str(delta)}
+                        backpack[k] = {"id": int(k) if k.isdigit() else k, "count": delta}
                 elif isinstance(backpack, list):
                     found = False
                     for entry in backpack:
                         if isinstance(entry, dict) and str(entry.get("id")) == k:
-                            entry["count"] = str(int(entry.get("count", 0)) + delta)
+                            old_raw = entry.get("count", 0)
+                            new_val = int(old_raw or 0) + delta
+                            entry["count"] = str(new_val) if isinstance(old_raw, str) else new_val
                             found = True
                             break
                     if not found:
-                        backpack.append({"id": k, "count": str(delta)})
+                        backpack.append({"id": int(k) if k.isdigit() else k, "count": delta})
 
-        # Handle consumptions / usage
+        # Handle consumptions / usage (pop entry when count reaches 0 matching backpackCtrl.lua itemMap[id]=nil)
         use_items = data_block.get("use", {})
         if isinstance(use_items, dict):
             for item_id, count in use_items.items():
@@ -1761,48 +2004,58 @@ class LiveMemoryEngine:
                 if isinstance(backpack, dict):
                     if k in backpack:
                         if isinstance(backpack[k], dict):
-                            old = int(backpack[k].get("count", 0))
-                            backpack[k]["count"] = str(max(0, old - delta))
+                            old_raw = backpack[k].get("count", 0)
+                            rem = int(old_raw or 0) - delta
+                            if rem > 0:
+                                backpack[k]["count"] = str(rem) if isinstance(old_raw, str) else rem
+                            else:
+                                backpack.pop(k, None)
                         else:
-                            backpack[k] = max(0, int(backpack[k]) - delta)
+                            old_raw = backpack[k]
+                            rem = int(old_raw or 0) - delta
+                            if rem > 0:
+                                backpack[k] = str(rem) if isinstance(old_raw, str) else rem
+                            else:
+                                backpack.pop(k, None)
                 elif isinstance(backpack, list):
-                    for entry in backpack:
+                    for idx_e, entry in enumerate(list(backpack)):
                         if isinstance(entry, dict) and str(entry.get("id")) == k:
-                            old = int(entry.get("count", 0))
-                            entry["count"] = str(max(0, old - delta))
+                            old_raw = entry.get("count", 0)
+                            rem = int(old_raw or 0) - delta
+                            if rem > 0:
+                                entry["count"] = str(rem) if isinstance(old_raw, str) else rem
+                            else:
+                                backpack.remove(entry)
                             break
 
     def _handle_notify_army(self, notify_data: Any) -> None:
         """
         Synchronizes NOTIFY_ARMY (15):
-          Updates totalArmy, woundedArmy, trainArmy, freeArmy under armyCtrl cleanly.
+          Replaces all army maps present in armyInfo cleanly (including fightingArmy & exceptionArmy)
+          matching armyCtrl.lua:1062 (`self.armyInfo = armyInfo`).
         """
+        _ARMY_MAP_KEYS = (
+            "totalArmy",
+            "woundedArmy",
+            "trainArmy",
+            "freeArmy",
+            "fightingArmy",
+            "exceptionArmy",
+            "exceptionWoundedArmy",
+        )
         items = notify_data if isinstance(notify_data, list) else [notify_data]
         army_ctrl = self.init_data.setdefault("armyCtrl", {})
         for item in items:
             if not isinstance(item, dict):
                 continue
-            army_info = item.get("armyInfo")
-            if isinstance(army_info, dict):
-                if "totalArmy" in army_info:
-                    army_ctrl["totalArmy"] = copy.deepcopy(army_info["totalArmy"])
-                if "woundedArmy" in army_info:
-                    army_ctrl["woundedArmy"] = copy.deepcopy(army_info["woundedArmy"])
-                if "trainArmy" in army_info:
-                    army_ctrl["trainArmy"] = copy.deepcopy(army_info["trainArmy"])
-                if "freeArmy" in army_info:
-                    army_ctrl["freeArmy"] = copy.deepcopy(army_info["freeArmy"])
-                smart_deep_merge(army_ctrl, army_info, in_place=True)
-            else:
-                if "totalArmy" in item:
-                    army_ctrl["totalArmy"] = copy.deepcopy(item["totalArmy"])
-                if "woundedArmy" in item:
-                    army_ctrl["woundedArmy"] = copy.deepcopy(item["woundedArmy"])
-                if "trainArmy" in item:
-                    army_ctrl["trainArmy"] = copy.deepcopy(item["trainArmy"])
-                if "freeArmy" in item:
-                    army_ctrl["freeArmy"] = copy.deepcopy(item["freeArmy"])
-                smart_deep_merge(army_ctrl, item, in_place=True)
+            src = item.get("armyInfo") if isinstance(item.get("armyInfo"), dict) else item
+            for mk in _ARMY_MAP_KEYS:
+                if mk in src:
+                    val = src[mk]
+                    army_ctrl[mk] = {} if isinstance(val, list) and len(val) == 0 else copy.deepcopy(val)
+            rest = {k: v for k, v in src.items() if k not in _ARMY_MAP_KEYS}
+            if rest:
+                smart_deep_merge(army_ctrl, rest, in_place=True)
 
     def _handle_notify_hero(self, notify_data: Any) -> None:
         """Synchronizes NOTIFY_HERO (104)."""
@@ -1887,7 +2140,13 @@ class LiveMemoryEngine:
                 hero_sys["defendList"] = copy.deepcopy(defend_list)
 
     def _handle_notify_lord(self, notify_data: Any) -> None:
-        """Synchronizes NOTIFY_LORD (8): updates base, skill, and attributes."""
+        """
+        Synchronizes NOTIFY_LORD (8) matching lordInfoCtrl.lua:146-362 & lordAuxiliary.lua:385-403:
+          - Unwraps nested `{key: X, X: {...}}` payloads (fixes double-nested `fcInfo.fcInfo`).
+          - Routes `closeVIP`, `activate`, `updateLoginDay` to `vip` + `queueCtrl["1219"]`.
+          - Routes `physical` to `queueCtrl["1236"]` (stamina recovery timer, NOT root lordInfoCtrl).
+          - Routes `updateOfficial` to `official` and `signature`/`passwdVerify`/`merge_history`/`mergeGuideFlag` to `base`.
+        """
         items = notify_data if isinstance(notify_data, list) else [notify_data]
         lord_info = self.init_data.setdefault("lordInfoCtrl", {})
 
@@ -1897,11 +2156,59 @@ class LiveMemoryEngine:
             key = item.get("key")
             if key and isinstance(key, str):
                 sub_dict = {k: v for k, v in item.items() if k != "key"}
-                target_sub = lord_info.setdefault(key, {})
-                if isinstance(target_sub, dict):
-                    smart_deep_merge(target_sub, sub_dict, in_place=True)
+                if len(sub_dict) == 1 and "data" in sub_dict and isinstance(sub_dict["data"], dict):
+                    sub_dict = sub_dict["data"]
+                if key != "castleReward" and len(sub_dict) == 1 and key in sub_dict and isinstance(sub_dict[key], dict):
+                    sub_dict = sub_dict[key]
+
+                if key == "closeVIP":
+                    vip_sub = lord_info.setdefault("vip", {})
+                    if isinstance(vip_sub, dict):
+                        vip_sub["vipEndTime"] = 0
+                    q_ctrl = self.init_data.get("queueCtrl")
+                    if isinstance(q_ctrl, dict):
+                        q_ctrl.pop("1219", None)
+                elif key == "activate":
+                    vip_sub = lord_info.setdefault("vip", {})
+                    if isinstance(vip_sub, dict):
+                        end_t = sub_dict.get("vipEndTime") if "vipEndTime" in sub_dict else sub_dict.get("time")
+                        if end_t is not None:
+                            vip_sub["vipEndTime"] = end_t
+                elif key == "updateLoginDay":
+                    vip_sub = lord_info.setdefault("vip", {})
+                    if isinstance(vip_sub, dict) and "loginDay" in sub_dict:
+                        vip_sub["loginDay"] = sub_dict["loginDay"]
+                elif key == "physical":
+                    q_ctrl = self.init_data.setdefault("queueCtrl", {})
+                    if isinstance(q_ctrl, dict):
+                        rem_t = int(float(sub_dict.get("time", -1) or -1))
+                        if rem_t <= 0:
+                            q_ctrl.pop("1236", None)
+                        else:
+                            now_ts = int(time.time())
+                            q_ctrl["1236"] = {
+                                "qtype": "1236",
+                                "queuetype": "1236",
+                                "starttime": now_ts,
+                                "totaltime": rem_t,
+                                "ottime": rem_t,
+                            }
+                elif key == "updateOfficial":
+                    off_val = sub_dict.get("official") if "official" in sub_dict else sub_dict
+                    lord_info["official"] = copy.deepcopy(off_val)
+                elif key in ("signature", "passwdVerify", "merge_history", "mergeGuideFlag"):
+                    base_sub = lord_info.setdefault("base", {})
+                    if isinstance(base_sub, dict):
+                        if key in sub_dict:
+                            base_sub[key] = copy.deepcopy(sub_dict[key])
+                        else:
+                            smart_deep_merge(base_sub, sub_dict, in_place=True)
                 else:
-                    lord_info[key] = copy.deepcopy(sub_dict)
+                    target_sub = lord_info.setdefault(key, {})
+                    if isinstance(target_sub, dict):
+                        smart_deep_merge(target_sub, sub_dict, in_place=True)
+                    else:
+                        lord_info[key] = copy.deepcopy(sub_dict)
             else:
                 smart_deep_merge(lord_info, item, in_place=True)
 
@@ -1976,6 +2283,16 @@ class LiveMemoryEngine:
                             cd_data = lord_skills.setdefault("CDData", {})
                             if isinstance(cd_data, dict):
                                 cd_data["13040"] = {"beginTime": now_ts, "CD": 86400}
+                    if "5130" in to_remove:
+                        lord_skills = self.init_data.setdefault("lordSkillCtrl", {})
+                        if isinstance(lord_skills, dict):
+                            cd_data = lord_skills.setdefault("CDData", {})
+                            if isinstance(cd_data, dict):
+                                cd_data["13032"] = {"beginTime": now_ts, "CD": 43200}
+                    if "5003" in to_remove:
+                        km = self.init_data.get("kingdomMapCtrl")
+                        if isinstance(km, dict):
+                            km["isSafe"] = False
             elif sync_type == "closeSource":
                 src = str(item.get("source", ""))
                 if src:
@@ -2074,6 +2391,9 @@ class LiveMemoryEngine:
             if msg_type == 1 and isinstance(data, dict):  # ADD
                 qid = self._extract_queue_id(data)
                 if qid:
+                    org_id = str(data.get("orgId") or data.get("orgQueueId") or "").strip()
+                    if org_id and org_id != "0" and org_id != qid:
+                        self.local_queues_map.pop(org_id, None)
                     self.local_queues_map[qid] = copy.deepcopy(data)
                     applied += 1
                     ops.append(f"ADD({qid})")
@@ -2094,7 +2414,14 @@ class LiveMemoryEngine:
                 qid = self._extract_queue_id(data)
                 if qid:
                     if qid in self.local_queues_map:
-                        smart_deep_merge(self.local_queues_map[qid], data, in_place=True)
+                        target_q = self.local_queues_map[qid]
+                        smart_deep_merge(target_q, data, in_place=True)
+                        # localQueueMgr.lua:11-18 replaces nested march composition arrays/maps directly
+                        upd_from = data.get("from")
+                        if isinstance(upd_from, dict) and isinstance(target_q.get("from"), dict):
+                            for fk in ("army", "heroInfo", "armsInfo", "divineBeastInfo"):
+                                if fk in upd_from:
+                                    target_q["from"][fk] = copy.deepcopy(upd_from[fk])
                     else:
                         self.local_queues_map[qid] = copy.deepcopy(data)
                     applied += 1
@@ -2136,7 +2463,7 @@ class LiveMemoryEngine:
         # Mirror other players' marches in init_data["other_local_queues"]
         self.init_data["other_local_queues"] = other_q
         if isinstance(self.init_data.get("queueCtrl"), dict):
-            self.init_data["queueCtrl"]["queues"] = own_q
+            self.init_data["queueCtrl"]["queues"] = list(own_q)
 
         return {
             "ops": ops,
@@ -2148,21 +2475,46 @@ class LiveMemoryEngine:
         }
 
     def _handle_notify_time_reward(self, notify_data: Any, notify_id: str) -> None:
-        """Synchronizes NOTIFY_TIME_REWARD / NOTIFY_REWARD (16) and NOTIFY_RESET_TIME_REWARD (20)."""
+        """
+        Synchronizes NOTIFY_REWARD (16) and NOTIFY_TIME_REWARD / RESET (20)
+        matching timeRewardCtrl.lua:27-81 while preserving flat mock compatibility.
+        """
         time_reward = self.init_data.setdefault("timeRewardCtrl", {})
+        tr_target = time_reward["data"] if isinstance(time_reward.get("data"), dict) else time_reward
         str_id = str(notify_id).strip().upper()
+
+        has_time_data = False
         if notify_data is not None:
             items = notify_data if isinstance(notify_data, list) else [notify_data]
             for it in items:
                 if isinstance(it, dict):
-                    tdata = it.get("timeData") if isinstance(it.get("timeData"), dict) else it
-                    smart_deep_merge(time_reward, tdata, in_place=True)
-        if str_id in ("16", "TIME_REWARD", "NOTIFY_TIME_REWARD", "REWARD", "NOTIFY_REWARD"):
-            time_reward["isReceive"] = 2
-        elif str_id in ("20", "NOTIFY_RESET_TIME_REWARD"):
-            time_reward["isReceive"] = 1
-            time_reward["sequence"] = 1
-            time_reward["isAllReceive"] = 0
+                    if isinstance(it.get("timeData"), dict):
+                        has_time_data = True
+                        if isinstance(time_reward.get("data"), dict):
+                            time_reward["data"] = copy.deepcopy(it["timeData"])
+                            tr_target = time_reward["data"]
+                        else:
+                            smart_deep_merge(tr_target, it["timeData"], in_place=True)
+                    else:
+                        smart_deep_merge(tr_target, it, in_place=True)
+
+        if str_id in ("16", "REWARD", "NOTIFY_REWARD"):
+            if not has_time_data:
+                tr_target["isReceive"] = 2
+                tr_target["time"] = 0
+                if "time" in time_reward:
+                    time_reward["time"] = 0
+                if tr_target is not time_reward and "isReceive" in time_reward:
+                    time_reward["isReceive"] = 2
+        elif str_id in ("20", "TIME_REWARD", "NOTIFY_TIME_REWARD", "NOTIFY_RESET_TIME_REWARD"):
+            tr_target["isReceive"] = 1
+            tr_target["sequence"] = 1
+            tr_target["isAllReceive"] = 0
+            tr_target["time"] = 0
+            if tr_target is not time_reward and "isReceive" in time_reward:
+                time_reward["isReceive"] = 1
+                time_reward["sequence"] = 1
+                time_reward["isAllReceive"] = 0
 
     def _apply_everyday_task_payload(self, payload: Any) -> List[str]:
         """
@@ -2194,7 +2546,7 @@ class LiveMemoryEngine:
             if k in replace_dict_fields:
                 if isinstance(v, dict):
                     current[k] = copy.deepcopy(v)
-                elif isinstance(v, list) and k in ("eventInfo", "normalRecord", "chestReward"):
+                elif isinstance(v, list) and k in replace_dict_fields:
                     # Lua empty table {} serializes as [] in JSON
                     current[k] = {}
                 else:
@@ -2252,19 +2604,965 @@ class LiveMemoryEngine:
                 current.extend(copy.deepcopy(item))
                 updated_keys.append(f"items+{len(item)}")
 
-        # مزامنة الأسماء المستعارة التابعة تلقائياً
+        # مزامنة الأسماء المستعارة التابعة تلقائياً (دون خلط shopCtrl مع storesCtrl أبداً!)
         if target_ctrl == "commandHallCtrl":
             self.init_data["commandHall"] = self.init_data["commandHallCtrl"]
         elif target_ctrl == "commandHall":
             self.init_data["commandHallCtrl"] = self.init_data["commandHall"]
-        elif target_ctrl == "shopCtrl":
-            self.init_data["storesCtrl"] = self.init_data["shopCtrl"]
 
         return {
             "ctrl": target_ctrl,
             "updated": True,
             "keys": list(dict.fromkeys(updated_keys))[:5],
         }
+
+    def _handle_notify_world_update(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_WORLD_UPDATE (2): updates kingdomMapCtrl.isSafe (strictly for own castle UID) & world state."""
+        km = self.init_data.setdefault("kingdomMapCtrl", {})
+        my_uid = self._resolve_owner_uid()
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            w_type = str(it.get("wordMsgType") or it.get("worldMsgType") or it.get("msgType") or it.get("type") or "").strip()
+            ret = it.get("retData") if isinstance(it.get("retData"), dict) else it
+            if "isSafe" in ret or w_type in ("protectStatus", "2"):
+                pkt_uid = str(ret.get("uid") or ret.get("playerID") or it.get("uid") or it.get("playerID") or "").strip()
+                if pkt_uid in ("", "0") or not my_uid or pkt_uid == my_uid:
+                    km["isSafe"] = bool(ret.get("isSafe", False))
+                    keys.append(f"isSafe={km['isSafe']}")
+            for fk in ("maxNpcLevel", "maxMapNpcLevel", "changeMapId", "kingdomId"):
+                if fk in ret:
+                    km[fk] = copy.deepcopy(ret[fk])
+                    keys.append(fk)
+        return {"ctrl": "kingdomMapCtrl", "updated": bool(keys), "keys": keys}
+
+    def _handle_notify_login_reward(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_DAILYLOGIN_REWARD (18) for merchant_ship (loginRewardCtrl)."""
+        ctrl = self.init_data.setdefault("loginRewardCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else ([notify_data] if notify_data is not None else [{}])
+        keys: List[str] = []
+        for it in items:
+            if isinstance(it, dict) and isinstance(it.get("loginRewardData"), dict):
+                self.init_data["loginRewardCtrl"] = copy.deepcopy(it["loginRewardData"])
+                ctrl = self.init_data["loginRewardCtrl"]
+                keys.extend(list(ctrl.keys())[:4])
+            elif isinstance(it, dict):
+                ctrl["canReceive"] = bool(it["canReceive"]) if "canReceive" in it else True
+                for fk in ("cardList", "curDay", "mul"):
+                    if fk in it:
+                        ctrl[fk] = copy.deepcopy(it[fk])
+                        keys.append(fk)
+                keys.append("canReceive")
+        return {"ctrl": "loginRewardCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_hero_trial(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_HERO_TRIAL (37) into htData (heroTrialCtrl.lua:156-241)."""
+        ht = self.init_data.setdefault("htData", {})
+        pt_data = ht.setdefault("htPointData", {})
+        bt_data = ht.setdefault("battleData", {})
+        mp_info = ht.setdefault("mapInfo", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            nt = str(it.get("notifyType") or it.get("type") or "").strip()
+            if nt in ("addPoint", "subPoint"):
+                if "curPoint" in it and isinstance(pt_data, dict):
+                    pt_data["htPoint"] = it["curPoint"]
+                if it.get("inRCD") and "bTime" in it and isinstance(pt_data, dict):
+                    pt_data["bTime"] = it["bTime"]
+                keys.append(nt)
+            elif nt == "prepare":
+                if isinstance(bt_data, dict):
+                    bt_data["trialStatus"] = True
+                    for fk in ("bTime", "preTime"):
+                        if fk in it:
+                            bt_data[fk] = it[fk]
+                keys.append("prepare")
+            elif nt == "march":
+                if isinstance(bt_data, dict):
+                    bt_data["trialStatus"] = True
+                    for fk in ("stageID", "soldiers", "bTime", "marchTime", "mvTimeData"):
+                        if fk in it:
+                            bt_data[fk] = copy.deepcopy(it[fk])
+                keys.append("march")
+            elif nt == "battle":
+                if it.get("battleRet") and "stageID" in it and isinstance(mp_info, dict):
+                    mp_info["lastCOMPSID"] = it["stageID"]
+                if it.get("finish") and isinstance(bt_data, dict):
+                    bt_data["trialStatus"] = False
+                if "soldiers" in it and isinstance(bt_data, dict):
+                    bt_data["soldiers"] = copy.deepcopy(it["soldiers"])
+                keys.append("battle")
+            elif nt == "stopAuto":
+                if isinstance(bt_data, dict):
+                    bt_data["trialStatus"] = False
+                keys.append("stopAuto")
+            elif any(k in it for k in ("htPointData", "battleData", "mapInfo")):
+                smart_deep_merge(ht, it, in_place=True)
+                keys.extend(list(it.keys())[:3])
+        return {"ctrl": "htData", "updated": bool(keys), "keys": keys}
+
+    def _handle_notify_arena(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_ARENA (1007) into playerArenaCtrl (arenaCtrl.lua:136-216)."""
+        arena = self.init_data.setdefault("playerArenaCtrl", {})
+        arena_keys = {"1": "localArena", "2": "globalArena", "localArena": "localArena", "globalArena": "globalArena"}
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            rtype = str(it.get("type") or "").strip()
+            rdata = it.get("data") if isinstance(it.get("data"), dict) else it
+            if rtype in ("refreshData", "groupChange") and isinstance(rdata, dict) and rdata:
+                self.init_data["playerArenaCtrl"] = copy.deepcopy(rdata)
+                arena = self.init_data["playerArenaCtrl"]
+                keys.append(rtype)
+            elif rtype == "arenaRankChange" and isinstance(rdata, dict):
+                akey = arena_keys.get(str(rdata.get("arenaType", "")), "localArena")
+                arena.setdefault(akey, {})["myRank"] = rdata.get("rank")
+                keys.append(f"{akey}.myRank")
+            elif rtype == "globalState" and isinstance(rdata, dict):
+                ga = arena.setdefault("globalArena", {})
+                if "changeTime" in rdata:
+                    ga["arenaChangeTime"] = rdata["changeTime"]
+                if "status" in rdata:
+                    ga["arenaStatus"] = rdata["status"]
+                if "buff" in rdata:
+                    ga["arenaBuff"] = copy.deepcopy(rdata["buff"])
+                keys.append("globalState")
+            elif rtype == "rewardTime" and isinstance(rdata, dict):
+                akey = arena_keys.get(str(rdata.get("arenaType", "")), "localArena")
+                if "nextRewardTime" in rdata:
+                    arena.setdefault(akey, {})["nextRewardTime"] = rdata["nextRewardTime"]
+                keys.append(f"{akey}.nextRewardTime")
+            elif rtype == "rewardChange" and isinstance(rdata, dict):
+                akey = arena_keys.get(str(rdata.get("arenaType", "")), "localArena")
+                if "rewards" in rdata:
+                    arena.setdefault(akey, {})["rewards"] = copy.deepcopy(rdata["rewards"])
+                keys.append(f"{akey}.rewards")
+            elif rtype == "refreshHonor" and isinstance(rdata, dict):
+                if "arenaHonor" in rdata:
+                    arena["arenaHonor"] = rdata["arenaHonor"]
+                keys.append("arenaHonor")
+            elif isinstance(rdata, dict) and ("localArena" in rdata or "globalArena" in rdata):
+                smart_deep_merge(arena, rdata, in_place=True)
+                keys.extend(list(rdata.keys())[:3])
+        return {"ctrl": "playerArenaCtrl", "updated": bool(keys), "keys": keys}
+
+    def _handle_notify_stuff_workshop(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes STUFFWORKSHOP_REFINERY (1002) by full replace + queueCtrl['1238'] sync."""
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for tmp in items:
+            if not isinstance(tmp, dict):
+                continue
+            if isinstance(tmp.get("data"), dict):
+                self.init_data["stuffWorkshopCtrl"] = copy.deepcopy(tmp["data"])
+                keys.extend(list(tmp["data"].keys())[:4])
+            elif "list" in tmp or "doneID" in tmp:
+                self.init_data["stuffWorkshopCtrl"] = copy.deepcopy(tmp)
+                keys.extend(list(tmp.keys())[:4])
+
+            if "stuffWorkshop" in self.init_data:
+                self.init_data["stuffWorkshop"] = self.init_data.get("stuffWorkshopCtrl", {})
+
+            if tmp.get("activityOpen") is None:
+                q_ctrl = self.init_data.get("queueCtrl")
+                if isinstance(q_ctrl, dict):
+                    if tmp.get("hasRefinery"):
+                        bt = int(float(tmp.get("begintime", 0) or time.time()))
+                        tt = int(float(tmp.get("totaltime", 0) or 0))
+                        sec = int(float(tmp.get("second", tt) or tt))
+                        q_ctrl["1238"] = {
+                            "qtype": "1238",
+                            "queuetype": "1238",
+                            "starttime": bt,
+                            "totaltime": tt,
+                            "ottime": sec,
+                            "data": {"ID": tmp.get("ID"), "endtime": bt + tt},
+                        }
+                    elif "hasRefinery" in tmp:
+                        q_ctrl.pop("1238", None)
+        if "stuffWorkshopCtrl" not in self.init_data:
+            self.init_data["stuffWorkshopCtrl"] = {}
+        return {"ctrl": "stuffWorkshopCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_shop(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_SHOP (23) into storesCtrl cleanly without shopCtrl aliasing."""
+        stores = self.init_data.setdefault("storesCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            nt = str(it.get("notifyType") or it.get("type") or "").strip()
+            if nt in ("reset", "open"):
+                for fk in ("refreshGold", "refreshTimes", "shopItemArray", "bestShopItem", "nextRefreshTime"):
+                    if fk in it:
+                        stores[fk] = copy.deepcopy(it[fk])
+                stores["isOpen"] = 1
+                if nt == "open" and "actStatus" in it:
+                    stores["actStatus"] = it["actStatus"]
+                keys.append(nt)
+            elif nt == "close":
+                stores["isOpen"] = 0
+                stores["shopItemArray"] = []
+                keys.append("close")
+            elif nt == "actBegin":
+                stores["actStatus"] = True
+                keys.append("actBegin")
+            elif nt == "actEnd":
+                stores["actStatus"] = False
+                keys.append("actEnd")
+            else:
+                shop = self.init_data.setdefault("shopCtrl", {})
+                if isinstance(shop, dict):
+                    smart_deep_merge(shop, it, in_place=True)
+                keys.append(nt or "shopCtrl")
+        return {"ctrl": "storesCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_command_hall(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_COMMAND_HALL (608) via full initData replacement (commandHallCtrl.lua:48-49)."""
+        _hall_state_keys = (
+            "commandLv",
+            "commonTaskData",
+            "finishTaskData",
+            "armyGroupTaskData",
+            "armyPioneerTaskData",
+        )
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            init_snap = it.get("initData")
+            data_snap = it.get("data")
+            inner: Optional[Dict[str, Any]] = None
+            if isinstance(init_snap, dict):
+                inner = init_snap
+            elif isinstance(data_snap, dict) and any(k in data_snap for k in _hall_state_keys):
+                inner = data_snap
+            elif any(k in it for k in _hall_state_keys):
+                inner = it
+
+            if isinstance(inner, dict):
+                self.init_data["commandHallCtrl"] = copy.deepcopy(inner)
+                self.init_data["commandHall"] = self.init_data["commandHallCtrl"]
+                keys.extend(list(inner.keys())[:4])
+
+            res_obj = it.get("result")
+            if isinstance(res_obj, dict) and "win" in res_obj:
+                res_copy = copy.deepcopy(res_obj)
+                res_copy["_mono"] = time.monotonic()
+                self.init_data["_last_ch_battle_result"] = res_copy
+                keys.append("result")
+
+        if "commandHallCtrl" not in self.init_data:
+            existing_hall = self.init_data.get("commandHall")
+            self.init_data["commandHallCtrl"] = existing_hall if isinstance(existing_hall, dict) else {}
+        self.init_data["commandHall"] = self.init_data["commandHallCtrl"]
+        return {"ctrl": "commandHallCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_quest(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_QUEST (12) across all 7 notifyTypes (questCtrl.lua:214-248)."""
+        qc = self.init_data.setdefault("questCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            nt = str(it.get("notifyType") or it.get("type") or "").strip()
+            if nt == "new":
+                arr = it.get("array")
+                if not isinstance(arr, list) and isinstance(it.get("property"), dict):
+                    arr = [it["property"]]
+                if isinstance(arr, list):
+                    q_arr = qc.setdefault("questArray", [])
+                    if isinstance(q_arr, list):
+                        for prop in arr:
+                            if isinstance(prop, dict) and prop.get("questID") is not None:
+                                qid_s = str(prop["questID"])
+                                replaced = False
+                                for idx, q in enumerate(q_arr):
+                                    if isinstance(q, dict) and str(q.get("questID")) == qid_s:
+                                        q_arr[idx] = copy.deepcopy(prop)
+                                        replaced = True
+                                        break
+                                if not replaced:
+                                    q_arr.append(copy.deepcopy(prop))
+                keys.append("new")
+            elif nt == "update":
+                qid = it.get("questID")
+                prog = it.get("progress")
+                if qid is not None:
+                    qid_s = str(qid)
+
+                    def _apply_q_prog(q_entry: Dict[str, Any]) -> None:
+                        q_entry["progress"] = prog
+                        try:
+                            aim_v = int(q_entry.get("aim", 0) or 0)
+                            prog_v = int(prog or 0)
+                            if aim_v > 0 and prog_v >= aim_v and int(q_entry.get("status", 0) or 0) == 2:
+                                q_entry["status"] = 3
+                        except (ValueError, TypeError):
+                            pass
+
+                    for arr_key in ("questArray", "oQuestArray"):
+                        q_arr = qc.get(arr_key)
+                        if isinstance(q_arr, list):
+                            for q in q_arr:
+                                if isinstance(q, dict) and str(q.get("questID")) == qid_s:
+                                    _apply_q_prog(q)
+                                elif isinstance(q, dict) and isinstance(q.get("property"), dict) and str(q["property"].get("questID")) == qid_s:
+                                    _apply_q_prog(q["property"])
+                    gq = qc.get("guideQuest")
+                    if isinstance(gq, dict) and str(gq.get("questID")) == qid_s:
+                        _apply_q_prog(gq)
+                if "pGuideQuest" in it:
+                    qc["pGuideQuest"] = copy.deepcopy(it["pGuideQuest"])
+                keys.append(f"update:{qid}")
+            elif nt == "guide":
+                if isinstance(it.get("property"), dict):
+                    qc["guideQuest"] = copy.deepcopy(it["property"])
+                keys.append("guide")
+            elif nt == "finish_guide":
+                qc["guideQuest"] = {}
+                keys.append("finish_guide")
+            elif nt in ("newOQuest", "openOQuest"):
+                oq = it.get("quest")
+                if isinstance(oq, dict):
+                    oq_arr = qc.setdefault("oQuestArray", [])
+                    if isinstance(oq_arr, list):
+                        qid_s = str(oq.get("questID") or (oq.get("property") or {}).get("questID") or "")
+                        if qid_s:
+                            oq_arr[:] = [
+                                x for x in oq_arr
+                                if not (isinstance(x, dict) and str(x.get("questID") or (x.get("property") or {}).get("questID") or "") == qid_s)
+                            ]
+                        oq_arr.append(copy.deepcopy(oq))
+                keys.append(nt)
+            elif nt == "closeOQuest":
+                qid_s = str(it.get("questID") or "")
+                oq_arr = qc.get("oQuestArray")
+                if qid_s and isinstance(oq_arr, list):
+                    oq_arr[:] = [
+                        x for x in oq_arr
+                        if not (isinstance(x, dict) and str(x.get("questID") or (x.get("property") or {}).get("questID") or "") == qid_s)
+                    ]
+                keys.append("closeOQuest")
+            elif any(k in it for k in ("questArray", "oQuestArray", "guideQuest")):
+                smart_deep_merge(qc, it, in_place=True)
+                keys.extend(list(it.keys())[:3])
+        return {"ctrl": "questCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_walls(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_WALLS (11) by unwrapping notifyData.notifyData (wallsCtrl.lua:104-116)."""
+        wc = self.init_data.setdefault("wallsCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            inner = it.get("notifyData") if isinstance(it.get("notifyData"), dict) else (
+                it.get("data") if isinstance(it.get("data"), dict) else it
+            )
+            if isinstance(inner, dict):
+                clean = {k: v for k, v in inner.items() if k != "notifyType"}
+                smart_deep_merge(wc, clean, in_place=True)
+                keys.extend(list(clean.keys())[:4])
+        return {"ctrl": "wallsCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_pyramid(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_PYRAMID (27) by replacing pyramidCtrl['data'] (pyramidCtrl.lua:253)."""
+        pc = self.init_data.setdefault("pyramidCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            if isinstance(it.get("data"), dict):
+                pc["data"] = copy.deepcopy(it["data"])
+                keys.extend(list(it["data"].keys())[:4])
+            elif any(k in it for k in ("free", "floor", "award", "copper", "score")):
+                pc["data"] = copy.deepcopy(it)
+                keys.extend(list(it.keys())[:4])
+        return {"ctrl": "pyramidCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_badge_exchange(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_BADGE_EXCHANGE (41) by replacing curExchangeNumMap (badgeExchangeCtrl.lua:43-44)."""
+        bc = self.init_data.setdefault("badgeExchangeCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            src = it.get("data") if isinstance(it.get("data"), dict) else it
+            if isinstance(src, dict) and "curExchangeNumMap" in src:
+                cmap = src["curExchangeNumMap"]
+                bc["curExchangeNumMap"] = {} if isinstance(cmap, list) else copy.deepcopy(cmap)
+                keys.append("curExchangeNumMap")
+        return {"ctrl": "badgeExchangeCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_equipment(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_EQUIPMENT (29) matching equipmentCtrl.lua:1573-1675."""
+        ec = self.init_data.setdefault("equipmentCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            nt = str(it.get("notifyType") or it.get("type") or "").strip()
+            if nt == "cle":
+                fe = ec.get("fe")
+                if isinstance(fe, dict):
+                    if it.get("epid") is None or str(fe.get("epid") or "") in ("", str(it.get("epid"))):
+                        fe["isCle"] = 1
+                q_ctrl = self.init_data.get("queueCtrl")
+                if isinstance(q_ctrl, dict):
+                    q_ctrl.pop("1229", None)
+                keys.append("cle")
+            elif nt == "rfr":
+                if "count" in it:
+                    ec["countOfFreeRemaking"] = it["count"]
+                keys.append("rfr")
+            elif nt == "add" and isinstance(it.get("property"), dict):
+                prop = copy.deepcopy(it["property"])
+                eq_arr = ec.setdefault("equipment_array", [])
+                if isinstance(eq_arr, list):
+                    epid_s = str(prop.get("epid") or "")
+                    if epid_s:
+                        eq_arr[:] = [x for x in eq_arr if not (isinstance(x, dict) and str(x.get("epid") or "") == epid_s)]
+                    eq_arr.append(prop)
+                keys.append("add")
+            elif nt == "delete":
+                epid_s = str(it.get("epid") or "")
+                eq_arr = ec.get("equipment_array")
+                if epid_s and isinstance(eq_arr, list):
+                    eq_arr[:] = [x for x in eq_arr if not (isinstance(x, dict) and str(x.get("epid") or "") == epid_s)]
+                if "overdueEquipments" in it:
+                    ec["overdueEquipments"] = copy.deepcopy(it["overdueEquipments"])
+                if "nebulaExchangeInfo" in it:
+                    ec["nebulaExchangeInfo"] = copy.deepcopy(it["nebulaExchangeInfo"])
+                keys.append("delete")
+            elif nt == "ringStore" and isinstance(it.get("ringStore"), dict):
+                if "limitItemsInfo" in it["ringStore"]:
+                    ec["limitRingShop"] = copy.deepcopy(it["ringStore"]["limitItemsInfo"])
+                keys.append("ringStore")
+        return {"ctrl": "equipmentCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_alliance_treasure(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_ALLIANCE_TREASURE (95) by replacing lists cleanly (allianceTreasureCtrl.lua:275-297)."""
+        atc = self.init_data.setdefault("allianceTreasureCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            src = it.get("data") if isinstance(it.get("data"), dict) else it
+            for rk in ("treasureInfo", "digListInfo", "canHelpList", "helpInfo", "otherInfo"):
+                if rk in src:
+                    atc[rk] = copy.deepcopy(src[rk])
+                    keys.append(rk)
+        return {"ctrl": "allianceTreasureCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_escort(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_ESCORT (49) without polluting root with 'type'."""
+        ec = self.init_data.setdefault("escortCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            src = it.get("data") if isinstance(it.get("data"), dict) else it
+            if isinstance(src, dict):
+                clean = {k: v for k, v in src.items() if k not in ("type", "notifyType")}
+                smart_deep_merge(ec, clean, in_place=True)
+                keys.extend(list(clean.keys())[:4])
+        return {"ctrl": "escortCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_escort_cart(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_ESCORT_CART (50) by replacing rewardMap list-of-lists (escortCartCtrl.lua:102)."""
+        ecc = self.init_data.setdefault("escortCartCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            src = it.get("data") if isinstance(it.get("data"), dict) else it
+            if isinstance(src, dict):
+                if "rewardMap" in src:
+                    ecc["rewardMap"] = copy.deepcopy(src["rewardMap"])
+                    keys.append("rewardMap")
+                clean = {k: v for k, v in src.items() if k not in ("rewardMap", "type", "notifyType")}
+                if clean:
+                    smart_deep_merge(ecc, clean, in_place=True)
+                    keys.extend(list(clean.keys())[:3])
+        return {"ctrl": "escortCartCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_salesroom(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_SALESROOM (59) & NOTIFY_NEW_SALESROOM (464) (salesRoomAgCtrl.lua:60-120)."""
+        sr = self.init_data.setdefault("salesRoomAgCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            for rk in ("salesRoomData", "itemsInfo", "notReceiveGold", "timeAndStatus", "boreNum", "hint"):
+                if rk in it:
+                    sr[rk] = copy.deepcopy(it[rk])
+                    keys.append(rk)
+            if isinstance(it.get("data"), dict):
+                smart_deep_merge(sr, it["data"], in_place=True)
+                keys.extend(list(it["data"].keys())[:3])
+        return {"ctrl": "salesRoomAgCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_alliance(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_ALLIANCE (3) events without polluting root allianceCtrl with eventName."""
+        ac = self.init_data.setdefault("allianceCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            ev_name = str(it.get("eventName") or "").strip()
+            if "add_helpinfo" in ev_name:
+                hinfo = it.get("helpinfo") or it.get("data")
+                if isinstance(hinfo, dict):
+                    hlist = ac.setdefault("helplist", [])
+                    if isinstance(hlist, list):
+                        ac["helplist"] = _merge_keyed_lists(
+                            hlist, [hinfo], ("id", "helpId"), ("allianceCtrl", "helplist"), DEFAULT_KEY_MAPS
+                        )
+                keys.append("helplist+")
+            elif "del_help_data" in ev_name or "help_all" in ev_name:
+                uid_s = str(it.get("uid") or "")
+                qtp_s = str(it.get("queueTp") or "")
+                hid_s = str(it.get("id") or it.get("helpId") or "")
+                hlist = ac.get("helplist")
+                if isinstance(hlist, list):
+                    if "help_all" in ev_name and not uid_s and not hid_s:
+                        my_uid = self._resolve_owner_uid()
+                        if str(it.get("helperUid") or "") == my_uid:
+                            ac["helplist"] = []
+                    else:
+                        ac["helplist"] = [
+                            h for h in hlist
+                            if not (
+                                isinstance(h, dict)
+                                and (
+                                    (hid_s and str(h.get("id") or h.get("helpId") or "") == hid_s)
+                                    or (uid_s and qtp_s and str(h.get("uid") or "") == uid_s and str(h.get("queueTp") or h.get("qtype") or "") == qtp_s)
+                                )
+                            )
+                        ]
+                keys.append("helplist-")
+            elif "alliance_treasure_add" in ev_name:
+                dig = it.get("digInfo") or it.get("data")
+                atc = self.init_data.get("allianceTreasureCtrl")
+                if isinstance(dig, dict) and isinstance(atc, dict):
+                    ch_list = atc.setdefault("canHelpList", [])
+                    if isinstance(ch_list, list):
+                        ch_list.append(copy.deepcopy(dig))
+                keys.append("treasure_add")
+            elif "alliance_treasure_reduce" in ev_name:
+                dig_id = str(it.get("digId") or (it.get("digInfo") or {}).get("digId") or "")
+                atc = self.init_data.get("allianceTreasureCtrl")
+                if dig_id and isinstance(atc, dict) and isinstance(atc.get("canHelpList"), list):
+                    atc["canHelpList"] = [
+                        d for d in atc["canHelpList"]
+                        if not (isinstance(d, dict) and str(d.get("digId") or "") == dig_id)
+                    ]
+                keys.append("treasure_reduce")
+            elif isinstance(it.get("allianceInfo"), dict):
+                smart_deep_merge(ac.setdefault("allianceInfo", {}), it["allianceInfo"], in_place=True)
+                keys.append("allianceInfo")
+            elif not ev_name:
+                clean = {k: v for k, v in it.items() if k != "eventName"}
+                if clean:
+                    smart_deep_merge(ac, clean, in_place=True)
+                    keys.extend(list(clean.keys())[:3])
+            else:
+                keys.append(ev_name)
+        return {"ctrl": "allianceCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_alliance_relation(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_ALLIANCE_RELATION (64) into allianceCtrl.relationMap[aid]."""
+        ac = self.init_data.setdefault("allianceCtrl", {})
+        rmap = ac.get("relationMap")
+        if not isinstance(rmap, dict):
+            rmap = {}
+            ac["relationMap"] = rmap
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            aid = str(it.get("aid") or "").strip()
+            mtype = str(it.get("msgType") or "").strip().upper()
+            if aid:
+                if mtype in ("2", "DEL_RELATION"):
+                    rmap.pop(aid, None)
+                    keys.append(f"del:{aid}")
+                elif isinstance(it.get("data"), dict):
+                    rmap[aid] = copy.deepcopy(it["data"])
+                    keys.append(f"add:{aid}")
+        return {"ctrl": "allianceCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_alliance_recommend(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_ALLIANCE_RECOMMEND (1009) into allianceInvitePopInfo without clobbering allianceCtrl."""
+        ac = self.init_data.setdefault("allianceCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        for it in items:
+            if isinstance(it, dict) and str(it.get("type") or "") == "recommend" and isinstance(it.get("data"), dict):
+                ac["allianceInvitePopInfo"] = copy.deepcopy(it["data"])
+        return {"ctrl": "allianceCtrl", "updated": True, "keys": ["allianceInvitePopInfo"]}
+
+    # ── مخزن كائنات الخريطة (مطابق لـ mapPieceObjMgr.lua: pieceMap[kid][pieceId][objId]) ──
+    _MAP_OBJ_ID_RE = re.compile(r"^\d+-\d+-\d+(?:-[\w.]+)*$")
+    MAX_MAP_PIECES_PER_KID = 150      # سقف عدد قطع الخريطة المحفوظة لكل مملكة (الأقدم يُحذف أولاً)
+    MAX_LOOSE_MAP_OBJS = 600          # سقف الكائنات المفردة غير المنسوبة لقطعة معروفة
+    MAX_MAP_QUEUES = 600              # سقف طوابير الخريطة المحفوظة (الأقدم يُحذف أولاً)
+    _LOOSE_PIECE_KEY = "_loose"
+
+    @classmethod
+    def _is_map_obj(cls, obj: Any) -> bool:
+        if not isinstance(obj, dict):
+            return False
+        if cls._MAP_OBJ_ID_RE.match(str(obj.get("id") or "").strip()):
+            return True
+        has_type = obj.get("type") is not None or obj.get("mapType") is not None
+        return has_type and obj.get("x") is not None and obj.get("y") is not None and not isinstance(obj.get("to"), dict)
+
+    @staticmethod
+    def _map_obj_key(obj: Dict[str, Any]) -> str:
+        """مفتاح التخزين: معرّف الكائن الرسمي، أو مفتاح إحداثي آمن عند غيابه."""
+        oid = str(obj.get("id") or "").strip()
+        if oid:
+            return oid
+        return f"xy:{obj.get('x')}:{obj.get('y')}:{obj.get('type', obj.get('mapType'))}"
+
+    @classmethod
+    def _collect_map_objs(cls, node: Any, depth: int = 0) -> List[Dict[str, Any]]:
+        """استخراج كائنات الخريطة (معرّف بصيغة sx-sy-type-...) من أي بنية بيانات قطعة."""
+        found: List[Dict[str, Any]] = []
+        if depth > 6 or node is None:
+            return found
+        if isinstance(node, list):
+            for it in node:
+                found.extend(cls._collect_map_objs(it, depth + 1))
+        elif isinstance(node, dict):
+            if cls._is_map_obj(node):
+                found.append(node)
+                return found
+            for k, v in node.items():
+                if isinstance(v, dict) and not v.get("id") and cls._MAP_OBJ_ID_RE.match(str(k)):
+                    obj = dict(v)
+                    obj["id"] = str(k)
+                    found.append(obj)
+                elif isinstance(v, (dict, list)):
+                    found.extend(cls._collect_map_objs(v, depth + 1))
+        return found
+
+    @staticmethod
+    def _collect_map_queues(node: Any, depth: int = 0) -> List[Dict[str, Any]]:
+        """استخراج طوابير الخريطة (تحتوي to/from) من بيانات ADD_PIECE_QUEUE / ADD_QUEUE."""
+        found: List[Dict[str, Any]] = []
+        if depth > 5 or node is None:
+            return found
+        if isinstance(node, list):
+            for it in node:
+                found.extend(LiveMemoryEngine._collect_map_queues(it, depth + 1))
+        elif isinstance(node, dict):
+            if isinstance(node.get("to"), dict) and (node.get("id") is not None or node.get("queueId") is not None):
+                found.append(node)
+                return found
+            for v in node.values():
+                if isinstance(v, (dict, list)):
+                    found.extend(LiveMemoryEngine._collect_map_queues(v, depth + 1))
+        return found
+
+    def _map_store(self) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
+        km = self.init_data.setdefault("kingdomMapCtrl", {})
+        if not isinstance(km, dict):
+            km = {}
+            self.init_data["kingdomMapCtrl"] = km
+        pieces = km.get("mapPieces")
+        if not isinstance(pieces, dict):
+            pieces = {}
+            km["mapPieces"] = pieces
+        queues = km.get("mapQueues")
+        if not isinstance(queues, dict):
+            queues = {}
+            km["mapQueues"] = queues
+        return km, pieces, queues
+
+    def _resolve_map_kid(self, msg: Dict[str, Any], km: Dict[str, Any]) -> str:
+        kid = msg.get("mapId") or msg.get("kid") or km.get("mapId") or km.get("kingdomId") or 0
+        return str(kid)
+
+    def _map_put_piece(self, pieces: Dict[str, Any], kid: str, piece_id: str, objs: List[Dict[str, Any]]) -> None:
+        """ADD_PIECE_MAP: استبدال القطعة كاملة (حذف الكائنات التي اختفت) مع تحديث ترتيب الحداثة."""
+        kid_map = pieces.setdefault(kid, {})
+        kid_map.pop(piece_id, None)
+        kid_map[piece_id] = {self._map_obj_key(o): copy.deepcopy(o) for o in objs}
+        loose = kid_map.get(self._LOOSE_PIECE_KEY)
+        if isinstance(loose, dict):
+            for oid in kid_map[piece_id]:
+                loose.pop(oid, None)
+        real_keys = [k for k in kid_map if k != self._LOOSE_PIECE_KEY]
+        while len(real_keys) > self.MAX_MAP_PIECES_PER_KID:
+            kid_map.pop(real_keys.pop(0), None)
+
+    def _map_upsert_obj(self, pieces: Dict[str, Any], kid: str, obj: Dict[str, Any]) -> None:
+        """ADD_MAPOBJ / UPDATE_MAPOBJ: تحديث الكائن في قطعته إن وُجد، وإلا حفظه في الحاوية المفردة المحدودة."""
+        oid = self._map_obj_key(obj)
+        kid_map = pieces.setdefault(kid, {})
+        for p_key, p_objs in kid_map.items():
+            if isinstance(p_objs, dict) and oid in p_objs:
+                if isinstance(p_objs[oid], dict):
+                    smart_deep_merge(p_objs[oid], obj, in_place=True)
+                else:
+                    p_objs[oid] = copy.deepcopy(obj)
+                return
+        loose = kid_map.setdefault(self._LOOSE_PIECE_KEY, {})
+        loose.pop(oid, None)
+        loose[oid] = copy.deepcopy(obj)
+        while len(loose) > self.MAX_LOOSE_MAP_OBJS:
+            loose.pop(next(iter(loose)), None)
+
+    def _map_remove_obj(self, pieces: Dict[str, Any], kid: str, obj_id: str) -> None:
+        kid_map = pieces.get(kid)
+        if isinstance(kid_map, dict):
+            for p_objs in kid_map.values():
+                if isinstance(p_objs, dict):
+                    p_objs.pop(obj_id, None)
+
+    def _map_put_queue(self, queues: Dict[str, Any], q: Dict[str, Any]) -> None:
+        qid = str(q.get("id") if q.get("id") is not None else q.get("queueId"))
+        if qid in queues and isinstance(queues[qid], dict):
+            smart_deep_merge(queues[qid], q, in_place=True)
+            return
+        queues[qid] = copy.deepcopy(q)
+        while len(queues) > self.MAX_MAP_QUEUES:
+            queues.pop(next(iter(queues)), None)
+
+    def _handle_map_sync_rsp(self, packet: Dict[str, Any]) -> None:
+        """
+        رد CMD 1006/1000 (kingdomMapCtrl:onRspMapSync + kingdomMapCell:delPieceIds):
+        حذف قطع الخريطة التي خرجت من نطاق الرؤية (delPieceIds = {kid: [pieceId, ...]}).
+        """
+        sources = [packet]
+        if isinstance(packet.get("data"), dict):
+            sources.append(packet["data"])
+        _km, pieces, _queues = self._map_store()
+        for src in sources:
+            del_ids = src.get("delPieceIds")
+            if not isinstance(del_ids, dict):
+                continue
+            for kid_raw, p_ids in del_ids.items():
+                kid_map = pieces.get(str(kid_raw))
+                if not isinstance(kid_map, dict):
+                    continue
+                p_iter = p_ids.values() if isinstance(p_ids, dict) else (p_ids if isinstance(p_ids, list) else [])
+                for pid in p_iter:
+                    kid_map.pop(str(pid), None)
+
+    def _handle_notify_map_sync(self, notify_data: Any) -> Dict[str, Any]:
+        """
+        NOTIFY_MAP_SYNC (201) مطابق لـ kingdomMapCtrl:onNotifyMapSyncData + mapPieceObjMgr.lua:
+          - 1 ADD_PIECE_MAP  : data = {pieceId: pieceData} -> استبدال القطعة كاملة.
+          - 2/4/5 ADD/UPDATE/FLASH_MAPOBJ : تحديث الكائن بمعرّفه.
+          - 3 REMOVE_MAPOBJ  : حذف الكائن بمعرّفه.
+          - 11/12/14 ADD_PIECE_QUEUE/ADD_QUEUE/UPDATE_QUEUE : حفظ طوابير الخريطة (لكشف الأطلال المشغولة).
+          - 13 REMOVE_QUEUE  : حذف الطابور.
+        يُخزَّن كل ذلك في kingdomMapCtrl.mapPieces / mapQueues بسقوف ثابتة تمنع تضخم الذاكرة
+        وبقاء الأطلال/القلاع المختفية، دون تلويث جذر kingdomMapCtrl.
+        """
+        km, pieces, queues = self._map_store()
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for msg in items:
+            if not isinstance(msg, dict):
+                continue
+            raw_type = msg.get("msgType")
+            try:
+                m_type = int(raw_type) if raw_type is not None else None
+            except (ValueError, TypeError):
+                m_type = None
+            kid = self._resolve_map_kid(msg, km)
+            data = msg.get("data")
+
+            if m_type == 1 and isinstance(data, dict):
+                for piece_id, piece_data in data.items():
+                    self._map_put_piece(pieces, kid, str(piece_id), self._collect_map_objs(piece_data))
+                keys.append("ADD_PIECE_MAP")
+            elif m_type in (2, 4, 5):
+                for obj in self._collect_map_objs(data):
+                    self._map_upsert_obj(pieces, kid, obj)
+                keys.append(f"MAPOBJ({m_type})")
+            elif m_type == 3:
+                rm_objs = self._collect_map_objs(data)
+                if not rm_objs and isinstance(data, dict) and data.get("id") is not None:
+                    rm_objs = [data]
+                for obj in rm_objs:
+                    self._map_remove_obj(pieces, kid, self._map_obj_key(obj))
+                keys.append("REMOVE_MAPOBJ")
+            elif m_type in (11, 12, 14):
+                for q in self._collect_map_queues(data):
+                    self._map_put_queue(queues, q)
+                keys.append(f"QUEUE({m_type})")
+            elif m_type == 13:
+                rm_list = data if isinstance(data, list) else [data]
+                for q in rm_list:
+                    if isinstance(q, dict):
+                        qid = q.get("id") if q.get("id") is not None else q.get("queueId")
+                        if qid is not None:
+                            queues.pop(str(qid), None)
+                    elif q is not None:
+                        queues.pop(str(q), None)
+                keys.append("REMOVE_QUEUE")
+            elif m_type is None:
+                # حمولة بلا msgType: استخراج آمن للكائنات إلى الحاوية المحدودة + الحقول العددية فقط
+                for obj in self._collect_map_objs(data if data is not None else msg):
+                    self._map_upsert_obj(pieces, kid, obj)
+                for fk in ("kingdomId", "mapId", "maxNpcLevel", "maxMapNpcLevel"):
+                    if fk in msg:
+                        km[fk] = copy.deepcopy(msg[fk])
+                        keys.append(fk)
+        return {"ctrl": "kingdomMapCtrl", "updated": True, "keys": keys or ["mapSync"]}
+
+    def _handle_notify_map_data(self, notify_data: Any) -> Dict[str, Any]:
+        """
+        NOTIFY_MAP_DATA (200): مباني التحالف والمعاقل (kingdomMapCtrl:onNotifyMapData).
+        لا تحتاجها أي مهمة حالياً؛ تُحفظ الحقول العددية الآمنة فقط لمنع تضخم الذاكرة.
+        """
+        km, _pieces, _queues = self._map_store()
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if isinstance(it, dict):
+                for fk in ("kingdomId", "mapId", "maxNpcLevel", "maxMapNpcLevel"):
+                    if fk in it:
+                        km[fk] = copy.deepcopy(it[fk])
+                        keys.append(fk)
+        return {"ctrl": "kingdomMapCtrl", "updated": True, "keys": keys or ["mapData"]}
+
+    def _handle_notify_switch_map(self, notify_data: Any) -> Dict[str, Any]:
+        """NOTIFY_SWITCH_MAP (450): kingdomMapCtrl:setCurMapInfo(msgData)."""
+        km, _pieces, _queues = self._map_store()
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        for it in items:
+            if isinstance(it, dict):
+                km["curMapInfo"] = copy.deepcopy(it)
+        return {"ctrl": "kingdomMapCtrl", "updated": True, "keys": ["curMapInfo"]}
+
+    def _handle_notify_exalted_privilege(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_EXALTED_PRIVILEGE (492) (exaltedPrivilegeCtrl.lua:35-61)."""
+        ep = self.init_data.setdefault("exaltedPrivilegeCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            ctype = str(it.get("type") or "").strip()
+            cdata = it.get("data") if isinstance(it.get("data"), dict) else it
+            if ctype == "initData" and isinstance(cdata, dict):
+                self.init_data["exaltedPrivilegeCtrl"] = copy.deepcopy(cdata)
+                ep = self.init_data["exaltedPrivilegeCtrl"]
+                keys.append("initData")
+            elif ctype == "buyGift" and isinstance(cdata, dict) and "buyGiftList" in cdata:
+                ep.setdefault("userData", {})["buyGiftList"] = copy.deepcopy(cdata["buyGiftList"])
+                keys.append("buyGiftList")
+            elif isinstance(cdata, dict):
+                smart_deep_merge(ep, cdata, in_place=True)
+                keys.extend(list(cdata.keys())[:3])
+        return {"ctrl": "exaltedPrivilegeCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_technology(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_TECHNOLOGY (494) (technologyCtrl.lua:43-89)."""
+        tc = self.init_data.setdefault("technologyCtrl", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            ctype = str(it.get("type") or "").strip()
+            cdata = it.get("data") if isinstance(it.get("data"), dict) else it
+            if ctype == "updateTotalTechnology" and isinstance(cdata, dict) and isinstance(cdata.get("technology"), dict):
+                self.init_data["technologyCtrl"] = copy.deepcopy(cdata["technology"])
+                tc = self.init_data["technologyCtrl"]
+                keys.append("technology")
+            elif ctype == "researchQueue" and isinstance(cdata, dict):
+                ret_q = cdata.get("retdata") if isinstance(cdata.get("retdata"), dict) else cdata
+                qt = str(ret_q.get("queuetype") or "1212")
+                q_ctrl = self.init_data.setdefault("queueCtrl", {})
+                if isinstance(q_ctrl, dict) and ("lefttime" in ret_q or "totaltime" in ret_q):
+                    now_ts = int(time.time())
+                    tot_t = int(float(ret_q.get("totaltime") or ret_q.get("lefttime") or 0))
+                    left_t = int(float(ret_q.get("lefttime") or tot_t))
+                    q_ctrl[qt] = {
+                        "qtype": qt,
+                        "queuetype": qt,
+                        "starttime": max(0, now_ts - max(0, tot_t - left_t)),
+                        "totaltime": tot_t,
+                        "ottime": left_t,
+                        "_uniqueid": ret_q.get("_uniqueid"),
+                    }
+                keys.append("researchQueue")
+            elif isinstance(cdata, dict) and ctype == "":
+                smart_deep_merge(tc, cdata, in_place=True)
+                keys.extend(list(cdata.keys())[:3])
+        return {"ctrl": "technologyCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_duel_cooldown(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_DUEL_IN_COOL_DOWN (500) into lordSkillCtrl.CDData (lordSkillCtrl.lua:202-212)."""
+        lsc = self.init_data.setdefault("lordSkillCtrl", {})
+        cd_data = lsc.setdefault("CDData", {})
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            src = it.get("data") if isinstance(it.get("data"), dict) else it
+            sid = src.get("skillID") or src.get("id")
+            if sid is not None and isinstance(cd_data, dict):
+                cd_entry = (
+                    copy.deepcopy(src["CD"])
+                    if isinstance(src.get("CD"), dict)
+                    else {
+                        "beginTime": int(src.get("beginTime") or time.time()),
+                        "CD": int(src.get("CD") or src.get("cd") or 0),
+                    }
+                )
+                cd_data[str(sid)] = cd_entry
+                keys.append(str(sid))
+            elif isinstance(src.get("CDData"), dict) and isinstance(cd_data, dict):
+                cd_data.update(copy.deepcopy(src["CDData"]))
+                keys.extend(list(src["CDData"].keys())[:3])
+        return {"ctrl": "lordSkillCtrl", "updated": True, "keys": keys}
+
+    def _handle_notify_divine_beast(self, notify_data: Any) -> Dict[str, Any]:
+        """Synchronizes NOTIFY_DIVINE_BEAST (642) (divineBeastCtrl.lua:46-64)."""
+        items = notify_data if isinstance(notify_data, list) else [notify_data]
+        keys: List[str] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            if str(it.get("type") or "") == "resMax":
+                continue
+            if "beast" in it:
+                self.init_data["divineBeastCtrl"] = copy.deepcopy(it)
+                keys.append("beast")
+            elif isinstance(it.get("data"), dict) and "beast" in it["data"]:
+                self.init_data["divineBeastCtrl"] = copy.deepcopy(it["data"])
+                keys.append("beast")
+        if "divineBeastCtrl" not in self.init_data:
+            self.init_data["divineBeastCtrl"] = {}
+        return {"ctrl": "divineBeastCtrl", "updated": True, "keys": keys}
 
     def _handle_notify_meritorious(self, notify_data: Any) -> None:
         """Synchronizes NOTIFY_MERITORIOUS_TASK (1070)."""
@@ -2374,10 +3672,12 @@ class LiveMemoryEngine:
                 if not has_army_data:
                     missing_or_invalid.append("armyCtrl.data")
 
-            # 5. heroCtrl
-            heroes = self.init_data.get("heroCtrl")
+            # 5. heroSysCtrl (with fallback to legacy heroCtrl for test mocks)
+            heroes = self.init_data.get("heroSysCtrl")
+            if heroes is None:
+                heroes = self.init_data.get("heroCtrl")
             if not isinstance(heroes, (list, dict)):
-                missing_or_invalid.append("heroCtrl")
+                missing_or_invalid.append("heroSysCtrl")
 
             # 6. backpackCtrl / bagCtrl
             backpack = self.init_data.get("backpackCtrl") or self.init_data.get("bagCtrl")

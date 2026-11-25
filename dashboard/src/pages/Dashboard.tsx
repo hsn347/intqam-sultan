@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Layout } from '../components/layout/Layout'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { BotCapabilities } from '../components/dashboard/BotCapabilities'
 import { useAuth } from '../hooks/useAuth'
 import { useCastles } from '../hooks/useCastles'
 import { Plus, Zap, Bot, Crown, AlertTriangle, AlertCircle, ShieldAlert, Clock } from 'lucide-react'
@@ -371,6 +372,9 @@ export function DashboardPage() {
             </div>
           </div>
         )}
+
+        {/* ── المهام التي يستطيع البوت تنفيذها (تعريفي ثابت) ── */}
+        <BotCapabilities />
       </div>
     </Layout>
   )

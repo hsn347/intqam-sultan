@@ -144,41 +144,50 @@ class ExcludeManager:
     @staticmethod
     def _infer_target_type(target_id: str) -> str:
         """
-        استنتاج نوع الهدف من صيغة target_id: "X-Y-mapType-subType-serial"
-
-        الأنواع المدعومة:
-          mapType=5  → مورد: gold(1) | food(2) | wood(3) | iron(4) | silver(5)
-          mapType=6  → invader (غازي / وحش)
-          mapType=7  → ruins (أطلال)
-          mapType=26 → stronghold (معقل)
-          mapType=35 → rebel (متمرد)
-          أخرى      → unknown
+        استنتاج نوع الهدف من صيغتي target_id المدعومتين:
+          1. صيغة السيرفر الرسمية: "X-Y-mapType-subType-serial"
+          2. صيغة مدير المسيرات المختصرة: "{type}_{x}_{y}" (مثل wood_393_425 أو nebula_monster_393_425)
         """
-        parts = str(target_id).split("-")
-        if len(parts) < 5:
-            return "unknown"
-        try:
-            map_type = int(parts[2])
-            sub_type = int(parts[3])
-        except (ValueError, IndexError):
-            return "unknown"
+        s = str(target_id or "").strip()
+        parts = s.split("-")
+        if len(parts) >= 5:
+            try:
+                map_type = int(parts[2])
+                sub_type = int(parts[3])
+                if map_type == 5:
+                    return {1: "gold", 2: "food", 3: "wood", 4: "iron", 5: "silver", 6: "crystal"}.get(sub_type, "resource")
+                return {6: "invader", 7: "ruins", 26: "stronghold", 35: "rebel", 56: "nebula_monster"}.get(map_type, "unknown")
+            except (ValueError, IndexError):
+                pass
 
-        if map_type == 5:
-            return {1: "gold", 2: "food", 3: "wood", 4: "iron", 5: "silver"}.get(sub_type, "resource")
-        return {6: "invader", 7: "ruins", 26: "stronghold", 35: "rebel"}.get(map_type, "unknown")
+        if "_" in s:
+            u_parts = s.rsplit("_", 2)
+            if len(u_parts) == 3 and u_parts[1].isdigit() and u_parts[2].isdigit():
+                prefix = u_parts[0].lower()
+                alias_map = {
+                    "monster": "invader",
+                    "wheat": "food",
+                }
+                return alias_map.get(prefix, prefix)
+        return "unknown"
 
     @staticmethod
     def _parse_coords(target_id: str) -> Tuple[Optional[int], Optional[int]]:
-        """استخراج إحداثيات (x, y) من target_id مع تطبيق إزاحة -1."""
-        parts = str(target_id).split("-")
+        """استخراج إحداثيات البلاطة (x, y): بطرح 1 لصيغة السيرفر X-Y-... أو مباشرة لصيغة {type}_{x}_{y}."""
+        s = str(target_id or "").strip()
+        parts = s.split("-")
         if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
             return int(parts[0]) - 1, int(parts[1]) - 1
+        if "_" in s:
+            u_parts = s.rsplit("_", 2)
+            if len(u_parts) == 3 and u_parts[1].isdigit() and u_parts[2].isdigit():
+                return int(u_parts[1]), int(u_parts[2])
         return None, None
 
     @staticmethod
     def _normalize_query_type(target_type: Any) -> str | None:
         """
-        تطبيع نوع الهدف للبحث: يقبل رقماً (subType=1..5 للموارد)، أو نصاً إنجليزياً أو عربياً، أو None.
+        تطبيع نوع الهدف للبحث: يقبل رقماً (subType=1..6 للموارد)، أو نصاً إنجليزياً أو عربياً، أو None.
         """
         if target_type is None:
             return None
@@ -187,15 +196,16 @@ class ExcludeManager:
             return None
         if raw.isdigit():
             sub_id = int(raw)
-            return {1: "gold", 2: "food", 3: "wood", 4: "iron", 5: "silver"}.get(sub_id, raw.lower())
+            return {1: "gold", 2: "food", 3: "wood", 4: "iron", 5: "silver", 6: "crystal"}.get(sub_id, raw.lower())
         tt = raw.lower()
         ar_map = {
-            "قمح": "food", "طعام": "food",
+            "قمح": "food", "طعام": "food", "wheat": "food",
             "خشب": "wood",
             "حديد": "iron",
             "فضة": "silver", "الماس": "silver", "ألماس": "silver", "كوارنز": "silver", "ميثريل": "silver",
             "ذهب": "gold",
-            "غازي": "invader", "وحش": "invader",
+            "كريستال": "crystal", "بلور": "crystal",
+            "غازي": "invader", "وحش": "invader", "monster": "invader",
             "أطلال": "ruins", "اطلال": "ruins",
             "حراسة الكنز": "escort", "حراسة كنز": "escort", "كنز": "escort", "treasure_escort": "escort",
             "معقل": "stronghold",

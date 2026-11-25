@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, Link } from 'react-router-dom'
 import {
@@ -10,7 +10,7 @@ import {
   Loader2,
   ArrowLeft,
   Shield,
-  Zap,
+  Crown,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { motion } from 'framer-motion'
@@ -29,7 +29,7 @@ import { useTenant } from '../context/TenantContext'
 
 export function LoginPage() {
   const { t } = useTranslation()
-  const { brandName, tagline, logoUrl } = useTenant()
+  const { brandName, tagline, logoUrl, primaryColor } = useTenant()
   const { login, switchAccount, savedAccounts, removeAccount } = useAuth()
   const navigate = useNavigate()
 
@@ -45,6 +45,22 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [switchingEmail, setSwitchingEmail] = useState<string | null>(null)
   const [accountToRemove, setAccountToRemove] = useState<string | null>(null)
+
+  // خلفية القلعة تُحمَّل بعد ظهور النموذج (لا تؤخر الدخول) ثم تظهر بتلاشٍ خفيف
+  const [bgReady, setBgReady] = useState(false)
+  useEffect(() => {
+    const img = new Image()
+    img.onload = () => setBgReady(true)
+    img.src = '/images/castles/login_scene.webp'
+  }, [])
+
+  // ذهبي ملكي للتاجر الافتراضي (الأخضر الأساسي)، ولون التاجر نفسه لغيره
+  const isDefaultTheme = (primaryColor || '').toLowerCase() === '#10b981'
+  const royalStyle = {
+    '--royal-accent': isDefaultTheme ? '#d4a73a' : 'var(--theme-primary)',
+    '--royal-accent-rgb': isDefaultTheme ? '212, 167, 58' : 'var(--theme-primary-rgb)',
+    '--royal-btn-text': isDefaultTheme ? '#1a1205' : '#ffffff',
+  } as React.CSSProperties
 
   // Validation errors
   const [errors, setErrors] = useState<{
@@ -174,36 +190,34 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative flex justify-center items-center bg-[#f1f5f2] dark:bg-[#0a0f0a] p-4 min-h-screen overflow-hidden text-gray-900 dark:text-white transition-colors duration-200">
+    <div
+      style={royalStyle}
+      className="relative flex justify-center items-center bg-[#f1f5f2] dark:bg-[#0a0f0a] p-4 min-h-screen overflow-hidden text-gray-900 dark:text-white transition-colors duration-200"
+    >
       {/* Top Header Bar with Theme & Language Switches */}
       <AuthHeaderBar />
 
-      {/* Background ambient glow */}
-      <div
-        className="top-1/4 left-1/2 absolute opacity-20 blur-3xl rounded-full w-96 h-96 -translate-x-1/2 pointer-events-none"
-        style={{ backgroundColor: 'var(--theme-primary)' }}
-      />
+      {/* بوابة القصر: خلفية القلعة + توهج ملكي */}
+      <div aria-hidden className={clsx('royal-login-bg', bgReady && 'is-ready')} />
+      <div aria-hidden className="royal-glow" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        style={{
-          borderColor: 'rgba(var(--theme-primary-rgb), 0.25)',
-          boxShadow: '0 24px 64px rgba(var(--theme-primary-rgb), 0.12)',
-        }}
-        className="z-10 relative bg-white dark:bg-[#0c120f] p-6 sm:p-8 border rounded-2xl w-full max-w-sm overflow-hidden"
+        className="z-10 relative bg-white dark:bg-[#0c120f] p-6 sm:p-8 border rounded-2xl w-full max-w-sm overflow-hidden royal-card"
       >
         {/* Top Gradient Accent */}
         <div
           className="top-0 absolute inset-x-0 h-1"
           style={{
-            background: 'linear-gradient(90deg, var(--theme-primary), var(--theme-primary-light), var(--theme-primary))',
+            background: 'linear-gradient(90deg, transparent, var(--royal-accent), transparent)',
           }}
         />
 
         {/* Logo */}
         <div className="mb-6 text-center">
+          <Crown size={20} className="mx-auto mb-2 royal-text" />
           <div
             className="flex justify-center items-center bg-gray-100 dark:bg-white/5 shadow-xs mx-auto mb-3.5 border rounded-2xl w-16 h-16 overflow-hidden"
             style={{ borderColor: 'rgba(var(--theme-primary-rgb), 0.35)' }}
@@ -218,6 +232,8 @@ export function LoginPage() {
           {tagline ? (
             <p className="mt-1 font-bold text-xs" style={{ color: 'var(--theme-primary)' }}>{tagline}</p>
           ) : null}
+          <div className="mx-auto mt-3 royal-divider" />
+          <p className="mt-2 font-bold text-sm royal-text">{t('login.welcomeSultan')}</p>
         </div>
 
         {/* General server error alert */}
@@ -231,6 +247,7 @@ export function LoginPage() {
         {/* Mode 1: Saved Accounts Chooser */}
         {viewMode === 'chooser' && savedAccounts.length > 0 ? (
           <div className="space-y-3">
+            <p className="font-semibold text-gray-500 dark:text-gray-400 text-xs">{t('accountSwitcher.yourCastles')}</p>
             <div className="space-y-2 pe-1 max-h-64 overflow-y-auto">
               {savedAccounts.map(acc => {
                 const isLoggingIn = switchingEmail === acc.email
@@ -270,25 +287,14 @@ export function LoginPage() {
                       {isLoggingIn ? (
                         <Loader2 size={16} className="animate-spin" style={{ color: 'var(--theme-primary)' }} />
                       ) : (
-                        <>
-                          {acc.hasSavedPassword && (
-                            <span
-                              className="flex items-center gap-0.5 px-1.5 py-0.5 border rounded font-semibold text-[10px]"
-                              style={{ color: 'var(--theme-primary)', backgroundColor: 'rgba(var(--theme-primary-rgb), 0.12)', borderColor: 'rgba(var(--theme-primary-rgb), 0.3)' }}
-                            >
-                              <Zap size={10} />
-                              <span>{t('accountSwitcher.instantSwitch', 'فوري')}</span>
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={e => handlePromptRemove(e, acc.email)}
-                            className="opacity-80 p-2 sm:p-1.5 rounded-lg text-rose-500 cursor-pointer shrink-0"
-                            title={t('accountSwitcher.removeTooltip', 'إزالة من القائمة')}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </>
+                        <button
+                          type="button"
+                          onClick={e => handlePromptRemove(e, acc.email)}
+                          className="opacity-80 p-2 sm:p-1.5 rounded-lg text-rose-500 cursor-pointer shrink-0"
+                          title={t('accountSwitcher.removeTooltip', 'إزالة من القائمة')}
+                        >
+                          <Trash2 size={15} />
+                        </button>
                       )}
                     </div>
                   </div>
@@ -420,8 +426,7 @@ export function LoginPage() {
                 id="login-submit"
                 type="submit"
                 disabled={loading}
-                style={{ backgroundColor: 'var(--theme-primary)', color: '#ffffff' }}
-                className="flex justify-center items-center gap-2 shadow-sm mt-2 py-3 rounded-xl w-full font-bold active:scale-[0.99] cursor-pointer"
+                className="flex justify-center items-center gap-2 mt-2 py-3 rounded-xl w-full font-bold active:scale-[0.99] cursor-pointer royal-btn"
               >
                 {loading ? (
                   <>
@@ -429,7 +434,7 @@ export function LoginPage() {
                     <span>{t('login.loading')}</span>
                   </>
                 ) : (
-                  t('login.submit')
+                  t('login.enterCastle')
                 )}
               </button>
             </form>

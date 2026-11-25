@@ -209,19 +209,11 @@ class ShieldTask(BaseTask):
             }
 
             r_use = await self.safe_query("1004", "2", payload, min_delay=0.3, max_delay=0.6)
-            err_code = str(r_use.get("err", "0")) if isinstance(r_use, dict) else "0"
+            err_code = str(r_use.get("err", "-1")) if isinstance(r_use, dict) else "timeout"
 
-            if err_code in ("0", "Err_None", "None") or not r_use:
-                # تسجيل الدرع وتحديث مؤشر الحماية في الجلسة والذاكرة
+            if isinstance(r_use, dict) and err_code in ("0", "Err_None"):
+                # تسجيل الدرع وتحديث مؤشر الحماية في الجلسة والذاكرة (تُحدّث الحقيبة تلقائياً عبر NOTIFY_BACKPACK)
                 self._record_shield_activation(shield_info)
-
-                # خصم الدرع من الذاكرة الحية للحقيبة
-                if isinstance(backpack_ctrl, dict) and str(target_item_id) in backpack_ctrl:
-                    curr_c = int(backpack_ctrl[str(target_item_id)].get("count", 1))
-                    if curr_c > 1:
-                        backpack_ctrl[str(target_item_id)]["count"] = curr_c - 1
-                    else:
-                        backpack_ctrl.pop(str(target_item_id), None)
 
                 success_msg = f"تم تفعيل {shield_info['name']} بنجاح من الحقيبة مجاناً"
                 self.log(f"✅ {success_msg} 🎉")
@@ -254,16 +246,11 @@ class ShieldTask(BaseTask):
             }
 
             r_buy = await self.safe_query("1034", "2", payload, min_delay=0.4, max_delay=0.8)
-            err_code = str(r_buy.get("err", "0")) if isinstance(r_buy, dict) else "0"
+            err_code = str(r_buy.get("err", "-1")) if isinstance(r_buy, dict) else "timeout"
 
-            if err_code in ("0", "Err_None", "None") or not r_buy:
-                # تسجيل الدرع وتحديث مؤشر الحماية في الجلسة والذاكرة
+            if isinstance(r_buy, dict) and err_code in ("0", "Err_None"):
+                # تسجيل الدرع وتحديث مؤشر الحماية في الجلسة والذاكرة (يُحدّث الذهب تلقائياً عبر NOTIFY_LORD)
                 self._record_shield_activation(shield_info)
-
-                # خصم الذهب من الذاكرة الحية
-                lord_base = self.get_ctrl("lordInfoCtrl").get("base", {})
-                if isinstance(lord_base, dict) and "gold" in lord_base:
-                    lord_base["gold"] = max(0, int(lord_base["gold"]) - gold_price)
 
                 success_msg = f"تم شراء وتفعيل {shield_info['name']} بنجاح بالذهب ({gold_price} ذهب)"
                 self.log(f"✅ {success_msg} 🎉")

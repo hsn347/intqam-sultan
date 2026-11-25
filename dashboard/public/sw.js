@@ -1,70 +1,120 @@
-const CACHE_NAME = 'ibrabot-pwa-v4'
-const STATIC_ASSETS = [
-  '/',
+const CACHE_NAME = 'ibrabot-pwa-v6'
+
+const PRECACHE_ASSETS = [
   '/index.html',
   '/manifest.json',
   '/favicon.png',
-  '/logo.png',
+  '/apple-touch-icon.png',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
   '/pwa-maskable-192x192.png',
   '/pwa-maskable-512x512.png',
-  '/apple-touch-icon.png'
 ]
 
-// Install event - Cache core static assets & take over immediately
+// Install: pre-cache core shell resiliently and activate immediately
 self.addEventListener('install', (event) => {
   self.skipWaiting()
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('⚠️ Some PWA assets failed to pre-cache:', err)
-      })
-    })
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(
+        PRECACHE_ASSETS.map((asset) =>
+          fetch(asset, { cache: 'no-cache' }).then((res) => {
+            if (res && res.ok) {
+              return cache.put(asset, res)
+            }
+          })
+        )
+      )
+    )
   )
 })
 
-// Activate event - Force clean up ALL obsolete caches immediately
+// Activate: remove obsolete caches and claim open clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
+    caches.keys().then((keys) =>
+      Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('🧹 Clearing old PWA cache:', key)
             return caches.delete(key)
           }
+          return Promise.resolve(false)
         })
       )
-    }).then(() => self.clients.claim())
+    ).then(() => self.clients.claim())
   )
 })
 
-// Fetch event - Stale-While-Revalidate & Cache-First for instant 0ms launch (WhatsApp style)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+})
+
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return
+
   const url = new URL(event.request.url)
 
-  // 1. Never intercept or cache API, WebSockets, Firebase, or external dynamic services
+  // Google Fonts (CSS + font files): Stale-While-Revalidate so fonts render offline
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
+              const clone = networkResponse.clone()
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+            }
+            return networkResponse
+          })
+          .catch(() => cachedResponse)
+        return cachedResponse || fetchPromise
+      })
+    )
+    return
+  }
+
+  // Only handle same-origin requests; never intercept APIs, WebSockets, or dynamic manifests
   if (
+    url.origin !== self.location.origin ||
     url.pathname.startsWith('/api') ||
     url.pathname.startsWith('/ws') ||
-    url.hostname.includes('firebase') ||
-    url.hostname.includes('googleapis') ||
-    url.hostname.includes('identitytoolkit') ||
+    url.pathname === '/manifest.json' ||
+    url.searchParams.has('tenant') ||
     url.port === '8000' ||
-    url.port === '8080' ||
-    event.request.method !== 'GET'
+    url.port === '8765'
   ) {
     return
   }
 
-  // 2. Vite hashed assets (/assets/xxx.js, /assets/xxx.css) - Immutable Cache-First
+  // 1. Navigation & HTML: Network-First with offline cache fallback (prevents stale bundle traps)
+  if (
+    event.request.mode === 'navigate' ||
+    url.pathname === '/' ||
+    url.pathname.endsWith('.html')
+  ) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const clone = networkResponse.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone))
+          }
+          return networkResponse
+        })
+        .catch(() => caches.match('/index.html'))
+    )
+    return
+  }
+
+  // 2. Hashed Vite assets (/assets/...): Immutable Cache-First
   if (url.pathname.includes('/assets/')) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse
         return fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             const clone = networkResponse.clone()
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
           }
@@ -75,7 +125,7 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // 3. Images, Icons, and Fonts - Stale-While-Revalidate (0ms local display, background refresh)
+  // 3. Static images, icons, and fonts: Stale-While-Revalidate
   if (
     url.pathname.endsWith('.png') ||
     url.pathname.endsWith('.svg') ||
@@ -91,7 +141,7 @@ self.addEventListener('fetch', (event) => {
       caches.match(event.request).then((cachedResponse) => {
         const fetchPromise = fetch(event.request)
           .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
+            if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
               const clone = networkResponse.clone()
               caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
             }
@@ -102,34 +152,5 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse || fetchPromise
       })
     )
-    return
   }
-
-  // 4. Navigation & HTML (Stale-While-Revalidate for 0ms Instant App Open)
-  if (event.request.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('.html')) {
-    event.respondWith(
-      caches.match('/index.html').then((cachedIndex) => {
-        const networkFetch = fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const clone = networkResponse.clone()
-              caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone))
-            }
-            return networkResponse
-          })
-          .catch(() => cachedIndex || caches.match('/'))
-
-        // If index.html is cached, return it instantly in 0ms!
-        return cachedIndex || networkFetch
-      })
-    )
-    return
-  }
-
-  // 5. Default fallback
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request).catch(() => caches.match('/'))
-    })
-  )
 })

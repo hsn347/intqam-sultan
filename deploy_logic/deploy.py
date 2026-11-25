@@ -85,12 +85,14 @@ def upload_backend_files(client, cfg: DeployConfig) -> None:
     svc_dst = shlex.quote(f"/etc/systemd/system/{cfg.service_name}")
     ngx_src = shlex.quote(f"{cfg.remote_dir}/deploy_logic/{cfg.nginx_conf_name}")
     ngx_dst = shlex.quote(f"{cfg.remote_dir}/{cfg.nginx_conf_name}")
+    ngx_avail = shlex.quote(f"/etc/nginx/sites-available/{cfg.nginx_conf_name}")
+    ngx_enabled = shlex.quote(f"/etc/nginx/sites-enabled/{cfg.nginx_conf_name}")
     remote_tar_q = shlex.quote(remote_tar)
     extract_cmd = (
         f"tar -xzf {remote_tar_q} -C {r_dir_q} && "
         f"rm -f {remote_tar_q} && "
         f"if [ -f {svc_src} ]; then cp -f {svc_src} {svc_dst}; fi && "
-        f"if [ -f {ngx_src} ]; then cp -f {ngx_src} {ngx_dst}; fi"
+        f"if [ -f {ngx_src} ]; then cp -f {ngx_src} {ngx_dst} && cp -f {ngx_src} {ngx_avail} && ln -sf {ngx_avail} {ngx_enabled} && (nginx -t && systemctl reload nginx || true); fi"
     )
     ssh_run(client, extract_cmd, timeout=60)
 

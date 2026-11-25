@@ -423,18 +423,19 @@ class FlowerTask(BaseTask):
                         f"({total_flowers_in_batch} زهرة) إلى '{target_name}' [{target_source}] ({action_desc})."
                     )
 
-                    # تحديث ومطابقة عداد النشاط اليومي مباشرة في الذاكرة الحية (0-Network)
+                    updated_daily = min(MAX_DAILY_FLOWERS, current_daily_flowers + free_sent_total + gold_sent_total)
+                    last_daily_progress = updated_daily
+
+                    # مطابقة عداد النشاط اليومي دون مضاعفة بعد NOTIFY_EVERYDAY_TASK (55)
                     everyday_ctrl = self.get_ctrl("everydayTaskCtrl")
                     if isinstance(everyday_ctrl, dict):
                         ev = everyday_ctrl.setdefault("eventInfo", {})
                         if isinstance(ev, dict):
                             ev[str(DAILY_QUEST_FLOWER_TYPE)] = min(
                                 MAX_DAILY_FLOWERS,
-                                int(ev.get(str(DAILY_QUEST_FLOWER_TYPE), 0) or 0) + total_flowers_in_batch
+                                max(int(ev.get(str(DAILY_QUEST_FLOWER_TYPE), 0) or 0), updated_daily),
                             )
 
-                    updated_daily = min(MAX_DAILY_FLOWERS, current_daily_flowers + free_sent_total + gold_sent_total)
-                    last_daily_progress = updated_daily
                     self.log(f"📊 إنجاز النشاط اليومي بعد الدفعة: {updated_daily}/{MAX_DAILY_FLOWERS}.")
 
                     if updated_daily >= MAX_DAILY_FLOWERS:
@@ -466,15 +467,7 @@ class FlowerTask(BaseTask):
                 if consecutive_errors >= 2:
                     break
 
-        # 6. تحديث كائن الحقيبة المحلي في الذاكرة الحية لكافة الحزم (0-Network Cache Update)
-        if free_sent_total > 0:
-            backpack_ctrl = self.get_ctrl("backpackCtrl") or self.get_ctrl("bagCtrl")
-            if isinstance(backpack_ctrl, dict):
-                for item_id, rem_cnt in inventory.items():
-                    if str(item_id) in backpack_ctrl:
-                        entry = backpack_ctrl[str(item_id)]
-                        if isinstance(entry, dict) and "count" in entry:
-                            entry["count"] = rem_cnt
+        # ملاحظة: أرصدة عناصر الزهور في backpackCtrl تُحدَّث تلقائياً وبدقة عبر NOTIFY_BACKPACK (1).
 
         # 7. تقرير النتيجة النهائية
         total_sent = free_sent_total + gold_sent_total

@@ -21,6 +21,8 @@ export interface TenantConfig {
   logoUrl: string
   /** أيقونة المتصفح (Favicon) */
   faviconUrl?: string
+  /** أيقونة iOS Apple Touch (PNG 180x180) */
+  appleTouchIconUrl?: string
   /**
    * اللون الأساسي للتاجر بصيغة HEX (مثلاً #2563eb للأزرق، أو #8b5cf6 للبنفسجي، أو #d97706 للذهبي)
    * سيتم تطبيق هذا اللون تلقائياً على كامل الموقع والأزرار والشارات والإضاءات
@@ -35,7 +37,7 @@ export interface TenantConfig {
 // ─── 1. الدومين الرئيسي الافتراضي (IBRA BOT - المشرف الأعلى) ───────────────────
 export const DEFAULT_TENANT: TenantConfig = {
   id: 'main',
-  domains: ['localhost', '127.0.0.1', 'ibrabot.com', '187.7.79.122', 'ibraabot.online', 'www.ibraabot.online'],
+  domains: ['localhost', '127.0.0.1', 'sultan.ibraabot.online', 'www.sultan.ibraabot.online', 'ibrabot.com', '187.7.79.122'],
   brandName: 'IBRA BOT',
   defaultLanguage: 'ar',
   tagline: {
@@ -44,7 +46,8 @@ export const DEFAULT_TENANT: TenantConfig = {
     tr: 'İlk Arapça Bot',
   },
   logoUrl: '/logo.png?v=2',
-  faviconUrl: '/favicon.ico',
+  faviconUrl: '/favicon.png',
+  appleTouchIconUrl: '/apple-touch-icon.png',
   primaryColor: '#10b981', // اللون الزمردي الأخضر الأصلي
   adminEmail: 'ibraboths@gmail.com',
 }
@@ -62,7 +65,8 @@ export const MERCHANTS_CONFIG: TenantConfig[] = [
       tr: '',
     },
     logoUrl: '/nurjan_logo.jpeg',
-    faviconUrl: '/nurjan_logo.jpeg',
+    faviconUrl: '/nurjan-pwa-192x192.png',
+    appleTouchIconUrl: '/nurjan-apple-touch-icon.png',
     primaryColor: '#d49835', // ذهبي ملكي متطابق مع الشعار
     adminEmail: 'nurjan12ddsw2@gmail.com',
   },
@@ -77,7 +81,8 @@ export const MERCHANTS_CONFIG: TenantConfig[] = [
       tr: 'Altın Toplama & Geliştirme Botu',
     },
     logoUrl: '/logo.png?v=2',
-    faviconUrl: '/favicon.ico',
+    faviconUrl: '/favicon.png',
+    appleTouchIconUrl: '/apple-touch-icon.png',
     primaryColor: '#eab308',
     adminEmail: 'ibraboths@gmail.com',
   },

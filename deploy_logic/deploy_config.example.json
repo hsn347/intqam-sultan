@@ -7,7 +7,7 @@
   "remote_dir": "/var/www/intqam-sultan",
   "service_name": "sultan-bot.service",
   "nginx_conf_name": "nginx-sultan.conf",
-  "domain_name": "_",
-  "api_port": 8080,
+  "domain_name": "sultan.ibraabot.online",
+  "api_port": 8765,
   "internal_api_secret": ""
 }

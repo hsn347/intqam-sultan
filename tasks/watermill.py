@@ -121,8 +121,21 @@ class WatermillTask(BaseTask):
                 if not replaced:
                     ctrl.append(dict(buff_entry))
             elif isinstance(ctrl, dict):
-                key = f"buff_{buff_id}_{bid}_{iid}"
-                ctrl[key] = dict(buff_entry)
+                if isinstance(ctrl.get("buffList"), list):
+                    b_list = ctrl["buffList"]
+                    replaced = False
+                    for idx, existing in enumerate(b_list):
+                        if self._matches_building_buff(existing, buff_id, bid, iid):
+                            b_list[idx] = dict(buff_entry)
+                            replaced = True
+                            break
+                    if not replaced:
+                        b_list.append(dict(buff_entry))
+                elif ctrl_name == "buffCtrl" and len(ctrl) == 0 and isinstance(self.init_data, dict):
+                    self.init_data["buffCtrl"] = [dict(buff_entry)]
+                else:
+                    key = f"buff_{buff_id}_{bid}_{iid}"
+                    ctrl[key] = dict(buff_entry)
 
     async def can_run(self) -> Tuple[bool, str]:
         """فحص قبلي سريع (0-Network Pre-flight): التحقق من الشروط في الذاكرة قبل ملامسة السيرفر."""
@@ -241,8 +254,7 @@ class WatermillTask(BaseTask):
                     item_count -= 1
                     total_boosted += 1
 
-                    # تحديث رصيد الحقيبة والبافات محلياً في الذاكرة الحية
-                    self._deduct_backpack_item(item_id, 1)
+                    # يُخصم العنصر تلقائياً عبر NOTIFY_BACKPACK (1)؛ نحدث الباف بالذاكرة الحية لمنع التكرار الفوري
                     self._register_buff_in_memory(bid, iid, buff_id, item_id, 86400)
 
                     self.log(

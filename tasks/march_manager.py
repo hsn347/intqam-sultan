@@ -120,9 +120,11 @@ ALLIANCE_TRADING_WEIGHT_BY_LV: Dict[int, float] = {
     6: 0.06, 7: 0.07, 8: 0.08, 9: 0.09, 10: 0.10,
 }
 
-# ── أنواع مسيرات حراسة الكنز الرسمية (src/app/constdef/mapDef.lua -> gMapMoveLineServerType) ──
-MOVE_LINE_TYPE_ESCORT = 22         # إرسال الكنز تحت الحراسة (مسيرة حراسة الكنز الخاصة بك)
+# ── أنواع مسيرات حراسة الكنز الرسمية (src/app/constdef/mapDef.lua -> gMapMoveLineServerType / ClientType) ──
+MOVE_LINE_TYPE_ESCORT = 22         # إرسال الكنز تحت الحراسة (نوع السيرفر في local_queues)
 MOVE_LINE_TYPE_ESCORT_ASSIST = 23  # مساعدة حراسة الكنز لعضو التحالف
+MOVE_LINE_CLIENT_ESCORT = 11       # إرسال الكنز تحت الحراسة (نوع العميل في طلب 1007/2)
+MOVE_LINE_MATRIX_ESCORT = 7        # مصفوفة القافلة الرسمية في طلب 1007/2
 
 MOVE_LINE_TYPE_RELICS_EXPLORE = 5        # استكشاف الأطلال (نوع السيرفر)
 MOVE_LINE_CLIENT_RELICS_EXPLORE = 4      # استكشاف الأطلال (نوع العميل)
@@ -274,11 +276,38 @@ SPECIAL_8XX_POWER_BY_SUB: Dict[int, float] = {
 
 DEFAULT_COMBAT_MIN_WIN_RATIO: float = 1.5
 
+# ── انتظارات الأمان الإضافية لمدير المسيرات ومهامه الفرعية (حماية من الحظر) ──
+# فاصل أمان إضافي عشوائي بعد كل طلب شبكي (ثانية) — فوق التأخير البشري السابق للطلب
+MARCH_SAFETY_PAUSE_RANGE: Tuple[float, float] = (0.6, 1.2)
+# انتظار ثابت كامل بعد كل طلب إرسال فيلق (1007/2) — ثانية كاملة
+MARCH_DISPATCH_SAFETY_WAIT_SEC: float = 1.0
 
 
+class MarchSafetyMixin:
+    """
+    خلط أمان لمهام المسيرات: يضيف انتظاراً بعد كل طلب شبكي، وانتظار ثانية كاملة بعد إرسال أي فيلق (1007/2).
+    لا يغيّر الطلب ولا الرد ولا أي منطق، ويطبَّق تلقائياً على مدير المسيرات وكل مهامه الفرعية.
+    """
+
+    async def _march_safety_pause(self, cmd: Any, subcmd: Any) -> None:
+        if not getattr(getattr(self, "conn", None), "is_connected", False):
+            return
+        await asyncio.sleep(random.uniform(*MARCH_SAFETY_PAUSE_RANGE))
+        if str(cmd) == "1007" and str(subcmd) == "2":
+            await asyncio.sleep(MARCH_DISPATCH_SAFETY_WAIT_SEC)
+
+    async def safe_query(self, cmd: str, subcmd: str, *args: Any, **kwargs: Any) -> Optional[Dict[str, Any]]:
+        res = await super().safe_query(cmd, subcmd, *args, **kwargs)  # type: ignore[misc]
+        await self._march_safety_pause(cmd, subcmd)
+        return res
+
+    async def sync_local_queues(self, timeout: float = 2.0) -> bool:
+        ok = await super().sync_local_queues(timeout=timeout)  # type: ignore[misc]
+        await self._march_safety_pause("1007", "1000")
+        return ok
 
 
-class MarchManagerTask(BaseTask):
+class MarchManagerTask(MarchSafetyMixin, BaseTask):
 
     name: str = "march_manager"
     alias: str = "march_manager"
@@ -427,7 +456,7 @@ class MarchManagerTask(BaseTask):
 
         for q, status in self._iter_my_active_queues():
             finish_time = self._safe_float(
-                q.get("finishTime") or q.get("endTime") or q.get("finish_time") or 0.0
+                q.get("statusEndTime") or q.get("finishTime") or q.get("endTime") or q.get("finish_time") or 0.0
             )
             if finish_time > 1e11:
                 finish_time /= 1000.0
@@ -440,13 +469,17 @@ class MarchManagerTask(BaseTask):
                     latest_return = remaining_sec
 
             to_pos = q.get("to") if isinstance(q.get("to"), dict) else {}
-            target_x = self._safe_int(to_pos.get("x") or q.get("target_x"), 0)
-            target_y = self._safe_int(to_pos.get("y") or q.get("target_y"), 0)
+            if "x" in to_pos or "y" in to_pos:
+                target_x = max(0, self._safe_int(to_pos.get("x"), 0) - 1)
+                target_y = max(0, self._safe_int(to_pos.get("y"), 0) - 1)
+            else:
+                target_x = self._safe_int(q.get("target_x"), 0)
+                target_y = self._safe_int(q.get("target_y"), 0)
 
             active_list.append({
                 "qid": str(q.get("id") or q.get("queueId") or ""),
                 "status": status,
-                "type": self._safe_int(q.get("type"), 0),
+                "type": self._safe_int(q.get("queueType") if q.get("queueType") is not None else q.get("type"), 0),
                 "target": {"x": target_x, "y": target_y},
                 "finish_time": finish_time,
                 "remaining_seconds": round(remaining_sec, 1),
@@ -494,31 +527,63 @@ class MarchManagerTask(BaseTask):
         target_client_types = (11, 13) if include_assist else (11,)
 
         for q, _status in self._iter_my_active_queues():
-            q_type = self._safe_int(q.get("type") or q.get("queueType"), 0)
+            q_type = self._safe_int(q.get("queueType") if q.get("queueType") is not None else q.get("type"), 0)
             m_type = self._safe_int(q.get("moveLineType"), 0)
             if q_type in target_server_types or m_type in target_client_types:
                 return True
-        return False
-    
-    def has_relics_explore_march(self) -> bool:
-        """
-        التحقق من وجود مسيرة استكشاف أطلال نشطة حالياً للقلعة من الذاكرة الحية فقط (0-Network)،
-        مطابق لـ kingdomMapCtrl.lua:1156 و mapDef.lua:326,384.
-        """
-        for q, _status in self._iter_my_active_queues():
-            q_type = self._safe_int(q.get("type") or q.get("queueType"), 0)
-            m_type = self._safe_int(q.get("moveLineType"), 0)
-            if q_type == MOVE_LINE_TYPE_RELICS_EXPLORE or m_type == MOVE_LINE_CLIENT_RELICS_EXPLORE:
+            if q_type == 10 and self._safe_int(q.get("orgQueueType"), 0) in target_server_types:
                 return True
         return False
 
-    def has_active_monster_march(self) -> bool:
-        """التحقق من وجود فيلق واحد على الأقل يهاجم وحوشاً حالياً بالخارج (0-Network)."""
-        for q, _st in self._iter_my_active_queues():
-            q_type = self._safe_int(q.get("type") or q.get("queueType"), 0)
+    def has_relics_explore_march(self) -> bool:
+        """
+        التحقق من وجود مسيرة استكشاف أطلال نشطة حالياً للقلعة (ذاهبة أو مستكشفة أو عائدة) من الذاكرة الحية (0-Network)،
+        مطابق لـ kingdomMapCtrl.lua:1156 و mapDef.lua:326,384.
+        """
+        for q, _status in self._iter_my_active_queues():
+            q_type = self._safe_int(q.get("queueType") if q.get("queueType") is not None else q.get("type"), 0)
             m_type = self._safe_int(q.get("moveLineType"), 0)
-            if q_type == MOVE_LINE_TYPE_KILL_NPC or m_type == MOVE_LINE_TYPE_KILL_NPC:
+            if q_type == MOVE_LINE_TYPE_RELICS_EXPLORE or m_type == MOVE_LINE_CLIENT_RELICS_EXPLORE:
                 return True
+            if q_type == 10 and self._safe_int(q.get("orgQueueType"), 0) == MOVE_LINE_TYPE_RELICS_EXPLORE:
+                return True
+            for loc_key in ("to", "from"):
+                loc = q.get(loc_key)
+                if isinstance(loc, dict):
+                    if self._safe_int(loc.get("mapType"), 0) == 7:
+                        return True
+                    parts = str(loc.get("id") or "").split("-")
+                    if len(parts) >= 3 and parts[2] == "7":
+                        return True
+        return False
+
+    def has_active_monster_march(self) -> bool:
+        """التحقق من وجود فيلق واحد على الأقل يهاجم وحوشاً (ذاهباً أو عائداً) بالخارج حالياً (0-Network)."""
+        for q, _st in self._iter_my_active_queues():
+            q_type = self._safe_int(q.get("queueType") if q.get("queueType") is not None else q.get("type"), 0)
+            if q_type == MOVE_LINE_TYPE_KILL_NPC:
+                return True
+            if q_type == 10 and self._safe_int(q.get("orgQueueType"), 0) == MOVE_LINE_TYPE_KILL_NPC:
+                return True
+            for loc_key in ("to", "from"):
+                loc = q.get(loc_key)
+                if isinstance(loc, dict):
+                    if self._safe_int(loc.get("mapType"), 0) in (6, 56):
+                        return True
+                    parts = str(loc.get("id") or "").split("-")
+                    if len(parts) >= 3 and parts[2] in ("6", "56"):
+                        return True
+        return False
+
+    async def _wait_for_new_queue_sync(self, prev_qids: Set[str], timeout: float = 2.0) -> bool:
+        """ينتظر وصول إشعار NOTIFY_LOCAL_QUEUE_SYNC (202) لظهور المسيرة الجديدة في الذاكرة الحية قبل متابعة المهام."""
+        deadline = time.monotonic() + max(0.2, float(timeout))
+        while time.monotonic() < deadline:
+            for q, _st in self._iter_my_active_queues():
+                qid = str(q.get("id") or q.get("queueId") or "").strip()
+                if qid and qid not in prev_qids:
+                    return True
+            await asyncio.sleep(0.1)
         return False
 
     def evaluate_march_block_signal(
@@ -772,6 +837,7 @@ class MarchManagerTask(BaseTask):
             if hero_id in busy_in_queues:
                 continue
 
+            hero_power = self.get_hero_power(hero_id, h_info) if hasattr(self, "get_hero_power") else 0
             seen_ids.add(hero_id)
             available.append({
                 "hero_id": hero_id,
@@ -781,11 +847,12 @@ class MarchManagerTask(BaseTask):
                 "level_exp": self._safe_int(h_info.get("level_exp"), 0),
                 "is_awake": bool(h_info.get("isAwake", False)),
                 "is_defending": is_defending,
+                "power": hero_power,
                 "raw": h_info,
             })
 
         available.sort(
-            key=lambda h: (-h["quality"], -h["level"], -h["level_exp"], h["hero_id"])
+            key=lambda h: (-h["power"], -h["level"], -h["quality"], -h["level_exp"], h["hero_id"])
         )
         return available
 
@@ -1075,7 +1142,8 @@ class MarchManagerTask(BaseTask):
             to_pos = q.get("to") if isinstance(q.get("to"), dict) else {}
             qx = self._safe_int(to_pos.get("x") or q.get("target_x"), -1)
             qy = self._safe_int(to_pos.get("y") or q.get("target_y"), -1)
-            if qx == tx and qy == ty:
+            # مراعاة إزاحة السيرفر +1 (gPointClientPointPlus في mapDef.lua:568)
+            if (qx, qy) in {(tx, ty), (tx + 1, ty + 1)}:
                 return True
         return False
 
@@ -1863,26 +1931,45 @@ class MarchManagerTask(BaseTask):
     def _get_active_soldier_load_multiplier(self) -> float:
         """
         حساب مضاعف حمولة الجنود النشط من الذاكرة الحية (0-Network) كحد أدنى آمن:
-        مطابق جزئياً لـ kingdomMapCtrl:getArmyWeightPlus() (buffCtrl Effect 117).
+        يدعم بنية buffCtrl الفعلية (list من {id, beginTime, time}) وفق buff.lua (Effect 117).
         """
+        _LOAD_BUFF_BY_ID = {
+            5419: 0.10,
+            5049: 0.25,
+            5050: 0.50,
+        }
         bonus = 0.0
+        now_ts = time.time()
         snap = self._get_live_snapshot()
         buff_ctrl = snap.get("buffCtrl")
-        if isinstance(buff_ctrl, dict):
-            now_ts = time.time()
+        if isinstance(buff_ctrl, list):
+            entries = buff_ctrl
+        elif isinstance(buff_ctrl, dict):
             raw_buffs = buff_ctrl.get("buffList") or buff_ctrl.get("buffs") or buff_ctrl
-            entries = raw_buffs.values() if isinstance(raw_buffs, dict) else (raw_buffs if isinstance(raw_buffs, list) else [])
-            for b in entries:
-                if not isinstance(b, dict):
-                    continue
-                eff = self._safe_int(b.get("effect") or b.get("buffType") or b.get("type"), 0)
-                if eff != 117:  # SOLDIER_LOAD_BOOST
-                    continue
-                end_t = self._safe_float(b.get("endTime") or b.get("expireTime") or 0.0)
-                if end_t > 1e11:
-                    end_t /= 1000.0
-                if end_t > 0 and end_t < now_ts:
-                    continue
+            entries = list(raw_buffs.values()) if isinstance(raw_buffs, dict) else (raw_buffs if isinstance(raw_buffs, list) else [])
+        else:
+            entries = []
+
+        for b in entries:
+            if not isinstance(b, dict):
+                continue
+            begin_t = self._safe_float(b.get("beginTime"), 0.0)
+            dur = self._safe_float(b.get("time"), 0.0)
+            end_t = self._safe_float(b.get("endTime") or b.get("expireTime") or 0.0)
+            if end_t > 1e11:
+                end_t /= 1000.0
+            if dur > 0 and begin_t > 0 and (begin_t + dur) <= now_ts:
+                continue
+            if end_t > 0 and end_t <= now_ts:
+                continue
+
+            bid = self._safe_int(b.get("id") or b.get("buffId"), 0)
+            if bid in _LOAD_BUFF_BY_ID:
+                bonus += _LOAD_BUFF_BY_ID[bid]
+                continue
+
+            eff = self._safe_int(b.get("effect") or b.get("buffType") or b.get("type"), 0)
+            if eff == 117:  # SOLDIER_LOAD_BOOST
                 val = self._safe_float(b.get("value") or b.get("buffValue") or 0.0)
                 if val > 0:
                     bonus += val / 1000.0
@@ -1979,7 +2066,7 @@ class MarchManagerTask(BaseTask):
         # 2. تحديد السعة القصوى للفيلق حصرياً عبر tasks/march_capacity.py
         if max_march_capacity is None:
             from tasks.march_capacity import get_march_capacity_no_heroes
-            cap = self._safe_int(get_march_capacity_no_heroes(self._get_live_snapshot()), 0)
+            cap = self._safe_int(get_march_capacity_no_heroes(self._get_live_snapshot(), now=int(time.time())), 0)
         else:
             cap = self._safe_int(max_march_capacity, 0)
 
@@ -2261,37 +2348,49 @@ class MarchManagerTask(BaseTask):
             except Exception:
                 max_heroes = 5
 
+        def _resolve_hero_power(h_entry: Dict[str, Any]) -> int:
+            if "power" in h_entry and h_entry["power"] is not None:
+                return int(h_entry["power"])
+            hid_v = int(h_entry.get("hero_id") or h_entry.get("heroID") or h_entry.get("id") or 0)
+            raw_v = h_entry.get("raw") if isinstance(h_entry.get("raw"), dict) else None
+            return int(self.get_hero_power(hid_v, raw_v)) if (hid_v > 0 and hasattr(self, "get_hero_power")) else 0
+
         sorted_heroes = sorted(
             heroes_now,
             key=lambda h: (
-                int(h.get("quality") or 0),
+                _resolve_hero_power(h),
                 int(h.get("level") or 0),
-                int(h.get("hero_id") or h.get("heroID") or h.get("id") or 0),
+                int(h.get("quality") or 0),
+                -int(h.get("hero_id") or h.get("heroID") or h.get("id") or 0),
             ),
             reverse=True,
         )
         selected_heroes: List[int] = []
+        selected_hero_power = 0
         for h in sorted_heroes[:max_heroes]:
             hid = int(h.get("hero_id") or h.get("heroID") or h.get("id") or 0)
             if hid > 0:
                 selected_heroes.append(hid)
+                selected_hero_power += _resolve_hero_power(h)
 
         # 5) حساب السعة القصوى الحية للفيلق حصرياً عبر tasks/march_capacity.py
         from tasks.march_capacity import get_march_capacity, get_march_capacity_no_heroes
 
         live_mem = self._get_live_snapshot()
+        now_ts = int(time.time())
         max_cap = int(
             get_march_capacity(
                 live_mem,
                 hero_ids=selected_heroes or None,
                 only_normal_state=exclude_defend_heroes,
+                now=now_ts,
             )
             or 0
         )
         if max_cap <= 0:
-            max_cap = int(get_march_capacity_no_heroes(live_mem) or 0)
+            max_cap = int(get_march_capacity_no_heroes(live_mem, now=now_ts) or 0)
 
-        # 6) ترتيب الجنود المتاحين تنازلياً حسب القوة القتالية للجندي الواحد
+        # 6) ترتيب الجنود المتاحين تنازلياً حسب القوة القتالية للجندي الواحد مع تفضيل الفروع القتالية (4/5/6/9) على العربات (7)
         enriched_soldiers: List[Dict[str, Any]] = []
         for s in soldiers_now:
             sid = int(s.get("army_id") or s.get("id") or 0)
@@ -2300,15 +2399,18 @@ class MarchManagerTask(BaseTask):
             if sid <= 0 or cnt <= 0:
                 continue
             unit_pwr = self._get_soldier_combat_power(sid, lv)
+            branch_code = int(s.get("branch_code") or ((sid % 1000) // 100))
+            is_combat_branch = 1 if branch_code in (4, 5, 6, 9) else 0
             enriched_soldiers.append({
                 "army_id": sid,
                 "level": lv,
                 "count": cnt,
                 "unit_power": unit_pwr,
+                "is_combat_branch": is_combat_branch,
             })
 
         enriched_soldiers.sort(
-            key=lambda x: (x["unit_power"], x["level"], x["count"]),
+            key=lambda x: (x["unit_power"], x["is_combat_branch"], x["level"], x["count"]),
             reverse=True,
         )
 
@@ -2396,6 +2498,7 @@ class MarchManagerTask(BaseTask):
                 "win_ratio": round(win_ratio, 3),
                 "min_win_ratio": req_ratio,
                 "max_capacity": max_cap,
+                "hero_power": selected_hero_power,
                 "recommended_max_level": rec_max_lv,
             }
 
@@ -2409,6 +2512,7 @@ class MarchManagerTask(BaseTask):
             "level": req_level,
             "army": army_dict,
             "hero_ids": selected_heroes,
+            "hero_power": selected_hero_power,
             "total_soldiers": total_sent,
             "max_capacity": max_cap,
             "raw_army_power": round(raw_power, 1),
@@ -2428,29 +2532,50 @@ class MarchManagerTask(BaseTask):
         return f"{h:02d}:{m:02d}:{s:02d}"
 
     def _get_active_gather_speed_multiplier(self, res_key: str) -> float:
-        """حساب مضاعف سرعة الجمع النشط من الذاكرة الحية (buffCtrl: Effect 17 + الخاص بالمورد)."""
+        """حساب مضاعف سرعة الجمع النشط من الذاكرة الحية (buffCtrl كـ list وفق buff.lua)."""
+        _GATHER_SPEED_BUFF_BY_ID = {
+            5008: 0.50,
+            5009: 0.50,
+            5048: 1.00,
+            4507: 1.00,
+            5128: 0.50,
+        }
         bonus = 0.0
         target_effs = {17}  # GATHER_SPEED_BOOST (عام)
         if res_key in GATHER_SPEED_BUFF_BY_RES:
             target_effs.add(GATHER_SPEED_BUFF_BY_RES[res_key])
 
+        now_ts = time.time()
         snap = self._get_live_snapshot()
         buff_ctrl = snap.get("buffCtrl")
-        if isinstance(buff_ctrl, dict):
-            now_ts = time.time()
+        if isinstance(buff_ctrl, list):
+            entries = buff_ctrl
+        elif isinstance(buff_ctrl, dict):
             raw_buffs = buff_ctrl.get("buffList") or buff_ctrl.get("buffs") or buff_ctrl
-            entries = raw_buffs.values() if isinstance(raw_buffs, dict) else (raw_buffs if isinstance(raw_buffs, list) else [])
-            for b in entries:
-                if not isinstance(b, dict):
-                    continue
-                eff = self._safe_int(b.get("effect") or b.get("buffType") or b.get("type"), 0)
-                if eff not in target_effs:
-                    continue
-                end_t = self._safe_float(b.get("endTime") or b.get("expireTime") or 0.0)
-                if end_t > 1e11:
-                    end_t /= 1000.0
-                if end_t > 0 and end_t < now_ts:
-                    continue
+            entries = list(raw_buffs.values()) if isinstance(raw_buffs, dict) else (raw_buffs if isinstance(raw_buffs, list) else [])
+        else:
+            entries = []
+
+        for b in entries:
+            if not isinstance(b, dict):
+                continue
+            begin_t = self._safe_float(b.get("beginTime"), 0.0)
+            dur = self._safe_float(b.get("time"), 0.0)
+            end_t = self._safe_float(b.get("endTime") or b.get("expireTime") or 0.0)
+            if end_t > 1e11:
+                end_t /= 1000.0
+            if dur > 0 and begin_t > 0 and (begin_t + dur) <= now_ts:
+                continue
+            if end_t > 0 and end_t <= now_ts:
+                continue
+
+            bid = self._safe_int(b.get("id") or b.get("buffId"), 0)
+            if bid in _GATHER_SPEED_BUFF_BY_ID:
+                bonus += _GATHER_SPEED_BUFF_BY_ID[bid]
+                continue
+
+            eff = self._safe_int(b.get("effect") or b.get("buffType") or b.get("type"), 0)
+            if eff in target_effs:
                 val = self._safe_float(b.get("value") or b.get("buffValue") or 0.0)
                 if val > 0:
                     bonus += val / 1000.0
@@ -2484,12 +2609,25 @@ class MarchManagerTask(BaseTask):
             for container in (d, d.get("queue"), d.get("data"), d.get("result"), d.get("rspdata")):
                 if not isinstance(container, dict):
                     continue
+                span = container.get("moveTimeSpan")
+                if isinstance(span, list) and span:
+                    span_sum = sum(
+                        self._safe_float(seg.get("time"), 0.0)
+                        for seg in span
+                        if isinstance(seg, dict)
+                    )
+                    if span_sum > 0:
+                        return span_sum / 1000.0 if span_sum > 1e6 else span_sum
                 for dur_key in ("moveTime", "needTime", "marchTime", "goTime"):
                     dv = self._safe_float(container.get(dur_key), 0.0)
                     if dv > 0:
                         return dv / 1000.0 if dv > 1e6 else dv
-                st = self._safe_float(container.get("startTime") or container.get("beginTime") or 0.0)
-                ft = self._safe_float(container.get("finishTime") or container.get("endTime") or 0.0)
+                st = self._safe_float(
+                    container.get("statusStartTime") or container.get("startTime") or container.get("beginTime") or 0.0
+                )
+                ft = self._safe_float(
+                    container.get("statusEndTime") or container.get("finishTime") or container.get("endTime") or 0.0
+                )
                 if st > 1e11:
                     st /= 1000.0
                 if ft > 1e11:
@@ -2946,6 +3084,11 @@ class MarchManagerTask(BaseTask):
         wait_interval_sec = max(
             10.0, self._safe_float(mgr_cfg.get("wait_interval_sec", DEFAULT_WAIT_INTERVAL_SEC), DEFAULT_WAIT_INTERVAL_SEC)
         )
+
+        # ضمان مزامنة طوابير الخريطة الحية قبل قراءة الخانات إذا لم تكتمل بعد في طور الاتصال الحي
+        mem_eng = getattr(self.conn, "memory_engine", None)
+        if mem_eng is not None and not getattr(mem_eng, "local_queues_synced", True) and self.is_connected:
+            await self.sync_local_queues(timeout=5.0)
 
         summary = self.get_march_status_summary()
         max_cap = summary["max_capacity"]

@@ -16,7 +16,7 @@ import random
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 if sys.platform == "win32":
@@ -157,8 +157,9 @@ MANDATORY_CORE_TASKS: Set[str] = {"daily_quest"}
 
 DEFAULT_BOT_CONFIG: Dict[str, Any] = {
     "enabled": True,
+    "loop_interval_minutes": 40,       # مدة الدورة الافتراضية (40 دقيقة)
     "min_loop_interval_minutes": 40,   # الحد الأدنى لفاصل الدورة (40 دقيقة)
-    "max_loop_interval_minutes": 60,   # الحد الأقصى لفاصل الدورة (60 دقيقة)
+    "max_loop_interval_minutes": 50,   # الحد الأقصى لفاصل الدورة (40 + 10 دقائق عشوائية)
     "task_delay_min_seconds": 1.0,     # الفاصل الأدنى بين المهمة والتي تليها (1 ثانية)
     "task_delay_max_seconds": 3.0,     # الفاصل الأقصى بين المهمة والتي تليها (3 ثوانٍ)
     "reconnect_wait_seconds": 30,      # مدة الانتظار قبل محاولة إعادة الاتصال
@@ -357,13 +358,27 @@ class CastleBot:
         stop_event: Optional[threading.Event] = None,
         castle_id: Optional[str] = None,
         user_id: Optional[str] = None,
+        loop_interval_minutes: Optional[int] = None,
+        manager: Optional["BotManager"] = None,
     ):
         self.email = email
         self.password = password
         self.castle_id: str = castle_id or ""
         self.user_id: str = user_id or ""
         self.user_email: str = ""
+        self._manager: Optional["BotManager"] = manager
+        self._stop_reason: Optional[str] = None
         self.config = copy.deepcopy(DEFAULT_BOT_CONFIG)
+        self.loop_interval_minutes: int = (
+            max(30, min(180, int(loop_interval_minutes)))
+            if loop_interval_minutes is not None
+            else 40
+        )
+        self._cli_fixed_interval: Optional[int] = (
+            int(config["cli_fixed_interval"])
+            if isinstance(config, dict) and config.get("cli_fixed_interval")
+            else None
+        )
 
         # تحميل إعدادات الحساب وتفضيلات المستخدم المحفوظة في قاعدة البيانات
         self.reload_config_from_db()
@@ -449,8 +464,22 @@ class CastleBot:
         """إعادة تحميل إعدادات وتفضيلات الحساب المحدثة من قاعدة البيانات فوراً."""
         try:
             import core.database as db
-            c_data = db.get_castle_by_id(self.email)
-            if not c_data or not c_data.get("config"):
+            c_data = (
+                db.get_castle_by_id(self.castle_id)
+                if getattr(self, "castle_id", None)
+                else None
+            ) or db.get_castle_by_id(self.email)
+            if not c_data:
+                return
+
+            raw_interval = c_data.get("loop_interval")
+            if raw_interval is not None:
+                self.loop_interval_minutes = db.normalize_loop_interval(raw_interval)
+                self.config["loop_interval_minutes"] = self.loop_interval_minutes
+                self.config["min_loop_interval_minutes"] = self.loop_interval_minutes
+                self.config["max_loop_interval_minutes"] = self.loop_interval_minutes + 10
+
+            if not c_data.get("config"):
                 return
             saved_cfg = c_data["config"] if isinstance(c_data["config"], dict) else json.loads(c_data["config"])
             if not isinstance(saved_cfg, dict):
@@ -470,7 +499,7 @@ class CastleBot:
             tasks_cfg.setdefault("daily_quest", {"enabled": True})
 
             for k, v in saved_cfg.items():
-                if k not in ("tasks", "fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "material_workshop", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest", "watermill", "skills", "stamina", "caravan"):
+                if k not in ("tasks", "fountain", "train", "daily_train", "building", "shield", "research", "flower", "wonder_merchant", "material_synthesis", "material_workshop", "forge_equipment", "cure_wounded", "city_harvest", "port", "merchant_ship", "imperial_mausoleum", "pet", "alliance", "war_medal", "arena", "hero_trial", "command_hall", "daily_quest", "watermill", "skills", "stamina", "caravan", "min_loop_interval_minutes", "max_loop_interval_minutes", "loop_interval_minutes"):
                     self.config[k] = v
         except Exception:
             pass
@@ -569,6 +598,7 @@ class CastleBot:
             "uptime_seconds": uptime_sec,
             "start_time": self.start_time,
             "iteration": self.iteration,
+            "loop_interval_minutes": getattr(self, "loop_interval_minutes", 40),
             "next_run_time": self.next_run_time,
             "last_kick_reason": self.last_kick_reason,
             "last_activity": datetime.fromtimestamp(self.last_activity_time).strftime("%H:%M:%S") if self.last_activity_time else None,
@@ -584,6 +614,7 @@ class CastleBot:
                 "gate_ip": self.creds.gate_ip if self.creds else None,
             } if self.creds else None,
             "reconnect_attempt": self.reconnect_attempt,
+            "max_reconnect_attempts": int(self.config.get("max_reconnect_attempts") or DEFAULT_BOT_CONFIG.get("max_reconnect_attempts", 2)),
         }
 
     async def connect(self) -> bool:
@@ -771,6 +802,14 @@ class CastleBot:
             self._set_state("error", msg)
             return False
 
+        # انتظار اكتمال مزامنة طوابير المسيرات الأولية (CMD 1007/1000) قبل انطلاق حلقة المهام
+        session_init_ev = getattr(self.conn, "session_init_complete", None)
+        if session_init_ev is not None:
+            try:
+                await asyncio.wait_for(session_init_ev.wait(), timeout=12.0)
+            except asyncio.TimeoutError:
+                self.log("⚠️ تأخرت مزامنة طوابير الخريطة الأولية (1007/1000) — المتابعة مع الحماية الاحتياطية.")
+
         self._set_state("connected", f"متصل بالبوابة بنجاح (المملكة {creds.kingdom_id})")
         self.log(f"👑 تم الاتصال بالبوابة بنجاح! الحساب نشط الآن 100%.")
         self.sync_live_data_to_db()
@@ -849,7 +888,14 @@ class CastleBot:
 
             lord_name = base.get("nickName") or base.get("name") or f"قلعة {self.email.split('@')[0]}"
             alliance = data.get("allianceCtrl", {}) if isinstance(data.get("allianceCtrl"), dict) else {}
-            alliance_name = alliance.get("allianceName") or base.get("alliancename") or ""
+            alliance_info = alliance.get("allianceInfo", {}) if isinstance(alliance.get("allianceInfo"), dict) else {}
+            alliance_prop = alliance_info.get("property", {}) if isinstance(alliance_info.get("property"), dict) else {}
+            alliance_name = (
+                alliance_prop.get("name")
+                or alliance.get("allianceName")
+                or base.get("alliancename")
+                or ""
+            )
 
             castle_info = {
                 "lord_name": lord_name,
@@ -969,6 +1015,78 @@ class CastleBot:
         self.log("✓ [المهام] اكتملت الدورة بنجاح.")
         self.sync_live_data_to_db()
 
+    def _check_cycle_eligibility(self) -> Tuple[bool, str]:
+        """فحص محلي في بداية كل دورة (0-Network) لصلاحية القلعة والاشتراك والحظر والحد الأقصى للقلاع."""
+        try:
+            import core.database as db
+
+            c_data = (
+                db.get_castle_by_id(self.castle_id)
+                if getattr(self, "castle_id", None)
+                else None
+            ) or db.get_castle_by_id(self.email)
+
+            if c_data is None:
+                if getattr(self, "castle_id", None):
+                    return False, "توقف تلقائياً: تم حذف القلعة من النظام"
+                if not getattr(self, "user_id", None):
+                    return True, ""
+            else:
+                if not c_data.get("is_active"):
+                    return False, "توقف تلقائياً: هذه القلعة مجمدة أو غير مفعلة حالياً"
+                if str(c_data.get("state") or "").strip().lower() in ("pending", "rejected"):
+                    return False, "توقف تلقائياً: هذه القلعة معلّقة أو مرفوضة من الإدارة"
+
+            owner_uid = str((c_data.get("user_id") if c_data else None) or getattr(self, "user_id", "") or "").strip()
+            if owner_uid:
+                valid, reason = db.check_user_subscription_db(owner_uid)
+                if not valid:
+                    return False, f"توقف تلقائياً: {reason}"
+
+                if self._manager is not None:
+                    owner = db.get_user(owner_uid)
+                    if owner and not db._is_admin_account(owner):
+                        max_allowed = max(0, int(owner.get("max_castles") or 0))
+                        owner_castles = db.get_user_castles_summary(owner_uid)
+                        owner_emails = {
+                            str(oc.get("email") or "").strip().lower()
+                            for oc in owner_castles if oc.get("email")
+                        }
+                        owner_cids = {
+                            str(oc.get("castle_id") or "").strip()
+                            for oc in owner_castles if oc.get("castle_id")
+                        }
+                        self_email = str(self.email or "").strip().lower()
+                        self_cid = str(getattr(self, "castle_id", "") or "").strip()
+                        running_other_count = 0
+
+                        for b_em, b in list(self._manager.bots.items()):
+                            if b is self:
+                                continue
+                            norm_em = str(b_em or "").strip().lower()
+                            b_cid = str(getattr(b, "castle_id", "") or "").strip()
+                            if norm_em == self_email or (b_cid and self_cid and b_cid == self_cid):
+                                continue
+                            b_uid = str(getattr(b, "user_id", "") or "").strip()
+                            belongs_to_owner = (
+                                (b_uid and b_uid == owner_uid)
+                                or norm_em in owner_emails
+                                or (b_cid and b_cid in owner_cids)
+                            )
+                            if not belongs_to_owner:
+                                continue
+                            task = self._manager.tasks.get(b_em)
+                            if getattr(b, "is_running", False) or (task and not task.done()):
+                                running_other_count += 1
+
+                        if running_other_count >= max_allowed:
+                            return False, f"توقف تلقائياً: وصلت للحد الأقصى من القلاع المسموح بها في باقتك ({max_allowed})"
+
+            return True, ""
+        except Exception as e:
+            self.log(f"⚠️ تعذر التحقق من أهلية الاشتراك في بداية الدورة: {e}")
+            return True, ""
+
     async def run(self):
         """الحلقة الرئيسية للتشغيل المستمر مع ضمان التنظيف الحتمي عند الإلغاء (Main Lifecycle Loop)"""
         self.is_running = True
@@ -984,6 +1102,13 @@ class CastleBot:
 
         try:
             while self.is_running and not self._stop_event.is_set() and not self._async_stop.is_set():
+                eligible, block_reason = self._check_cycle_eligibility()
+                if not eligible:
+                    self.log(f"🛑 [فحص بداية الدورة] {block_reason} — إيقاف البوت تلقائياً دون الاتصال بالسيرفر.")
+                    self._stop_reason = block_reason
+                    self.is_running = False
+                    break
+
                 self.iteration += 1
                 self.log(f"\n{'═' * 55}\n  🔄 بدء الدورة رقم #{self.iteration}\n{'═' * 55}")
 
@@ -1103,14 +1228,14 @@ class CastleBot:
                 except Exception:
                     pass
 
-                # 4. حساب موعد الدورة القادمة والانتظار (عشوائي بين 40 إلى 60 دقيقة)
-                min_m = int(self.config.get("min_loop_interval_minutes", 40))
-                max_m = int(self.config.get("max_loop_interval_minutes", 60))
-                if min_m > max_m:
-                    min_m, max_m = max_m, min_m
-                sleep_duration = random.randint(min_m * 60, max_m * 60)
+                # 4. حساب موعد الدورة القادمة والانتظار (المدة الأساسية + عشوائية ذكية 0 إلى 10 دقائق)
+                if getattr(self, "_cli_fixed_interval", None) and int(self._cli_fixed_interval) > 0:
+                    sleep_duration = int(self._cli_fixed_interval) * 60
+                else:
+                    base_m = max(30, min(180, int(getattr(self, "loop_interval_minutes", 40) or 40)))
+                    sleep_duration = random.randint(base_m * 60, (base_m + 10) * 60)
                 next_ts = time.time() + sleep_duration
-                next_iso = datetime.fromtimestamp(next_ts).isoformat()
+                next_iso = datetime.fromtimestamp(next_ts, timezone.utc).isoformat()
                 next_dt = datetime.fromtimestamp(next_ts).strftime("%H:%M:%S")
                 wait_minutes = round(sleep_duration / 60, 1)
 
@@ -1170,7 +1295,7 @@ class CastleBot:
 
         wait_seconds = 240  # 4 دقائق كاملة
         next_ts = time.time() + wait_seconds
-        next_iso = datetime.fromtimestamp(next_ts).isoformat()
+        next_iso = datetime.fromtimestamp(next_ts, timezone.utc).isoformat()
         next_dt = datetime.fromtimestamp(next_ts).strftime("%H:%M:%S")
 
         # ضبط الحالة على 'disconnected' لتعكس كارد القلعة في الواجهة شارة "دخول من جهاز آخر" مباشرة
@@ -1238,7 +1363,7 @@ class CastleBot:
             except Exception:
                 pass
         else:
-            self._set_state("stopped", "متوقف")
+            self._set_state("stopped", self._stop_reason or "متوقف")
         self.log("✓ تم إيقاف البوت بنجاح وتفريغ كافة كائناته من الذاكرة.")
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -1284,6 +1409,7 @@ class BotManager:
         log_callback: Optional[Callable[[str], None]] = None,
         castle_id: Optional[str] = None,
         user_id: Optional[str] = None,
+        loop_interval: Optional[int] = None,
     ) -> bool:
         """تشغيل بوت لحساب محدد مع منع التكرار وضمان تنظيف أي بقايا سابقة"""
         castle_lock = self._get_castle_lock(email)
@@ -1319,6 +1445,8 @@ class BotManager:
                 log_callback=log_callback,
                 castle_id=castle_id,
                 user_id=user_id,
+                loop_interval_minutes=loop_interval,
+                manager=self,
             )
             bot.conn_state = "starting"
             self.bots[email] = bot
@@ -1413,8 +1541,7 @@ async def async_main():
     mgr = BotManager()
     cfg: Dict[str, Any] = {"tasks": {}}
     if args.interval and args.interval > 0:
-        cfg["min_loop_interval_minutes"] = args.interval
-        cfg["max_loop_interval_minutes"] = args.interval
+        cfg["cli_fixed_interval"] = args.interval
     if args.treasure:
         cfg["tasks"]["fountain"] = {"enabled": True}
         cfg["tasks"]["treasure_hunt"] = {"enabled": True}

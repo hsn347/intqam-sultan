@@ -3,11 +3,11 @@
 // ════════════════════════════════════════════════════════════════════
 // يعتمد كلياً على SQLite عبر REST API وخادم FastAPI، بدون Firestore.
 // المحلي:   http://localhost:8000
-// VPS:      https://ibraabot.online (عبر متغير البيئة VITE_BOT_API_URL)
+// VPS:      https://sultan.ibraabot.online (عبر متغير البيئة VITE_BOT_API_URL)
 // ════════════════════════════════════════════════════════════════════
 
 import { auth } from './firebase'
-import type { Castle, CastleConfig, User } from '../types'
+import type { AdminStats, Castle, CastleConfig, User } from '../types'
 import i18n from './i18n'
 import { localizeApiError } from './localize'
 
@@ -39,7 +39,7 @@ export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin
   }
-  return 'http://localhost:8080'
+  return 'http://localhost:8765'
 }
 
 export function getWsBaseUrl(): string {
@@ -262,6 +262,22 @@ export async function updateCastle(castleId: string, payload: {
   return { status: data.status, castle: formatCastleFromApi(data.castle) }
 }
 
+export async function updateCastlesLoopIntervals(
+  intervals: Record<string, number>
+): Promise<{ status: string; message: string; live_updated?: number }> {
+  const authHeaders = await getAuthHeader()
+  const res = await fetch(`${getApiBaseUrl()}/api/castles/loop-intervals`, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
+    body:    JSON.stringify({ intervals }),
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(parseAndLocalizeApiError(err))
+  }
+  return res.json()
+}
+
 export async function updateCastleCredentials(castleId: string, payload: {
   email:    string
   password?: string
@@ -326,13 +342,26 @@ export async function fetchCastleDataLive(email: string, userId?: string, castle
 // 👑 دوال لوحة الإدارة (Admin REST APIs)
 // ══════════════════════════════════════════════════════════════════
 
-export async function getAdminStats(): Promise<{ totalUsers: number; activeSubscriptions: number; totalCastles: number; activeBots?: number }> {
+export async function getAdminStats(): Promise<AdminStats> {
   const authHeaders = await getAuthHeader()
   const res = await fetch(`${getApiBaseUrl()}/api/admin/stats`, {
     headers: authHeaders,
   })
   if (!res.ok) throw new Error('فشل جلب الإحصائيات')
-  return res.json()
+  const raw = await res.json()
+  return {
+    totalUsers:          Number(raw.total_users ?? raw.totalUsers ?? 0),
+    activeSubscriptions: Number(raw.active_subscriptions ?? raw.activeSubscriptions ?? 0),
+    pendingUsers:        Number(raw.pending_users ?? raw.pendingUsers ?? 0),
+    expiredUsers:        Number(raw.expired_users ?? raw.expiredUsers ?? 0),
+    bannedUsers:         Number(raw.banned_users ?? raw.bannedUsers ?? 0),
+    totalCastles:        Number(raw.total_castles ?? raw.totalCastles ?? 0),
+    allowedCastles:      Number(raw.allowed_castles ?? raw.allowedCastles ?? 0),
+    allowedCastlesQuota: Number(raw.allowed_castles_quota ?? raw.allowedCastlesQuota ?? 0),
+    runningCastles:      Number(raw.running_castles ?? raw.runningCastles ?? raw.active_bots ?? raw.activeBots ?? 0),
+    activeBots:          Number(raw.active_bots ?? raw.activeBots ?? raw.running_castles ?? 0),
+    connectedBots:       Number(raw.connected_bots ?? raw.connectedBots ?? 0),
+  }
 }
 
 export async function getAdminUsers(): Promise<User[]> {
@@ -519,6 +548,19 @@ export async function stopUserBots(userId: string): Promise<{ status: string; st
   return res.json()
 }
 
+export async function stopAllBotsAdmin(): Promise<{ status: string }> {
+  const authHeaders = await getAuthHeader()
+  const res = await fetch(`${getApiBaseUrl()}/api/bots/stop-all`, {
+    method:  'POST',
+    headers: authHeaders,
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(parseAndLocalizeApiError(err))
+  }
+  return res.json()
+}
+
 export async function getBotStatus(castleId: string): Promise<BotStatusResult> {
   const authHeaders = await getAuthHeader()
   const res = await fetch(`${getApiBaseUrl()}/api/bots/status/${castleId}`, {
@@ -626,6 +668,7 @@ export function formatCastleFromApi(raw: any): Castle {
         seal_reason:      raw.seal_reason ?? null,
       }
     })(),
+    loop_interval: raw.loop_interval ? Number(raw.loop_interval) : 40,
     config: cfg,
   } as Castle
 }
@@ -673,9 +716,11 @@ export function formatUserFromApi(raw: any): User {
       expires_at:            expRaw || '',
       days_remaining:        isPending ? 0 : daysRemaining,
       max_castles_allowed:   raw.max_castles_allowed ?? raw.subscription?.max_castles_allowed ?? raw.max_castles ?? (isPending ? 0 : 10),
-      current_castles_count: raw.current_castles_count ?? raw.subscription?.current_castles_count ?? 0,
-      pending_castles_count: raw.pending_castles_count ?? raw.subscription?.pending_castles_count ?? 0,
-      total_castles_count:   raw.total_castles_count ?? raw.subscription?.total_castles_count ?? (raw.current_castles_count ?? 0),
+      current_castles_count: Number(raw.current_castles_count ?? raw.subscription?.current_castles_count ?? 0),
+      pending_castles_count: Number(raw.pending_castles_count ?? raw.subscription?.pending_castles_count ?? 0),
+      total_castles_count:   Number(raw.total_castles_count ?? raw.subscription?.total_castles_count ?? (raw.current_castles_count ?? 0)),
+      allowed_castles_count: Number(raw.allowed_castles_count ?? raw.subscription?.allowed_castles_count ?? 0),
+      running_castles_count: Number(raw.running_castles_count ?? raw.subscription?.running_castles_count ?? 0),
     },
   } as User
 }
@@ -687,14 +732,18 @@ export function formatUserFromApi(raw: any): User {
 export interface LiveProcessInfo {
   castle_id: string
   email: string
+  castle_name?: string
+  lord_name?: string
+  server_id?: number | null
   user_id: string
   user_email?: string
+  owner_name?: string
   thread_id: number | null
   thread_name: string
   thread_alive: boolean
   state: string
   live_category: 'running' | 'waiting' | 'other_login' | 'reconnecting' | 'starting' | string
-  category_label: string
+  category_label?: string
   current_step?: string
   status_message: string
   iteration: number
@@ -743,6 +792,7 @@ export async function getAdminLiveProcesses(): Promise<LiveProcessesResponse> {
 
 // ─── Proxies & Network Mode Management API ────────────────────────────────
 export interface ProxyCardInfo {
+  index?: number
   ip: string
   port: number
   country: string
@@ -789,6 +839,61 @@ export async function testAdminProxy(proxyUrl: string): Promise<{ ok: boolean; p
   return res.json()
 }
 
+// ─── Manual proxy assignment (super admin) ───────────────────
+export interface ProxyLookupItem {
+  castle_id: string
+  email: string
+  castle_name: string
+  lord_name: string
+  state: string
+  is_running: boolean
+  proxy_index: number | null
+  proxy_ip: string
+  owner: { uid: string; email: string; username: string }
+}
+
+export interface ProxyOpResult {
+  moved: number
+  running_count: number
+  proxy_index?: number
+  ip?: string
+  targets?: Record<string, number>
+}
+
+async function adminProxyPost(path: string, body: Record<string, unknown>): Promise<ProxyOpResult> {
+  const authHeaders = await getAuthHeader()
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/proxies/${path}`, {
+    method: 'POST',
+    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.detail || 'فشلت العملية')
+  return data as ProxyOpResult
+}
+
+export async function lookupAdminProxyCastles(q: string): Promise<ProxyLookupItem[]> {
+  const authHeaders = await getAuthHeader()
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/proxies/lookup?q=${encodeURIComponent(q)}`, {
+    headers: authHeaders,
+  })
+  if (!res.ok) throw new Error('فشل البحث')
+  const data = await res.json()
+  return data?.items || []
+}
+
+export const assignCastleProxy = (castleEmail: string, proxyIndex: number) =>
+  adminProxyPost('assign-castle', { castle_email: castleEmail, proxy_index: proxyIndex })
+
+export const assignUserProxy = (userId: string, proxyIndex: number) =>
+  adminProxyPost('assign-user', { user_id: userId, proxy_index: proxyIndex })
+
+export const drainAdminProxy = (proxyIndex: number) =>
+  adminProxyPost('drain', { proxy_index: proxyIndex })
+
+export const unbindAdminProxy = (target: { castle_email: string } | { user_id: string }) =>
+  adminProxyPost('unbind', target)
+
 export interface NetworkModeResponse {
   status: string
   network_mode: NetworkMode
@@ -825,6 +930,50 @@ export async function toggleAdminNetworkMode(
     throw new Error(data.detail || 'فشل تغيير نمط الشبكة')
   }
   return res.json()
+}
+
+// ─── Super Admin: Banned Castles (sealed by game admins) ───────
+export interface AdminBannedCastle {
+  castle_id: string
+  game_email: string
+  castle_name: string
+  lord_name: string
+  castle_level: number | null
+  lord_level: number | null
+  power: number | null
+  server_id: string
+  alliance_name: string
+  is_active: boolean
+  state: string
+  conn_state: string
+  seal_type: number | null
+  seal_reason: string
+  status_message: string
+  banned_at: string
+  created_at: string
+  proxy_index: number | null
+  owner: {
+    uid: string
+    email: string
+    username: string
+    phone: string
+    tenant_domain: string
+    is_banned: boolean
+    subscription_end: string
+  }
+}
+
+export async function fetchAdminBannedCastles(): Promise<AdminBannedCastle[]> {
+  const authHeaders = await getAuthHeader()
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/banned-castles`, {
+    headers: authHeaders,
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.detail || 'فشل جلب القلاع المحظورة')
+  }
+  const data = await res.json()
+  return data?.castles || []
 }
 
 // ─── Super Admin: Users with full Castles List ────────────────

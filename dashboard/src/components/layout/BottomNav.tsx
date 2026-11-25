@@ -55,7 +55,7 @@ export function BottomNav() {
         width: '100%',
         margin: 0,
         marginBottom: 0,
-        paddingBottom: 0,
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
       <div className="flex justify-around items-center mx-auto px-3 pt-1 pb-0.5 max-w-lg">

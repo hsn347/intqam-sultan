@@ -102,7 +102,7 @@ class GatherResourcesTask(MarchManagerTask):
         """قراءة سعة الفيلق القصوى للقلعة حصرياً عبر tasks/march_capacity.py (0-Network)."""
         from tasks.march_capacity import get_march_capacity_no_heroes
 
-        cap = self._safe_int(get_march_capacity_no_heroes(self._get_live_snapshot()), 0)
+        cap = self._safe_int(get_march_capacity_no_heroes(self._get_live_snapshot(), now=int(time.time())), 0)
         return cap if cap > 0 else 1000
 
     def _resolve_smart_resource_level(self) -> int:
@@ -196,7 +196,11 @@ class GatherResourcesTask(MarchManagerTask):
 
             if not formation.get("success") or formation.get("total_soldiers", 0) <= 0:
                 if not dry_run:
-                    await self.release_target(target["target_id"], kingdom_id=target.get("kingdom_id"))
+                    await self.release_target(
+                        target["target_id"],
+                        kingdom_id=target.get("kingdom_id"),
+                        target_type=res_key,
+                    )
                 return {
                     "success": False,
                     "stop_all": True,

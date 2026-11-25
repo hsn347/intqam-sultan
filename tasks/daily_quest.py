@@ -431,38 +431,6 @@ class DailyQuestTask(BaseTask):
         return False
 
     @classmethod
-    def _apply_pending_quest_notify_patch(cls, quest_ctrl: Dict[str, Any]) -> None:
-        """
-        في حال وصل إشعار NOTIFY_QUEST (12) من نوع 'update' ودُمج سطحياً عبر live_memory،
-        نطبّق التقدم الجديد على المهمة المطابقة في questArray/guideQuest/pGuideQuest.
-        """
-        if quest_ctrl.get("notifyType") != "update":
-            return
-        updated_qid = cls._safe_int(quest_ctrl.get("questID"), 0)
-        if updated_qid <= 0 or "progress" not in quest_ctrl:
-            return
-        new_progress = cls._safe_int(quest_ctrl.get("progress"), 0)
-
-        def _patch_entry(entry: Any) -> None:
-            if not isinstance(entry, dict):
-                return
-            if cls._safe_int(entry.get("questID"), 0) == updated_qid:
-                cur_prog = cls._safe_int(entry.get("progress"), 0)
-                if new_progress > cur_prog:
-                    entry["progress"] = new_progress
-                aim = cls._safe_int(entry.get("aim"), 0)
-                if aim > 0 and cls._safe_int(entry.get("progress"), 0) >= aim:
-                    if cls._safe_int(entry.get("status"), 0) == QUEST_STATUS_PERFORMING:
-                        entry["status"] = QUEST_STATUS_COMMIT
-
-        _patch_entry(quest_ctrl.get("guideQuest"))
-        _patch_entry(quest_ctrl.get("pGuideQuest"))
-        qa = quest_ctrl.get("questArray")
-        if isinstance(qa, list):
-            for item in qa:
-                _patch_entry(item)
-
-    @classmethod
     def _collect_claimable_quests(
         cls,
         quest_ctrl: Dict[str, Any],
@@ -472,8 +440,6 @@ class DailyQuestTask(BaseTask):
         جمع كل مهام التنمية الجاهزة للاستلام بدون تكرار (مرتبة: التوجيهية -> العادية -> التشغيلية).
         يعيد قائمة من الأزواج: [(quest_id, is_operational), ...]
         """
-        cls._apply_pending_quest_notify_patch(quest_ctrl)
-
         excluded = exclude_ids or set()
         seen: Set[int] = set()
         result: List[Tuple[int, bool]] = []

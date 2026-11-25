@@ -217,9 +217,11 @@ def configure_and_start_services(client, cfg: DeployConfig) -> None:
     )
 
     ngx_src = shlex.quote(f"{cfg.remote_dir}/{cfg.nginx_conf_name}")
+    ngx_avail = shlex.quote(f"/etc/nginx/sites-available/{cfg.nginx_conf_name}")
+    ngx_enabled = shlex.quote(f"/etc/nginx/sites-enabled/{cfg.nginx_conf_name}")
     ssh_run(
         client,
-        f"cp {ngx_src} /etc/nginx/sites-available/default && nginx -t && (systemctl reload nginx || systemctl restart nginx)",
+        f"cp -f {ngx_src} {ngx_avail} && ln -sf {ngx_avail} {ngx_enabled} && nginx -t && (systemctl reload nginx || systemctl restart nginx)",
         timeout=30,
     )
 
@@ -270,7 +272,7 @@ def run_full_initial_deployment() -> None:
     print("\n" + "═" * 70)
     print(f"🎉 اكتمل النشر الأولي للسيرفر الجديد {cfg.server_host} بنجاح تام!")
     print("🛑 جميع البوتات متوقفة حالياً وهادئة (idle).")
-    print(f"🌐 لوحة التحكم متاحة عبر: http://{cfg.server_host}")
+    print(f"🌐 لوحة التحكم متاحة عبر: https://{cfg.domain_name}")
     print("👉 لتشغيل الحسابات تدريجياً وبأمان، نفذ:")
     print("   python deploy_logic/deploy_initial.py --resume")
     print("═" * 70)

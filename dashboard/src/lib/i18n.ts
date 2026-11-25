@@ -9,7 +9,7 @@ import { getInitialLanguage } from '../config/tenants'
 /**
  * تهيئة i18next بناءً على لغة النطاق والخيارات اليدوية للمستخدم:
  * - دومين نورجان (nurjanbot.online): اللغة الافتراضية التركية ('tr').
- * - دومين إبراهيم الرئيسي (ibraabot.online): اللغة الافتراضية العربية ('ar').
+ * - دومين إبراهيم الرئيسي (sultan.ibraabot.online): اللغة الافتراضية العربية ('ar').
  * - تم إلغاء استخدام navigator detector لمنع لغة متصفح الزائر من تجاوز لغة النطاق الافتراضية.
  */
 const initialLang = getInitialLanguage()

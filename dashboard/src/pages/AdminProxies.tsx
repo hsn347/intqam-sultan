@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { AdminLayout } from '../components/layout/AdminLayout'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
   ShieldCheck, Globe, RefreshCw, Zap, CheckCircle2,
@@ -15,6 +15,7 @@ import {
   type NetworkMode,
 } from '../lib/botApi'
 import toast from 'react-hot-toast'
+import { ProxyLookupPanel, ProxyMoveModal, type MoveTarget } from '../components/admin/ProxyManualTools'
 
 // حفظ نتائج الفحص وحالة البطاقات الموسعة في الذاكرة لمنع فقدانها عند التنقل بين صفحات لوحة التحكم
 const _persistedTestResults: Record<string, { ok: boolean; ping?: number; msg: string }> = {}
@@ -25,6 +26,8 @@ export function AdminProxiesPage() {
   const [testingIp, setTestingIp] = useState<string | null>(null)
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; ping?: number; msg: string }>>(() => ({ ..._persistedTestResults }))
   const [expandedIps, setExpandedIps] = useState<Set<string>>(() => new Set(_persistedExpandedIps))
+  const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null)
+  const qc = useQueryClient()
 
   // Toggle Modal State
   const [showConfirmModal, setShowConfirmModal] = useState(false)
@@ -303,6 +306,22 @@ export function AdminProxiesPage() {
           </div>
         )}
 
+        {/* Manual tools: بحث + نقل قلعة/مستخدم + إزالة ارتباط */}
+        <ProxyLookupPanel
+          onMove={setMoveTarget}
+          onChanged={() => qc.invalidateQueries({ queryKey: ['admin'] })}
+        />
+
+        {moveTarget && (
+          <ProxyMoveModal
+            target={moveTarget}
+            proxies={proxies}
+            testResults={testResults}
+            onClose={() => setMoveTarget(null)}
+            onDone={() => qc.invalidateQueries({ queryKey: ['admin'] })}
+          />
+        )}
+
         {/* Confirmation Modal */}
         {showConfirmModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65">
@@ -458,8 +477,19 @@ export function AdminProxiesPage() {
                         {isExpanded && (
                           <div className="mt-1.5 max-h-36 overflow-y-auto space-y-1 p-2 rounded-xl bg-slate-50 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 text-[11px] font-mono text-slate-600 dark:text-slate-300">
                             {p.assigned_castles.map((em, i) => (
-                              <div key={i} className="truncate py-0.5 border-b border-slate-200/30 dark:border-white/5 last:border-none">
-                                • {em}
+                              <div key={i} className="flex justify-between items-center gap-2 py-0.5 border-b border-slate-200/30 dark:border-white/5 last:border-none">
+                                <span className="truncate">• {em}</span>
+                                {p.index !== undefined && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setMoveTarget({ kind: 'castle', email: em, label: em, currentIndex: p.index ?? null })}
+                                    className="p-1 rounded-md text-slate-400 shrink-0 cursor-pointer"
+                                    title={t('admin.proxies.manage.moveCastle')}
+                                    aria-label={t('admin.proxies.manage.moveCastle')}
+                                  >
+                                    <ArrowRightLeft size={12} />
+                                  </button>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -486,6 +516,16 @@ export function AdminProxiesPage() {
                       </>
                     )}
                   </button>
+
+                  {count > 0 && p.index !== undefined && proxies.length > 1 && (
+                    <button
+                      onClick={() => setMoveTarget({ kind: 'drain', fromIndex: p.index as number, fromIp: p.ip, count })}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 text-xs font-bold rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 cursor-pointer shadow-xs"
+                    >
+                      <ArrowRightLeft size={13} />
+                      <span>{t('admin.proxies.manage.drainBtn')}</span>
+                    </button>
+                  )}
                 </div>
               )
             })}
