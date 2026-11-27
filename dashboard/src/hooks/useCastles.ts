@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   fetchCastles, fetchCastle, createCastle, updateCastle,
   updateCastleCredentials, toggleCastleActive, deleteCastle,
-  startBot, stopBot, stopUserBots, getWsBaseUrl
+  startBot, stopBot, stopUserBots, getWsBaseUrl, getWsAuthQuery
 } from '../lib/botApi'
 import type { Castle, BotState, CastleConfig } from '../types'
 import { DEFAULT_CASTLE_CONFIG } from '../types'
@@ -228,10 +228,11 @@ export function useCastles(userId: string) {
     },
     initialData: () => getCachedCastles(userId),
     initialDataUpdatedAt: () => getCachedCastlesTimestamp(userId),
-    staleTime: 60_000,
+    staleTime: 10_000,
     gcTime: 1000 * 60 * 60 * 24,
-    refetchInterval: 60_000,
-    refetchOnWindowFocus: false,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
     enabled: !!userId,
   })
 }
@@ -271,7 +272,7 @@ export function useBotStatusLive(
 }
 
 // ─── Real process status via WebSocket ────────────────────
-type RealStatus = 'running' | 'starting' | 'idle' | 'disconnected' | 'reconnecting' | 'waiting' | 'offline' | 'deploying' | 'error' | 'sealed'
+type RealStatus = 'running' | 'starting' | 'idle' | 'disconnected' | 'reconnecting' | 'waiting' | 'offline' | 'deploying' | 'error' | 'sealed' | 'pending' | 'rejected'
 
 export interface RealBotStatusResult {
   status: RealStatus
@@ -283,6 +284,7 @@ export interface RealBotStatusResult {
 }
 
 export function useRealBotStatus(castleId: string, enabled: boolean = true): RealBotStatusResult {
+  const qc = useQueryClient()
   const [status, setStatus] = useState<RealStatus>('offline')
   const [nextRunTime, setNextRunTime] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
@@ -305,11 +307,26 @@ export function useRealBotStatus(castleId: string, enabled: boolean = true): Rea
     let ws: WebSocket | null = null
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
     let destroyed = false
+    let prevStatus: RealStatus | null = null
+
+    function handleIncomingStatus(nextSt: RealStatus) {
+      setStatus(nextSt)
+      if ((nextSt === 'pending' || nextSt === 'rejected') && prevStatus && prevStatus !== nextSt) {
+        void qc.invalidateQueries({ queryKey: ['castles'] })
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('ibra:refresh-profile'))
+        }
+      }
+      prevStatus = nextSt
+    }
 
     function connect() {
       if (destroyed) return
-      try {
-        ws = new WebSocket(`${WS_BASE}/ws/status/${castleId}`)
+      void (async () => {
+        try {
+          const authQuery = await getWsAuthQuery()
+          if (destroyed) return
+          ws = new WebSocket(`${WS_BASE}/ws/status/${castleId}${authQuery}`)
 
         ws.onmessage = (e) => {
           const raw = e.data?.trim()
@@ -317,7 +334,7 @@ export function useRealBotStatus(castleId: string, enabled: boolean = true): Rea
           if (raw.startsWith('{')) {
             try {
               const parsed = JSON.parse(raw)
-              if (parsed.status) setStatus(parsed.status as RealStatus)
+              if (parsed.status) handleIncomingStatus(parsed.status as RealStatus)
               if (parsed.next_run_time !== undefined) setNextRunTime(parsed.next_run_time)
               if (parsed.status_message !== undefined) setStatusMessage(parsed.status_message)
               if (parsed.is_sealed !== undefined) setIsSealed(Boolean(parsed.is_sealed))
@@ -327,24 +344,25 @@ export function useRealBotStatus(castleId: string, enabled: boolean = true): Rea
               // fallback
             }
           } else {
-            setStatus(raw as RealStatus)
+            handleIncomingStatus(raw as RealStatus)
           }
         }
 
-        ws.onclose = () => {
+        ws.onclose = (ev) => {
           if (!destroyed) {
             setStatus('offline')
-            reconnectTimer = setTimeout(connect, 3000)
+            reconnectTimer = setTimeout(connect, ev.code === 1008 ? 15000 : 3000)
           }
         }
 
         ws.onerror = () => {
           ws?.close()
         }
-      } catch {
-        setStatus('offline')
-        if (!destroyed) reconnectTimer = setTimeout(connect, 3000)
-      }
+        } catch {
+          setStatus('offline')
+          if (!destroyed) reconnectTimer = setTimeout(connect, 3000)
+        }
+      })()
     }
 
     connect()
@@ -380,8 +398,11 @@ export function useUserBotStatuses(userId: string, enabled: boolean = true) {
 
     function connect() {
       if (destroyed) return
-      try {
-        ws = new WebSocket(`${WS_BASE}/ws/user-status/${userId}`)
+      void (async () => {
+        try {
+          const authQuery = await getWsAuthQuery()
+          if (destroyed) return
+          ws = new WebSocket(`${WS_BASE}/ws/user-status/${userId}${authQuery}`)
 
         ws.onmessage = (e) => {
           try {
@@ -394,18 +415,19 @@ export function useUserBotStatuses(userId: string, enabled: boolean = true) {
           }
         }
 
-        ws.onclose = () => {
+        ws.onclose = (ev) => {
           if (!destroyed) {
-            reconnectTimer = setTimeout(connect, 4000)
+            reconnectTimer = setTimeout(connect, ev.code === 1008 ? 15000 : 4000)
           }
         }
 
         ws.onerror = () => {
           ws?.close()
         }
-      } catch {
-        if (!destroyed) reconnectTimer = setTimeout(connect, 4000)
-      }
+        } catch {
+          if (!destroyed) reconnectTimer = setTimeout(connect, 4000)
+        }
+      })()
     }
 
     connect()
@@ -685,6 +707,9 @@ export function useAddCastle(userId: string) {
       qc.invalidateQueries({ queryKey: ['user', userId] })
       qc.invalidateQueries({ queryKey: ['admin_users'] })
       qc.invalidateQueries({ queryKey: ['admin_stats'] })
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('ibra:refresh-profile'))
+      }
     },
   })
 }
@@ -743,6 +768,9 @@ export function useDeleteCastle(userId: string) {
       qc.invalidateQueries({ queryKey: ['user', userId] })
       qc.invalidateQueries({ queryKey: ['admin_users'] })
       qc.invalidateQueries({ queryKey: ['admin_stats'] })
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('ibra:refresh-profile'))
+      }
     },
   })
 }

@@ -1,75 +1,75 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 
-// قائمة تعريفية ثابتة بكل المهام التي يستطيع البوت تنفيذها (لا تعتمد على أي استعلام شبكي)
-const CATEGORIES: { id: string; icon: string; items: { key: string; icon: string }[] }[] = [
+// قائمة تعريفية ثابتة بكل المهام التي يستطيع البوت تنفيذها بأيقونات ومسميات اللعبة الرسمية
+const CATEGORIES: { id: string; img: string; items: { key: string; img: string }[] }[] = [
   {
     id: 'eco',
-    icon: '💰',
+    img: '/images/resources/altin.png',
     items: [
-      { key: 'city_harvest', icon: '🌾' },
-      { key: 'watermill', icon: '🌱' },
-      { key: 'port', icon: '⚓' },
-      { key: 'merchant_ship', icon: '🚢' },
-      { key: 'treasure', icon: '🎰' },
-      { key: 'wonder_merchant', icon: '👳' },
-      { key: 'war_medal', icon: '🎖️' },
-      { key: 'stamina', icon: '⚡' },
+      { key: 'city_harvest', img: '/images/development/hasatet.png' },
+      { key: 'watermill', img: '/images/watermill/uretimbonusust.png' },
+      { key: 'port', img: '/images/daily/port.png' },
+      { key: 'merchant_ship', img: '/images/daily/merchant_ship.png' },
+      { key: 'treasure', img: '/images/fountain/fountain.png' },
+      { key: 'wonder_merchant', img: '/images/prestige/kacakci.png' },
+      { key: 'war_medal', img: '/images/daily/war_medal.png' },
+      { key: 'stamina', img: '/images/daily/dayaniklilik_2.png' },
     ],
   },
   {
     id: 'build',
-    icon: '🏗️',
+    img: '/images/development/icon_building_levelup.png',
     items: [
-      { key: 'building', icon: '🏰' },
-      { key: 'research', icon: '🔬' },
-      { key: 'material_synthesis', icon: '💎' },
-      { key: 'material_workshop', icon: '🧵' },
-      { key: 'forge_equipment', icon: '🔨' },
+      { key: 'building', img: '/images/development/insaat.png' },
+      { key: 'research', img: '/images/development/icon_building_research.png' },
+      { key: 'material_synthesis', img: '/images/daily/material_synthesis.png' },
+      { key: 'material_workshop', img: '/images/daily/malzeme_atolyesi.png' },
+      { key: 'forge_equipment', img: '/images/daily/forge_equipment.png' },
     ],
   },
   {
     id: 'military',
-    icon: '🛡️',
+    img: '/images/soldiers/icon_building_training_finish.png',
     items: [
-      { key: 'train', icon: '⚔️' },
-      { key: 'daily_train', icon: '🪖' },
-      { key: 'cure_wounded', icon: '🏥' },
-      { key: 'shield', icon: '🛡️' },
-      { key: 'skills', icon: '✨' },
-      { key: 'pet', icon: '🦅' },
+      { key: 'train', img: '/images/soldiers/icon_building_training_finish.png' },
+      { key: 'daily_train', img: '/images/soldiers/icon_train_army.png' },
+      { key: 'cure_wounded', img: '/images/daily/cure_wounded.png' },
+      { key: 'shield', img: '/images/development/peace_shield.png' },
+      { key: 'skills', img: '/images/skills/lord/Develop_8.png' },
+      { key: 'pet', img: '/images/daily/pet.png' },
     ],
   },
   {
     id: 'marches',
-    icon: '🗺️',
+    img: '/images/combat/icon_map_attack.png',
     items: [
-      { key: 'march_manager', icon: '🧭' },
-      { key: 'hunt_monsters', icon: '👹' },
-      { key: 'gather_resources', icon: '🧺' },
-      { key: 'explore_ruins', icon: '🏺' },
-      { key: 'escort_treasure', icon: '📦' },
-      { key: 'resource_help', icon: '🚚' },
-      { key: 'gather_speed_buff', icon: '⏫' },
+      { key: 'march_manager', img: '/images/combat/icon_fight_expedition.png' },
+      { key: 'hunt_monsters', img: '/images/combat/monster_all.png' },
+      { key: 'gather_resources', img: '/images/gather/icon_map_mineral_collect.png' },
+      { key: 'explore_ruins', img: '/images/combat/kesif.png' },
+      { key: 'escort_treasure', img: '/images/daily/ganimetkaravani.png' },
+      { key: 'resource_help', img: '/images/transport/transport.png' },
+      { key: 'gather_speed_buff', img: '/images/gather/gather_speed_buff.png' },
     ],
   },
   {
     id: 'compete',
-    icon: '🏆',
+    img: '/images/daily/icon_build_121.png',
     items: [
-      { key: 'arena', icon: '🏟️' },
-      { key: 'hero_trial', icon: '🗡️' },
-      { key: 'command_hall', icon: '🏛️' },
-      { key: 'imperial_mausoleum', icon: '🔺' },
-      { key: 'alliance', icon: '🤝' },
+      { key: 'arena', img: '/images/daily/icon_build_121.png' },
+      { key: 'hero_trial', img: '/images/daily/hero_trial.png' },
+      { key: 'command_hall', img: '/images/daily/command_hall.png' },
+      { key: 'imperial_mausoleum', img: '/images/daily/pyramid.png' },
+      { key: 'alliance', img: '/images/daily/lonca.png' },
     ],
   },
   {
     id: 'daily',
-    icon: '📋',
+    img: '/images/daily/quest_button.png',
     items: [
-      { key: 'daily_quest', icon: '📋' },
-      { key: 'flower', icon: '🌸' },
+      { key: 'daily_quest', img: '/images/daily/quest_button.png' },
+      { key: 'flower', img: '/images/daily/flower.png' },
     ],
   },
 ]
@@ -97,28 +97,41 @@ export function BotCapabilities() {
       <div className="space-y-4 px-3.5 sm:px-5 pt-3 pb-4 border-gray-100 dark:border-white/8 border-t">
         {CATEGORIES.map(cat => (
           <section key={cat.id}>
-            <h3 className="flex items-center gap-1.5 mb-2 font-bold text-gray-700 dark:text-gray-200 text-xs sm:text-sm">
-              <span>{cat.icon}</span>
+            <h3 className="flex items-center gap-2 mb-2 font-bold text-gray-700 dark:text-gray-200 text-xs sm:text-sm">
+              <img
+                src={cat.img}
+                alt={t(`dashboard.capabilities.categories.${cat.id}`)}
+                loading="lazy"
+                className="w-5 h-5 object-contain shrink-0 select-none"
+              />
               {t(`dashboard.capabilities.categories.${cat.id}`)}
               <span className="font-medium text-[10px] text-gray-400">({cat.items.length})</span>
             </h3>
             <div className="gap-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              {cat.items.map(item => (
-                <div
-                  key={item.key}
-                  className="flex items-start gap-2.5 bg-gray-50 dark:bg-white/4 px-2.5 py-2 border border-gray-100 dark:border-white/8 rounded-xl"
-                >
-                  <span className="text-lg leading-none shrink-0">{item.icon}</span>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-gray-900 dark:text-white text-xs sm:text-[13px] truncate">
-                      {t(`dashboard.capabilities.items.${item.key}.n`)}
-                    </div>
-                    <div className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
-                      {t(`dashboard.capabilities.items.${item.key}.d`)}
+              {cat.items.map(item => {
+                const title = t(`dashboard.capabilities.items.${item.key}.n`)
+                return (
+                  <div
+                    key={item.key}
+                    className="flex items-center gap-2.5 bg-gray-50 dark:bg-white/4 px-2.5 py-2 border border-gray-100 dark:border-white/8 rounded-xl"
+                  >
+                    <img
+                      src={item.img}
+                      alt={title}
+                      loading="lazy"
+                      className="w-7 h-7 object-contain shrink-0 select-none"
+                    />
+                    <div className="min-w-0">
+                      <div className="font-semibold text-gray-900 dark:text-white text-xs sm:text-[13px] truncate">
+                        {title}
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
+                        {t(`dashboard.capabilities.items.${item.key}.d`)}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </section>
         ))}

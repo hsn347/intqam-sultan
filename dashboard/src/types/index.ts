@@ -244,25 +244,26 @@ export interface Castle {
 }
 
 export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
-  // جميع المهام مغلقة افتراضياً عند إضافة قلعة جديدة باستثناء جمع القمح لفل 4
+  // المهام الأولية الستة مفعّلة مع الإضافة الأولية وبقية المهام الاختيارية مغلقة افتراضياً
   city_harvest: { enabled: false },
   research: { enabled: false },
-  alliance: { enabled: false },
+  alliance: { enabled: true },
   port: { enabled: false },
+  daily_train: { enabled: false },
   train: { enabled: false, levels: { infantry: 0, cavalry: 0, archers: 0, chariots: 0 } },
-  pet: { enabled: false, target_pet: 1256 },
+  pet: { enabled: true, target_pet: 1251 },
   territory_expansion: { enabled: false },
   torch_chest: { enabled: false },
   open_torch_chest: { enabled: false },
   hero_consign: { enabled: false },
   shield: { enabled: false, duration: '8h', allow_gold: false },
   flower: { enabled: false, allow_gold: false },
-  wonder_merchant: { enabled: false },
-  material_synthesis: { enabled: false },
+  wonder_merchant: { enabled: true },
+  material_synthesis: { enabled: true },
   cure_wounded: { enabled: false, mode: 'daily' },
   forge_equipment: { enabled: false, category: 'weapon' },
   daily_quest: { enabled: true },
-  arena: { enabled: false, mode: 'daily', arena_type: 'kingdom', auto_claim_rewards: true },
+  arena: { enabled: true, mode: 'daily', arena_type: 'kingdom', auto_claim_rewards: true },
   hero_trial: { enabled: false },
   command_hall: { enabled: false, mode: 'daily', allow_marches: true, allow_snipe: true, allow_rescue: true, allow_dialogue: true, allow_army_group: true, auto_claim_rewards: true, auto_upgrade_hall: true, min_safety_stamina: 10 },
   stamina: {
@@ -281,7 +282,7 @@ export const DEFAULT_CASTLE_CONFIG: CastleConfig = {
   vip_gift: { enabled: false },
   tactics_hall: { enabled: false, tactic: 'القلعة الفارغة' },
   watermill: { enabled: false, resources: ['food', 'wood', 'iron', 'silver', 'crystal'], types: 'all', allow_shop_buy: false },
-  fountain: { enabled: false, resources: ['food', 'wood', 'iron', 'diamond'], allow_gold: false, gold_times: 0 },
+  fountain: { enabled: true, resources: ['food'], allow_gold: false, gold_times: 0 },
   material_workshop: { enabled: false, selected_materials: [200101, 200201, 200301, 200401, 200501, 200601] },
   caravan: { enabled: false },
   port_delegate: { enabled: false, shop_item: 'all' },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -336,6 +336,8 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
       qc.invalidateQueries({ queryKey: ['admin_users'] })
       qc.invalidateQueries({ queryKey: ['admin_stats'] })
       qc.invalidateQueries({ queryKey: ['admin_users_castles'] })
+      qc.invalidateQueries({ queryKey: ['castles', user.uid] })
+      qc.invalidateQueries({ queryKey: ['castles'] })
       toast.success(t('admin.quickApproveSuccess', { name: user.username || user.email }))
       onClose()
     } catch {
@@ -368,6 +370,8 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
       qc.invalidateQueries({ queryKey: ['admin_users'] })
       qc.invalidateQueries({ queryKey: ['admin_stats'] })
       qc.invalidateQueries({ queryKey: ['admin_users_castles'] })
+      qc.invalidateQueries({ queryKey: ['castles', user.uid] })
+      qc.invalidateQueries({ queryKey: ['castles'] })
       toast.success(t('admin.modals.saveSuccess'))
       onClose()
     } catch {
@@ -585,7 +589,10 @@ function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
 // Modal 2: Manage User Castles
 function UserCastlesModal({ user, onClose }: { user: User; onClose: () => void }) {
   const { t } = useTranslation()
-  const { data, isLoading } = useCastles(user.uid)
+  const { data, isLoading, refetch } = useCastles(user.uid)
+  useEffect(() => {
+    void refetch()
+  }, [user.uid, refetch])
   const castlesList: Castle[] = data?.pages.flatMap(p => p.items) ?? []
   const approveCastle = useApproveCastle()
   const rejectCastle = useRejectCastle()
@@ -842,6 +849,8 @@ export function AdminPage() {
       qc.invalidateQueries({ queryKey: ['admin_users'] })
       qc.invalidateQueries({ queryKey: ['admin_stats'] })
       qc.invalidateQueries({ queryKey: ['admin_users_castles'] })
+      qc.invalidateQueries({ queryKey: ['castles', u.uid] })
+      qc.invalidateQueries({ queryKey: ['castles'] })
       toast.success(t('admin.expiry.extendSuccess', { name: u.username || u.email, count: days }))
     } catch {
       toast.error(t('admin.modals.saveError'))
@@ -875,6 +884,8 @@ export function AdminPage() {
       qc.invalidateQueries({ queryKey: ['admin_users'] })
       qc.invalidateQueries({ queryKey: ['admin_stats'] })
       qc.invalidateQueries({ queryKey: ['admin_users_castles'] })
+      qc.invalidateQueries({ queryKey: ['castles', u.uid] })
+      qc.invalidateQueries({ queryKey: ['castles'] })
       toast.success(t('admin.quickApproveSuccess', { name: u.username || u.email }))
     } catch {
       toast.error(t('common.error'))
@@ -892,6 +903,7 @@ export function AdminPage() {
       qc.invalidateQueries({ queryKey: ['admin_users'] })
       qc.invalidateQueries({ queryKey: ['admin_stats'] })
       qc.invalidateQueries({ queryKey: ['admin_users_castles'] })
+      qc.invalidateQueries({ queryKey: ['castles'] })
       toast.success(t('admin.approveAllSuccess', { count: res.approved_count ?? pendingUsersCount }))
     } catch (err: any) {
       toast.error(err?.message || t('common.error'))
@@ -1005,7 +1017,7 @@ export function AdminPage() {
                   {filteredEntries.length}
                 </span>
               </h2>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+              <div className="flex sm:flex-row flex-col sm:items-center gap-2 w-full sm:w-auto">
                 <div className="relative w-full sm:w-72">
                   <Search size={15} className="top-1/2 z-10 absolute text-slate-400 -translate-y-1/2 pointer-events-none start-3" />
                   <input
@@ -1020,7 +1032,7 @@ export function AdminPage() {
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder={t('admin.searchUsers')}
-                    className="admin-search-input shadow-xs py-2 rounded-xl outline-none w-full min-h-[42px] sm:min-h-[38px] text-base sm:text-sm"
+                    className="shadow-xs py-2 rounded-xl outline-none w-full min-h-[42px] sm:min-h-[38px] sm:text-sm text-base admin-search-input"
                     style={{ paddingInlineStart: '2.35rem', paddingInlineEnd: '2.35rem' }}
                   />
                   {search && (
@@ -1187,7 +1199,7 @@ export function AdminPage() {
                               <button onClick={e=>{e.stopPropagation();setMenuUser(u)}} className="relative p-2 rounded-xl text-slate-600 dark:text-gray-300 cursor-pointer" title={t('admin.expiry.more')} aria-label={t('admin.expiry.more')}>
                                 <MoreHorizontal size={16}/>
                                 {!meta.isBanned && meta.pendingCastles > 0 && (
-                                  <span className="top-1 end-1 absolute bg-amber-500 rounded-full w-2 h-2" />
+                                  <span className="top-1 absolute bg-amber-500 rounded-full w-2 h-2 end-1" />
                                 )}
                               </button>
                             </div>
@@ -1335,20 +1347,28 @@ export function AdminPage() {
       )}
 
       <AnimatePresence>
-        {editUser && <EditUserModal user={editUser} onClose={()=>setEditUser(null)} />}
-        {menuUser && (
-          <UserActionsMenu
-            user={menuUser}
-            isBanned={Boolean(menuUser.is_banned)}
-            pendingCastles={Number(menuUser.subscription?.pending_castles_count ?? 0)}
-            onClose={() => setMenuUser(null)}
-            onEdit={() => { const u = menuUser; setMenuUser(null); setEditUser(u) }}
-            onCastles={() => { const u = menuUser; setMenuUser(null); setManageCastlesUser(u) }}
-            onBan={() => { const u = menuUser; setMenuUser(null); handleBan(u) }}
-            onDelete={() => { const u = menuUser; setMenuUser(null); handleDelete(u) }}
+        {editUser && <EditUserModal user={users.find(u => u.uid === editUser.uid) ?? editUser} onClose={()=>setEditUser(null)} />}
+        {menuUser && (() => {
+          const liveMenuUser = users.find(u => u.uid === menuUser.uid) ?? menuUser
+          return (
+            <UserActionsMenu
+              user={liveMenuUser}
+              isBanned={Boolean(liveMenuUser.is_banned)}
+              pendingCastles={Number(liveMenuUser.subscription?.pending_castles_count ?? 0)}
+              onClose={() => setMenuUser(null)}
+              onEdit={() => { const u = liveMenuUser; setMenuUser(null); setEditUser(u) }}
+              onCastles={() => { const u = liveMenuUser; setMenuUser(null); setManageCastlesUser(u) }}
+              onBan={() => { const u = liveMenuUser; setMenuUser(null); handleBan(u) }}
+              onDelete={() => { const u = liveMenuUser; setMenuUser(null); handleDelete(u) }}
+            />
+          )
+        })()}
+        {manageCastlesUser && (
+          <UserCastlesModal
+            user={users.find(u => u.uid === manageCastlesUser.uid) ?? manageCastlesUser}
+            onClose={()=>setManageCastlesUser(null)}
           />
         )}
-        {manageCastlesUser && <UserCastlesModal user={manageCastlesUser} onClose={()=>setManageCastlesUser(null)} />}
         {confirmDeleteUser && (
           <ConfirmDialog
             title={t('admin.modals.confirmDeleteTitle')}

@@ -28,7 +28,7 @@ DEFAULT_CONFIG_PATH = os.path.join(DEPLOY_DIR, "deploy_config.json")
 # ── إعدادات التدرج والتشغيل الآمن ─────────────────────────────────
 RESUME_BATCH_SIZE = 10
 RESUME_BATCH_DELAY_AVG = 210
-RESUME_ITEM_DELAY_AVG = 7.5  # متوسط الفاصل العشوائي 5 إلى 10 ثوانٍ
+RESUME_ITEM_DELAY_AVG = 12.5  # متوسط الفاصل العشوائي 10 إلى 15 ثانية
 
 # ── قواعد استثناء المجلدات والملفات الحساسة ─────────────────────────
 EXCLUDE_DIRS: Set[str] = {

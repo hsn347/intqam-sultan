@@ -129,9 +129,10 @@ export async function registerUser(payload: {
   phone?:         string
   tenant_domain?: string
 }): Promise<{ status: string; user: User }> {
+  const authHeaders = await getAuthHeader()
   const res = await fetch(`${getApiBaseUrl()}/api/users/register`, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body:    JSON.stringify(payload),
   })
   if (!res.ok) {
@@ -582,14 +583,22 @@ export async function getAllBotStatus(): Promise<Record<string, string>> {
 
 export async function getLogsWsUrl(castleId: string): Promise<string> {
   const wsBase = getWsBaseUrl()
+  return `${wsBase}/ws/logs/${castleId}${await getWsAuthQuery()}`
+}
+
+// ── توكن توثيق قنوات WebSocket (يُرسل كـ query لأن المتصفح لا يدعم ترويسات WS) ──
+export async function getWsAuthQuery(): Promise<string> {
   try {
+    if (typeof (auth as any).authStateReady === 'function') {
+      await (auth as any).authStateReady()
+    }
     const user = auth.currentUser
     if (user) {
       const token = await user.getIdToken()
-      return `${wsBase}/ws/logs/${castleId}?token=${encodeURIComponent(token)}`
+      return `?token=${encodeURIComponent(token)}`
     }
   } catch {}
-  return `${wsBase}/ws/logs/${castleId}`
+  return ''
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -690,7 +699,7 @@ export function formatUserFromApi(raw: any): User {
   let status: 'active' | 'expired' | 'suspended' | 'pending_approval' = 'active'
   if (isPending) {
     status = 'pending_approval'
-  } else if (raw.is_banned) {
+  } else if (raw.is_banned || rawStatus === 'suspended') {
     status = 'suspended'
   } else if (!expDate || (expDate && !isNaN(expDate.getTime()) && expDate.getTime() < now.getTime())) {
     status = 'expired'
@@ -766,6 +775,14 @@ export interface LiveProcessInfo {
 }
 
 
+export interface GradualStartupStatus {
+  running: boolean
+  total: number
+  started: number
+  skipped: number
+  remaining: number
+}
+
 export interface LiveProcessesResponse {
   status: string
   source: string
@@ -779,6 +796,8 @@ export interface LiveProcessesResponse {
     starting: number
   }
   processes: LiveProcessInfo[]
+  eligible_idle_count?: number
+  gradual_startup?: GradualStartupStatus
 }
 
 export async function getAdminLiveProcesses(): Promise<LiveProcessesResponse> {
@@ -787,6 +806,40 @@ export async function getAdminLiveProcesses(): Promise<LiveProcessesResponse> {
     headers: authHeaders,
   })
   if (!res.ok) throw new Error('فشل جلب العمليات الحية من السيرفر')
+  return res.json()
+}
+
+export async function startEligibleBotsGradualAdmin(): Promise<{
+  status: 'started' | 'empty' | 'already_running' | string
+  total?: number
+  message?: string
+  gradual_startup?: GradualStartupStatus
+}> {
+  const authHeaders = await getAuthHeader()
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/live-bots/start-eligible`, {
+    method: 'POST',
+    headers: authHeaders,
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(parseAndLocalizeApiError(err))
+  }
+  return res.json()
+}
+
+export async function cancelGradualStartAdmin(): Promise<{
+  status: string
+  gradual_startup?: GradualStartupStatus
+}> {
+  const authHeaders = await getAuthHeader()
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/live-bots/cancel-gradual`, {
+    method: 'POST',
+    headers: authHeaders,
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(parseAndLocalizeApiError(err))
+  }
   return res.json()
 }
 

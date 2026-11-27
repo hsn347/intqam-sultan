@@ -160,7 +160,15 @@ export function localizeApiError(rawError?: string | null, t?: TFunction): strin
     return t('apiErrors.pendingApprovalTrial', 'الحساب بانتظار موافقة الإدارة أولاً لتفعيل باقة التجربة')
   }
 
-  // 4b. No active subscription
+  // 4b. Subscription suspended
+  if (
+    str.includes('تم تعليق اشتراكك مؤقتاً') ||
+    str.includes('suspended')
+  ) {
+    return t('apiErrors.subscriptionSuspended', 'تم تعليق اشتراكك مؤقتاً من قبل الإدارة')
+  }
+
+  // 4b2. No active subscription
   if (
     str.includes('لا يوجد اشتراك نشط') ||
     str.includes('No active subscription')
@@ -202,10 +210,28 @@ export function localizeApiError(rawError?: string | null, t?: TFunction): strin
 
   // 5. Max castles during pending approval (10 max)
   if (
+    str.includes('وصلت للحد الأقصى المسموح به للقلاع المعلقة') ||
+    str.includes('للقلاع المعلقة')
+  ) {
+    return t('apiErrors.pendingCastlesMaxLimit', {
+      count: 30,
+      defaultValue: 'وصلت للحد الأقصى المسموح به للقلاع المعلقة (30 قلعة كحد أقصى)',
+    })
+  }
+
+  if (
     str.includes('أثناء انتظار الموافقة') ||
     str.includes('10 قلاع كحد أقصى')
   ) {
     return t('apiErrors.pendingApprovalMaxCastles', 'وصلت للحد الأقصى المسموح به أثناء انتظار الموافقة (10 قلاع كحد أقصى)')
+  }
+
+  // 5b. Cannot approve castle for banned or invalid owner
+  if (
+    str.includes('لا يمكن الموافقة على قلعة لمستخدم محظور') ||
+    str.includes('لا يمكن الموافقة على القلعة')
+  ) {
+    return t('apiErrors.cannotApproveInvalidOwner', 'لا يمكن الموافقة على القلعة: اشتراك المالك غير نشط أو محظور')
   }
 
   // 6. Plan quota exceeded

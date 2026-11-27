@@ -2,7 +2,19 @@
 // 👥 إدارة الحسابات المحفوظة والتنقل السريع (Multi-Account Manager)
 // ══════════════════════════════════════════════════════════════════
 
-import { getCurrentTenant } from '../config/tenants'
+import { getCurrentTenant, DEFAULT_TENANT, MERCHANTS_CONFIG } from '../config/tenants'
+
+/**
+ * 🛡️ حسابات الإدارة (المشرف الأعلى / مشرفو التجار) لا تُحفظ كلمات مرورها في المتصفح أبداً.
+ * التبديل السريع بنقرة واحدة متاح للمستخدمين العاديين فقط.
+ */
+export function isPrivilegedAccount(email?: string, role?: string): boolean {
+  if (role === 'admin' || role === 'merchant_admin') return true
+  const clean = (email || '').trim().toLowerCase()
+  if (!clean) return false
+  if (clean === DEFAULT_TENANT.adminEmail.trim().toLowerCase()) return true
+  return MERCHANTS_CONFIG.some(m => m.adminEmail.trim().toLowerCase() === clean)
+}
 
 export interface SavedAccount {
   uid: string
@@ -73,6 +85,27 @@ export function getSavedAccounts(): SavedAccount[] {
     const parsed = JSON.parse(raw)
     const currentTenantId = getCurrentTenant().id
     if (Array.isArray(parsed)) {
+      // 🧹 ترحيل أمني: مسح أي كلمة مرور محفوظة سابقاً لحسابات الإدارة وتثبيت المسح في التخزين
+      let sanitized = false
+      for (const a of parsed) {
+        if (a && isPrivilegedAccount(a.email, a.role) && (a.secretToken || a.hasSavedPassword)) {
+          delete a.secretToken
+          a.hasSavedPassword = false
+          sanitized = true
+        }
+      }
+      if (sanitized) {
+        try {
+          const cleaned = JSON.stringify(parsed)
+          localStorage.setItem(key, cleaned)
+          localStorage.setItem('ibra_saved_accounts', cleaned)
+          if (localStorage.getItem('ibra_saved_accounts_main')) {
+            localStorage.setItem('ibra_saved_accounts_main', cleaned)
+          }
+        } catch {
+          // ignore
+        }
+      }
       return parsed
         .filter(a => !a.tenantId || a.tenantId === currentTenantId || currentTenantId === 'main')
         .sort((a, b) => (b.lastUsedAt || 0) - (a.lastUsedAt || 0))
@@ -105,7 +138,11 @@ export function saveOrUpdateAccount(
   let secretToken = existingIdx >= 0 ? accounts[existingIdx].secretToken : undefined
   let hasSavedPassword = existingIdx >= 0 ? accounts[existingIdx].hasSavedPassword : false
 
-  if (password && password.trim()) {
+  if (isPrivilegedAccount(cleanEmail, account.role)) {
+    // حسابات الإدارة: لا حفظ لكلمة المرور إطلاقاً (ومسح أي نسخة قديمة)
+    secretToken = undefined
+    hasSavedPassword = false
+  } else if (password && password.trim()) {
     secretToken = encryptToken(password)
     hasSavedPassword = true
   }
@@ -151,7 +188,7 @@ export function getAccountCredentials(email: string): { email: string; password?
   if (!target) return null
 
   let password: string | undefined
-  if (target.secretToken) {
+  if (target.secretToken && !isPrivilegedAccount(target.email, target.role)) {
     password = decryptToken(target.secretToken)
   }
 

@@ -10,7 +10,7 @@ python deploy_logic/deploy.py --check             # فحص حالة السيرف
 python deploy_logic/deploy.py --start-all         # تشغيل الحسابات من لوحة التحكم
 python deploy_logic/deploy.py --stop-all          # إيقاف البوتات من لوحة التحكم
 python deploy_logic/deploy.py --stopped           # تحديث شامل مع إيقاف كل البوتات
-python deploy_logic/deploy.py --gradual-start     # تشغيل تدريجي عشوائي (5-10 ثوانٍ + خلط)
+python deploy_logic/deploy.py --gradual-start     # تشغيل تدريجي عشوائي (10-15 ثانية + خلط)
 python deploy_logic/deploy.py --gradual-stop      # إيقاف جميع البوتات فوراً
 python deploy_logic/deploy.py --upload-only       # رفع الملفات فقط بدون لمس البوتات
 python deploy_logic/deploy.py --cancel-queue      # إلغاء التشغيل التدريجي (الشغالة تبقى)
@@ -134,7 +134,7 @@ def _report_gradual_resume_estimate(client, cfg: DeployConfig, saved_count: int,
     if saved_count > 0:
         batches = (saved_count + RESUME_BATCH_SIZE - 1) // RESUME_BATCH_SIZE
         est_sec = int(saved_count * RESUME_ITEM_DELAY_AVG)
-        print(f"\n⏳ الاستئناف التدريجي التلقائي: {saved_count} بوت (~{batches} دفعة بفاصل عشوائي 5-10 ثوانٍ وخلط للمستخدمين)")
+        print(f"\n⏳ الاستئناف التدريجي التلقائي: {saved_count} بوت (~{batches} دفعة بفاصل عشوائي 10-15 ثانية وخلط للمستخدمين)")
         print(f"   الوقت التقديري للاستئناف الكامل: ~{est_sec}ث ({est_sec // 60}د {est_sec % 60}ث)")
     else:
         print("\n🔄 لم تكن هناك بوتات نشطة مسجلة لحظياً — جاري بدء التشغيل التدريجي الآمن...")
@@ -168,7 +168,7 @@ def _deploy_server_update(include_frontend: bool) -> None:
     title = "تحديث شامل ذكي (Full Deploy + Auto-Resume)" if include_frontend else "تحديث الباك إند فقط (Backend Only + Auto-Resume)"
     print("\n" + "=" * 65)
     print(f"🚀 {title}")
-    print("🔄 استئناف تدريجي عشوائي (5-10 ثوانٍ بين كل حساب مع خلط المستخدمين)")
+    print("🔄 استئناف تدريجي عشوائي (10-15 ثانية بين كل حساب مع خلط المستخدمين)")
     print("=" * 65)
 
     cfg = load_deploy_config()
@@ -365,7 +365,7 @@ def cancel_queue() -> None:
 def restart_all() -> None:
     print("\n" + "=" * 65)
     print("🔄 إيقاف جميع البوتات + إعادة تشغيل تدريجي بالتحديثات")
-    print("📦 فاصل 5-10 ثوانٍ عشوائي + خلط عشوائي")
+    print("📦 فاصل 10-15 ثانية عشوائي + خلط عشوائي")
     print("=" * 65)
     cfg = load_deploy_config()
     client = get_ssh_client(cfg)

@@ -1826,6 +1826,78 @@ class BaseTask(ABC):
             return city.get("resList") or city.get("reslist") or {}
         return {}
 
+    def get_server_time(self) -> int:
+        """
+        توقيت السيرفر الحالي بالثواني (Unix UTC timestamp) مباشرةً من الذاكرة (0-Network).
+        يُطبق أي إزاحة زمنية مسجلة في الاتصال (server_time_offset) إن وُجدت.
+        """
+        offset = 0.0
+        if self.conn is not None:
+            raw_off = getattr(self.conn, "server_time_offset", 0.0)
+            try:
+                offset = float(raw_off or 0.0)
+            except (ValueError, TypeError):
+                offset = 0.0
+        return int(time.time() + offset)
+
+    def is_same_utc_day(self, ts1: Any, ts2: Optional[Any] = None) -> bool:
+        """
+        التحقق من وقوع ختمين زمنيين في نفس اليوم وفق توقيت UTC (0-Network).
+        مطابق حرفياً لدالة serviceFunctions.isSameDay في serviceFunctions.lua:606-628.
+        """
+        t1 = self._safe_int(ts1, 0)
+        if t1 <= 0:
+            return False
+        t2 = self._safe_int(ts2, 0) if ts2 is not None else self.get_server_time()
+        if t2 <= 0:
+            return False
+        return (t1 // 86400) == (t2 // 86400)
+
+    def get_resource_balance(self, res_id: str | int) -> int:
+        """
+        قراءة الرصيد الإجمالي لمورد معين من الذاكرة الحية cityCtrl (0-Network Read-Only).
+        أمثلة: '1002' قمح، '1003' خشب، '1004' حديد، '1005' فضة.
+        """
+        res_map = self.resources
+        if not isinstance(res_map, dict):
+            return 0
+        key = str(res_id)
+        val = res_map.get(key)
+        if val is None and isinstance(res_id, int):
+            val = res_map.get(res_id)
+        return max(0, int(self._safe_float(val, 0.0)))
+
+    def get_daily_quest_progress(self, task_type: int | str) -> int:
+        """
+        قراءة تقدم مهمة نشاط يومي معينة من everydayTaskCtrl.eventInfo (0-Network Read-Only).
+        """
+        everyday_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
+        if not isinstance(everyday_ctrl, dict):
+            return 0
+        event_info = everyday_ctrl.get("eventInfo")
+        if not isinstance(event_info, dict):
+            return 0
+        return max(0, self._safe_int(event_info.get(str(task_type)), 0))
+
+    def get_daily_quest_state(self, task_type: int | str, now_ts: Optional[int] = None) -> Tuple[bool, int]:
+        """
+        قراءة حالة وتقدم مهمة نشاط يومي من everydayTaskCtrl (0-Network Read-Only) مع مراعاة منتصف ليل UTC:
+          - يُعيد (False, 0) إذا لم يكن متحكم everydayTaskCtrl محمّلاً في الذاكرة الحية بعد.
+          - يُعيد (True, 0) إذا عبر توقيت السيرفر ختم tomorrowZeroUTC لليوم الجديد (بدون تعديل الذاكرة).
+          - يُعيد (True, progress) في الحالة الطبيعية من eventInfo[str(task_type)].
+        """
+        everyday_ctrl = self.get_ctrl("everydayTaskCtrl") or self.get_ctrl("everydayTask")
+        if not isinstance(everyday_ctrl, dict) or not everyday_ctrl:
+            return False, 0
+        cur_ts = now_ts if now_ts is not None else self.get_server_time()
+        tomorrow_zero = self._safe_int(everyday_ctrl.get("tomorrowZeroUTC"), 0)
+        if tomorrow_zero > 0 and cur_ts >= tomorrow_zero:
+            return True, 0
+        event_info = everyday_ctrl.get("eventInfo")
+        if not isinstance(event_info, dict):
+            return True, 0
+        return True, max(0, self._safe_int(event_info.get(str(task_type)), 0))
+
     @property
     def is_shielded(self) -> bool:
         """

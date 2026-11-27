@@ -22,7 +22,7 @@ import re
 import sqlite3
 import threading
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple ,Set
 
 log = logging.getLogger("LocalDB")
 
@@ -37,6 +37,10 @@ _initialized_paths: set = set()
 MIN_LOOP_INTERVAL_MINUTES = 30
 MAX_LOOP_INTERVAL_MINUTES = 180
 DEFAULT_LOOP_INTERVAL_MINUTES = 40
+MAX_PENDING_CASTLES_PER_USER = 30
+
+# قفل ذري مشترك لكل عمليات تغيير حصة القلاع (إضافة/تفعيل/ترقية/موافقة) لمنع تجاوز max_castles بالتزامن
+QUOTA_LOCK = threading.RLock()
 
 
 def normalize_loop_interval(value: Any) -> int:
@@ -104,13 +108,27 @@ def init_db(db_path: Optional[str] = None) -> None:
                     role TEXT DEFAULT 'user',
                     created_at TEXT,
                     is_banned INTEGER DEFAULT 0,
+                    banned_reason TEXT DEFAULT '',
                     subscription_end TEXT,
                     max_castles INTEGER DEFAULT 50,
                     trial_used INTEGER DEFAULT 0,
                     status TEXT DEFAULT 'pending',
+                    plan_id TEXT DEFAULT '',
+                    plan_name TEXT DEFAULT '',
                     tenant_domain TEXT DEFAULT ''
                 );
                 """)
+
+                # ── ترقية آمنة لجدول المستخدمين ──
+                user_cols = {
+                    row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()
+                }
+                if "banned_reason" not in user_cols:
+                    conn.execute("ALTER TABLE users ADD COLUMN banned_reason TEXT DEFAULT '';")
+                if "plan_id" not in user_cols:
+                    conn.execute("ALTER TABLE users ADD COLUMN plan_id TEXT DEFAULT '';")
+                if "plan_name" not in user_cols:
+                    conn.execute("ALTER TABLE users ADD COLUMN plan_name TEXT DEFAULT '';")
 
                 # ── جدول القلاع والحسابات ──
                 conn.execute("""
@@ -157,6 +175,20 @@ def init_db(db_path: Optional[str] = None) -> None:
                     "INSERT OR IGNORE INTO system_settings (key, value, updated_at) VALUES ('network_mode', 'direct', ?);",
                     (datetime.now(timezone.utc).isoformat(),)
                 )
+
+                # ── جدول سجل تدقيق الاشتراكات وإجراءات الإدارة ──
+                conn.execute("""
+                CREATE TABLE IF NOT EXISTS subscription_audit_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    actor_uid TEXT DEFAULT '',
+                    actor_email TEXT DEFAULT '',
+                    target_uid TEXT DEFAULT '',
+                    action TEXT NOT NULL,
+                    details TEXT DEFAULT '{}',
+                    created_at TEXT NOT NULL
+                );
+                """)
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_sub_audit_target ON subscription_audit_log(target_uid, created_at DESC);")
 
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_castles_user_id ON castle_states(user_id);")
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_castles_email ON castle_states(email);")
@@ -321,6 +353,110 @@ def save_castle(castle_data: Dict[str, Any]) -> bool:
         return True
 
 
+DEFAULT_NEW_CASTLE_CONFIG: Dict[str, Any] = {
+    # ── المهام الخلفية التلقائية (ليس لها زر تفعيل في الواجهة) ──
+    "port": {"enabled": True},
+    "merchant_ship": {"enabled": True},
+    "city_harvest": {"enabled": True},
+    "imperial_mausoleum": {"enabled": True},
+    "war_medal": {"enabled": True},
+    "daily_quest": {"enabled": True},
+    # ── مهام الواجهة الاختيارية (معطّلة بالكامل افتراضياً عند إضافة قلعة جديدة) ──
+    "fountain": {
+        "enabled": True,
+        "resources": ["food"],
+        "gold_times": 0,
+    },
+    "daily_train": {"enabled": False},
+    "train": {
+        "enabled": False,
+        "levels": {"infantry": 0, "cavalry": 0, "archers": 0, "chariots": 0},
+        "level": 10,
+        "count": "max",
+    },
+    "shield": {"enabled": False, "duration": "8h", "allow_gold": False},
+    "research": {"enabled": False},
+    "flower": {"enabled": False, "allow_gold": False},
+    "wonder_merchant": {"enabled": True},
+    "material_synthesis": {"enabled": True},
+    "material_workshop": {
+        "enabled": False,
+        "selected_materials": [200101, 200201, 200301, 200401, 200501, 200601],
+    },
+    "forge_equipment": {"enabled": False, "category": "weapon"},
+    "cure_wounded": {"enabled": False, "mode": "daily"},
+    "alliance": {"enabled": True},
+    "pet": {"enabled": True, "target_pet": 1251},
+    "building": {
+        "enabled": False,
+        "upgrade_castle": False,
+        "speedup_castle": False,
+        "auto_open_chests": True,
+        "upgrade_support_buildings": False,
+        "max_castle_level": 130,
+        "target_buildings": {
+            "farm": False,
+            "sawmill": False,
+            "iron_mine": False,
+            "quartz_mine": False,
+            "hospital": False,
+            "military_tent": False,
+        },
+    },
+    "arena": {
+        "enabled": True,
+        "mode": "daily",
+        "arena_type": "kingdom",
+        "auto_claim_rewards": True,
+    },
+    "hero_trial": {"enabled": False},
+    "command_hall": {
+        "enabled": False,
+        "mode": "daily",
+        "allow_marches": True,
+        "allow_snipe": True,
+        "allow_rescue": True,
+        "allow_dialogue": True,
+        "allow_army_group": True,
+        "auto_claim_rewards": True,
+        "auto_upgrade_hall": True,
+        "min_safety_stamina": 10,
+    },
+    "watermill": {
+        "enabled": False,
+        "resources": ["food", "wood", "iron", "silver", "crystal"],
+        "types": "all",
+        "allow_shop_buy": False,
+    },
+    "skills": {"enabled": False, "target_skills": []},
+    "stamina": {
+        "enabled": False,
+        "gold_buy_enabled": False,
+        "gold_trigger_stamina": 50,
+        "gold_buy_stamina_amount": 50,
+    },
+    "caravan": {"enabled": False},
+    "march_manager": {
+        "enabled": False,
+        "max_duration_minutes": 20,
+        "formation_id": 1,
+        "gather_speed_buff": {"enabled": False},
+        "treasure_escort": {"enabled": False},
+        "daily_hunt": {"enabled": False},
+        "daily_gather": {"enabled": False},
+        "explore_ruins": {"enabled": False, "explore_time": 14400, "formation": 1},
+        "resource_help": {"enabled": False, "target_x": None, "target_y": None, "resources": "food,wood,iron"},
+        "hunt_monsters": {"enabled": False, "monster_type": "normal", "monster_level": 0},
+        "gather_resources": {"enabled": False, "resource": "wood", "level": 0},
+    },
+}
+
+
+def build_default_new_castle_config() -> Dict[str, Any]:
+    """إرجاع نسخة جديدة ومستقلة من إعدادات القلعة الافتراضية (كل مهام الواجهة الاختيارية معطّلة)."""
+    return copy.deepcopy(DEFAULT_NEW_CASTLE_CONFIG)
+
+
 def create_castle_db(
     user_id: str,
     email: str,
@@ -338,7 +474,8 @@ def create_castle_db(
     prefix = clean_email.split("@")[0] if "@" in clean_email else clean_email
     cid = generate_unique_castle_id(clean_email, castle_id)
     name = castle_name or f"قلعة {prefix}"
-    cfg = config or {}
+    # فرض الإعدادات الافتراضية الكاملة للقلعة الجديدة (جميع مهام الواجهة معطّلة)
+    cfg = build_default_new_castle_config()
     now_iso = datetime.now(timezone.utc).isoformat()
 
     castle_data = {
@@ -696,15 +833,42 @@ def create_or_update_user(
         assigned_sub_end = None
         assigned_max = 10
 
+    target_uid = uid
     with get_connection() as conn:
+        if clean_email:
+            existing_row = conn.execute(
+                "SELECT uid FROM users WHERE LOWER(TRIM(email)) = ?",
+                (clean_email,),
+            ).fetchone()
+            if existing_row and str(existing_row["uid"]) != uid:
+                existing_uid = str(existing_row["uid"])
+                updates = []
+                params: List[Any] = []
+                if username:
+                    updates.append("username = ?")
+                    params.append(username)
+                if phone:
+                    updates.append("phone = ?")
+                    params.append(phone)
+                if tenant_domain:
+                    updates.append("tenant_domain = CASE WHEN (tenant_domain IS NULL OR tenant_domain = '') THEN ? ELSE tenant_domain END")
+                    params.append(tenant_domain)
+                if updates:
+                    params.append(existing_uid)
+                    conn.execute(f"UPDATE users SET {', '.join(updates)} WHERE uid = ?", params)
+                row = conn.execute("SELECT * FROM users WHERE uid = ?", (existing_uid,)).fetchone()
+                return dict(row) if row else {}
+
         conn.execute("""
         INSERT INTO users (uid, email, username, phone, role, created_at, subscription_end, status, max_castles, tenant_domain)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(uid) DO UPDATE SET
             username = CASE WHEN excluded.username != '' THEN excluded.username ELSE users.username END,
-            phone = CASE WHEN excluded.phone != '' THEN excluded.phone ELSE users.phone END;
+            phone = CASE WHEN excluded.phone != '' THEN excluded.phone ELSE users.phone END,
+            tenant_domain = CASE WHEN (users.tenant_domain IS NULL OR users.tenant_domain = '') AND excluded.tenant_domain != '' THEN excluded.tenant_domain ELSE users.tenant_domain END;
         """, (uid, clean_email, username, phone, assigned_role, now_iso, assigned_sub_end, assigned_status, assigned_max, tenant_domain))
-        return get_user(uid) or {}
+        row = conn.execute("SELECT * FROM users WHERE uid = ?", (target_uid,)).fetchone()
+        return dict(row) if row else {}
 
 
 def update_user_profile(uid: str, username: Optional[str] = None, phone: Optional[str] = None) -> bool:
@@ -753,8 +917,11 @@ def _evaluate_user_subscription(
     if _is_admin_account(user_row):
         return True, "مشرف نظام"
 
-    # التحقق الإلزامي من موافقة الأدمن على الحساب
-    if user_row.get("status") != "approved":
+    # التحقق الإلزامي من حالة الاشتراك واعتماد الأدمن على الحساب
+    raw_status = str(user_row.get("status") or "").strip().lower()
+    if raw_status == "suspended":
+        return False, "تم تعليق اشتراكك مؤقتاً من قبل الإدارة"
+    if raw_status != "approved":
         return False, "حسابك بانتظار موافقة الإدارة لتفعيل الباقة التجريبية"
 
     sub_end = user_row.get("subscription_end")
@@ -831,6 +998,160 @@ def get_user_castle_counts(user_id: str) -> Dict[str, int]:
         "pending_castles_count": pending_cnt,
         "total_castles_count": len(non_rejected),
     }
+
+
+def count_user_pending_castles(user_id: str) -> int:
+    """عدد القلاع المعلقة (في طابور الانتظار) التابعة للمستخدم"""
+    return get_user_castle_counts(user_id)["pending_castles_count"]
+
+
+def promote_pending_castles(user_id: str) -> List[str]:
+    """
+    ترقية القلاع المعلّقة (pending) تلقائياً بالأقدمية (created_at ASC) عند توفّر خانة في max_castles،
+    بشرط أن يكون المستخدم غير محظور واشتراكه سارياً. لا تمس القلاع المرفوضة (rejected).
+    """
+    with QUOTA_LOCK:
+        return _promote_pending_castles_locked(user_id)
+
+
+def _promote_pending_castles_locked(user_id: str) -> List[str]:
+    uid = str(user_id or "").strip()
+    if not uid:
+        return []
+
+    u = get_user(uid)
+    if not u or _is_admin_account(u) or u.get("is_banned"):
+        return []
+
+    is_valid, _ = _evaluate_user_subscription(u)
+    if not is_valid:
+        return []
+
+    max_allowed = max(0, int(u.get("max_castles") or 0))
+    active_cnt = count_user_active_castles(uid)
+    slots = max_allowed - active_cnt
+    if slots <= 0:
+        return []
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT castle_id
+            FROM castle_states
+            WHERE user_id = ?
+              AND (LOWER(TRIM(COALESCE(state, ''))) = 'pending' OR is_active = 0)
+              AND LOWER(TRIM(COALESCE(state, ''))) NOT IN ('rejected', 'sealed', 'banned')
+              AND LOWER(TRIM(COALESCE(conn_state, ''))) NOT IN ('sealed', 'sealed_banned', 'banned')
+            ORDER BY COALESCE(created_at, '') ASC, rowid ASC
+            LIMIT ?
+            """,
+            (uid, slots),
+        ).fetchall()
+        promoted_ids = [str(r["castle_id"]) for r in rows if r["castle_id"]]
+        if not promoted_ids:
+            return []
+
+        placeholders = ",".join("?" for _ in promoted_ids)
+        conn.execute(
+            f"""
+            UPDATE castle_states
+            SET state = 'idle',
+                conn_state = 'idle',
+                is_active = 1,
+                status_message = 'جاهز للتشغيل',
+                updated_at = ?
+            WHERE castle_id IN ({placeholders})
+            """,
+            [now_iso, *promoted_ids],
+        )
+        return promoted_ids
+
+
+def demote_excess_castles(user_id: str, exclude_castle_ids: Optional[List[str]] = None) -> List[str]:
+    """
+    إرجاع القلاع النشطة الزائدة عن حصة المستخدم (max_castles) تلقائياً إلى طابور الانتظار (pending)،
+    بدءاً بالأحدث إضافةً (created_at DESC, rowid DESC)، دون المساس بأي معرّفات مستثناة (مثل قلعة تمت الموافقة عليها للتو).
+    """
+    with QUOTA_LOCK:
+        return _demote_excess_castles_locked(user_id, exclude_castle_ids=exclude_castle_ids)
+
+
+def _demote_excess_castles_locked(user_id: str, exclude_castle_ids: Optional[List[str]] = None) -> List[str]:
+    uid = str(user_id or "").strip()
+    if not uid:
+        return []
+
+    u = get_user(uid)
+    if not u or _is_admin_account(u):
+        return []
+
+    max_allowed = max(0, int(u.get("max_castles") or 0))
+    active_cnt = count_user_active_castles(uid)
+    excess = active_cnt - max_allowed
+    if excess <= 0:
+        return []
+
+    excluded = [str(cid).strip() for cid in (exclude_castle_ids or []) if str(cid).strip()]
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        if excluded:
+            excl_placeholders = ",".join("?" for _ in excluded)
+            rows = conn.execute(
+                f"""
+                SELECT castle_id
+                FROM castle_states
+                WHERE user_id = ?
+                  AND is_active = 1
+                  AND LOWER(TRIM(COALESCE(state, ''))) NOT IN ('pending', 'rejected', 'sealed', 'banned')
+                  AND LOWER(TRIM(COALESCE(conn_state, ''))) NOT IN ('sealed', 'sealed_banned', 'banned')
+                  AND castle_id NOT IN ({excl_placeholders})
+                ORDER BY COALESCE(created_at, '') DESC, rowid DESC
+                LIMIT ?
+                """,
+                [uid, *excluded, excess],
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT castle_id
+                FROM castle_states
+                WHERE user_id = ?
+                  AND is_active = 1
+                  AND LOWER(TRIM(COALESCE(state, ''))) NOT IN ('pending', 'rejected', 'sealed', 'banned')
+                  AND LOWER(TRIM(COALESCE(conn_state, ''))) NOT IN ('sealed', 'sealed_banned', 'banned')
+                ORDER BY COALESCE(created_at, '') DESC, rowid DESC
+                LIMIT ?
+                """,
+                (uid, excess),
+            ).fetchall()
+
+        demoted_ids = [str(r["castle_id"]) for r in rows if r["castle_id"]]
+        if not demoted_ids:
+            return []
+
+        placeholders = ",".join("?" for _ in demoted_ids)
+        conn.execute(
+            f"""
+            UPDATE castle_states
+            SET state = 'pending',
+                conn_state = 'idle',
+                is_active = 0,
+                status_message = 'بانتظار موافقة الإدارة لتفعيل القلعة',
+                updated_at = ?
+            WHERE castle_id IN ({placeholders})
+            """,
+            [now_iso, *demoted_ids],
+        )
+        return demoted_ids
+
+
+def sync_user_castles_to_quota(user_id: str) -> Dict[str, List[str]]:
+    """مزامنة قلاع المستخدم مع حصته الحالية (max_castles): إرجاع الزائد إلى pending أو ترقية المعلّق بالأقدمية."""
+    with QUOTA_LOCK:
+        demoted = _demote_excess_castles_locked(user_id)
+        promoted = _promote_pending_castles_locked(user_id)
+        return {"promoted": promoted, "demoted": demoted}
 
 
 def _build_admin_users_and_stats(
@@ -925,6 +1246,8 @@ def _build_admin_users_and_stats(
         stats["total_users"] += 1
         if u.get("is_banned"):
             stats["banned_users"] += 1
+        elif (u.get("status") or "pending").strip().lower() == "suspended":
+            stats["banned_users"] += 1
         elif (u.get("status") or "pending") != "approved":
             stats["pending_users"] += 1
         elif is_sub_valid:
@@ -971,13 +1294,18 @@ def get_admin_stats(
 
 
 def get_live_castles_metadata() -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]]]:
-    """جلب خرائط تعريفية خفيفة للقلاع والمستخدمين (دون config/resources) لإثراء شاشة العمليات الحية."""
+    """جلب خرائط تعريفية خفيفة للقلاع والمستخدمين (دون config/resources) لإثراء شاشة العمليات الحية وحساب المؤهلات بسرعة فائقة."""
     with get_connection() as conn:
         castle_rows = conn.execute(
-            "SELECT castle_id, user_id, email, castle_name, castle_info FROM castle_states"
+            """
+            SELECT castle_id, user_id, email, castle_name, castle_info,
+                   is_active, state, conn_state, created_at
+            FROM castle_states
+            ORDER BY COALESCE(created_at, '') ASC, rowid ASC
+            """
         ).fetchall()
         user_rows = conn.execute(
-            "SELECT uid, email, username FROM users"
+            "SELECT uid, email, username, role, status, is_banned, max_castles, subscription_end FROM users"
         ).fetchall()
 
     by_cid: Dict[str, Dict[str, Any]] = {}
@@ -1009,6 +1337,56 @@ def get_live_castles_metadata() -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Di
             by_email[em] = cd
 
     return by_cid, by_email, users_by_uid
+
+
+def count_idle_eligible_castles_from_metadata(
+    by_cid: Dict[str, Dict[str, Any]],
+    users_by_uid: Dict[str, Dict[str, Any]],
+    active_emails_lower: Set[str],
+) -> int:
+    """حساب عدد القلاع الجاهزة غير المشغّلة حالياً من الذاكرة فقط بدون قراءة config/resources من SQLite."""
+    now_utc = datetime.now(timezone.utc)
+    running_by_uid: Dict[str, int] = {}
+    for c in by_cid.values():
+        em = str(c.get("email") or "").strip().lower()
+        uid = str(c.get("user_id") or "").strip()
+        if em and em in active_emails_lower and uid:
+            running_by_uid[uid] = running_by_uid.get(uid, 0) + 1
+
+    sub_cache: Dict[str, bool] = {}
+    planned_by_uid: Dict[str, int] = dict(running_by_uid)
+    count = 0
+
+    for c in by_cid.values():
+        cid = str(c.get("castle_id") or "").strip()
+        uid = str(c.get("user_id") or "").strip()
+        em = str(c.get("email") or "").strip().lower()
+        if not cid or not em or not c.get("is_active", 1):
+            continue
+        if em in active_emails_lower:
+            continue
+        c_st = str(c.get("state") or "").strip().lower()
+        conn_st = str(c.get("conn_state") or "").strip().lower()
+        if c_st in ("pending", "rejected", "error", "sealed", "banned"):
+            continue
+        if conn_st in ("error", "sealed", "sealed_banned", "banned"):
+            continue
+        if uid:
+            owner = users_by_uid.get(uid)
+            if not owner:
+                continue
+            if uid not in sub_cache:
+                sub_cache[uid] = _evaluate_user_subscription(owner, now_utc=now_utc)[0]
+            if not sub_cache[uid]:
+                continue
+            if not _is_admin_account(owner):
+                max_allowed = max(0, int(owner.get("max_castles") or 0))
+                cur_planned = planned_by_uid.get(uid, 0)
+                if cur_planned >= max_allowed:
+                    continue
+                planned_by_uid[uid] = cur_planned + 1
+        count += 1
+    return count
 
 
 def get_merchants_overview_stats() -> Dict[str, Any]:
@@ -1044,19 +1422,26 @@ def get_all_users_with_castles() -> List[Dict[str, Any]]:
 
 
 def approve_user_trial(uid: str, days: int = 3, max_castles: int = 10) -> bool:
-    """الموافقة على تجربة المستخدم وتفعيل المدة وعدد القلاع"""
+    """الموافقة على تجربة المستخدم وتفعيل المدة وعدد القلاع مع ترقية قلاعه المعلقة ضمن الحصة"""
+    safe_days = max(1, int(days))
+    safe_max = max(0, int(max_castles))
     with get_connection() as conn:
-        new_end = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
+        new_end = (datetime.now(timezone.utc) + timedelta(days=safe_days)).isoformat()
         conn.execute(
             "UPDATE users SET status = 'approved', trial_used = 1, subscription_end = ?, max_castles = ? WHERE uid = ?",
-            (new_end, max_castles, uid)
+            (new_end, safe_max, uid)
         )
-        return True
+    promote_pending_castles(uid)
+    return True
 
 
-def ban_user(uid: str, is_banned: bool = True) -> bool:
+def ban_user(uid: str, is_banned: bool = True, reason: str = "") -> bool:
+    clean_reason = str(reason or "").strip() if is_banned else ""
     with get_connection() as conn:
-        conn.execute("UPDATE users SET is_banned = ? WHERE uid = ?", (1 if is_banned else 0, uid))
+        conn.execute(
+            "UPDATE users SET is_banned = ?, banned_reason = ? WHERE uid = ?",
+            (1 if is_banned else 0, clean_reason, uid),
+        )
         return True
 
 
@@ -1068,17 +1453,36 @@ def delete_user(uid: str) -> bool:
 
 
 def approve_castle(castle_id: str) -> bool:
+    with QUOTA_LOCK:
+        return _approve_castle_locked(castle_id)
+
+
+def _approve_castle_locked(castle_id: str) -> bool:
+    uid: Optional[str] = None
+    is_non_admin_owner = False
     with get_connection() as conn:
-        conn.execute(
-            "UPDATE castle_states SET state = 'idle', conn_state = 'idle', is_active = 1, status_message = 'جاهز للتشغيل' WHERE castle_id = ?",
+        row = conn.execute(
+            "SELECT castle_id, user_id, is_active, state FROM castle_states WHERE castle_id = ?",
             (castle_id,),
-        )
-        row = conn.execute("SELECT user_id FROM castle_states WHERE castle_id = ?", (castle_id,)).fetchone()
-        if row and row["user_id"]:
-            uid = row["user_id"]
-            u_row = conn.execute("SELECT * FROM users WHERE uid = ?", (uid,)).fetchone()
-            if u_row and not _is_admin_account(dict(u_row)):
-                cnt_row = conn.execute(
+        ).fetchone()
+        if not row:
+            raise ValueError("القلعة غير موجودة")
+
+        uid = row["user_id"]
+        was_active = bool(row["is_active"]) and str(row["state"] or "").strip().lower() not in ("pending", "rejected")
+        u_row = conn.execute("SELECT * FROM users WHERE uid = ?", (uid,)).fetchone() if uid else None
+        active_before = 0
+        current_max = 0
+        if u_row:
+            u_dict = dict(u_row)
+            if not _is_admin_account(u_dict):
+                is_non_admin_owner = True
+                if u_dict.get("is_banned"):
+                    raise ValueError("لا يمكن الموافقة على قلعة لمستخدم محظور")
+                is_valid, reason = _evaluate_user_subscription(u_dict)
+                if not is_valid:
+                    raise ValueError(f"لا يمكن الموافقة على القلعة: {reason}")
+                cnt_before_row = conn.execute(
                     """
                     SELECT COUNT(*) as cnt
                     FROM castle_states
@@ -1088,35 +1492,126 @@ def approve_castle(castle_id: str) -> bool:
                     """,
                     (uid,),
                 ).fetchone()
-                active_cnt = int(cnt_row["cnt"]) if cnt_row else 0
-                current_max = max(0, int(dict(u_row).get("max_castles") or 0))
-                if active_cnt > current_max:
-                    conn.execute("UPDATE users SET max_castles = ? WHERE uid = ?", (active_cnt, uid))
-        return True
+                active_before = int(cnt_before_row["cnt"]) if cnt_before_row else 0
+                current_max = max(0, int(u_dict.get("max_castles") or 0))
+
+        conn.execute(
+            "UPDATE castle_states SET state = 'idle', conn_state = 'idle', is_active = 1, status_message = 'جاهز للتشغيل' WHERE castle_id = ?",
+            (castle_id,),
+        )
+        if is_non_admin_owner and uid:
+            # عند الموافقة على قلعة معلقة واحدة والحصة ممتلئة، تزيد الحصة بمقدار +1 فقط عن الحصة الحالية
+            if not was_active and active_before >= current_max:
+                new_max = current_max + 1
+                conn.execute("UPDATE users SET max_castles = ? WHERE uid = ?", (new_max, uid))
+
+    # إذا كان لدى المستخدم قلاع نشطة قديمة فائضة عن الحصة الجديدة، تُعاد الزائدة (باستثناء القلعة الموافق عليها) إلى pending
+    if is_non_admin_owner and uid:
+        _demote_excess_castles_locked(uid, exclude_castle_ids=[castle_id])
+    return True
 
 
 def reject_castle(castle_id: str, reason: str = "") -> bool:
+    now_iso = datetime.now(timezone.utc).isoformat()
+    final_msg = str(reason or "").strip() or "تم رفض القلعة من الإدارة"
     with get_connection() as conn:
-        conn.execute("UPDATE castle_states SET state = 'rejected', status_message = ? WHERE castle_id = ?", (reason, castle_id))
-        return True
+        res = conn.execute(
+            "UPDATE castle_states SET state = 'rejected', conn_state = 'idle', is_active = 0, status_message = ?, updated_at = ? WHERE castle_id = ?",
+            (final_msg, now_iso, castle_id),
+        )
+        return res.rowcount > 0
 
 
 def update_user_subscription(uid: str, days: int) -> bool:
-    new_end = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
+    safe_days = max(1, int(days))
+    u = get_user(uid)
+    if not u:
+        return False
+
+    base_dt = datetime.now(timezone.utc)
+    if u.get("subscription_end"):
+        try:
+            parsed = datetime.fromisoformat(str(u["subscription_end"]).replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            if parsed > base_dt:
+                base_dt = parsed
+        except Exception:
+            pass
+
+    new_end = (base_dt + timedelta(days=safe_days)).isoformat()
     with get_connection() as conn:
         conn.execute("UPDATE users SET subscription_end = ?, status = 'approved' WHERE uid = ?", (new_end, uid))
-        return True
+    promote_pending_castles(uid)
+    return True
 
 
 def approve_all_pending_users(days: int = 3, max_castles: int = 10) -> int:
-    """الموافقة على جميع المستخدمين المعلقين وتفعيل الباقة التجريبية"""
+    """الموافقة على جميع المستخدمين المعلقين وتفعيل الباقة التجريبية مع ترقية القلاع المعلقة"""
+    safe_days = max(1, int(days))
+    safe_max = max(0, int(max_castles))
     with get_connection() as conn:
-        new_end = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
+        rows = conn.execute(
+            "SELECT uid FROM users WHERE status = 'pending' AND COALESCE(is_banned, 0) = 0 AND COALESCE(trial_used, 0) = 0"
+        ).fetchall()
+        target_uids = [str(r["uid"]) for r in rows if r["uid"]]
+        if not target_uids:
+            return 0
+        new_end = (datetime.now(timezone.utc) + timedelta(days=safe_days)).isoformat()
+        placeholders = ",".join("?" for _ in target_uids)
         res = conn.execute(
-            "UPDATE users SET status = 'approved', trial_used = 1, subscription_end = ?, max_castles = ? WHERE status = 'pending'",
-            (new_end, max_castles)
+            f"UPDATE users SET status = 'approved', trial_used = 1, subscription_end = ?, max_castles = ? WHERE uid IN ({placeholders})",
+            [new_end, safe_max, *target_uids],
         )
-        return res.rowcount
+        count = res.rowcount
+
+    for t_uid in target_uids:
+        promote_pending_castles(t_uid)
+    return count
+
+
+def log_subscription_audit(
+    actor_uid: str,
+    actor_email: str,
+    target_uid: str,
+    action: str,
+    details: Optional[Dict[str, Any]] = None,
+) -> None:
+    """تسجيل عملية إدارية في سجل تدقيق الاشتراكات."""
+    try:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        details_str = json.dumps(details or {}, ensure_ascii=False)
+        with get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO subscription_audit_log (actor_uid, actor_email, target_uid, action, details, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (actor_uid or "", actor_email or "", target_uid or "", action, details_str, now_iso),
+            )
+    except Exception as e:
+        log.warning(f"⚠️ تعذر تسجيل حدث في سجل التدقيق: {e}")
+
+
+def get_subscription_audit_logs(limit: int = 100) -> List[Dict[str, Any]]:
+    """جلب أحدث أحداث سجل تدقيق الاشتراكات."""
+    safe_limit = max(1, min(500, int(limit)))
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT id, actor_uid, actor_email, target_uid, action, details, created_at FROM subscription_audit_log ORDER BY id DESC LIMIT ?",
+            (safe_limit,),
+        ).fetchall()
+    result: List[Dict[str, Any]] = []
+    for r in rows:
+        d = dict(r)
+        raw_det = d.get("details")
+        if isinstance(raw_det, str):
+            try:
+                d["details"] = json.loads(raw_det) if raw_det else {}
+            except Exception:
+                d["details"] = {}
+        result.append(d)
+    return result
 
 
 # ══════════════════════════════════════════════════════════════════

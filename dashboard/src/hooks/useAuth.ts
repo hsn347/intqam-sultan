@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, useCallback } from 'react'
+import { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react'
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -50,6 +50,7 @@ interface AuthContextType {
   isSuperAdmin: boolean
   isMerchantAdmin: boolean
   updateUserProfile: (data: Partial<User>) => void
+  refreshUserProfile: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null)
@@ -142,6 +143,120 @@ export function useAuthProvider(): AuthContextType {
   const refreshSavedAccounts = useCallback(() => {
     setSavedAccounts(getSavedAccounts())
   }, [])
+
+  const profileSyncInFlightRef = useRef(false)
+  const lastProfileSyncRef = useRef(0)
+
+  const refreshUserProfile = useCallback(async (force: boolean = false) => {
+    const fbUser = auth.currentUser
+    if (!fbUser) return
+    const now = Date.now()
+    if (profileSyncInFlightRef.current) return
+    if (!force && now - lastProfileSyncRef.current < 3000) return
+
+    profileSyncInFlightRef.current = true
+    lastProfileSyncRef.current = now
+    try {
+      const profile = await getUserProfile()
+      if (!profile) return
+      const tenant = getCurrentTenant()
+      if (tenant.id !== 'main' && !isUserAllowedForTenant(profile, tenant)) {
+        return
+      }
+      const userEmail = (fbUser.email || profile.email || '').trim().toLowerCase()
+      const isSuperAdminEmail = checkIsSuperAdmin(userEmail)
+      const isMerchantAdminEmail = checkIsMerchantAdmin(userEmail)
+      if (isSuperAdminEmail) {
+        profile.role = 'admin'
+        profile.subscription = {
+          ...(profile.subscription || {}),
+          plan_id: 'super_admin_unlimited',
+          plan_name: 'باقة المشرف الأعلى (غير محدود)',
+          status: 'active',
+          max_castles_allowed: 999999,
+          expires_at: '2099-01-01T00:00:00Z',
+          days_remaining: 99999,
+        }
+      } else if (isMerchantAdminEmail) {
+        profile.role = 'merchant_admin'
+      } else {
+        profile.role = 'user'
+      }
+
+      let castlesStateChanged = false
+      setUser(prev => {
+        const sig = (u: User | null) => u ? JSON.stringify({
+          role: u.role,
+          username: u.username,
+          phone: u.phone,
+          is_banned: Boolean(u.is_banned),
+          banned_reason: u.banned_reason || '',
+          sub: u.subscription ? {
+            status: u.subscription.status,
+            plan_id: u.subscription.plan_id,
+            plan_name: u.subscription.plan_name,
+            expires_at: u.subscription.expires_at,
+            max_castles_allowed: u.subscription.max_castles_allowed,
+            current_castles_count: u.subscription.current_castles_count,
+            pending_castles_count: u.subscription.pending_castles_count,
+          } : null,
+        }) : ''
+
+        if (sig(prev) === sig(profile)) {
+          return prev
+        }
+        castlesStateChanged = Boolean(
+          !prev ||
+          prev.is_banned !== profile.is_banned ||
+          prev.subscription?.status !== profile.subscription?.status ||
+          prev.subscription?.max_castles_allowed !== profile.subscription?.max_castles_allowed ||
+          prev.subscription?.current_castles_count !== profile.subscription?.current_castles_count ||
+          prev.subscription?.pending_castles_count !== profile.subscription?.pending_castles_count ||
+          prev.subscription?.expires_at !== profile.subscription?.expires_at
+        )
+        saveCachedUser(profile)
+        return profile
+      })
+
+      if (castlesStateChanged) {
+        void queryClient.invalidateQueries({ queryKey: ['castles', profile.uid] })
+      }
+    } catch {
+      // مزامنة صامتة في الخلفية بدون إزعاج المستخدم
+    } finally {
+      profileSyncInFlightRef.current = false
+    }
+  }, [])
+
+  // مزامنة صامتة وخفيفة لملف المستخدم واشتراكه عند عودة التركيز للنافذة أو كل 15 ثانية (في التبويب المرئي فقط)
+  useEffect(() => {
+    if (!firebaseUser) return
+
+    const onVisibleOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshUserProfile(false)
+      }
+    }
+    const onForceRefresh = () => {
+      void refreshUserProfile(true)
+    }
+
+    window.addEventListener('focus', onVisibleOrFocus)
+    document.addEventListener('visibilitychange', onVisibleOrFocus)
+    window.addEventListener('ibra:refresh-profile', onForceRefresh)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refreshUserProfile(false)
+      }
+    }, 15_000)
+
+    return () => {
+      window.removeEventListener('focus', onVisibleOrFocus)
+      document.removeEventListener('visibilitychange', onVisibleOrFocus)
+      window.removeEventListener('ibra:refresh-profile', onForceRefresh)
+      window.clearInterval(timer)
+    }
+  }, [firebaseUser, refreshUserProfile])
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (fbUser) => {
@@ -512,6 +627,7 @@ export function useAuthProvider(): AuthContextType {
     isSuperAdmin: isSuper,
     isMerchantAdmin: isMerchant,
     updateUserProfile,
+    refreshUserProfile: () => refreshUserProfile(true),
   }
 }
 

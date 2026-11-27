@@ -44,6 +44,15 @@
       "osVersion": "13",
       "timestamp": 1793477434.2191753,
       "source": "sdk_passport"
+    },
+    "m1.x.m1@hotmail.com": {
+      "userId": "0c5c4d4f609d66e9ba0c29eebb5c00c0",
+      "sessionId": "j+F6i+zXJue9odeYWbx+Khw+FvFPFPIgFyUbKWRjmxWl29QBGG1uETuRCBr1w08GGXp+Y8vOdlXD+T7CSjLUSA==",
+      "deviceId": "14ad54930150b79c666c1f49d8e8ac6b",
+      "model": "SM-A546E",
+      "osVersion": "13",
+      "timestamp": 1795799348.7527082,
+      "source": "sdk_passport"
     }
   }
 }

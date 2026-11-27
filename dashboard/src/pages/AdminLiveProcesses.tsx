@@ -1,17 +1,21 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Activity, RefreshCw, Search, AlertTriangle,
-  Play, Clock, Cpu, User, StopCircle, Radio, X, Loader2
+  Play, Clock, Cpu, User, StopCircle, X, Loader2
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { AdminLayout } from '../components/layout/AdminLayout'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   getAdminLiveProcesses,
+  getWsBaseUrl,
+  getWsAuthQuery,
   stopBot,
   stopAllBotsAdmin,
+  startEligibleBotsGradualAdmin,
+  cancelGradualStartAdmin,
   type LiveProcessesResponse,
 } from '../lib/botApi'
 import { useAuth } from '../hooks/useAuth'
@@ -19,9 +23,10 @@ import toast from 'react-hot-toast'
 
 type LiveFilterCategory = 'all' | 'running' | 'waiting' | 'starting' | 'other_login' | 'reconnecting'
 
-type ConfirmStopState =
+type ConfirmActionState =
   | { mode: 'single'; castleId: string; targetLabel: string }
   | { mode: 'all'; count: number }
+  | { mode: 'start_eligible'; count: number }
 
 function formatNextRunShort(iso: string | null | undefined): string {
   if (!iso) return ''
@@ -30,13 +35,13 @@ function formatNextRunShort(iso: string | null | undefined): string {
   return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`
 }
 
-function LiveStopConfirmModal({
+function LiveActionConfirmModal({
   state,
   isPending,
   onClose,
   onConfirm,
 }: {
-  state: ConfirmStopState | null
+  state: ConfirmActionState | null
   isPending: boolean
   onClose: () => void
   onConfirm: () => void
@@ -55,6 +60,7 @@ function LiveStopConfirmModal({
   if (!state || typeof document === 'undefined') return null
 
   const isAll = state.mode === 'all'
+  const isStartEligible = state.mode === 'start_eligible'
 
   return createPortal(
     <div
@@ -66,23 +72,36 @@ function LiveStopConfirmModal({
         onClick={e => e.stopPropagation()}
         className="z-10 relative bg-white dark:bg-[#0c1410] shadow-2xl border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-xs sm:max-w-sm overflow-hidden text-gray-900 dark:text-gray-100 admin-modal"
       >
-        <div className="bg-rose-500 w-full h-1" />
+        <div className={clsx('w-full h-1', isStartEligible ? 'bg-emerald-500' : 'bg-rose-500')} />
         <div className="space-y-4 p-4 sm:p-5">
           <div className="flex flex-col items-center gap-2 text-center">
-            <div className="flex justify-center items-center bg-rose-500/10 border border-rose-500/25 rounded-2xl w-11 h-11 text-rose-500">
-              <StopCircle size={22} />
+            <div
+              className={clsx(
+                'flex justify-center items-center border rounded-2xl w-11 h-11',
+                isStartEligible
+                  ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500'
+                  : 'bg-rose-500/10 border-rose-500/25 text-rose-500'
+              )}
+            >
+              {isStartEligible ? <Play size={22} /> : <StopCircle size={22} />}
             </div>
             <h3 className="font-bold text-gray-900 dark:text-white text-base">
-              {isAll ? t('admin.live.stopAllTitle') : t('admin.live.stopTitle')}
+              {isStartEligible
+                ? t('admin.live.startEligibleTitle')
+                : isAll
+                ? t('admin.live.stopAllTitle')
+                : t('admin.live.stopTitle')}
             </h3>
             <p className="text-gray-500 dark:text-gray-400 text-xs leading-relaxed">
-              {isAll
+              {isStartEligible
+                ? t('admin.live.startEligibleDesc', { count: state.count })
+                : isAll
                 ? t('admin.live.stopAllDesc', { count: state.count })
                 : t('admin.live.stopProcessDesc')}
             </p>
           </div>
 
-          {!isAll && (
+          {state.mode === 'single' && (
             <div className="bg-gray-50 dark:bg-white/[0.03] px-3 py-2 border border-gray-200 dark:border-white/8 rounded-xl text-center">
               <span className="block font-mono text-gray-800 dark:text-gray-200 text-xs truncate select-all">
                 {state.targetLabel}
@@ -103,12 +122,20 @@ function LiveStopConfirmModal({
               type="button"
               onClick={onConfirm}
               disabled={isPending}
-              className="flex flex-1 justify-center items-center gap-1.5 bg-rose-600 disabled:opacity-50 shadow-sm py-2.5 rounded-xl font-bold text-white text-xs sm:text-sm active:scale-[0.98] cursor-pointer"
+              className={clsx(
+                'flex flex-1 justify-center items-center gap-1.5 disabled:opacity-50 shadow-sm py-2.5 rounded-xl font-bold text-white text-xs sm:text-sm active:scale-[0.98] cursor-pointer',
+                isStartEligible ? 'bg-emerald-600' : 'bg-rose-600'
+              )}
             >
               {isPending ? (
                 <>
                   <Loader2 size={14} className="animate-spin" />
-                  <span>{t('admin.live.stopping')}</span>
+                  <span>{isStartEligible ? t('admin.live.startingEligible') : t('admin.live.stopping')}</span>
+                </>
+              ) : isStartEligible ? (
+                <>
+                  <Play size={14} />
+                  <span>{t('admin.live.startEligibleConfirm')}</span>
                 </>
               ) : (
                 <>
@@ -129,39 +156,192 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
   const { t } = useTranslation()
   const { firebaseUser, isSuperAdmin } = useAuth()
   const qc = useQueryClient()
-  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [data, setData] = useState<LiveProcessesResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [isError, setIsError] = useState(false)
+  const [wsConnected, setWsConnected] = useState(false)
+  const [isTabVisible, setIsTabVisible] = useState<boolean>(
+    () => (typeof document === 'undefined' ? true : document.visibilityState === 'visible')
+  )
+  const [nowSec, setNowSec] = useState<number>(() => Math.floor(Date.now() / 1000))
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<LiveFilterCategory>('all')
   const [stoppingIds, setStoppingIds] = useState<Set<string>>(new Set())
   const [stoppingAll, setStoppingAll] = useState(false)
-  const [confirmState, setConfirmState] = useState<ConfirmStopState | null>(null)
+  const [startingEligible, setStartingEligible] = useState(false)
+  const [cancellingGradual, setCancellingGradual] = useState(false)
+  const [confirmState, setConfirmState] = useState<ConfirmActionState | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+  const hasDataRef = useRef(false)
 
-  const {
-    data,
-    isLoading: loading,
-    isFetching: isRefreshing,
-    isError,
-    refetch,
-  } = useQuery<LiveProcessesResponse>({
-    queryKey: ['admin', 'live-processes'],
-    queryFn: getAdminLiveProcesses,
-    staleTime: 4000,
-    gcTime: 1000 * 60 * 10,
-    refetchInterval: isActive && autoRefresh ? 5000 : false,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
-  })
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const onVis = () => setIsTabVisible(document.visibilityState === 'visible')
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [])
+
+  const fetchSnapshotFallback = useCallback(async () => {
+    try {
+      const snap = await getAdminLiveProcesses()
+      hasDataRef.current = true
+      setData(snap)
+      setIsError(false)
+      setLoading(false)
+    } catch {
+      setIsError(true)
+      setLoading(false)
+    }
+  }, [])
+
+  const triggerInstantRefresh = useCallback(async () => {
+    const ws = wsRef.current
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send('refresh')
+        return
+      } catch {
+        // fallback below
+      }
+    }
+    await fetchSnapshotFallback()
+  }, [fetchSnapshotFallback])
+
+  // اتصال WebSocket لحظي خفيف يعمل فقط عند فتح التبويب ورؤيته؛ يُغلق تلقائياً في الخلفية
+  useEffect(() => {
+    if (!isActive || !isTabVisible || !firebaseUser || !isSuperAdmin) {
+      wsRef.current?.close()
+      wsRef.current = null
+      setWsConnected(false)
+      return
+    }
+
+    const WS_BASE = getWsBaseUrl()
+    let destroyed = false
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+
+    function connect() {
+      if (destroyed) return
+      void (async () => {
+        try {
+          const authQuery = await getWsAuthQuery()
+          if (destroyed) return
+          const ws = new WebSocket(`${WS_BASE}/ws/admin/live-processes${authQuery}`)
+          wsRef.current = ws
+
+          ws.onopen = () => {
+            if (!destroyed) {
+              setWsConnected(true)
+              setIsError(false)
+            }
+          }
+
+          ws.onmessage = (e) => {
+            if (destroyed || !e.data) return
+            try {
+              const parsed = JSON.parse(e.data)
+              if (parsed?.type === 'ping') return
+              if (parsed && Array.isArray(parsed.processes)) {
+                hasDataRef.current = true
+                setData(parsed as LiveProcessesResponse)
+                setLoading(false)
+                setIsError(false)
+              }
+            } catch {
+              // ignore malformed frames
+            }
+          }
+
+          ws.onclose = (ev) => {
+            if (wsRef.current === ws) wsRef.current = null
+            if (!destroyed) {
+              setWsConnected(false)
+              if (!hasDataRef.current) {
+                void fetchSnapshotFallback()
+              }
+              reconnectTimer = setTimeout(connect, ev.code === 1008 ? 15000 : 2500)
+            }
+          }
+
+          ws.onerror = () => {
+            ws.close()
+          }
+        } catch {
+          if (!destroyed) {
+            setWsConnected(false)
+            void fetchSnapshotFallback()
+            reconnectTimer = setTimeout(connect, 3000)
+          }
+        }
+      })()
+    }
+
+    connect()
+
+    return () => {
+      destroyed = true
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      wsRef.current?.close()
+      wsRef.current = null
+      setWsConnected(false)
+    }
+  }, [isActive, isTabVisible, firebaseUser, isSuperAdmin, fetchSnapshotFallback])
+
+  // تحديث محلي خفيف لمدة التشغيل (uptime) كل 5 ثوانٍ دون أي اتصال بالسيرفر
+  useEffect(() => {
+    if (!isActive || !isTabVisible || !data?.processes?.length) return
+    setNowSec(Math.floor(Date.now() / 1000))
+    const timer = window.setInterval(() => {
+      setNowSec(Math.floor(Date.now() / 1000))
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [isActive, isTabVisible, data?.processes?.length])
 
   const invalidateLiveCaches = () => {
-    qc.invalidateQueries({ queryKey: ['admin', 'live-processes'] })
     qc.invalidateQueries({ queryKey: ['admin_stats'] })
     qc.invalidateQueries({ queryKey: ['admin_users'] })
     qc.invalidateQueries({ queryKey: ['admin_users_castles'] })
     qc.invalidateQueries({ queryKey: ['castles'] })
   }
 
-  const handleConfirmStop = async () => {
+  const handleCancelGradual = async () => {
+    setCancellingGradual(true)
+    try {
+      await cancelGradualStartAdmin()
+      toast.success(t('admin.live.cancelGradualSuccess'))
+      invalidateLiveCaches()
+      await triggerInstantRefresh()
+    } catch (err: any) {
+      toast.error(t('admin.live.startEligibleError', { error: err?.message || t('common.error') }))
+    } finally {
+      setCancellingGradual(false)
+    }
+  }
+
+  const handleConfirmAction = async () => {
     if (!confirmState) return
+
+    if (confirmState.mode === 'start_eligible') {
+      setStartingEligible(true)
+      try {
+        const res = await startEligibleBotsGradualAdmin()
+        if (res.status === 'started') {
+          toast.success(t('admin.live.startEligibleStarted', { count: res.total ?? confirmState.count }))
+        } else if (res.status === 'already_running') {
+          toast(t('admin.live.startEligibleAlreadyRunning'))
+        } else {
+          toast(t('admin.live.startEligibleEmpty'))
+        }
+        setConfirmState(null)
+        invalidateLiveCaches()
+        await triggerInstantRefresh()
+      } catch (err: any) {
+        toast.error(t('admin.live.startEligibleError', { error: err?.message || t('common.error') }))
+      } finally {
+        setStartingEligible(false)
+      }
+      return
+    }
 
     if (confirmState.mode === 'all') {
       setStoppingAll(true)
@@ -170,7 +350,7 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
         toast.success(t('admin.live.stopAllSuccess'))
         setConfirmState(null)
         invalidateLiveCaches()
-        await refetch()
+        await triggerInstantRefresh()
       } catch (err: any) {
         toast.error(t('admin.live.stopError', { error: err?.message || t('common.error') }))
       } finally {
@@ -186,7 +366,7 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
       toast.success(t('admin.live.stopSuccess', { target: targetLabel }))
       setConfirmState(null)
       invalidateLiveCaches()
-      await refetch()
+      await triggerInstantRefresh()
     } catch (err: any) {
       toast.error(t('admin.live.stopError', { error: err?.message || t('common.error') }))
     } finally {
@@ -247,6 +427,15 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
     other_login: 0,
     reconnecting: 0,
     starting: 0,
+  }
+
+  const eligibleIdleCount = Number(data?.eligible_idle_count ?? 0)
+  const gradualStartup = data?.gradual_startup || {
+    running: false,
+    total: 0,
+    started: 0,
+    skipped: 0,
+    remaining: 0,
   }
 
   if (!firebaseUser || !isSuperAdmin) {
@@ -319,41 +508,63 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
           <div className="bg-emerald-500/10 dark:bg-emerald-500/15 p-2 border border-emerald-500/25 rounded-xl text-emerald-600 dark:text-emerald-400">
             <Activity size={19} />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-bold text-slate-900 dark:text-white text-lg sm:text-xl">
               {t('admin.live.title')}
             </h1>
             <span className="bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/25 rounded-md font-mono font-semibold text-emerald-600 dark:text-emerald-400 text-xs">
               {t('admin.live.activeCount', { count: summary.total_active })}
             </span>
+            <span
+              className={clsx(
+                'inline-flex items-center gap-1.5 px-2 py-0.5 border rounded-md font-semibold text-[11px]',
+                wsConnected
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25'
+                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25'
+              )}
+            >
+              <span
+                className={clsx(
+                  'rounded-full w-1.5 h-1.5',
+                  wsConnected ? 'bg-emerald-500' : 'bg-amber-500'
+                )}
+              />
+              <span>{wsConnected ? t('admin.live.liveBadge') : t('admin.live.connectingBadge')}</span>
+            </span>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setAutoRefresh(prev => !prev)}
-            className={clsx(
-              'flex items-center gap-1.5 px-3 py-1.5 border rounded-xl font-bold text-xs cursor-pointer',
-              autoRefresh
-                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
-                : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-gray-400 border-slate-200 dark:border-white/10'
-            )}
-            title={t('admin.live.autoRefreshTooltip')}
-          >
-            <Radio size={13} className={autoRefresh ? 'text-emerald-500' : ''} />
-            <span>{t('admin.live.autoBtn')}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isRefreshing}
-            className="flex items-center gap-1.5 bg-white dark:bg-white/5 disabled:opacity-50 px-3 py-1.5 border border-slate-200 dark:border-white/10 rounded-xl font-bold text-slate-700 dark:text-gray-200 text-xs cursor-pointer"
-          >
-            <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-emerald-500' : ''} />
-            <span>{t('admin.live.refreshNow')}</span>
-          </button>
+          {gradualStartup.running ? (
+            <button
+              type="button"
+              onClick={handleCancelGradual}
+              disabled={cancellingGradual}
+              className="flex items-center gap-1.5 bg-amber-500/15 disabled:opacity-50 px-3 py-1.5 border border-amber-500/35 rounded-xl font-bold text-amber-700 dark:text-amber-300 text-xs active:scale-95 cursor-pointer"
+              title={t('admin.live.cancelGradualBtn')}
+            >
+              <Loader2 size={13} className="animate-spin" />
+              <span>
+                {t('admin.live.gradualProgress', {
+                  started: gradualStartup.started,
+                  total: gradualStartup.total,
+                })}
+              </span>
+              <span className="ms-0.5 text-amber-800 dark:text-amber-200 underline">
+                {t('admin.live.cancelGradualBtn')}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmState({ mode: 'start_eligible', count: eligibleIdleCount })}
+              disabled={startingEligible || eligibleIdleCount === 0}
+              className="flex items-center gap-1.5 bg-emerald-600 disabled:opacity-45 shadow-xs px-3 py-1.5 rounded-xl font-bold text-white text-xs active:scale-95 cursor-pointer disabled:cursor-not-allowed"
+            >
+              <Play size={13} />
+              <span>{t('admin.live.startEligibleBtn', { count: eligibleIdleCount })}</span>
+            </button>
+          )}
 
           {summary.total_active > 0 && (
             <button
@@ -437,7 +648,7 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
           </p>
           <button
             type="button"
-            onClick={() => refetch()}
+            onClick={() => void fetchSnapshotFallback()}
             className="bg-emerald-600 px-3.5 py-1.5 rounded-xl font-bold text-white text-xs cursor-pointer"
           >
             {t('admin.live.retryBtn')}
@@ -602,7 +813,11 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
                     <div className="flex justify-between sm:justify-end items-center gap-3 pt-2 sm:pt-0 border-slate-100 dark:border-white/5 border-t sm:border-t-0 shrink-0">
                       <div className="text-start sm:text-end">
                         <div className="font-mono font-bold text-slate-800 dark:text-gray-200 text-xs">
-                          {formatUptime(proc.uptime_seconds)}
+                          {formatUptime(
+                            proc.start_time && proc.start_time > 0
+                              ? Math.max(proc.uptime_seconds || 0, Math.floor(nowSec - proc.start_time))
+                              : proc.uptime_seconds
+                          )}
                           {proc.iteration > 0 && (
                             <span className="ms-1.5 font-normal text-[11px] text-slate-500 dark:text-slate-400">
                               · {t('admin.live.iteration', { num: proc.iteration })}
@@ -640,15 +855,17 @@ export function AdminLiveProcessesView({ isActive = true }: { isActive?: boolean
         </div>
       )}
 
-      <LiveStopConfirmModal
+      <LiveActionConfirmModal
         state={confirmState}
         isPending={
-          confirmState?.mode === 'all'
+          confirmState?.mode === 'start_eligible'
+            ? startingEligible
+            : confirmState?.mode === 'all'
             ? stoppingAll
             : Boolean(confirmState && stoppingIds.has(confirmState.castleId))
         }
         onClose={() => setConfirmState(null)}
-        onConfirm={handleConfirmStop}
+        onConfirm={handleConfirmAction}
       />
     </div>
   )

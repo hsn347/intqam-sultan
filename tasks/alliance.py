@@ -29,12 +29,25 @@ from tasks.base_task import BaseTask, TaskResult
 
 DAILY_QUEST_HELP_TYPE = "18"     # معرف نوع مهمة مساعدة التحالف في everydayTaskCtrl.eventInfo
 DAILY_QUEST_HELP_TARGET = 40    # الحد المطلوب لإنجاز مهمة مساعدة التحالف اليومية (40 مرة وفق daily_reward_point_config.lua)
+DAILY_QUEST_DONATE_TYPE = "21"   # معرف نوع مهمة تبرع التحالف في everydayTaskCtrl.eventInfo (ID=4100021)
+DAILY_QUEST_DONATE_TARGET = 20   # الحد المطلوب لإنجاز مهمة تبرع التحالف اليومية (limitTime=20 وفق daily_reward_point_config.lua)
 
 DONATE_TYPE_FREE = 1             # نوع التبرع بالموارد العادية (حديد/قمح/خشب) في السيرفر الرسمي
 DEFAULT_SCI_ID = 33015           # المعرف الاحتياطي عند تعذر إيجاد تقنية
 DONATE_DELAY_RANGE = (1.5, 2.8)  # فاصل بشري عشوائي بين التبرعات لمحاكاة النقر الطبيعي
 MAX_CD_LIMIT = 14400             # سقف شريط الانتظار الأقصى (4 ساعات = 14,400 ثانية)
 STEP_CD = 720                    # وقت الانتظار المضاف لكل تبرع فردي (12 دقيقة = 720 ثانية)
+
+# ثوابت تبرع ازدهار/شعبية التحالف (Alliance Prosperity / Popularity)
+# موثقة حرفياً من alliance_prosperous.lua + constant.lua + allianceScience.lua
+PROSPERITY_DONATE_CMD_SUB = "91"       # REQ_ALLIANCE_DONATE_POPULARITY (cmdDef.lua:872)
+PROSPERITY_REWARD_CMD_SUB = "93"       # REQ_ALLIANCE_RECIEVE_PROSPERITY_REWARD (cmdDef.lua:874)
+PROSPERITY_DONATE_TYPE_JUNIOR = 1      # Junior: juniorUse = [1002, 15000, 1000] (100% قمح، 0 ذهب)
+PROSPERITY_JUNIOR_RES_ID = "1002"      # معرف مورد القمح (Food)
+PROSPERITY_JUNIOR_FOOD_COST = 15000    # تكلفة التبرع الفردي بالقمح من alliance_prosperous.lua
+PROSPERITY_DONATE_MAX_NUM = 500        # السقف اليومي PROSPERITY_DONATE_MAX_NUM من constant.lua
+PROSPERITY_JOIN_WAIT_SECONDS = 14400   # مدة الانتظار بعد الانضمام ALLIANCE_PROSPERITY_DONATE_TIME (4 ساعات)
+PROSPERITY_REWARD_STEP = 300           # عتبة كل مكافأة ازدهار (allianceScience.lua:580)
 
 # الحدود الرسمية لعلوم التحالف من ملف اللعبة (id: (maxLv, maxStar))
 ALLIANCE_SCI_LIMITS: Dict[int, Tuple[int, int]] = {
@@ -471,6 +484,336 @@ class AllianceTask(BaseTask):
             return True, "تم إنجاز: " + "، ".join(actions_done)
         return True, "لا توجد إجراءات كنز معلقة حالياً"
 
+    # ═════════════════════════════════════════════════════════════════════════
+    # دوال الذاكرة الحية الخاصة بازدهار/شعبية التحالف (0-Network Read-Only)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    def _get_alliance_member_info(self) -> Optional[Dict[str, Any]]:
+        """قراءة بيانات عضو التحالف minfo من الذاكرة الحية allianceCtrl (0-Network Read-Only)."""
+        alliance_ctrl = self.get_ctrl("allianceCtrl")
+        if not isinstance(alliance_ctrl, dict):
+            return None
+        member_wrap = alliance_ctrl.get("memberinfo")
+        if not isinstance(member_wrap, dict):
+            return None
+        minfo = member_wrap.get("minfo")
+        return minfo if isinstance(minfo, dict) and minfo else None
+
+    def _get_alliance_science_container(self) -> Optional[Dict[str, Any]]:
+        """قراءة حاوية علوم وازدهار التحالف sciencelist من allianceCtrl (0-Network Read-Only)."""
+        alliance_ctrl = self.get_ctrl("allianceCtrl")
+        if not isinstance(alliance_ctrl, dict):
+            return None
+        sci_container = alliance_ctrl.get("sciencelist")
+        return sci_container if isinstance(sci_container, dict) and sci_container else None
+
+    def _is_prosperity_unlocked(self) -> bool:
+        """
+        التحقق المطابق حرفياً لدالة allianceScience:isProsperityUnlock() (allianceScience.lua:561-573):
+        يُفتح ازدهار التحالف حصراً عند اكتمال كافة التقنيات الـ 53 في alliance_prosperous_unlock.lua
+        إلى أقصى مستوى (lv >= maxLv و star >= 0).
+        """
+        sci_container = self._get_alliance_science_container()
+        if not sci_container:
+            return False
+        scilist = sci_container.get("scilist")
+        if not isinstance(scilist, dict) or not scilist:
+            return False
+
+        sci_by_id: Dict[int, Tuple[int, int]] = {}
+        for group_items in scilist.values():
+            if not isinstance(group_items, list):
+                continue
+            for item in group_items:
+                if not isinstance(item, dict):
+                    continue
+                sid = self._safe_int(item.get("id"), 0)
+                if sid > 0:
+                    sci_by_id[sid] = (
+                        self._safe_int(item.get("lv"), 0),
+                        self._safe_int(item.get("star"), 0),
+                    )
+
+        for req_id, (req_max_lv, _) in ALLIANCE_SCI_LIMITS.items():
+            state = sci_by_id.get(req_id)
+            if state is None:
+                return False
+            cur_lv, cur_star = state
+            if cur_lv < req_max_lv or cur_star < 0:
+                return False
+        return True
+
+    def _get_prosperity_join_wait_remaining(self, now_ts: Optional[int] = None) -> int:
+        """
+        حساب الثواني المتبقية قبل استيفاء شرط الانضمام (4 ساعات) لتبرع الازدهار (0-Network Read-Only).
+        مطابق لدالة AllianceProsperityDonatePanel.lua:73-79: يتطلب (now - joinTime) > 14400.
+        """
+        minfo = self._get_alliance_member_info()
+        if not minfo:
+            return PROSPERITY_JOIN_WAIT_SECONDS
+        join_time = self._safe_int(minfo.get("joinTime"), 0)
+        if join_time <= 0:
+            return PROSPERITY_JOIN_WAIT_SECONDS
+        cur_ts = now_ts if now_ts is not None else self.get_server_time()
+        elapsed = cur_ts - join_time
+        if elapsed <= PROSPERITY_JOIN_WAIT_SECONDS:
+            return max(1, (PROSPERITY_JOIN_WAIT_SECONDS - elapsed) + 1)
+        return 0
+
+    def _get_prosperity_daily_remaining(self, now_ts: Optional[int] = None) -> int:
+        """
+        حساب عدد تبرعات الازدهار المتبقية لليوم من donatePopularityState (0-Network Read-Only).
+        مطابق لدالة allianceScience:getProsperityRemainCount() (allianceScience.lua:654-665).
+        """
+        minfo = self._get_alliance_member_info()
+        if not minfo:
+            return 0
+        dp_state = minfo.get("donatePopularityState")
+        cur_ts = now_ts if now_ts is not None else self.get_server_time()
+        donated_today = 0
+        if isinstance(dp_state, dict):
+            reset_time = self._safe_int(dp_state.get("resetTime"), 0)
+            if reset_time > 0 and self.is_same_utc_day(reset_time, cur_ts):
+                donated_today = max(0, self._safe_int(dp_state.get("donateTimes"), 0))
+        return max(0, PROSPERITY_DONATE_MAX_NUM - donated_today)
+
+    def _get_prosperity_daily_quest_remaining(self, now_ts: Optional[int] = None) -> Tuple[bool, int, int]:
+        """
+        فحص تقدم مهمة تبرع التحالف في النشاط اليومي (type=21، الهدف=20) من الذاكرة الحية (0-Network Read-Only):
+          - عند غياب everydayTaskCtrl يُعيد (False, 0, 0) للتخطي الآمن دون تخمين.
+          - عند عبور tomorrowZeroUTC يعتمد التقدم الفعلي 0 مع التقاطع الاحترازي ضد donatePopularityState لليوم الجديد.
+        يُعيد: (is_loaded, effective_done, remaining_to_target).
+        """
+        cur_ts = now_ts if now_ts is not None else self.get_server_time()
+        is_loaded, ev_done = self.get_daily_quest_state(DAILY_QUEST_DONATE_TYPE, cur_ts)
+        if not is_loaded:
+            return False, 0, 0
+
+        dp_donated_today = 0
+        minfo = self._get_alliance_member_info()
+        if minfo:
+            dp_state = minfo.get("donatePopularityState")
+            if isinstance(dp_state, dict):
+                reset_time = self._safe_int(dp_state.get("resetTime"), 0)
+                if reset_time > 0 and self.is_same_utc_day(reset_time, cur_ts):
+                    dp_donated_today = max(0, self._safe_int(dp_state.get("donateTimes"), 0))
+
+        effective_done = max(ev_done, dp_donated_today)
+        remaining = max(0, DAILY_QUEST_DONATE_TARGET - effective_done)
+        return True, effective_done, remaining
+
+    def _get_prosperity_cd_status(self, now_ts: Optional[int] = None) -> Tuple[bool, int, int]:
+        """
+        قراءة حالة قفل وشريط انتظار تبرع الازدهار من الذاكرة الحية (0-Network Read-Only).
+        مطابق لدالتي isDonatePopularityLock و getDonatePopularityRemainTime (allianceScience.lua:666-686).
+        يُعيد: (is_locked, remain_cd_seconds, available_slots).
+        """
+        minfo = self._get_alliance_member_info()
+        if not minfo:
+            return True, MAX_CD_LIMIT, 0
+        cur_ts = now_ts if now_ts is not None else self.get_server_time()
+        dp_lock = self._safe_int(minfo.get("donatePopularityLock"), 0)
+        dp_cd = minfo.get("donatePopularityCD")
+        remain_cd = 0
+        if isinstance(dp_cd, dict):
+            starttime = self._safe_int(dp_cd.get("starttime"), 0)
+            totaltime = self._safe_int(dp_cd.get("totaltime"), 0)
+            if starttime > 0 and totaltime > 0:
+                remain_cd = max(0, (starttime + totaltime) - cur_ts)
+
+        is_locked = (dp_lock == 1 and remain_cd > 0)
+        if is_locked or remain_cd >= MAX_CD_LIMIT:
+            return is_locked, remain_cd, 0
+        available_slots = min(20, max(0, (MAX_CD_LIMIT - remain_cd) // STEP_CD))
+        return False, remain_cd, available_slots
+
+    def _get_prosperity_rewards_count(self) -> int:
+        """
+        حساب عدد مكافآت ازدهار التحالف الجاهزة للاستلام (0-Network Read-Only).
+        مطابق لدالة allianceScience:getProsperityRewardsCount() (allianceScience.lua:574-581).
+        """
+        minfo = self._get_alliance_member_info()
+        sci_container = self._get_alliance_science_container()
+        if not minfo or not sci_container:
+            return 0
+        if "lastProsperity" not in minfo:
+            return 0
+        prosperity = self._safe_int(sci_container.get("prosperity"), 0)
+        last_prosperity = self._safe_int(minfo.get("lastProsperity"), -1)
+        if prosperity <= 0 or last_prosperity < 0 or last_prosperity >= prosperity:
+            return 0
+        return (prosperity - last_prosperity) // PROSPERITY_REWARD_STEP
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # الروتين الاحتياطي: تبرع ازدهار/شعبية التحالف (1010/91) + المكافآت (1010/93)
+    # ═════════════════════════════════════════════════════════════════════════
+
+    async def _donate_alliance_prosperity(
+        self,
+        max_donations_override: Optional[int] = None,
+        claim_rewards: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        مسار التبرع الاحتياطي لازدهار/شعبية التحالف عند اكتمال جميع علوم التحالف (53 تقنية).
+        يلتزم بالكامل بالدستور الرسمي:
+          - 0-Query: يقرأ حصراً من الذاكرة الحية دون أي استعلام شبكي مسبق.
+          - 0-Manual-Mutation: لا يعدل conn.init_data يدوياً، ويعتمد على LiveMemoryEngine._handle_cmd_1010.
+          - 0-Gold: يرسل donatetype=1 (Junior: 15,000 قمح فقط).
+          - 0-Rejected-Requests: يفحص كل بوابة قبل بدء الحلقة وقبل كل تبرع فردي.
+        """
+        result: Dict[str, Any] = {
+            "donated": 0,
+            "honor": 0,
+            "score": 0,
+            "popularity": 0,
+            "rewards_claimed": 0,
+            "skip_reason": "",
+        }
+
+        if not self._get_alliance_member_info() or not self._get_alliance_science_container():
+            result["skip_reason"] = "بيانات التحالف غير مكتملة في الذاكرة الحية"
+            self.log(f"ℹ️ [ازدهار التحالف] {result['skip_reason']} — تم التخطي بأمان (0-Network).")
+            return result
+
+        if not self._is_prosperity_unlocked():
+            result["skip_reason"] = "ازدهار التحالف غير مفتوح (لم تكتمل جميع العلوم الـ 53)"
+            return result
+
+        now_ts = self.get_server_time()
+        quest_loaded, quest_done, quest_remain = self._get_prosperity_daily_quest_remaining(now_ts)
+        join_wait = self._get_prosperity_join_wait_remaining(now_ts)
+        is_locked, remain_cd, cd_slots = self._get_prosperity_cd_status(now_ts)
+        daily_remain = self._get_prosperity_daily_remaining(now_ts)
+        initial_food = self.get_resource_balance(PROSPERITY_JUNIOR_RES_ID)
+        affordable = initial_food // PROSPERITY_JUNIOR_FOOD_COST
+
+        if not quest_loaded:
+            result["skip_reason"] = "بيانات النشاط اليومي (everydayTaskCtrl) غير متوفرة في الذاكرة الحية"
+            self.log(f"ℹ️ [ازدهار التحالف] {result['skip_reason']} — تم تخطي التبرع بأمان (0-Network).")
+        elif quest_remain <= 0:
+            result["skip_reason"] = f"مهمة تبرع التحالف مكتملة بالنشاط اليومي ({quest_done}/{DAILY_QUEST_DONATE_TARGET})"
+            self.log(f"ℹ️ [ازدهار التحالف] {result['skip_reason']} — تم تخطي التبرع بأمان (0-Network).")
+        elif join_wait > 0:
+            result["skip_reason"] = f"لم تمضِ 4 ساعات على الانضمام للتحالف (متبقي {join_wait // 60} دقيقة)"
+            self.log(f"ℹ️ [ازدهار التحالف] {result['skip_reason']} — تم التخطي بأمان (0-Network).")
+        elif is_locked:
+            result["skip_reason"] = f"تبرع الازدهار مقفل حالياً (متبقي {remain_cd // 60} دقيقة)"
+            self.log(f"⏳ [ازدهار التحالف] {result['skip_reason']} — تم التخطي بأمان (0-Network).")
+        elif cd_slots <= 0:
+            result["skip_reason"] = f"شريط انتظار تبرع الازدهار ممتلئ (متبقي {remain_cd // 60} دقيقة)"
+            self.log(f"⏳ [ازدهار التحالف] {result['skip_reason']} — تم التخطي بأمان (0-Network).")
+        elif daily_remain <= 0:
+            result["skip_reason"] = f"اكتمل الحد اليومي لتبرع الازدهار ({PROSPERITY_DONATE_MAX_NUM}/{PROSPERITY_DONATE_MAX_NUM})"
+            self.log(f"ℹ️ [ازدهار التحالف] {result['skip_reason']} — تم التخطي بأمان (0-Network).")
+        elif affordable <= 0:
+            result["skip_reason"] = f"رصيد القمح غير كافٍ ({initial_food:,} < {PROSPERITY_JUNIOR_FOOD_COST:,})"
+            self.log(f"ℹ️ [ازدهار التحالف] {result['skip_reason']} — تم التخطي بأمان (0-Network).")
+        else:
+            planned = min(quest_remain, cd_slots, daily_remain, affordable)
+            if max_donations_override is not None:
+                planned = min(planned, max(0, int(max_donations_override)))
+
+            if planned > 0:
+                self.log(
+                    f"🏛️ [ازدهار التحالف] كافة علوم التحالف مكتملة — بدء مسار تبرع الازدهار الاحتياطي "
+                    f"(المخطط: {planned} تبرع بالقمح | النشاط اليومي: {quest_done}/{DAILY_QUEST_DONATE_TARGET} | "
+                    f"انتظار الشريط: {remain_cd // 60} دقيقة)."
+                )
+
+            for idx in range(planned):
+                # إعادة التحقق المباشر من الذاكرة الحية المحدّثة عبر LiveMemoryEngine قبل كل طلب
+                if idx > 0:
+                    loop_now = self.get_server_time()
+                    loop_q_loaded, loop_q_done, _ = self._get_prosperity_daily_quest_remaining(loop_now)
+                    effective_q_done = max(loop_q_done, quest_done + result["donated"])
+                    loop_locked, loop_rem_cd, _ = self._get_prosperity_cd_status(loop_now)
+                    loop_daily_rem = self._get_prosperity_daily_remaining(loop_now)
+                    live_food = self.get_resource_balance(PROSPERITY_JUNIOR_RES_ID)
+                    est_food = max(0, initial_food - (result["donated"] * PROSPERITY_JUNIOR_FOOD_COST))
+                    effective_food = min(live_food, est_food)
+
+                    if not loop_q_loaded or effective_q_done >= DAILY_QUEST_DONATE_TARGET:
+                        self.log(
+                            f"✅ [ازدهار التحالف] اكتملت مهمة التبرع بالنشاط اليومي ({effective_q_done}/{DAILY_QUEST_DONATE_TARGET}) — توقف آمن."
+                        )
+                        break
+                    if loop_locked or loop_rem_cd >= MAX_CD_LIMIT:
+                        self.log(
+                            f"⏳ [ازدهار التحالف] وصل مؤقت الازدهار إلى حالة القفل/الامتلاء بعد {result['donated']} تبرع — توقف آمن."
+                        )
+                        break
+                    if loop_daily_rem <= 0:
+                        self.log(f"ℹ️ [ازدهار التحالف] اكتمل السقف اليومي بعد {result['donated']} تبرع — توقف آمن.")
+                        break
+                    if effective_food < PROSPERITY_JUNIOR_FOOD_COST:
+                        self.log(f"ℹ️ [ازدهار التحالف] رصيد القمح لم يعد كافياً ({effective_food:,}) — توقف آمن.")
+                        break
+
+                r_pop = await self.safe_query(
+                    "1010",
+                    PROSPERITY_DONATE_CMD_SUB,
+                    {"donatetype": PROSPERITY_DONATE_TYPE_JUNIOR},
+                    min_delay=0.4,
+                    max_delay=0.8,
+                    action="تبرع ازدهار التحالف",
+                )
+
+                if self._is_resp_ok(r_pop):
+                    result["donated"] += 1
+                    ret_data = (
+                        r_pop.get("data", {}).get("retdata", {})
+                        if isinstance(r_pop, dict) and isinstance(r_pop.get("data"), dict)
+                        else {}
+                    )
+                    get_info = ret_data.get("get", {}) if isinstance(ret_data, dict) and isinstance(ret_data.get("get"), dict) else {}
+                    result["honor"] += self._safe_int(get_info.get("honor"), 0)
+                    result["score"] += self._safe_int(get_info.get("score"), 0)
+                    result["popularity"] += self._safe_int(get_info.get("addPopularity"), 0)
+                else:
+                    err_code = str(r_pop.get("err", "unknown")) if isinstance(r_pop, dict) else "timeout"
+                    if err_code == "7162":
+                        self.log(f"⏳ [ازدهار التحالف] تبرع الازدهار دخل مرحلة القفل (كود 7162) بعد {result['donated']} تبرع.")
+                    elif err_code == "7164":
+                        self.log(f"ℹ️ [ازدهار التحالف] اكتمل السقف اليومي للازدهار (كود 7164).")
+                    elif err_code == "7159":
+                        self.log("ℹ️ [ازدهار التحالف] لم تكتمل مدة الـ 4 ساعات بعد الانضمام (كود 7159).")
+                    elif err_code == "7160":
+                        self.log("ℹ️ [ازدهار التحالف] ميزة الازدهار غير مفتوحة بعد (كود 7160).")
+                    else:
+                        self.log(f"⚠️ [ازدهار التحالف] توقف التبرع عند المحاولة #{idx + 1} (كود السيرفر: {err_code}).")
+                    break
+
+                if idx + 1 < planned:
+                    await asyncio.sleep(round(random.uniform(*DONATE_DELAY_RANGE), 2))
+
+            if result["donated"] > 0:
+                self.log(
+                    f"✅ [ازدهار التحالف] تم تنفيذ {result['donated']} تبرع بنجاح "
+                    f"(شرف +{result['honor']:,} | شعبية +{result['popularity']:,})."
+                )
+
+        # الجزء الثاني: استلام مكافآت ازدهار التحالف الجاهزة (CMD 1010/93)
+        if claim_rewards:
+            rewards_ready = self._get_prosperity_rewards_count()
+            if rewards_ready > 0:
+                self.log(f"🎁 [ازدهار التحالف] توجد {rewards_ready} مكافأة ازدهار جاهزة — جارٍ الاستلام (1010/93)...")
+                r_rew = await self.safe_query(
+                    "1010",
+                    PROSPERITY_REWARD_CMD_SUB,
+                    {},
+                    min_delay=0.4,
+                    max_delay=0.8,
+                    action="استلام مكافأة ازدهار التحالف",
+                )
+                if self._is_resp_ok(r_rew):
+                    result["rewards_claimed"] = rewards_ready
+                    self.log(f"✅ [ازدهار التحالف] تم استلام {rewards_ready} مكافأة ازدهار بنجاح.")
+                else:
+                    err_code = str(r_rew.get("err", "unknown")) if isinstance(r_rew, dict) else "timeout"
+                    self.log(f"⚠️ [ازدهار التحالف] تعذر استلام مكافأة الازدهار (كود السيرفر: {err_code}).")
+
+        return result
+
     async def run(self) -> TaskResult:
         # 1. فحص الذاكرة الحية لعضوية التحالف (0-Network Pre-flight)
         alliance_id = self._get_alliance_id()
@@ -562,6 +905,20 @@ class AllianceTask(BaseTask):
                             await asyncio.sleep(round(random.uniform(*DONATE_DELAY_RANGE), 2))
 
         # ══════════════════════════════════════════════════════════════
+        #  الروتين 2B: المسار الاحتياطي — تبرع ازدهار/شعبية التحالف (1010/91 & 1010/93)
+        # ══════════════════════════════════════════════════════════════
+        prosperity_res: Dict[str, Any] = {
+            "donated": 0,
+            "honor": 0,
+            "score": 0,
+            "popularity": 0,
+            "rewards_claimed": 0,
+            "skip_reason": "",
+        }
+        if total_donated_free == 0 and self._is_prosperity_unlocked():
+            prosperity_res = await self._donate_alliance_prosperity()
+
+        # ══════════════════════════════════════════════════════════════
         #  الروتين 3: كنز التحالف (Alliance Treasure)
         # ══════════════════════════════════════════════════════════════
         treasure_ok, treasure_msg = await self._treasure_alliance()
@@ -574,6 +931,12 @@ class AllianceTask(BaseTask):
             summary_parts.append(help_msg)
         if total_donated_free > 0:
             summary_parts.append(f"{total_donated_free} تبرع مجاني للتحالف (شرف +{total_honor_earned:,})")
+        if prosperity_res["donated"] > 0:
+            summary_parts.append(
+                f"{prosperity_res['donated']} تبرع ازدهار للتحالف (شرف +{prosperity_res['honor']:,})"
+            )
+        if prosperity_res["rewards_claimed"] > 0:
+            summary_parts.append(f"استلام {prosperity_res['rewards_claimed']} مكافأة ازدهار")
         if treasure_ok and "تم إنجاز" in treasure_msg:
             summary_parts.append(treasure_msg)
 
@@ -588,11 +951,16 @@ class AllianceTask(BaseTask):
                     "honor_earned": total_honor_earned,
                     "sci_points": total_scipoints,
                     "sciid": target_sciid,
+                    "prosperity_donated": prosperity_res["donated"],
+                    "prosperity_honor": prosperity_res["honor"],
+                    "prosperity_popularity": prosperity_res["popularity"],
+                    "prosperity_rewards_claimed": prosperity_res["rewards_claimed"],
                     "treasure_msg": treasure_msg,
                 }
             )
 
+        donate_skip_text = prosperity_res["skip_reason"] or science_skip_reason or "رصيد الانتظار ممتلئ"
         return TaskResult.skip(
-            f"مساعدة التحالف: {help_msg} | التبرع: {science_skip_reason or 'رصيد الانتظار ممتلئ'} | الكنز: {treasure_msg}"
+            f"مساعدة التحالف: {help_msg} | التبرع: {donate_skip_text} | الكنز: {treasure_msg}"
         )
         

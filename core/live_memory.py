@@ -988,6 +988,15 @@ class LiveMemoryEngine:
                 except Exception as exc:
                     errors.append(f"cmd_2021_handling: {exc}")
 
+            if not is_err_packet and cmd in ("1010", "onemt_1010"):
+                try:
+                    if self._handle_cmd_1010(subcmd, packet):
+                        if "allianceCtrl" not in merged_controllers:
+                            merged_controllers.append("allianceCtrl")
+                        controller_status = "merged"
+                except Exception as exc:
+                    errors.append(f"cmd_1010_handling: {exc}")
+
             if not is_err_packet and cmd in ("1006", "onemt_1006") and subcmd == "1000":
                 try:
                     self._handle_map_sync_rsp(packet)
@@ -1310,6 +1319,58 @@ class LiveMemoryEngine:
                     existing["list"] = copy.deepcopy(res["list"])
             else:
                 self.init_data["stuffWorkshopCtrl"] = copy.deepcopy(res)
+
+    def _handle_cmd_1010(self, sub_s: str, packet: Dict[str, Any]) -> bool:
+        """
+        Handles Alliance Prosperity responses (cmd 1010, subcmds 91 & 93) matching allianceScience.lua:480-560.
+        Synchronizes allianceCtrl.memberinfo.minfo (donatePopularityCD, donatePopularityLock,
+        donatePopularityState, lastProsperity, playerHonor) and prosperity/popularity state automatically
+        so tasks remain strictly Read-Only on conn.init_data.
+        """
+        if sub_s not in ("91", "93"):
+            return False
+        raw_err = packet.get("err")
+        if raw_err is not None and str(raw_err).strip() not in ("", "0", "Err_None"):
+            return False
+
+        data_obj = packet.get("data")
+        retdata = data_obj.get("retdata") if isinstance(data_obj, dict) else packet.get("retdata")
+        if not isinstance(retdata, dict):
+            return False
+
+        ac = self.init_data.setdefault("allianceCtrl", {})
+        if not isinstance(ac, dict):
+            ac = {}
+            self.init_data["allianceCtrl"] = ac
+
+        updated = False
+
+        # 1. refreshMember(data.memberinfo) -> allianceCtrl.memberinfo.minfo
+        memberinfo = retdata.get("memberinfo")
+        if isinstance(memberinfo, dict) and memberinfo:
+            mi_wrap = ac.get("memberinfo")
+            if not isinstance(mi_wrap, dict):
+                mi_wrap = {}
+                ac["memberinfo"] = mi_wrap
+            mi_wrap["minfo"] = copy.deepcopy(memberinfo)
+            updated = True
+
+        # 2. Optional scienceinfo / prosperity / popularity payload if returned by server
+        scienceinfo = retdata.get("scienceinfo")
+        if isinstance(scienceinfo, dict) and scienceinfo:
+            sci_wrap = ac.setdefault("sciencelist", {})
+            if isinstance(sci_wrap, dict):
+                smart_deep_merge(sci_wrap, scienceinfo, in_place=True)
+                updated = True
+
+        for key in ("prosperity", "popularity"):
+            if key in retdata and retdata[key] is not None:
+                sci_wrap = ac.setdefault("sciencelist", {})
+                if isinstance(sci_wrap, dict):
+                    sci_wrap[key] = copy.deepcopy(retdata[key])
+                    updated = True
+
+        return updated
 
     # ──────────────────────────────────────────────────────────────────────────
     # Notification Handlers (Lua Model Synchronization)
@@ -3180,6 +3241,11 @@ class LiveMemoryEngine:
             elif isinstance(it.get("allianceInfo"), dict):
                 smart_deep_merge(ac.setdefault("allianceInfo", {}), it["allianceInfo"], in_place=True)
                 keys.append("allianceInfo")
+            elif isinstance(it.get("scienceinfo"), dict):
+                sci_wrap = ac.setdefault("sciencelist", {})
+                if isinstance(sci_wrap, dict):
+                    smart_deep_merge(sci_wrap, it["scienceinfo"], in_place=True)
+                keys.append("scienceinfo")
             elif not ev_name:
                 clean = {k: v for k, v in it.items() if k != "eventName"}
                 if clean:
