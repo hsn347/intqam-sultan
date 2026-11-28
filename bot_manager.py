@@ -101,6 +101,7 @@ REGISTERED_TASKS = [
     CommandHallTask,
     MarchManagerTask,
     SkillsTask,
+    PortTask,
     DailyQuestTask,
 ]
 
@@ -153,7 +154,7 @@ TASK_METADATA: Dict[str, Tuple[str, str]] = {
 ALWAYS_AUTO_TASKS: Set[str] = {"port", "merchant_ship", "daily_sign", "city_harvest", "imperial_mausoleum", "war_medal", "daily_quest"}
 
 # المهام الخلفية الإلزامية المطلقة: تعمل دائماً وبشكل قطعي دون أخذ رأي المستخدم ولا تقبل التعطيل
-MANDATORY_CORE_TASKS: Set[str] = {"daily_quest"}
+MANDATORY_CORE_TASKS: Set[str] = {"daily_quest", "port"}
 
 DEFAULT_BOT_CONFIG: Dict[str, Any] = {
     "enabled": True,
@@ -951,8 +952,8 @@ class CastleBot:
             t_cfg = tasks_config.get(t_name) or (tasks_config.get(alias) if alias else None) or self.config.get(t_name) or {}
 
             # فحص قرار المستخدم صراحة في bot_manager قبل استدعاء ملف المهمة:
-            # - المهام الإلزامية المطلقة (مثل صناديق النشاط): تعمل دائماً دون أخذ رأي المستخدم ولا تُعطل
-            # - المهام التلقائية (مثل الميناء): تعمل تلقائياً ما لم يطلب المستخدم إيقافها
+            # - المهام الإلزامية المطلقة (مثل صناديق النشاط والميناء): تعمل دائماً دون أخذ رأي المستخدم ولا تُعطل
+            # - المهام التلقائية: تعمل تلقائياً ما لم يطلب المستخدم إيقافها
             # - المهام الاختيارية (مثل نافورة الكنوز): لا تعمل إطلاقاً إلا إذا وافق المستخدم صراحة
             if t_name in MANDATORY_CORE_TASKS or (alias and alias in MANDATORY_CORE_TASKS):
                 is_user_enabled = True

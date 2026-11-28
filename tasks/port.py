@@ -17,10 +17,12 @@ class PortTask(BaseTask):
     name = "port"
 
     async def can_run(self) -> Tuple[bool, str]:
-        # الفحص العام
-        ok, reason = await super().can_run()
-        if not ok:
-            return False, reason
+        # مهمة الميناء خلفية إلزامية مطلقة (لا تفحص config['enabled'] وتُنفّذ دائماً طالما الاتصال والذاكرة جاهزان)
+        if not self.conn or not getattr(self.conn, "is_connected", False):
+            return False, "قاطع الاتصال: لا يوجد اتصال نشط بالبوابة"
+
+        if not self.init_data:
+            return False, "بيانات الذاكرة الحية غير متوفرة"
 
         # 1. فحص توفر ميزة الميناء في الذاكرة الحية (0 طلب شبكي)
         time_reward = self.get_ctrl("timeRewardCtrl")
